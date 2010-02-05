@@ -1,0 +1,8 @@
+package ifneeded @PACKAGE_NAME@::tcl 1.0 [list source [file join $dir cookvfs.tcl]]
+package ifneeded @PACKAGE_NAME@::tcl::memchan 1.0 [list source [file join $dir memchan.tcl]]
+package ifneeded @PACKAGE_NAME@::tcl::readerchannel 1.0 [list source [file join $dir readerchannel.tcl]]
+package ifneeded @PACKAGE_NAME@::tcl::vfs 1.0 [list source [file join $dir vfs.tcl]]
+package ifneeded @PACKAGE_NAME@::tcl::writer 1.0 [list source [file join $dir writer.tcl]]
+
+package ifneeded @PACKAGE_NAME@ @PACKAGE_VERSION@ \
+    [list load [file join $dir @PKG_LIB_FILE@] @PACKAGE_NAME@]
