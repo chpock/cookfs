@@ -114,11 +114,13 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
             Tcl_Seek(p->fileChannel, offset, SEEK_SET);
 
             if (p->dataNumPages > 0) {
+                /* add MD5 information */
                 obj = Tcl_NewByteArrayObj(p->dataPagesMD5, p->dataNumPages * 16);
                 Tcl_IncrRefCount(obj);
                 Tcl_WriteObj(p->fileChannel, obj);
                 Tcl_DecrRefCount(obj);
 
+                /* add page size information */
                 bufSizes = (unsigned char *) Tcl_Alloc(p->dataNumPages * 4);
                 Cookfs_Int2Binary(p->dataPagesSize, bufSizes, p->dataNumPages);
                 obj = Tcl_NewByteArrayObj(bufSizes, p->dataNumPages * 4);
@@ -127,13 +129,18 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
                 Tcl_DecrRefCount(obj);
                 Tcl_Free((void *) bufSizes);
             }
+
+            /* write index */
             indexSize = CookfsCompressPage(p, p->dataIndex);
             if (indexSize < 0) {
                 Tcl_Panic("Unable to compress index");
             }
 
+            /* provide index size and number of pages */
             Cookfs_Int2Binary(&indexSize, buf, 1);
             Cookfs_Int2Binary(&(p->dataNumPages), buf + 4, 1);
+            
+            /* provide compression type and file signature */
             buf[8] = p->fileCompression;
             memcpy(buf + 9, p->fileSignature, 7);
 

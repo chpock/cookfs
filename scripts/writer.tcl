@@ -109,12 +109,14 @@ proc cookfs::writeFiles {fsid args} {
             file {
                 set clk [file mtime $data]
                 set chan [open $data r]
+                fconfigure $chan -translation binary
                 set doclose 1
                 set rawdata 0
             }
             channel {
                 set clk [clock seconds]
                 set chan $data
+                fconfigure $chan -translation binary
                 set doclose 0
                 set rawdata 0
             }
