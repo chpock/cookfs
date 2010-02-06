@@ -38,7 +38,7 @@ proc cookfs::createArchiveAddFilePath {var pathlist name clk v1 v2} {
         lappend newidx $name $clk $v1 $v2
         set idx $newidx
     }  else  {
-        set done false
+        set done 0
         set newidx [list]
         set pathrest [lrange $pathlist 1 end]
         set pathhead [lindex $pathlist 0]
@@ -47,7 +47,7 @@ proc cookfs::createArchiveAddFilePath {var pathlist name clk v1 v2} {
             if {$iname == $pathhead} {
                 if {$iv1 < 0} {
                     createArchiveAddFilePath iv2 $pathrest $name $clk $v1 $v2
-                    set done true
+                    set done 1
                 }  else  {
                     error "$iname is not a directory"
                 }
