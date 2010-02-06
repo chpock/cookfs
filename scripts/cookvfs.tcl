@@ -31,6 +31,7 @@ proc cookfs::Mount {args} {
         {noregister                                     {Do not register this filesystem (for temporary writes)}}
         {bootstrap.arg                  ""              {Bootstrap code to add in the beginning}}
         {compression.arg                "none"          {Compression type to use}}
+        {pagesobject.arg                ""              {Reuse existing pages object}}
         {readonly                                       {Open as read only}}
         {pagesize.arg                   262144          {Maximum page size}}
         {pagecachesize.arg              8               {Number of pages to cache}}
@@ -91,13 +92,17 @@ proc cookfs::Mount {args} {
     set fs(changeCount) 0
 
     # initialize pages
-    set pagesoptions [list -compression $opt(compression) -cachesize $opt(pagecachesize)]
-    if {$opt(readonly)} {
-        lappend pagesoptions -readonly
+    if {$opt(pagesobject) == ""} {
+        set pagesoptions [list -compression $opt(compression) -cachesize $opt(pagecachesize)]
+        if {$opt(readonly)} {
+            lappend pagesoptions -readonly
+        }
+        set pagescmd [concat [list ::cookfs::pages] $pagesoptions [list $archive]]
+        
+        set fs(pages) [eval $pagescmd]
+    }  else  {
+        set fs(pages) $opt(pagesobject)
     }
-    set pagescmd [concat [list ::cookfs::pages] $pagesoptions [list $archive]]
-    
-    set fs(pages) [eval $pagescmd]
     
     if {([$fs(pages) length] == 0) && ([string length $opt(bootstrap)] > 0)} {
         $ps(pages) add $opt(bootstrap)
