@@ -105,7 +105,7 @@ proc cookfs::Mount {args} {
     }
     
     if {([$fs(pages) length] == 0) && ([string length $opt(bootstrap)] > 0)} {
-        $ps(pages) add $opt(bootstrap)
+        $fs(pages) add $opt(bootstrap)
     }
 
     # initialize directory listing
