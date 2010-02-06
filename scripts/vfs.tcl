@@ -166,7 +166,7 @@ proc cookfs::vfshandleMatchindirectory {fsid relative actualpath pattern types} 
         set result [list]
         if {![catch {$fs(index) get $relative} fileinfo]} {
             if {[lsearch -exact $lengthlist [llength $fileinfo]] >= 0} {
-                set result [list [file join $actualpath $relative]]
+                set result [list $actualpath]
             }
         }
     }  else  {
