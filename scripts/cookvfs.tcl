@@ -150,4 +150,4 @@ proc cookfs::Unmount {fsid args} {
     unset $fsid
 }
 
-package provide cookfs::tcl 1.0
+package provide cookfs 1.0

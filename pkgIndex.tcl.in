@@ -1,3 +1,3 @@
-package ifneeded @PACKAGE_NAME@::tcl @PACKAGE_VERSION@ [list source [file join $dir memchan.tcl]]\n[list source [file join $dir cookvfs.tcl]]\n[list source [file join $dir vfs.tcl]]\n[list source [file join $dir readerchannel.tcl]]\n[list source [file join $dir writer.tcl]]
+package ifneeded @PACKAGE_NAME@ @PACKAGE_VERSION@ [list source [file join $dir memchan.tcl]]\n[list source [file join $dir cookvfs.tcl]]\n[list source [file join $dir vfs.tcl]]\n[list source [file join $dir readerchannel.tcl]]\n[list source [file join $dir writer.tcl]]\n[list package require -exact @PACKAGE_NAME@::c @PACKAGE_VERSION@]
 
-package ifneeded @PACKAGE_NAME@ @PACKAGE_VERSION@ [list load [file join $dir @PKG_LIB_FILE@] @PACKAGE_NAME@]
+package ifneeded @PACKAGE_NAME@::c @PACKAGE_VERSION@ [list load [file join $dir @PKG_LIB_FILE@] @PACKAGE_NAME@]
