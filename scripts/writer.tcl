@@ -1,5 +1,3 @@
-# cookfs::writer --
-#
 # Handling of writing files to archive.
 # Mainly used by close event handler of memchan, but can also be
 # invoked separately to add files without writing them to channel first
@@ -193,4 +191,4 @@ proc cookfs::writeFiles {fsid args} {
     }
 }
 
-package provide cookfs::tcl::writer 1.0
+package provide cookfs::tcl 1.0

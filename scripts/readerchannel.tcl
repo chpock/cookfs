@@ -1,5 +1,3 @@
-# cookfs::tcl::readerchannel --
-#
 # Handling of read-only channels.
 #
 # (c) 2010 Pawel Salawa
@@ -131,4 +129,4 @@ proc cookfs::readableChannelHandler {fsid chid command args} {
     }
 }
 
-package provide cookfs::tcl::readerchannel 1.0
+package provide cookfs::tcl 1.0

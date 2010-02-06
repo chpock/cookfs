@@ -9,12 +9,6 @@ namespace eval vfs::cookfs {}
 package require cmdline
 package require vfs
 
-# load related CookFS Tcl packages
-package require cookfs::tcl::memchan
-package require cookfs::tcl::readerchannel
-package require cookfs::tcl::vfs
-package require cookfs::tcl::writer
-
 if {![info exists cookfs::mountId]} {
     set cookfs::mountId 0
 }
@@ -104,6 +98,10 @@ proc cookfs::Mount {args} {
     set pagescmd [concat [list ::cookfs::pages] $pagesoptions [list $archive]]
     
     set fs(pages) [eval $pagescmd]
+    
+    if {([$fs(pages) length] == 0) && ([string length $opt(bootstrap)] > 0)} {
+        $ps(pages) add $opt(bootstrap)
+    }
 
     # initialize directory listing
     set idx [$fs(pages) index]

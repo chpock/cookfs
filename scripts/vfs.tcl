@@ -1,5 +1,3 @@
-# cookfs::tcl::vfs --
-#
 # Handling for Tcl VFS functionality.
 #
 # (c) 2010 Pawel Salawa
@@ -264,4 +262,4 @@ proc cookfs::vfshandleOpen {fsid relative mode} {
     }
 }
 
-package provide cookfs::tcl::vfs 1.0
+package provide cookfs::tcl 1.0

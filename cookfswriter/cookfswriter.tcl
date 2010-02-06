@@ -1,3 +1,9 @@
+# Allows creation of uncompressed cookfs archive
+# from any Tcl version starting with 8.3
+#
+# Mainly used for creating a temporary CooKit binary
+# that will use full cookfs to rewrite archive
+
 namespace eval cookfs {}
 
 proc cookfs::createArchiveFileIndex {filelist} {
@@ -66,11 +72,16 @@ proc cookfs::createArchiveAddFile {path clk v1 v2} {
     createArchiveAddFilePath fileindex [lrange $pl 0 end-1] $name $clk $v1 $v2
 }
 
-proc cookfs::createArchive {archivefile filelist} {
+proc cookfs::createArchive {archivefile filelist {bootstrap ""}} {
     set index [list]
 
     set pagelist [list]
     set pageidx 0
+
+    if {[string length $bootstrap] > 0} {
+        lappend pagelist $bootstrap
+        incr pageidx
+    }
 
     set fileindex [list]
 
