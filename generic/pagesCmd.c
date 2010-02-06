@@ -108,8 +108,8 @@ ERROR:
 }
 
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    char *commands[] = { "add", "get", "index", "length", "delete", NULL };
-    enum { cmdAdd = 0, cmdGet, cmdIndex, cmdLength, cmdDelete };
+    char *commands[] = { "add", "get", "index", "length", "dataoffset", "delete", NULL };
+    enum { cmdAdd = 0, cmdGet, cmdIndex, cmdLength, cmdDataoffset, cmdDelete };
     int idx;
     Cookfs_Pages *p = (Cookfs_Pages *) clientData;
     
@@ -179,6 +179,15 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             }
             Tcl_DeleteCommand(interp, Tcl_GetStringFromObj(objv[0], NULL));
+            break;
+        }
+        case cmdDataoffset:
+        {
+            if (objc != 2) {
+                Tcl_WrongNumArgs(interp, 2, objv, "");
+                return TCL_ERROR;
+            }
+            Tcl_SetObjResult(interp, Tcl_NewWideIntObj(p->dataInitialOffset));
             break;
         }
     }

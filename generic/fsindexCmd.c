@@ -107,7 +107,7 @@ static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc,
                 return TCL_ERROR;
             }
 
-            Tcl_SetObjResult(interp, resultObjects[0] = Tcl_NewWideIntObj(entry->fileTime));
+            Tcl_SetObjResult(interp, Tcl_NewWideIntObj(entry->fileTime));
             return TCL_OK;
         }
         case cmdSetmtime: {
