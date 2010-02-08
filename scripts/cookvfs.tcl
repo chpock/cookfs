@@ -37,7 +37,7 @@ proc cookfs::Mount {args} {
         {pagecachesize.arg              8               {Number of pages to cache}}
         {volume                                         {Mount as volume}}
         {smallfilesize.arg              32768           {Maximum size of small files}}
-        {smallfilebuffer.arg            16777216        {Maximum buffer for optimizing small files}}
+        {smallfilebuffer.arg            4194304         {Maximum buffer for optimizing small files}}
     }
     lappend options [list tempfilename.arg "" {Temporary file name to keep index in}]
 
