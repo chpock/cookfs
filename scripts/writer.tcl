@@ -146,12 +146,12 @@ proc cookfs::writeFiles {fsid args} {
             lappend fs(smallfilepaths) $path $size $clk
             incr fs(smallfilebufsize) [string length $fc]
 
+            $fs(index) set $path $clk [list [expr {-$sfidx - 1}] 0 $size]
+
             # if current buffer exceeds maximum, write small files to clean it
             if {$fs(smallfilebufsize) >= $fs(smallfilebuffersize)} {
                 purgeSmallfiles $fsid
             }
-
-            $fs(index) set $path $clk [list [expr {-$sfidx - 1}] 0 $size]
         }  else  {
             # large file - written as chunks
             set left $size

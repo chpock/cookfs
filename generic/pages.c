@@ -11,22 +11,12 @@ const char *cookfsCompressionOptions[] = {
     NULL
 };
 
-static Tcl_Interp *GetThreadInterp(void);
 static Tcl_Obj *PageGetInt(Cookfs_Pages *p, int index);
 static void PageCacheMoveToTop(Cookfs_Pages *p, int index);
 static void CookfsPageExtendIfNeeded(Cookfs_Pages *p, int count);
 static Tcl_WideInt CookfsGetOffset(Cookfs_Pages *p, int idx);
-static int CookfsCompressPage(Cookfs_Pages *p, Tcl_Obj *data);
-static Tcl_Obj *CookfsDecompressPage(Cookfs_Pages *p, int size);
-
-static Tcl_Interp *GetThreadInterp(void) {
-    /* TODO: make it thread safe */
-    static Tcl_Interp *interp = NULL;
-    if (interp == NULL) {
-        interp = Tcl_CreateInterp();
-    }
-    return interp;
-}
+static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data);
+static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size);
 
 Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature) {
     Cookfs_Pages *rc = (Cookfs_Pages *) Tcl_Alloc(sizeof(Cookfs_Pages));
@@ -131,8 +121,9 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
             }
 
             /* write index */
-            indexSize = CookfsCompressPage(p, p->dataIndex);
+            indexSize = CookfsWritePage(p, p->dataIndex);
             if (indexSize < 0) {
+                /* TODO: handle index writing issues better */
                 Tcl_Panic("Unable to compress index");
             }
 
@@ -210,9 +201,10 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
 
     CookfsLog(printf("MD5sum is %08x%08x%08x%08x\n", ((int *) md5sum)[0], ((int *) md5sum)[1], ((int *) md5sum)[2], ((int *) md5sum)[3]))
 
-    dataSize = CookfsCompressPage(p, dataObj);
+    dataSize = CookfsWritePage(p, dataObj);
     if (dataSize < 0) {
-        Tcl_Panic("Unable to compress page");
+        CookfsLog(printf("Unable to compress page"))
+        return -1;
     }
     p->fileLastOp = COOKFS_LASTOP_WRITE;
     
@@ -247,7 +239,7 @@ static Tcl_Obj *PageGetInt(Cookfs_Pages *p, int index) {
     /* TODO: optimize by checking if last operation was a read of previous block */
     Tcl_Seek(p->fileChannel, offset, SEEK_SET);
 
-    buffer = CookfsDecompressPage(p, size);
+    buffer = CookfsReadPage(p, size);
     if (buffer == NULL) {
         return NULL;
     }
@@ -292,6 +284,10 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
     }
 
     rc = PageGetInt(p, index);
+    if (rc == NULL) {
+        return NULL;
+    }
+
     Tcl_IncrRefCount(rc);
 
     newIdx = p->cacheSize - 1;
@@ -363,7 +359,7 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     /* read files index */
     seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - indexLength, SEEK_END);
     
-    buffer = CookfsDecompressPage(p, indexLength);
+    buffer = CookfsReadPage(p, indexLength);
     
     if (buffer == NULL) {
         CookfsLog(printf("Unable to read index"))
@@ -445,7 +441,7 @@ static Tcl_WideInt CookfsGetOffset(Cookfs_Pages *p, int idx) {
     return rc;
 }
 
-static int CookfsCompressPage(Cookfs_Pages *p, Tcl_Obj *data) {
+static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data) {
     unsigned char *bytes;
     int size;
     Tcl_IncrRefCount(data);
@@ -453,28 +449,35 @@ static int CookfsCompressPage(Cookfs_Pages *p, Tcl_Obj *data) {
     if (size > 0) {
         switch (p->fileCompression) {
             case cookfsCompressionNone: {
-                CookfsLog(printf("CookfsCompressPage writing %d byte(s) as raw data", size))
+                CookfsLog(printf("CookfsWritePage writing %d byte(s) as raw data", size))
                 Tcl_WriteObj(p->fileChannel, data);
                 break;
             }
             case cookfsCompressionZip: {
-                Tcl_Interp *tinterp = GetThreadInterp();
                 Tcl_Obj *cobj;
+                Tcl_ZlibStream zshandle;
 
-                Tcl_SetObjResult(tinterp, Tcl_NewObj());
-                CookfsLog(printf("CookfsCompressPage before deflate"))
-                if (Tcl_ZlibDeflate(tinterp, TCL_ZLIB_FORMAT_RAW, data, p->fileCompressionLevel, NULL) == TCL_ERROR) {
-                    CookfsLog(printf("CookfsCompressPage deflate fail"))
-                    return -1;
-                }
-                CookfsLog(printf("CookfsCompressPage after deflate"))
-
-                cobj = Tcl_GetObjResult(tinterp);
-
-                if (cobj == NULL) {
+                if (Tcl_ZlibStreamInit(NULL, TCL_ZLIB_STREAM_DEFLATE, TCL_ZLIB_FORMAT_RAW, 9, NULL, &zshandle) != TCL_OK) {
+                    CookfsLog(printf("CookfsWritePage: Tcl_ZlibStreamInit failed!"))
                     return -1;
                 }
 
+                Tcl_IncrRefCount(data);
+                if (Tcl_ZlibStreamPut(zshandle, data, TCL_ZLIB_FINALIZE) != TCL_OK) {
+                    Tcl_DecrRefCount(data);
+                    Tcl_ZlibStreamClose(zshandle);
+                    CookfsLog(printf("CookfsWritePage: Tcl_ZlibStreamPut failed"))
+                    return -1;
+                }
+                Tcl_DecrRefCount(data);
+
+                cobj = Tcl_NewObj();
+                if (Tcl_ZlibStreamGet(zshandle, cobj, -1) != TCL_OK) {
+                    Tcl_ZlibStreamClose(zshandle);
+                    CookfsLog(printf("CookfsWritePage: Tcl_ZlibStreamGet failed"))
+                    return -1;
+                }
+                Tcl_ZlibStreamClose(zshandle);
                 Tcl_IncrRefCount(cobj);
                 Tcl_GetByteArrayFromObj(cobj, &size);
 
@@ -489,10 +492,9 @@ static int CookfsCompressPage(Cookfs_Pages *p, Tcl_Obj *data) {
     return size;
 }
 
-// static int CookfsDecompressPage(Cookfs_Pages *p, Tcl_Obj *data, int size) {
-static Tcl_Obj *CookfsDecompressPage(Cookfs_Pages *p, int size) {
+static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
     int count;
-    CookfsLog(printf("CookfsDecompressPage S=%d C=%d", size, p->fileCompression))
+    CookfsLog(printf("CookfsReadPage S=%d C=%d", size, p->fileCompression))
     if (size == 0) {
         return Tcl_NewByteArrayObj((unsigned char *) "", 0);
     }  else  {
@@ -513,8 +515,11 @@ static Tcl_Obj *CookfsDecompressPage(Cookfs_Pages *p, int size) {
             case cookfsCompressionZip: {
                 Tcl_Obj *data;
                 Tcl_Obj *cobj;
-                Tcl_Interp *tinterp = GetThreadInterp();
+                Tcl_ZlibStream zshandle;
 
+                if (Tcl_ZlibStreamInit(NULL, TCL_ZLIB_STREAM_INFLATE, TCL_ZLIB_FORMAT_RAW, 9, NULL, &zshandle) != TCL_OK) {
+                    return NULL;
+                }
                 data = Tcl_NewObj();
                 Tcl_IncrRefCount(data);
                 count = Tcl_ReadChars(p->fileChannel, data, size, 0);
@@ -524,17 +529,23 @@ static Tcl_Obj *CookfsDecompressPage(Cookfs_Pages *p, int size) {
                     return NULL;
                 }
 
-                Tcl_SetObjResult(tinterp, Tcl_NewObj());
-                CookfsLog(printf("CookfsDecompressPage before inflate"))
-                if (Tcl_ZlibInflate(tinterp, TCL_ZLIB_FORMAT_RAW, data, 0, NULL) == TCL_ERROR) {
-                    CookfsLog(printf("CookfsDecompressPage inflate FAILED"))
+                /* write compressed information */
+                if (Tcl_ZlibStreamPut(zshandle, data, TCL_ZLIB_FINALIZE) != TCL_OK) {
+                    Tcl_ZlibStreamClose(zshandle);
+                    Tcl_DecrRefCount(data);
                     return NULL;
                 }
-                CookfsLog(printf("CookfsDecompressPage after inflate"))
-
                 Tcl_DecrRefCount(data);
-                cobj = Tcl_GetObjResult(tinterp);
-
+                
+                /* read resulting object */
+                cobj = Tcl_NewObj();
+                if (Tcl_ZlibStreamGet(zshandle, cobj, -1) != TCL_OK) {
+                    Tcl_IncrRefCount(cobj);
+                    Tcl_DecrRefCount(cobj);
+                    Tcl_ZlibStreamClose(zshandle);
+                    return NULL;
+                }
+                Tcl_ZlibStreamClose(zshandle);
                 return cobj;
                 break;
             }
