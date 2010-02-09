@@ -539,11 +539,14 @@ static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
                 
                 /* read resulting object */
                 cobj = Tcl_NewObj();
-                if (Tcl_ZlibStreamGet(zshandle, cobj, -1) != TCL_OK) {
-                    Tcl_IncrRefCount(cobj);
-                    Tcl_DecrRefCount(cobj);
-                    Tcl_ZlibStreamClose(zshandle);
-                    return NULL;
+                while (!Tcl_ZlibStreamEof(zshandle)) {
+                    printf("READ\n");
+                    if (Tcl_ZlibStreamGet(zshandle, cobj, -1) != TCL_OK) {
+                        Tcl_IncrRefCount(cobj);
+                        Tcl_DecrRefCount(cobj);
+                        Tcl_ZlibStreamClose(zshandle);
+                        return NULL;
+                    }
                 }
                 Tcl_ZlibStreamClose(zshandle);
                 return cobj;
