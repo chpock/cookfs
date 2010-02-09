@@ -473,6 +473,8 @@ static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data) {
 
                 cobj = Tcl_NewObj();
                 if (Tcl_ZlibStreamGet(zshandle, cobj, -1) != TCL_OK) {
+                    Tcl_IncrRefCount(cobj);
+                    Tcl_DecrRefCount(cobj);
                     Tcl_ZlibStreamClose(zshandle);
                     CookfsLog(printf("CookfsWritePage: Tcl_ZlibStreamGet failed"))
                     return -1;
@@ -540,7 +542,6 @@ static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
                 /* read resulting object */
                 cobj = Tcl_NewObj();
                 while (!Tcl_ZlibStreamEof(zshandle)) {
-                    printf("READ\n");
                     if (Tcl_ZlibStreamGet(zshandle, cobj, -1) != TCL_OK) {
                         Tcl_IncrRefCount(cobj);
                         Tcl_DecrRefCount(cobj);
