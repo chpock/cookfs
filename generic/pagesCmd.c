@@ -21,7 +21,8 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     enum { optReadonly = 0, optReadwrite, optCompression, optCachesize };
     char buf[128];
     Cookfs_Pages *pages;
-    int idx = ++deprecatedCounter;
+    int cmdidx = ++deprecatedCounter;
+    int idx;
     int oReadOnly = 0;
     int oCompression = 0;
     int tobjc = objc;
@@ -95,7 +96,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create Cookfs object", -1));
         return TCL_ERROR;
     }
-    sprintf(buf, "::cookfs::pageshandle%d", idx);
+    sprintf(buf, "::cookfs::pageshandle%d", cmdidx);
 
     Tcl_CreateObjCommand(interp, buf, CookfsPagesCmd, (ClientData) pages, CookfsPagesDeleteProc);
 
