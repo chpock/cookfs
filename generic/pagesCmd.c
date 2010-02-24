@@ -108,8 +108,8 @@ ERROR:
 }
 
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    char *commands[] = { "add", "get", "index", "length", "dataoffset", "delete", NULL };
-    enum { cmdAdd = 0, cmdGet, cmdIndex, cmdLength, cmdDataoffset, cmdDelete };
+    char *commands[] = { "add", "get", "getprefix", "index", "length", "dataoffset", "delete", NULL };
+    enum { cmdAdd = 0, cmdGet, cmdGetPrefix, cmdIndex, cmdLength, cmdDataoffset, cmdDelete };
     int idx;
     Cookfs_Pages *p = (Cookfs_Pages *) clientData;
     
@@ -146,7 +146,24 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             }
             rc = Cookfs_PageGet(p, idx);
             if (rc == NULL) {
-                Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve part", -1));
+                Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve chunk", -1));
+                return TCL_ERROR;
+            }  else  {
+                Tcl_SetObjResult(interp, rc);
+            }
+            break;
+        }
+        case cmdGetPrefix:
+        {
+            Tcl_Obj *rc;
+            if (objc != 2) {
+                Tcl_WrongNumArgs(interp, 2, objv, "");
+                return TCL_ERROR;
+            }
+
+            rc = Cookfs_PageGetPrefix(p);
+            if (rc == NULL) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve prefix data", -1));
                 return TCL_ERROR;
             }  else  {
                 Tcl_SetObjResult(interp, rc);
