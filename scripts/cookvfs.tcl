@@ -30,7 +30,7 @@ proc cookfs::Mount {args} {
     set options {
         {noregister                                     {Do not register this filesystem (for temporary writes)}}
         {bootstrap.arg                  ""              {Bootstrap code to add in the beginning}}
-        {compression.arg                "none"          {Compression type to use}}
+        {compression.arg                "zlib"          {Compression type to use}}
         {pagesobject.arg                ""              {Reuse existing pages object}}
         {readonly                                       {Open as read only}}
         {pagesize.arg                   262144          {Maximum page size}}
@@ -155,4 +155,4 @@ proc cookfs::Unmount {fsid args} {
     unset $fsid
 }
 
-package provide cookfs 1.0
+package provide vfs::cookfs 1.0

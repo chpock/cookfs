@@ -9,12 +9,7 @@ Cookfs_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-/*
-    if (Tcl_PkgRequire(interp, PACKAGE_NAME "::tcl", "1.0", 0) == NULL) {
-        return TCL_ERROR;
-    }
-*/
-    if (Tcl_PkgProvide(interp, PACKAGE_NAME "::c", PACKAGE_VERSION) != TCL_OK) {
+    if (Tcl_PkgProvide(interp, "vfs::" PACKAGE_NAME "::c", PACKAGE_VERSION) != TCL_OK) {
         return TCL_ERROR;
     }
     

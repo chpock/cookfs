@@ -191,4 +191,4 @@ proc cookfs::writeFiles {fsid args} {
     }
 }
 
-package provide cookfs 1.0
+package provide vfs::cookfs 1.0
