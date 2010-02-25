@@ -52,7 +52,7 @@ TEA_PREFIX
 
 TEA_SETUP_COMPILER
 
-TEA_ADD_SOURCES([cookfs.c common.c pages.c pagesCmd.c fsindex.c fsindexIO.c fsindexCmd.c md5.h bzip2/blocksort.c bzip2/huffman.c bzip2/crctable.c bzip2/randtable.c bzip2/compress.c bzip2/decompress.c bzip2/bzlib.c])
+TEA_ADD_SOURCES([cookfs.c common.c pages.c pagesCmd.c fsindex.c fsindexIO.c fsindexCmd.c md5.h])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([])
 TEA_ADD_LIBS([])
@@ -105,7 +105,12 @@ if test "${SHARED_BUILD}" = "1"; then
 AC_DEFINE(USE_TCL_STUBS, 1, [Use Tcl stubs])
 fi
 
-#AC_DEFINE(USE_TK_STUBS, 1, [Use Tk stubs])
+AC_ARG_ENABLE(bz2, [  --enable-bz2        Use bz2 compression. Defaults to false.], USEBZ2=${enableval}, USEBZ2=no)
+
+if test ${USEBZ2} = yes; then
+    TEA_ADD_SOURCES([bzip2/blocksort.c bzip2/huffman.c bzip2/crctable.c bzip2/randtable.c bzip2/compress.c bzip2/decompress.c bzip2/bzlib.c])
+    AC_DEFINE([COOKFS_USEBZ2])
+fi
 
 #--------------------------------------------------------------------
 # This macro generates a line to use when building a library.  It

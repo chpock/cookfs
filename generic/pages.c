@@ -1,7 +1,7 @@
 /* (c) 2010 Pawel Salawa */
 
 #include "cookfs.h"
-#ifdef INCLUDE_BZ2
+#ifdef COOKFS_USEBZ2
 #include "../bzip2/bzlib.h"
 #endif
 
@@ -11,7 +11,7 @@
 const char *cookfsCompressionOptions[] = {
     "none",
     "zlib",
-#ifdef INCLUDE_BZ2
+#ifdef COOKFS_USEBZ2
     "bz2",
 #endif
     NULL
@@ -511,7 +511,7 @@ static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data) {
                 Tcl_DecrRefCount(cobj);
                 break;
             }
-#ifdef INCLUDE_BZ2
+#ifdef COOKFS_USEBZ2
             case cookfsCompressionBz2: {
                 int sourceSize;
                 int destSize;
@@ -531,7 +531,7 @@ static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data) {
                 dest = Tcl_GetByteArrayFromObj(destObj, NULL);
 
                 Cookfs_Int2Binary(&sourceSize, (unsigned char *) dest, 1);
-                if (BZ2_bzBuffToBuffCompress((char *) (dest + 4), (unsigned int *) &destSize, (char *) source, (unsigned int) sourceSize, 5, 0, 200) != BZ_OK) {
+                if (BZ2_bzBuffToBuffCompress((char *) (dest + 4), (unsigned int *) &destSize, (char *) source, (unsigned int) sourceSize, 5, 0, 0) != BZ_OK) {
                     CookfsLog(printf("CookfsWritePage: BZ2_bzBuffToBuffCompress failed"))
                     return -1;
                 }
@@ -613,7 +613,7 @@ static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
                 return cobj;
                 break;
             }
-#ifdef INCLUDE_BZ2
+#ifdef COOKFS_USEBZ2
             case cookfsCompressionBz2: {
                 int destSize;
                 unsigned char *source;

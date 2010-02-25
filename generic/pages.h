@@ -17,7 +17,9 @@ extern const char *cookfsCompressionOptions[];
 enum {
     cookfsCompressionNone = 0,
     cookfsCompressionZlib = 1,
+#ifdef COOKFS_USEBZ2
     cookfsCompressionBz2 = 2,
+#endif
     cookfsCompressionMax
 };
 

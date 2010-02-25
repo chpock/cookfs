@@ -753,6 +753,7 @@ enable_wince
 with_celib
 enable_load
 enable_symbols
+enable_bz2
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1393,6 +1394,7 @@ Optional Features:
   --enable-load           allow dynamic loading and "load" command (default:
                           on)
   --enable-symbols        build with debugging symbols (default: off)
+  --enable-bz2        Use bz2 compression. Defaults to false.
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -6908,7 +6910,7 @@ done
 
 
 
-    vars="cookfs.c common.c pages.c pagesCmd.c fsindex.c fsindexIO.c fsindexCmd.c md5.h bzip2/blocksort.c bzip2/huffman.c bzip2/crctable.c bzip2/randtable.c bzip2/compress.c bzip2/decompress.c bzip2/bzlib.c"
+    vars="cookfs.c common.c pages.c pagesCmd.c fsindex.c fsindexIO.c fsindexCmd.c md5.h"
     for i in $vars; do
 	case $i in
 	    \$*)
@@ -11025,7 +11027,56 @@ _ACEOF
 
 fi
 
-#AC_DEFINE(USE_TK_STUBS, 1, [Use Tk stubs])
+# Check whether --enable-bz2 was given.
+if test "${enable_bz2+set}" = set; then
+  enableval=$enable_bz2; USEBZ2=${enableval}
+else
+  USEBZ2=no
+fi
+
+
+if test ${USEBZ2} = yes; then
+
+    vars="bzip2/blocksort.c bzip2/huffman.c bzip2/crctable.c bzip2/randtable.c bzip2/compress.c bzip2/decompress.c bzip2/bzlib.c"
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    ; then
+		    { { $as_echo "$as_me:$LINENO: error: could not find source file '$i'" >&5
+$as_echo "$as_me: error: could not find source file '$i'" >&2;}
+   { (exit 1); exit 1; }; }
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+    cat >>confdefs.h <<\_ACEOF
+#define COOKFS_USEBZ2 1
+_ACEOF
+
+fi
 
 #--------------------------------------------------------------------
 # This macro generates a line to use when building a library.  It
