@@ -89,12 +89,12 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
 
     /* TODO: parse arguments etc */    
     pages = Cookfs_PagesInit(tobjv[1], oReadOnly, oCompression, NULL);
-    if (oCachesize >= 0) {
-        pages->cacheSize = oCachesize;
-    }
     if (pages == NULL) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create Cookfs object", -1));
         return TCL_ERROR;
+    }
+    if (oCachesize >= 0) {
+        pages->cacheSize = oCachesize;
     }
     sprintf(buf, "::cookfs::pageshandle%d", cmdidx);
 
