@@ -52,7 +52,7 @@ TEA_PREFIX
 
 TEA_SETUP_COMPILER
 
-TEA_ADD_SOURCES([cookfs.c common.c pages.c pagesCmd.c fsindex.c fsindexIO.c fsindexCmd.c md5.h])
+TEA_ADD_SOURCES([cookfs.c common.c pages.c pagesCmd.c fsindex.c fsindexIO.c fsindexCmd.c md5.h bzip2/blocksort.c bzip2/huffman.c bzip2/crctable.c bzip2/randtable.c bzip2/compress.c bzip2/decompress.c bzip2/bzlib.c])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([])
 TEA_ADD_LIBS([])

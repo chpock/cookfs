@@ -4,11 +4,6 @@
 #define PAGES_H 1
 
 enum {
-    COOKFS_COMPRESS_NONE = 0,
-    COOKFS_COMPRESS_ZIP = 1
-};
-
-enum {
     COOKFS_LASTOP_UNKNOWN = 0,
     COOKFS_LASTOP_READ,
     COOKFS_LASTOP_WRITE
@@ -21,7 +16,8 @@ enum {
 extern const char *cookfsCompressionOptions[];
 enum {
     cookfsCompressionNone = 0,
-    cookfsCompressionZip = 1,
+    cookfsCompressionZlib = 1,
+    cookfsCompressionBz2 = 2,
     cookfsCompressionMax
 };
 

@@ -3,6 +3,8 @@
 #ifndef COOKFS_H
 #define COOKFS_H 1
 
+#define INCLUDE_BZ2 1
+
 #include <tcl.h>
 #include <stdio.h>
 #include <stdlib.h>

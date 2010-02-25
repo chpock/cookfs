@@ -85,7 +85,6 @@ static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc,
         }
         case cmdGetmtime: {
             Tcl_Obj *splitPath;
-            Tcl_Obj *resultObjects[3];
             Cookfs_FsindexEntry *entry;
             if (objc != 3) {
                 Tcl_WrongNumArgs(interp, 2, objv, "path");

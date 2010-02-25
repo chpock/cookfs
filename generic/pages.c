@@ -1,6 +1,9 @@
 /* (c) 2010 Pawel Salawa */
 
 #include "cookfs.h"
+#ifdef INCLUDE_BZ2
+#include "../bzip2/bzlib.h"
+#endif
 
 #define COOKFS_SUFFIX_BYTES 16
 
@@ -8,6 +11,9 @@
 const char *cookfsCompressionOptions[] = {
     "none",
     "zlib",
+#ifdef INCLUDE_BZ2
+    "bz2",
+#endif
     NULL
 };
 
@@ -471,7 +477,7 @@ static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data) {
                 Tcl_WriteObj(p->fileChannel, data);
                 break;
             }
-            case cookfsCompressionZip: {
+            case cookfsCompressionZlib: {
                 Tcl_Obj *cobj;
                 Tcl_ZlibStream zshandle;
 
@@ -505,6 +511,42 @@ static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data) {
                 Tcl_DecrRefCount(cobj);
                 break;
             }
+#ifdef INCLUDE_BZ2
+            case cookfsCompressionBz2: {
+                int sourceSize;
+                int destSize;
+                unsigned char *source;
+                unsigned char *dest;
+                Tcl_Obj *destObj;
+
+                source = Tcl_GetByteArrayFromObj(data, &sourceSize);
+                if (source == NULL) {
+                    CookfsLog(printf("CookfsWritePage: Tcl_GetByteArrayFromObj failed"))
+                    return -1;
+                }
+
+                destObj = Tcl_NewByteArrayObj(NULL, 0);
+                destSize = sourceSize * 2 + 1024;
+                Tcl_SetByteArrayLength(destObj, destSize + 4);
+                dest = Tcl_GetByteArrayFromObj(destObj, NULL);
+
+                Cookfs_Int2Binary(&sourceSize, (unsigned char *) dest, 1);
+                if (BZ2_bzBuffToBuffCompress((char *) (dest + 4), (unsigned int *) &destSize, (char *) source, (unsigned int) sourceSize, 5, 0, 200) != BZ_OK) {
+                    CookfsLog(printf("CookfsWritePage: BZ2_bzBuffToBuffCompress failed"))
+                    return -1;
+                }
+
+                CookfsLog(printf("CookfsWritePage: size=%d (to %d)", sourceSize, destSize))
+                Tcl_SetByteArrayLength(destObj, destSize + 4);
+
+                Tcl_IncrRefCount(destObj);
+                Tcl_WriteObj(p->fileChannel, destObj);
+                Tcl_DecrRefCount(destObj);
+
+                size = destSize + 4;
+                break;
+            }
+#endif
         }
         
     }
@@ -532,7 +574,7 @@ static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
 
                 return data;
             }
-            case cookfsCompressionZip: {
+            case cookfsCompressionZlib: {
                 Tcl_Obj *data;
                 Tcl_Obj *cobj;
                 Tcl_ZlibStream zshandle;
@@ -571,6 +613,50 @@ static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
                 return cobj;
                 break;
             }
+#ifdef INCLUDE_BZ2
+            case cookfsCompressionBz2: {
+                int destSize;
+                unsigned char *source;
+                unsigned char *dest;
+                Tcl_Obj *destObj;
+                Tcl_Obj *data;
+
+                data = Tcl_NewObj();
+                Tcl_IncrRefCount(data);
+                count = Tcl_ReadChars(p->fileChannel, data, size, 0);
+
+                if (count != size) {
+                    Tcl_DecrRefCount(data);
+                    return NULL;
+                }
+
+                source = Tcl_GetByteArrayFromObj(data, NULL);
+                if (source == NULL) {
+                    CookfsLog(printf("CookfsReadPage: Tcl_GetByteArrayFromObj failed"))
+                    return NULL;
+                }
+
+                destObj = Tcl_NewByteArrayObj(NULL, 0);
+                Cookfs_Binary2Int(source, &destSize, 1);
+
+                CookfsLog(printf("CookfsReadPage: uncompressed size=%d from %d", destSize, size))
+                Tcl_SetByteArrayLength(destObj, destSize);
+                dest = Tcl_GetByteArrayFromObj(destObj, NULL);
+
+                if (BZ2_bzBuffToBuffDecompress((char *) dest, (unsigned int *) &destSize, (char *) source + 4, (unsigned int) size - 4, 0, 0) != BZ_OK) {
+                    Tcl_DecrRefCount(data);
+                    Tcl_IncrRefCount(destObj);
+                    Tcl_DecrRefCount(destObj);
+                    CookfsLog(printf("CookfsReadPage: BZ2_bzBuffToBuffDecompress failed"))
+                    return NULL;
+                }
+
+                Tcl_DecrRefCount(data);
+
+                return destObj;
+                break;
+            }
+#endif
         }
     }
     return NULL;

@@ -1,3 +1,10 @@
+NOTE:
+This package contains bzip2 source code, which is copyright Julian R Seward.
+License for bzip2 is contained in file "bzip2/LICENSE" and applies to all
+files under bzip2/ subdirectory.
+
+--------------------------------------------------------------------------
+
 This software is copyrighted by Pawel Salawa.
 
 The following terms apply to all files associated with the
