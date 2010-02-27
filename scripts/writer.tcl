@@ -131,10 +131,9 @@ proc cookfs::writeFiles {fsid args} {
 
         #vfs::log [list cookfs::writeFiles write $path with $size byte(s)]
 
-        # check if this is a small file
-        if {$size <= $fs(smallfilesize)} {
-            # small file - queue it
-            #vfs::log [list cookfs::writeFiles $path {is small file}]
+        # check if this is a small file or writing to memory has been enabled
+        if {($size <= $fs(smallfilesize)) || $fs(writetomemory)} {
+            # add file to "small file buffer" instead of writing to disk
             if {$rawdata} {
                 set fc $data
             }  else  {

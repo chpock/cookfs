@@ -33,6 +33,7 @@ proc cookfs::Mount {args} {
         {compression.arg                "zlib"          {Compression type to use}}
         {pagesobject.arg                ""              {Reuse existing pages object}}
         {readonly                                       {Open as read only}}
+        {writetomemory                                  {Open as read only and keep new files in memory}}
         {pagesize.arg                   262144          {Maximum page size}}
         {pagecachesize.arg              8               {Number of pages to cache}}
         {volume                                         {Mount as volume}}
@@ -55,6 +56,11 @@ proc cookfs::Mount {args} {
         return -code error -errorinfo $error $error
     }
 
+    # if write to memory option was selected, open archive as read only anyway
+    if {$opt(writetomemory)} {
+        set opt(readonly) 1
+    }
+
     #
     # extract paths from remaining arguments
     #
@@ -66,7 +72,7 @@ proc cookfs::Mount {args} {
         set local [file normalize [file join [pwd] $local]]
     }
 
-    if {$opt(readonly) && (![file exists $archive])} {
+    if {$opt(readonly) && (!$opt(writetomemory)) && (![file exists $archive])} {
         set e "File \"$archive\" does not exist"
         return -code error -errorinfo $e $e
     }
@@ -90,6 +96,7 @@ proc cookfs::Mount {args} {
     set fs(smallfilesize) $opt(smallfilesize)
     set fs(smallfilebuffersize) $opt(smallfilebuffer)
     set fs(changeCount) 0
+    set fs(writetomemory) $opt(writetomemory)
 
     # initialize pages
     if {$opt(pagesobject) == ""} {
@@ -140,7 +147,7 @@ proc cookfs::Unmount {fsid args} {
     # finalize any small files pending write
     purgeSmallfiles $fsid
 
-    if {$fs(changeCount) > 0} {
+    if {$fs(changeCount) > 0 && (!$fs(writetomemory))} {
         $fs(pages) index [$fs(index) export]
     }
 
@@ -153,6 +160,10 @@ proc cookfs::Unmount {fsid args} {
         vfs::filesystem unmount $fs(local)
     }
     unset $fsid
+}
+
+proc cookfs::writetomemory {fsid} {
+    set ${fsid}(writetomemory) 1
 }
 
 package provide vfs::cookfs 1.0
