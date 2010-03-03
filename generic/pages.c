@@ -47,6 +47,14 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileComp
 
     rc->dataIndex = Tcl_NewStringObj("", 0);
     Tcl_IncrRefCount(rc->dataIndex);
+
+    /* initialize cache */
+    for (i = 0; i < COOKFS_MAX_CACHE_PAGES; i++) {
+        rc->cachePageIdx[i] = -1;
+        rc->cachePageObj[i] = NULL;
+    }
+    rc->cacheSize = 0;
+
     rc->fileChannel = Tcl_FSOpenFileChannel(NULL, fileName,
         (rc->fileReadOnly ? "r" : "a+"), 0666);
     
@@ -69,6 +77,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileComp
     /* read index or fail */
     if (!CookfsReadIndex(rc)) {
         if (rc->fileReadOnly) {
+            rc->indexUptodate = 1;
             Cookfs_PagesFini(rc);
             return NULL;
         }  else  {
@@ -80,13 +89,6 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileComp
         CookfsLog(printf("Index not read!"))
     }
     
-    /* initialize cache */
-    for (i = 0; i < COOKFS_MAX_CACHE_PAGES; i++) {
-        rc->cachePageIdx[i] = -1;
-        rc->cachePageObj[i] = NULL;
-    }
-    rc->cacheSize = 0;
-
     CookfsLog(printf("Opening file %s - compression %d", Tcl_GetStringFromObj(fileName, NULL), rc->fileCompression))
 
     return rc;
@@ -105,6 +107,7 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
             unsigned char *bufSizes;
             Tcl_WideInt offset;
 
+            CookfsLog(printf("Writing index"))
             offset = CookfsGetOffset(p, p->dataNumPages);
 
             Tcl_Seek(p->fileChannel, offset, SEEK_SET);
@@ -147,10 +150,12 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
             Tcl_DecrRefCount(obj);
         }
         /* close file channel */
+        CookfsLog(printf("Closing channel"))
         Tcl_Close(NULL, p->fileChannel);
     }
-    
+
     /* clean up cache */
+    CookfsLog(printf("Cleaning up cache"))
     for (i = 0; i < p->cacheSize; i++) {
         if (p->cachePageObj[i] != NULL) {
             Tcl_DecrRefCount(p->cachePageObj[i]);
@@ -158,9 +163,11 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     }
 
     /* clean up index */
+    CookfsLog(printf("Cleaning up index data"))
     Tcl_DecrRefCount(p->dataIndex);
 
     /* clean up pages data */
+    CookfsLog(printf("Cleaning up pages MD5/size"))
     Tcl_Free((void *) p->dataPagesSize);
     Tcl_Free((void *) p->dataPagesMD5);
 

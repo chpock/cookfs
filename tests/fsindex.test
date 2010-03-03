@@ -1,0 +1,32 @@
+tcltest::test cookfsFsindex-1.1 "Create empty fsindex" -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok} -match glob -result {::cookfs::fsindexhandle*}
+
+tcltest::test cookfsFsindex-1.2 "Create fsindex based on other fsindex" -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+
+    $fsidx set test1 0
+    $fsidx set test1/test2 0
+
+    set fsidx2 [cookfs::fsindex [$fsidx export]]
+    format %d,%d \
+        [string equal [$fsidx export] [$fsidx2 export]] \
+        [catch {$fsidx2 get test1/test2}]
+} -cleanup {
+    $fsidx delete
+    $fsidx2 delete
+} -returnCodes {ok} -result 1,0
+
+tcltest::test cookfsFsindex-2.1 "Test handling of entries in non-existing paths" -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+
+    $fsidx set test1/test2 0
+} -cleanup {
+    $fsidx delete
+} -returnCodes {error} -result {Unable to create entry}
+

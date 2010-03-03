@@ -210,6 +210,20 @@ proc cookfs::vfshandleDelete {fsid root relative actualpath type recursive} {
 
 # open a file for reading or writing
 proc cookfs::vfshandleOpen {fsid relative mode} {
+    upvar #0 $fsid fs
+
+    set dir [file dirname $relative]
+
+    if {($dir != "") && ($dir != ".")} {
+        if {[catch {
+            set g [$fs(index) get $dir]
+        }]} {
+            vfs::filesystem posixerror $::cookfs::posix(ENOENT)
+        }  elseif  {[llength $g] != 1} {
+            vfs::filesystem posixerror $::cookfs::posix(ENOTDIR)
+        }
+    }
+
     switch -- $mode {
         "" - r {
             #vfs::log [list cookfs::vfshandleOpen $fsid $relative read]

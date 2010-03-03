@@ -1,0 +1,79 @@
+tcltest::test cookfsVfs-1.1 "Mount empty filename" -setup {
+} -body {
+    vfs::cookfs::Mount "" ""
+} -cleanup {
+} -returnCodes {error} -result {Unable to create Cookfs object}
+
+tcltest::test cookfsVfs-1.2 "Mount non-existant file as read-write" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+} -body {
+    set fsid [vfs::cookfs::Mount $file $file]
+    vfs::unmount $file
+    set fsid
+} -cleanup {
+    tcltest::removeFile $file
+    unset fsid
+} -returnCodes {ok} -match glob -result {::cookfs::mount*}
+
+tcltest::test cookfsVfs-1.3 "Mount non-existant file as read-only" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+} -body {
+    vfs::cookfs::Mount -readonly $file $file
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {error} -result {Unable to create Cookfs object}
+
+tcltest::test cookfsVfs-2.1 "Test creating files in non-existant directory in VFS" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [vfs::cookfs::Mount $file $file]
+} -body {
+    close [open $file/somedir/file w]
+} -cleanup {
+    vfs::unmount $file
+    tcltest::removeFile $file
+} -returnCodes {error} -match glob -result "*no such file or directory*"
+
+tcltest::test cookfsVfs-2.2 "Test creating files in file in VFS" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [vfs::cookfs::Mount $file $file]
+} -body {
+    close [open $file/file w]
+    close [open $file/file/otherfile w]
+} -cleanup {
+    vfs::unmount $file
+    tcltest::removeFile $file
+} -returnCodes {error} -match glob -result "*not a directory*"
+
+tcltest::test cookfsVfs-2.3 "Test creating directories in file in VFS" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [vfs::cookfs::Mount $file $file]
+} -body {
+    close [open $file/file w]
+    file mkdir $file/file/somedir
+} -cleanup {
+    vfs::unmount $file
+    tcltest::removeFile $file
+} -returnCodes {error} -match glob -result "*file already exists*"
+
+tcltest::test cookfsVfs-2.4 "Test creating directories and files" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [vfs::cookfs::Mount $file $file]
+} -body {
+    file mkdir $file/dir1
+    file mkdir $file/dir2
+    file mkdir $file/dir2/dir3
+    close [open $file/file2 w]
+    close [open $file/dir2/file4 w]
+    close [open $file/dir2/dir3/file5 w]
+    vfs::unmount $file
+    set fsid [vfs::cookfs::Mount $file $file]
+    concat \
+        [lsort [glob -tails -directory $file * */* */*/*]] \
+        [lsort [glob -tails -directory $file -type d -nocomplain * */* */*/*]] \
+        [lsort [glob -tails -directory $file -type f -nocomplain * */* */*/*]]
+} -cleanup {
+    vfs::unmount $file
+    tcltest::removeFile $file
+} -returnCodes {ok} -result {dir1 dir2 dir2/dir3 dir2/dir3/file5 dir2/file4 file2 dir1 dir2 dir2/dir3 dir2/dir3/file5 dir2/file4 file2}
+
