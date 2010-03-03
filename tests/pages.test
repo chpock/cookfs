@@ -1,0 +1,29 @@
+tcltest::test cookfsPages-1.1 "Create empty pages as read-write" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+} -cleanup {
+    $pg delete
+} -returnCodes {ok} -match glob -result {::cookfs::pageshandle*}
+
+tcltest::test cookfsPages-1.2 "Create pages as read-write with existing prefix" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set fh [open $file w]
+    puts -nonewline $fh "PrefixTest01"
+    close $fh
+    set pg [cookfs::pages $file]
+    $pg delete
+    set fh [open $file r]
+    set fc [read $fh 12]
+} -cleanup {
+    close $fh
+} -returnCodes {ok} -match glob -result {PrefixTest01}
+
+tcltest::test cookfsPages-1.3 "Create empty pages as read-only" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -readonly $file]
+} -cleanup {
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object}
+
