@@ -24,7 +24,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     int cmdidx = ++deprecatedCounter;
     int idx;
     int oReadOnly = 0;
-    int oCompression = 0;
+    int oCompression = cookfsCompressionZlib;
     int tobjc = objc;
     int oCachesize = -1;
     Tcl_Obj **tobjv = (Tcl_Obj **) objv;
