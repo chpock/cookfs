@@ -4,6 +4,7 @@ tcltest::test cookfsPages-1.1 "Create empty pages as read-write" -setup {
     set pg [cookfs::pages $file]
 } -cleanup {
     $pg delete
+    catch {file delete -force $file}
 } -returnCodes {ok} -match glob -result {::cookfs::pageshandle*}
 
 tcltest::test cookfsPages-1.2 "Create pages as read-write with existing prefix" -setup {
@@ -18,6 +19,7 @@ tcltest::test cookfsPages-1.2 "Create pages as read-write with existing prefix" 
     set fc [read $fh 12]
 } -cleanup {
     close $fh
+    catch {file delete -force $file}
 } -returnCodes {ok} -match glob -result {PrefixTest01}
 
 tcltest::test cookfsPages-1.3 "Create empty pages as read-only" -setup {
@@ -25,6 +27,7 @@ tcltest::test cookfsPages-1.3 "Create empty pages as read-only" -setup {
 } -body {
     set pg [cookfs::pages -readonly $file]
 } -cleanup {
+    catch {file delete -force $file}
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object}
 
 tcltest::test cookfsPages-2.1 "Test correctness of pages after write" -setup {
@@ -50,19 +53,61 @@ tcltest::test cookfsPages-2.1 "Test correctness of pages after write" -setup {
     }
     $pg delete
 } -cleanup {
+    catch {file delete -force $file}
 } -returnCodes {ok}
+
+tcltest::test cookfsPages-2.2 "Test read-only error for adding a page" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression zlib $file]
+    set i0 [$pg add T1]
+    $pg delete
+
+    set pg [cookfs::pages -readonly $file]
+    $pg add T2
+} -cleanup {
+    $pg delete
+    catch {file delete -force $file}
+} -returnCodes {error} -result {Unable to add page}
 
 tcltest::test cookfsPages-3.1 "Test appended file handling" -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set file2 [tcltest::makeFile {} pages2.cfs]
 } -body {
     set pg [cookfs::pages -compression zlib $file]
-    set i0 [$pg add [string repeat "TEST"] 64]
+    set i0 [$pg add [string repeat "TEST" 64]]
+    $pg index "Index1"
     $pg delete
+    file stat $file s0
 
     set pg [cookfs::pages -readonly $file]
-    set i0 [$pg add [string repeat "TEST"] 96]
+    $pg aside $file2
+    set i1 [$pg add [string repeat "TEST" 96]]
+    $pg index "Index2"
     $pg delete
+    file stat $file s1
+
+    if {$s1(size) != $s0(size)} {
+        error "Sizes of $file differ"
+    }
+
+    set pg [cookfs::pages -readonly $file]
+    $pg aside $file2
+
+    if {[$pg index] != "Index2"} {
+        error "Index error"
+    }
+
+    if {[$pg get $i0] != [string repeat "TEST" 64]} {
+        error "Page i0 failed"
+    }
+
+    if {[$pg get $i1] != [string repeat "TEST" 96]} {
+        error "Page i1 failed"
+    }
 } -cleanup {
+    $pg delete
+    catch {file delete -force $file}
+    catch {file delete -force $file2}
 } -returnCodes {ok}
 

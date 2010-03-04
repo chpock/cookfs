@@ -88,7 +88,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     }
 
     /* TODO: parse arguments etc */    
-    pages = Cookfs_PagesInit(tobjv[1], oReadOnly, oCompression, NULL);
+    pages = Cookfs_PagesInit(tobjv[1], oReadOnly, oCompression, NULL, 0);
     if (pages == NULL) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create Cookfs object", -1));
         return TCL_ERROR;
@@ -109,8 +109,8 @@ ERROR:
 }
 
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    char *commands[] = { "add", "get", "getprefix", "index", "length", "dataoffset", "delete", NULL };
-    enum { cmdAdd = 0, cmdGet, cmdGetPrefix, cmdIndex, cmdLength, cmdDataoffset, cmdDelete };
+    char *commands[] = { "add", "aside", "get", "getprefix", "index", "length", "dataoffset", "delete", NULL };
+    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetPrefix, cmdIndex, cmdLength, cmdDataoffset, cmdDelete };
     int idx;
     Cookfs_Pages *p = (Cookfs_Pages *) clientData;
     
@@ -131,6 +131,11 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             }
             idx = Cookfs_PageAdd(p, objv[2]);
+            if (idx < 0) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to add page", -1));
+                return TCL_ERROR;
+            }
+
             Tcl_SetObjResult(interp, Tcl_NewIntObj(idx));
             break;
         }
@@ -174,11 +179,9 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
         case cmdIndex:
         {
             if (objc == 3) {
-                Tcl_DecrRefCount(p->dataIndex);
-                p->dataIndex = objv[2];
-                Tcl_IncrRefCount(p->dataIndex);
+                Cookfs_PagesSetIndex(p, objv[2]);
             }
-            Tcl_SetObjResult(interp, p->dataIndex);
+            Tcl_SetObjResult(interp, Cookfs_PagesGetIndex(p));
             break;
         }
         case cmdLength:
@@ -206,6 +209,35 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             }
             Tcl_SetObjResult(interp, Tcl_NewWideIntObj(p->dataInitialOffset));
+            break;
+        }
+        case cmdAside:
+        {
+            Cookfs_Pages *asidePages;
+            int fileNameSize;
+            if (objc != 3) {
+                Tcl_WrongNumArgs(interp, 2, objv, "fileName");
+                return TCL_ERROR;
+            }
+
+            Tcl_GetStringFromObj(objv[2], &fileNameSize);
+            if (fileNameSize > 0) {
+    // pages = Cookfs_PagesInit(tobjv[1], oReadOnly, oCompression, NULL, 0);
+                asidePages = Cookfs_PagesInit(objv[2], 0, p->fileCompression, NULL, 1);
+                if (asidePages == NULL) {
+                    CookfsLog(printf("Failed to create add-aside pages object"))
+                    Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create Cookfs object", -1));
+                    return TCL_ERROR;
+                }  else  {
+                    CookfsLog(printf("Created add-aside pages object"))
+                }
+            }  else  {
+                CookfsLog(printf("Removing aside page connection"))
+                asidePages = NULL;
+            }
+
+            Cookfs_PagesSetAside(p, asidePages);
+
             break;
         }
     }

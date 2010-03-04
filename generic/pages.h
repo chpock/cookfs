@@ -23,6 +23,10 @@ enum {
     cookfsCompressionMax
 };
 
+#define COOKFS_PAGES_ASIDE 0x10000000
+#define COOKFS_PAGES_MASK  0x0fffffff
+#define COOKFS_PAGES_ISASIDE(value) (((value) & COOKFS_PAGES_ASIDE) == COOKFS_PAGES_ASIDE)
+
 typedef struct Cookfs_Pages {
     /* file */
     Tcl_Mutex pagesLock;
@@ -44,6 +48,8 @@ typedef struct Cookfs_Pages {
     int *dataPagesSize;
     unsigned char *dataPagesMD5;
     Tcl_Obj *dataIndex;
+    int dataPagesIsAside;
+    struct Cookfs_Pages *dataAsidePages;
     
     /* cache */
     int cacheSize;
@@ -52,12 +58,17 @@ typedef struct Cookfs_Pages {
     
 } Cookfs_Pages;
 
-Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature);
+Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int isAside);
 void Cookfs_PagesFini(Cookfs_Pages *p);
 int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj);
 Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index);
 Tcl_Obj *Cookfs_PageGetPrefix(Cookfs_Pages *p);
 
 int CookfsReadIndex(Cookfs_Pages *p);
+
+void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside);
+
+void Cookfs_PagesSetIndex(Cookfs_Pages *p, Tcl_Obj *dataIndex);
+Tcl_Obj *Cookfs_PagesGetIndex(Cookfs_Pages *p);
 
 #endif

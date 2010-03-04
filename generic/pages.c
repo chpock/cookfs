@@ -24,7 +24,7 @@ static Tcl_WideInt CookfsGetOffset(Cookfs_Pages *p, int idx);
 static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data);
 static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size);
 
-Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature) {
+Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int isAside) {
     Cookfs_Pages *rc = (Cookfs_Pages *) Tcl_Alloc(sizeof(Cookfs_Pages));
     int i;
 
@@ -42,8 +42,8 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileComp
     rc->dataPagesDataSize = 1024;
     rc->dataPagesSize = (int *) Tcl_Alloc(rc->dataPagesDataSize * sizeof(int));
     rc->dataPagesMD5 = (unsigned char *) Tcl_Alloc(rc->dataPagesDataSize * 16);
-
-    CookfsLog(printf("Opening file %s as %s with compression %d", Tcl_GetStringFromObj(fileName, NULL), (rc->fileReadOnly ? "r" : "a+"), fileCompression))
+    rc->dataAsidePages = NULL;
+    rc->dataPagesIsAside = isAside;
 
     rc->dataIndex = Tcl_NewStringObj("", 0);
     Tcl_IncrRefCount(rc->dataIndex);
@@ -54,6 +54,8 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileComp
         rc->cachePageObj[i] = NULL;
     }
     rc->cacheSize = 0;
+
+    CookfsLog(printf("Opening file %s as %s with compression %d", Tcl_GetStringFromObj(fileName, NULL), (rc->fileReadOnly ? "r" : "a+"), fileCompression))
 
     rc->fileChannel = Tcl_FSOpenFileChannel(NULL, fileName,
         (rc->fileReadOnly ? "r" : "a+"), 0666);
@@ -154,6 +156,11 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
         Tcl_Close(NULL, p->fileChannel);
     }
 
+    /* clean up add-aside pages */
+    if (p->dataAsidePages != NULL) {
+        Cookfs_PagesFini(p->dataAsidePages);
+    }
+
     /* clean up cache */
     CookfsLog(printf("Cleaning up cache"))
     for (i = 0; i < p->cacheSize; i++) {
@@ -182,6 +189,10 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
     unsigned char *bytes;
     int objLength;
     unsigned char *pageMD5 = p->dataPagesMD5;
+
+    if (p->dataAsidePages != NULL) {
+        return Cookfs_PageAdd(p->dataAsidePages, dataObj);
+    }
 
     bytes = Tcl_GetByteArrayFromObj(dataObj, &objLength);
     Cookfs_MD5(bytes, objLength, md5sum);
@@ -230,7 +241,11 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
     }
 
     // Tcl_MutexUnlock(&p->pagesLock);
-    
+
+    if (p->dataPagesIsAside) {
+        idx |= COOKFS_PAGES_ASIDE;
+    }
+
     return idx;
 }
 
@@ -239,7 +254,21 @@ static Tcl_Obj *PageGetInt(Cookfs_Pages *p, int index) {
     Tcl_WideInt offset;
     int size;
     p->fileLastOp = COOKFS_LASTOP_READ;
-    
+
+    if (COOKFS_PAGES_ISASIDE(index)) {
+        CookfsLog(printf("Detected get request for add-aside pages - %08x", index))
+        if (p->dataPagesIsAside) {
+            index = index & COOKFS_PAGES_MASK;
+            CookfsLog(printf("New index = %08x", index))
+        }  else if (p->dataAsidePages != NULL) {
+            CookfsLog(printf("Redirecting to add-aside pages object"))
+            return PageGetInt(p->dataAsidePages, index);
+        }  else  {
+            CookfsLog(printf("No add-aside pages defined"))
+            return NULL;
+        }
+    }
+
     if (index >= p->dataNumPages) {
         return NULL;
     }
@@ -444,6 +473,31 @@ int CookfsReadIndex(Cookfs_Pages *p) {
         CookfsLog(printf("Offset %d is %d", i, (int) CookfsGetOffset(p, i)))
     }
     return 1;
+}
+
+void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside) {
+    if (p->dataAsidePages != NULL) {
+        Cookfs_PagesFini(p->dataAsidePages);
+    }
+    p->dataAsidePages = aside;
+}
+
+void Cookfs_PagesSetIndex(Cookfs_Pages *p, Tcl_Obj *dataIndex) {
+    if (p->dataAsidePages != NULL) {
+        Cookfs_PagesSetIndex(p->dataAsidePages, dataIndex);
+    }  else  {
+        Tcl_DecrRefCount(p->dataIndex);
+        p->dataIndex = dataIndex;
+        Tcl_IncrRefCount(p->dataIndex);
+    }
+}
+
+Tcl_Obj *Cookfs_PagesGetIndex(Cookfs_Pages *p) {
+    if (p->dataAsidePages != NULL) {
+        return Cookfs_PagesGetIndex(p->dataAsidePages);
+    }  else  {
+        return p->dataIndex;
+    }
 }
 
 static void CookfsPageExtendIfNeeded(Cookfs_Pages *p, int count) {
