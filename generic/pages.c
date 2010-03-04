@@ -476,10 +476,21 @@ int CookfsReadIndex(Cookfs_Pages *p) {
 }
 
 void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside) {
+    Tcl_Obj *asideIndex;
+    int asideIndexLength;
     if (p->dataAsidePages != NULL) {
         Cookfs_PagesFini(p->dataAsidePages);
     }
     p->dataAsidePages = aside;
+    if (aside != NULL) {
+        CookfsLog(printf("Cookfs_PagesSetAside: Checking if index in add-aside archive should be overwritten."))
+        asideIndex = Cookfs_PagesGetIndex(aside);
+        Tcl_GetByteArrayFromObj(asideIndex, &asideIndexLength);
+        if (asideIndexLength == 0) {
+            CookfsLog(printf("Cookfs_PagesSetAside: Copying index from main archive to add-aside archive."))
+            Cookfs_PagesSetIndex(aside, p->dataIndex);
+        }
+    }
 }
 
 void Cookfs_PagesSetIndex(Cookfs_Pages *p, Tcl_Obj *dataIndex) {

@@ -162,8 +162,22 @@ proc cookfs::Unmount {fsid args} {
     unset $fsid
 }
 
+proc cookfs::aside {fsid filename} {
+    upvar #0 $fsid fs
+    if {$fs(writetomemory)} {
+        error "Write to memory option enabled; not creating add-aside archive"
+    }
+
+    $fs(pages) aside $filename
+
+    set newindex [cookfs::fsindex [$fs(pages) index]]
+    $fs(index) delete
+    set fs(index) $newindex
+}
+
 proc cookfs::writetomemory {fsid} {
-    set ${fsid}(writetomemory) 1
+    upvar #0 $fsid fs
+    set fs(writetomemory) 1
 }
 
 package provide vfs::cookfs 1.0

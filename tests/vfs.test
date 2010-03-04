@@ -77,3 +77,26 @@ tcltest::test cookfsVfs-2.4 "Test creating directories and files" -setup {
     tcltest::removeFile $file
 } -returnCodes {ok} -result {dir1 dir2 dir2/dir3 dir2/dir3/file5 dir2/file4 file2 dir1 dir2 dir2/dir3 dir2/dir3/file5 dir2/file4 file2}
 
+tcltest::test cookfsVfs-3.1 "Test add-aside feature" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set file2 [tcltest::makeFile {} cookfs2.cfs]
+    set fsid [vfs::cookfs::Mount $file $file]
+    close [open $file/file1 w]
+    file mkdir $file/dir1
+    vfs::unmount $file
+} -body {
+    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    cookfs::aside $fsid $file2
+    file mkdir $file/dir2
+    close [open $file/file2 w]
+    vfs::unmount $file
+
+    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    cookfs::aside $fsid $file2
+    lsort [glob -directory $file -tails *]
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+    tcltest::removeFile $file2
+} -returnCodes {ok} -result {dir1 dir2 file1 file2}
+
