@@ -111,3 +111,61 @@ tcltest::test cookfsPages-3.1 "Test appended file handling" -setup {
     catch {file delete -force $file2}
 } -returnCodes {ok}
 
+tcltest::test cookfsPages-3.2 "Test appended file handling - adding same page to new archive" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set file2 [tcltest::makeFile {} pages2.cfs]
+} -body {
+    set pg [cookfs::pages -compression zlib $file]
+    set i0 [$pg add [string repeat "TEST" 64]]
+    $pg index "Index1"
+    $pg delete
+    file stat $file s0
+
+    set pg [cookfs::pages -readonly $file]
+    $pg aside $file2
+    set i1 [$pg add [string repeat "TEST" 96]]
+    set i2 [$pg add [string repeat "TEST" 64]]
+    set i3 [$pg add [string repeat "TEST" 96]]
+    set i4 [$pg add [string repeat "TEST" 80]]
+    $pg index "Index2"
+    $pg delete
+    file stat $file s1
+
+    puts "I=$i0,$i1,$i2,$i3,$i4"
+
+    if {$s1(size) != $s0(size)} {
+        error "Sizes of $file differ"
+    }
+
+    set pg [cookfs::pages -readonly $file]
+    $pg aside $file2
+
+    if {[$pg index] != "Index2"} {
+        error "Index error"
+    }
+
+    if {[$pg get $i0] != [string repeat "TEST" 64]} {
+        error "Page i0 failed"
+    }
+
+    if {[$pg get $i1] != [string repeat "TEST" 96]} {
+        error "Page i1 failed"
+    }
+
+    if {$i1 != $i3} {
+        error "Page i3 was not matched correctly"
+    }
+
+    if {$i2 != $i0} {
+        error "Page i2 was created again"
+    }
+
+    if {($i0 == $i4) || ($i1 == $i4) || ($i2 == $i4) || ($i3 == $i4)} {
+        error "Page i4 was reused"
+    }
+} -cleanup {
+    $pg delete
+    catch {file delete -force $file}
+    catch {file delete -force $file2}
+} -returnCodes {ok}
+

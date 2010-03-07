@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* TODO: provide a better logging mechanism? */
 #if 0
 #define CookfsLog(a) {a; printf("\n"); fflush(stdout);}
 #else

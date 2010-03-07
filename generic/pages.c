@@ -190,18 +190,24 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
     int objLength;
     unsigned char *pageMD5 = p->dataPagesMD5;
 
-    if (p->dataAsidePages != NULL) {
-        return Cookfs_PageAdd(p->dataAsidePages, dataObj);
-    }
-
     bytes = Tcl_GetByteArrayFromObj(dataObj, &objLength);
     Cookfs_MD5(bytes, objLength, md5sum);
 
     /* see if this entry already exists */
+    CookfsLog(printf("Cookfs_PageAdd: Matching page (size=%d bytes)", objLength))
     for (idx = 0; idx < p->dataNumPages; idx++, pageMD5 += 16) {
         if (memcmp(pageMD5, md5sum, 16) == 0) {
+            CookfsLog(printf("Cookfs_PageAdd: Matched page (size=%d bytes) as %d", objLength, idx))
+            if (p->dataPagesIsAside) {
+                idx |= COOKFS_PAGES_ASIDE;
+            }
             return idx;
         }
+    }
+
+    if (p->dataAsidePages != NULL) {
+        CookfsLog(printf("Cookfs_PageAdd: Sending add command to asidePages"))
+        return Cookfs_PageAdd(p->dataAsidePages, dataObj);
     }
 
     if (p->fileReadOnly) {
