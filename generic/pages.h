@@ -62,7 +62,8 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileComp
 void Cookfs_PagesFini(Cookfs_Pages *p);
 int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj);
 Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index);
-Tcl_Obj *Cookfs_PageGetPrefix(Cookfs_Pages *p);
+Tcl_Obj *Cookfs_PageGetHead(Cookfs_Pages *p);
+Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p);
 
 int CookfsReadIndex(Cookfs_Pages *p);
 

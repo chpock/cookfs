@@ -350,7 +350,7 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
     return rc;
 }
 
-Tcl_Obj *Cookfs_PageGetPrefix(Cookfs_Pages *p) {
+Tcl_Obj *Cookfs_PageGetHead(Cookfs_Pages *p) {
     int count;
     Tcl_Obj *data;
     data = Tcl_NewByteArrayObj((unsigned char *) "", 0);
@@ -359,6 +359,23 @@ Tcl_Obj *Cookfs_PageGetPrefix(Cookfs_Pages *p) {
         Tcl_Seek(p->fileChannel, 0, SEEK_SET);
         count = Tcl_ReadChars(p->fileChannel, data, p->dataInitialOffset, 0);
         if (count != p->dataInitialOffset) {
+            Tcl_IncrRefCount(data);
+            Tcl_DecrRefCount(data);
+            return NULL;
+        }
+    }
+    return data;
+}
+
+Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p) {
+    int count;
+    Tcl_Obj *data;
+    data = Tcl_NewByteArrayObj((unsigned char *) "", 0);
+    if (p->dataInitialOffset > 0) {
+        p->fileLastOp = COOKFS_LASTOP_UNKNOWN;
+        Tcl_Seek(p->fileChannel, p->dataInitialOffset, SEEK_SET);
+        count = Tcl_ReadChars(p->fileChannel, data, -1, 0);
+        if (count < 0) {
             Tcl_IncrRefCount(data);
             Tcl_DecrRefCount(data);
             return NULL;
