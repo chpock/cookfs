@@ -17,8 +17,8 @@ int Cookfs_InitPagesCmd(Tcl_Interp *interp) {
 
 /* command for creating new objects that deal with pages */
 static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    char *options[] = { "-readonly", "-readwrite", "-compression", "-cachesize", NULL };
-    enum { optReadonly = 0, optReadwrite, optCompression, optCachesize };
+    static char *options[] = { "-readonly", "-readwrite", "-compression", "-cachesize", NULL };
+    static enum { optReadonly = 0, optReadwrite, optCompression, optCachesize };
     char buf[128];
     Cookfs_Pages *pages;
     int cmdidx = ++deprecatedCounter;
@@ -109,8 +109,8 @@ ERROR:
 }
 
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    char *commands[] = { "add", "aside", "get", "gethead", "gettail", "index", "length", "dataoffset", "delete", NULL };
-    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetTail, cmdIndex, cmdLength, cmdDataoffset, cmdDelete };
+    static char *commands[] = { "add", "aside", "get", "gethead", "gettail", "index", "length", "dataoffset", "delete", NULL };
+    static enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetTail, cmdIndex, cmdLength, cmdDataoffset, cmdDelete };
     int idx;
     Cookfs_Pages *p = (Cookfs_Pages *) clientData;
     
