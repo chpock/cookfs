@@ -53,6 +53,7 @@ proc cookfs::createReadableChannel {fsid path} {
     set ch(refchannel) \
         [chan create {read} [list cookfs::readableChannelHandler $fsid $chid]]
 
+    fconfigure $ch(refchannel) -buffersize 65536
     return $ch(refchannel)
 }
 
