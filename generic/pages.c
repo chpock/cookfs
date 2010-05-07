@@ -39,7 +39,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileComp
     rc->fileCompression = fileCompression;
     rc->fileCompressionLevel = 9;
     rc->dataNumPages = 0;
-    rc->dataPagesDataSize = 1024;
+    rc->dataPagesDataSize = 256;
     rc->dataPagesSize = (int *) Tcl_Alloc(rc->dataPagesDataSize * sizeof(int));
     rc->dataPagesMD5 = (unsigned char *) Tcl_Alloc(rc->dataPagesDataSize * 16);
     rc->dataAsidePages = NULL;
@@ -111,7 +111,7 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
 
             CookfsLog(printf("Writing index"))
             offset = CookfsGetOffset(p, p->dataNumPages);
-
+ 
             Tcl_Seek(p->fileChannel, offset, SEEK_SET);
 
             if (p->dataNumPages > 0) {
@@ -177,7 +177,6 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     CookfsLog(printf("Cleaning up pages MD5/size"))
     Tcl_Free((void *) p->dataPagesSize);
     Tcl_Free((void *) p->dataPagesMD5);
-
     Tcl_Free((void *) p);
 }
 
@@ -545,7 +544,7 @@ static void CookfsPageExtendIfNeeded(Cookfs_Pages *p, int count) {
     if (changed) {
         p->dataPagesSize = (int *) Tcl_Realloc((void *) p->dataPagesSize,
             p->dataPagesDataSize * sizeof(int));
-        p->dataPagesMD5 = (unsigned char *) Tcl_Realloc((void *) p->dataPagesSize,
+        p->dataPagesMD5 = (unsigned char *) Tcl_Realloc((void *) p->dataPagesMD5,
             p->dataPagesDataSize * 16);
     }
 }
