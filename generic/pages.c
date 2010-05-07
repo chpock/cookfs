@@ -275,6 +275,7 @@ static Tcl_Obj *PageGetInt(Cookfs_Pages *p, int index) {
     }
 
     if (index >= p->dataNumPages) {
+        CookfsLog(printf("GetInt failed: %d >= %d", index, p->dataNumPages))
         return NULL;
     }
     
@@ -288,6 +289,7 @@ static Tcl_Obj *PageGetInt(Cookfs_Pages *p, int index) {
 
     buffer = CookfsReadPage(p, size);
     if (buffer == NULL) {
+        CookfsLog(printf("Unable to read page"))
         return NULL;
     }
     
@@ -316,7 +318,9 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
     int i;
 
     if (p->cacheSize <= 0) {
-        return PageGetInt(p, index);
+        rc = PageGetInt(p, index);
+        CookfsLog(printf("Returning directly [%s]", rc == NULL ? "NULL" : "SET"))
+        return rc;
     }
     
     for (i = 0; i < p->cacheSize; i++) {
@@ -325,12 +329,14 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
             if (i > 0) {
                 PageCacheMoveToTop(p, i);
             }
+            CookfsLog(printf("Returning from cache [%s]", rc == NULL ? "NULL" : "SET"))
             return rc;
         }
         
     }
 
     rc = PageGetInt(p, index);
+    CookfsLog(printf("Returning and caching [%s]", rc == NULL ? "NULL" : "SET"))
     if (rc == NULL) {
         return NULL;
     }
@@ -661,6 +667,7 @@ static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
                 data = Tcl_NewObj();
                 count = Tcl_ReadChars(p->fileChannel, data, size, 0);
                 if (count != size) {
+                    CookfsLog(printf("Unable to read - %d != %d", count, size))
                     Tcl_IncrRefCount(data);
                     Tcl_DecrRefCount(data);
                     return NULL;
@@ -674,25 +681,31 @@ static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
                 Tcl_ZlibStream zshandle;
 
                 if (Tcl_ZlibStreamInit(NULL, TCL_ZLIB_STREAM_INFLATE, TCL_ZLIB_FORMAT_RAW, 9, NULL, &zshandle) != TCL_OK) {
+                    CookfsLog(printf("Unable to initialize zlib"))
                     return NULL;
                 }
                 data = Tcl_NewObj();
                 Tcl_IncrRefCount(data);
                 count = Tcl_ReadChars(p->fileChannel, data, size, 0);
 
+                CookfsLog(printf("Reading - %d vs %d", count, size))
                 if (count != size) {
+                    CookfsLog(printf("Unable to read - %d != %d", count, size))
                     Tcl_DecrRefCount(data);
                     return NULL;
                 }
 
+                CookfsLog(printf("Writing"))
                 /* write compressed information */
                 if (Tcl_ZlibStreamPut(zshandle, data, TCL_ZLIB_FINALIZE) != TCL_OK) {
+                    CookfsLog(printf("Unable to decompress - writing"))
                     Tcl_ZlibStreamClose(zshandle);
                     Tcl_DecrRefCount(data);
                     return NULL;
                 }
                 Tcl_DecrRefCount(data);
                 
+                CookfsLog(printf("Reading"))
                 /* read resulting object */
                 cobj = Tcl_NewObj();
                 while (!Tcl_ZlibStreamEof(zshandle)) {
@@ -700,9 +713,11 @@ static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
                         Tcl_IncrRefCount(cobj);
                         Tcl_DecrRefCount(cobj);
                         Tcl_ZlibStreamClose(zshandle);
+                    	CookfsLog(printf("Unable to decompress - reading"))
                         return NULL;
                     }
                 }
+                CookfsLog(printf("Returning = [%s]", cobj == NULL ? "NULL" : "SET"))
                 Tcl_ZlibStreamClose(zshandle);
                 return cobj;
                 break;

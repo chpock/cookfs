@@ -151,6 +151,7 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             }
             rc = Cookfs_PageGet(p, idx);
+            CookfsLog(printf("cmdGet [%s]", rc == NULL ? "NULL" : "SET"))
             if (rc == NULL) {
                 Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve chunk", -1));
                 return TCL_ERROR;
