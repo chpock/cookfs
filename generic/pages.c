@@ -372,6 +372,10 @@ Tcl_Obj *Cookfs_PageGetHead(Cookfs_Pages *p) {
     return data;
 }
 
+Tcl_Obj *Cookfs_PageGetHeadMD5(Cookfs_Pages *p) {
+    return Cookfs_MD5FromObj(Cookfs_PageGetHead(p));
+}
+
 Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p) {
     int count;
     Tcl_Obj *data;
@@ -387,6 +391,10 @@ Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p) {
         }
     }
     return data;
+}
+
+Tcl_Obj *Cookfs_PageGetTailMD5(Cookfs_Pages *p) {
+    return Cookfs_MD5FromObj(Cookfs_PageGetTail(p));
 }
 
 

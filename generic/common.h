@@ -10,5 +10,6 @@ unsigned char *Cookfs_Binary2WideInt(unsigned char *bytes, Tcl_WideInt *values, 
 unsigned char *Cookfs_WideInt2Binary(Tcl_WideInt *values, unsigned char *bytes, int count);
 
 void Cookfs_MD5(unsigned char *buf, unsigned int len, unsigned char digest[16]);
+Tcl_Obj *Cookfs_MD5FromObj(Tcl_Obj *obj);
 
 #endif

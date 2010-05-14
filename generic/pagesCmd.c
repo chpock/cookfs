@@ -109,8 +109,8 @@ ERROR:
 }
 
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    static char *commands[] = { "add", "aside", "get", "gethead", "gettail", "index", "length", "dataoffset", "delete", NULL };
-    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetTail, cmdIndex, cmdLength, cmdDataoffset, cmdDelete };
+    static char *commands[] = { "add", "aside", "get", "gethead", "getheadmd5", "gettail", "gettailmd5", "index", "length", "dataoffset", "delete", NULL };
+    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail, cmdGetTailMD5, cmdIndex, cmdLength, cmdDataoffset, cmdDelete };
     int idx;
     Cookfs_Pages *p = (Cookfs_Pages *) clientData;
     
@@ -177,6 +177,23 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             }
             break;
         }
+        case cmdGetHeadMD5:
+        {
+            Tcl_Obj *rc;
+            if (objc != 2) {
+                Tcl_WrongNumArgs(interp, 2, objv, "");
+                return TCL_ERROR;
+            }
+
+            rc = Cookfs_PageGetHeadMD5(p);
+            if (rc == NULL) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve head MD5", -1));
+                return TCL_ERROR;
+            }  else  {
+                Tcl_SetObjResult(interp, rc);
+            }
+            break;
+        }
         case cmdGetTail:
         {
             Tcl_Obj *rc;
@@ -188,6 +205,23 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             rc = Cookfs_PageGetTail(p);
             if (rc == NULL) {
                 Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve tail data", -1));
+                return TCL_ERROR;
+            }  else  {
+                Tcl_SetObjResult(interp, rc);
+            }
+            break;
+        }
+        case cmdGetTailMD5:
+        {
+            Tcl_Obj *rc;
+            if (objc != 2) {
+                Tcl_WrongNumArgs(interp, 2, objv, "");
+                return TCL_ERROR;
+            }
+
+            rc = Cookfs_PageGetTailMD5(p);
+            if (rc == NULL) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve tail MD5", -1));
                 return TCL_ERROR;
             }  else  {
                 Tcl_SetObjResult(interp, rc);

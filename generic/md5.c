@@ -301,3 +301,23 @@ void Cookfs_MD5(unsigned char *buf, unsigned int len, unsigned char digest[16]) 
     MD5Update(&ctx, buf, len);
     MD5Final(digest, &ctx);
 }
+
+Tcl_Obj *Cookfs_MD5FromObj(Tcl_Obj *obj) {
+    unsigned char *bytes;
+    unsigned char md5sum[16];
+    char hex[36];
+    int i;
+    int size;
+    Tcl_Obj *result;
+
+    bytes = Tcl_GetByteArrayFromObj(obj, &size);
+
+    Cookfs_MD5(bytes, (unsigned int) size, md5sum);
+
+    for (i = 0; i < 16; i++) {
+        sprintf(hex + i + i, "%02X", ((int) md5sum[i]));
+    }
+    hex[32] = 0;
+    return Tcl_NewStringObj(hex, 32);
+}
+
