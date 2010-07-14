@@ -131,8 +131,6 @@ tcltest::test cookfsPages-3.2 "Test appended file handling - adding same page to
     $pg delete
     file stat $file s1
 
-    puts "I=$i0,$i1,$i2,$i3,$i4"
-
     if {$s1(size) != $s0(size)} {
         error "Sizes of $file differ"
     }
@@ -167,5 +165,46 @@ tcltest::test cookfsPages-3.2 "Test appended file handling - adding same page to
     $pg delete
     catch {file delete -force $file}
     catch {file delete -force $file2}
+} -returnCodes {ok}
+
+tcltest::test cookfsPages-4.1 "Test specifying -endoffset" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression zlib $file]
+    set i0 [$pg add [string repeat "TEST" 64]]
+    $pg index "Index1"
+    $pg delete
+
+    if {[catch {
+	set pg [cookfs::pages -readonly $file]
+    }]} {
+	error ""
+    }
+    $pg delete
+
+    set size [file size $file]
+    set fh [open $file a]
+    fconfigure $fh -translation binary
+    puts -nonewline $fh ".FILE.SUFFIX."
+    close $fh
+
+    if {![catch {
+	set pg [cookfs::pages -readonly $file]
+    }]} {
+	error "Opening a file with data added did not throw an error"
+    }
+
+    if {[catch {
+	set pg [cookfs::pages -readonly -endoffset $size $file]
+    } err]} {
+	error "Opening a file with data added and specifying -endoffsert threw an error: $err"
+    }
+
+    if {[$pg get $i0] != [string repeat "TEST" 64]} {
+	error "Reading page $i0 failed"
+    }
+} -cleanup {
+    $pg delete
+    catch {file delete -force $file}
 } -returnCodes {ok}
 

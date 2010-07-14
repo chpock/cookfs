@@ -36,6 +36,8 @@ typedef struct Cookfs_Pages {
     char fileSignature[COOKFS_SIGNATURE_LENGTH];
     Tcl_Channel fileChannel;
     int fileLastOp;
+    int useFoffset;
+    Tcl_WideInt foffset;
 
     /* index */
     int indexUptodate;
@@ -58,7 +60,7 @@ typedef struct Cookfs_Pages {
     
 } Cookfs_Pages;
 
-Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int isAside);
+Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside);
 void Cookfs_PagesFini(Cookfs_Pages *p);
 int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj);
 Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index);

@@ -50,7 +50,7 @@ ERROR:
 
 static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     static char *commands[] = { "export", "list", "get", "getmtime", "set", "setmtime", "unset", "delete", NULL };
-    static enum { cmdExport, cmdList, cmdGet, cmdGetmtime, cmdSet, cmdSetmtime, cmdUnset, cmdDelete };
+    enum { cmdExport, cmdList, cmdGet, cmdGetmtime, cmdSet, cmdSetmtime, cmdUnset, cmdDelete };
     int idx;
     int i;
     

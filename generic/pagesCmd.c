@@ -17,8 +17,8 @@ int Cookfs_InitPagesCmd(Tcl_Interp *interp) {
 
 /* command for creating new objects that deal with pages */
 static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    static char *options[] = { "-readonly", "-readwrite", "-compression", "-cachesize", NULL };
-    enum { optReadonly = 0, optReadwrite, optCompression, optCachesize };
+    static char *options[] = { "-readonly", "-readwrite", "-compression", "-cachesize", "-endoffset", NULL };
+    enum { optReadonly = 0, optReadwrite, optCompression, optCachesize, optEndoffset };
     char buf[128];
     Cookfs_Pages *pages;
     int cmdidx = ++deprecatedCounter;
@@ -27,6 +27,8 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     int oCompression = cookfsCompressionZlib;
     int tobjc = objc;
     int oCachesize = -1;
+    int useFoffset = 0;
+    Tcl_WideInt foffset = 0;
     Tcl_Obj **tobjv = (Tcl_Obj **) objv;
 
     while (tobjc > 1) {
@@ -51,6 +53,20 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                     return TCL_ERROR;
                 }
                 break;
+            }
+            case optEndoffset: {
+                if (tobjc < 2) {
+                    goto ERROR;
+                }
+                tobjc--;
+                tobjv++;
+
+                useFoffset = 1;
+                if (Tcl_GetWideIntFromObj(interp, tobjv[1], &foffset) != TCL_OK) {
+                    return TCL_ERROR;
+                }
+                break;
+                
             }
             case optCachesize: {
                 int csize;
@@ -88,7 +104,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     }
 
     /* TODO: parse arguments etc */    
-    pages = Cookfs_PagesInit(tobjv[1], oReadOnly, oCompression, NULL, 0);
+    pages = Cookfs_PagesInit(tobjv[1], oReadOnly, oCompression, NULL, useFoffset, foffset, 0);
     if (pages == NULL) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create Cookfs object", -1));
         return TCL_ERROR;
@@ -274,8 +290,7 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
 
             Tcl_GetStringFromObj(objv[2], &fileNameSize);
             if (fileNameSize > 0) {
-    // pages = Cookfs_PagesInit(tobjv[1], oReadOnly, oCompression, NULL, 0);
-                asidePages = Cookfs_PagesInit(objv[2], 0, p->fileCompression, NULL, 1);
+                asidePages = Cookfs_PagesInit(objv[2], 0, p->fileCompression, NULL, 0, 0, 1);
                 if (asidePages == NULL) {
                     CookfsLog(printf("Failed to create add-aside pages object"))
                     Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create Cookfs object", -1));

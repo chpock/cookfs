@@ -31,6 +31,7 @@ proc cookfs::Mount {args} {
         {noregister                                     {Do not register this filesystem (for temporary writes)}}
         {bootstrap.arg                  ""              {Bootstrap code to add in the beginning}}
         {compression.arg                "zlib"          {Compression type to use}}
+        {endoffset.arg                  ""              {Force reading VFS ending at specific offset instead of end of file}}
         {pagesobject.arg                ""              {Reuse existing pages object}}
         {readonly                                       {Open as read only}}
         {writetomemory                                  {Open as read only and keep new files in memory}}
@@ -101,11 +102,16 @@ proc cookfs::Mount {args} {
     # initialize pages
     if {$opt(pagesobject) == ""} {
         set pagesoptions [list -compression $opt(compression) -cachesize $opt(pagecachesize)]
+
         if {$opt(readonly)} {
             lappend pagesoptions -readonly
         }
+
+        if {$opt(endoffset) != ""} {
+            lappend pagesoptions -endoffset $opt(endoffset)
+        }
+
         set pagescmd [concat [list ::cookfs::pages] $pagesoptions [list $archive]]
-        
         set fs(pages) [eval $pagescmd]
     }  else  {
         set fs(pages) $opt(pagesobject)

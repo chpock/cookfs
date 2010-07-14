@@ -24,10 +24,12 @@ static Tcl_WideInt CookfsGetOffset(Cookfs_Pages *p, int idx);
 static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data);
 static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size);
 
-Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int isAside) {
+Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside) {
     Cookfs_Pages *rc = (Cookfs_Pages *) Tcl_Alloc(sizeof(Cookfs_Pages));
     int i;
 
+    rc->useFoffset = useFoffset;
+    rc->foffset = foffset;
     rc->fileReadOnly = fileReadOnly;
     rc->fileCompression = fileCompression;
     if (fileSignature != NULL)
@@ -419,7 +421,13 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     
     CookfsLog(printf("CookfsReadIndex 0"))
 
-    seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES, SEEK_END);
+    if (p->useFoffset) {
+        seekOffset = Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
+        seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES, SEEK_CUR);
+    }  else  {
+        seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES, SEEK_END);
+    }
+
     /* if seeking fails, we assume no index exists */
     if (seekOffset < 0) {
         CookfsLog(printf("Unable to seek for index suffix"))
@@ -453,7 +461,12 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     CookfsLog(printf("indexLength=%d pageCount=%d", indexLength, pageCount))
 
     /* read files index */
-    seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - indexLength, SEEK_END);
+    if (p->useFoffset) {
+        Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
+        seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - indexLength, SEEK_CUR);
+    }  else  {
+        seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - indexLength, SEEK_END);
+    }
     
     buffer = CookfsReadPage(p, indexLength);
     
@@ -466,7 +479,12 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     Tcl_IncrRefCount(p->dataIndex);
 
     /* read page sizes */
-    seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - (pageCount * 20) - indexLength, SEEK_END);
+    if (p->useFoffset) {
+        Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
+        seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - (pageCount * 20) - indexLength, SEEK_CUR);
+    }  else  {
+        seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - (pageCount * 20) - indexLength, SEEK_END);
+    }
 
     /* if seeking fails, we assume no suffix exists */
     if (seekOffset < 0) {
