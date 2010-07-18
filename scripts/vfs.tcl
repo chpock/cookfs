@@ -170,20 +170,23 @@ proc cookfs::vfshandleMatchindirectory {fsid relative actualpath pattern types} 
             }
         }
     }  else  {
-        set result [$fs(index) list $relative]
-        #vfs::log [list cookfs::vfshandleMatchindirectory $fsid list $relative $result]
-        set res $result
         set result [list]
-        foreach res $res {
-            if {![catch {$fs(index) get [file join $relative $res]} fileinfo]} {
-                if {[lsearch -exact $lengthlist [llength $fileinfo]] >= 0} {
-                    if {[string match $pattern $res]} {
-                        lappend result [file join $actualpath $res]
+        if {![catch {
+            set result [$fs(index) list $relative]
+        }]} {
+            #vfs::log [list cookfs::vfshandleMatchindirectory $fsid list $relative $result]
+            set res $result
+            foreach res $res {
+                if {![catch {$fs(index) get [file join $relative $res]} fileinfo]} {
+                    if {[lsearch -exact $lengthlist [llength $fileinfo]] >= 0} {
+                        if {[string match $pattern $res]} {
+                            lappend result [file join $actualpath $res]
+                        }
                     }
                 }
             }
+            #vfs::log [list cookfs::vfshandleMatchindirectory $fsid $relative $pattern matches $result]
         }
-        #vfs::log [list cookfs::vfshandleMatchindirectory $fsid $relative $pattern matches $result]
     }
     return $result
 }
