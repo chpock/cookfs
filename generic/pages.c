@@ -140,6 +140,8 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
                 Tcl_Panic("Unable to compress index");
             }
 
+            CookfsLog(printf("Offset write: %d", (int) Tcl_Seek(p->fileChannel, 0, SEEK_CUR)))
+
             /* provide index size and number of pages */
             Cookfs_Int2Binary(&indexSize, buf, 1);
             Cookfs_Int2Binary(&(p->dataNumPages), buf + 4, 1);
@@ -419,7 +421,7 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     Tcl_WideInt seekOffset = 0;
     Tcl_Obj *buffer = NULL;
     
-    CookfsLog(printf("CookfsReadIndex 0"))
+    CookfsLog(printf("CookfsReadIndex 0 - %d", p->useFoffset))
 
     if (p->useFoffset) {
         seekOffset = Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
@@ -458,7 +460,7 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     CookfsLog(printf("Pages=%d; compression=%d", pageCount, pageCompression))
     Tcl_DecrRefCount(buffer);
 
-    CookfsLog(printf("indexLength=%d pageCount=%d", indexLength, pageCount))
+    CookfsLog(printf("indexLength=%d pageCount=%d foffset=%d", indexLength, pageCount, p->useFoffset))
 
     /* read files index */
     if (p->useFoffset) {
@@ -467,6 +469,7 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     }  else  {
         seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - indexLength, SEEK_END);
     }
+    CookfsLog(printf("IndexOffset Read = %d", (int) seekOffset))
     
     buffer = CookfsReadPage(p, indexLength);
     

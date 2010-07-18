@@ -137,7 +137,7 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
 
     Cookfs_Binary2Int(bytes + objOffset, &entry->data.dirInfo.childCount, 1);
     objOffset += 4;
-    CookfsLog(printf("CookfsFsindexImportDirectory APUD"))
+    CookfsLog(printf("CookfsFsindexImportDirectory init"))
     for (fileId = 0; fileId < entry->data.dirInfo.childCount; fileId++) {
         fileNameLength = bytes[objOffset];
         objOffset++;
