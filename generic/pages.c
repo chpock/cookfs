@@ -93,6 +93,12 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileComp
         CookfsLog(printf("Index not read!"))
     }
     
+    /* force compression since we want to use target compression anyway */
+    if (!rc->fileReadOnly) {
+	rc->fileCompression = fileCompression;
+	rc->fileCompressionLevel = 9;
+    }
+
     CookfsLog(printf("Opening file %s - compression %d", Tcl_GetStringFromObj(fileName, NULL), rc->fileCompression))
 
     return rc;
@@ -716,9 +722,12 @@ static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
 	    compression = Tcl_GetByteArrayFromObj(byteObj, NULL)[0];
 	    Tcl_IncrRefCount(byteObj);
 	    Tcl_DecrRefCount(byteObj);
+
+	    /* need to decrease size by 1 byte we just read */
+	    size = size - 1;
 	}
 
-        switch (p->fileCompression) {
+        switch (compression) {
             case cookfsCompressionNone: {
                 Tcl_Obj *data;
                 

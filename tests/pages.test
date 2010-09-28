@@ -208,3 +208,49 @@ tcltest::test cookfsPages-4.1 "Test specifying -endoffset" -setup {
     catch {file delete -force $file}
 } -returnCodes {ok}
 
+tcltest::test cookfsPages-5.1 "Test multiple compression algorithms" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none $file]
+    set i0 [$pg add [string repeat "TESTNONE" 2048]]
+    $pg index "Index0"
+    $pg delete
+
+    set fs0 [file size $file]
+
+    set pg [cookfs::pages -compression zlib $file]
+    set i1 [$pg add [string repeat "TESTZLIB" 2048]]
+    set i [$pg index]
+    if {![string equal $i "Index0"]} {
+	error "Incorrect index-$i ([string length $i])"
+    }
+    $pg index "Index1-$i"
+    $pg delete
+
+    set fs1 [file size $file]
+    if {($fs1 - $fs0) > 1024} {
+	error "Next page not compressed using zlib"
+    }
+
+    if {[catch {
+	set pg [cookfs::pages -readonly $file]
+    }]} {
+	error "Unable to read pages after changing compression"
+    }
+
+    set i [$pg index]
+    if {![string equal $i "Index1-Index0"]} {
+	error "Incorrect index-$i ([string length $i])"
+    }
+
+    if {![string equal [$pg get $i0] [string repeat "TESTNONE" 2048]]} {
+	error "Incorrect uncompressed page contents"
+    }
+
+    if {![string equal [$pg get $i1] [string repeat "TESTZLIB" 2048]]} {
+	error "Incorrect uncompressed page contents"
+    }
+} -cleanup {
+    catch {file delete -force $file}
+} -returnCodes {ok}
+
