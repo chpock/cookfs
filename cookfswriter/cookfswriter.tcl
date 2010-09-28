@@ -150,7 +150,7 @@ proc cookfs::createArchive {archivefile filelist {bootstrap ""}} {
     }
     fconfigure $fh -translation binary
     foreach page $pagelist {
-        puts -nonewline $fh $page
+        puts -nonewline $fh \u0000$page
     }
 
     # add fake md5 indexes
@@ -160,12 +160,12 @@ proc cookfs::createArchive {archivefile filelist {bootstrap ""}} {
 
     # add page indexes
     foreach page $pagelist {
-        puts -nonewline $fh [binary format I [string length $page]]
+        puts -nonewline $fh [binary format I [expr {[string length $page] + 1}]]
     }
 
     # TODO: add index
 
-    set indexdata "CFS2.200[createArchiveFileIndex $fileindex]"
+    set indexdata "\u0000CFS2.200[createArchiveFileIndex $fileindex]"
 
     puts -nonewline $fh $indexdata
     puts -nonewline $fh [binary format IIca* [string length $indexdata] [llength $pagelist] 0 CFS0002]
