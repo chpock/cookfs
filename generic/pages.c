@@ -598,8 +598,18 @@ static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data) {
     unsigned char *bytes;
     int size;
     Tcl_IncrRefCount(data);
+    Tcl_Obj *byteObj;
     bytes = Tcl_GetByteArrayFromObj(data, &size);
     if (size > 0) {
+	if (1) {
+	    /* write compression algorithm */
+	    unsigned char byte[4];
+	    byte[0] = (unsigned char) p->fileCompression;
+	    byteObj = Tcl_NewByteArrayObj(byte, 1);
+	    Tcl_IncrRefCount(byteObj);
+	    Tcl_WriteObj(p->fileChannel, byteObj);
+	    Tcl_DecrRefCount(byteObj);
+	}
         switch (p->fileCompression) {
             case cookfsCompressionNone: {
                 CookfsLog(printf("CookfsWritePage writing %d byte(s) as raw data", size))
@@ -677,7 +687,10 @@ static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data) {
             }
 #endif
         }
-        
+	if (1) {
+	    /* add 1 byte needed to store compression algorithm */
+	    size += 1;
+	}
     }
     Tcl_DecrRefCount(data);
     return size;
@@ -685,10 +698,26 @@ static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data) {
 
 static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
     int count;
+    int compression = p->fileCompression;
+
     CookfsLog(printf("CookfsReadPage S=%d C=%d", size, p->fileCompression))
     if (size == 0) {
         return Tcl_NewByteArrayObj((unsigned char *) "", 0);
     }  else  {
+	if (1) {
+	    Tcl_Obj *byteObj;
+	    byteObj = Tcl_NewObj();
+	    if (Tcl_ReadChars(p->fileChannel, byteObj, 1, 0) != 1) {
+		CookfsLog(printf("Unable to read compression mark"))
+		Tcl_IncrRefCount(byteObj);
+		Tcl_DecrRefCount(byteObj);
+		return NULL;
+	    }
+	    compression = Tcl_GetByteArrayFromObj(byteObj, NULL)[0];
+	    Tcl_IncrRefCount(byteObj);
+	    Tcl_DecrRefCount(byteObj);
+	}
+
         switch (p->fileCompression) {
             case cookfsCompressionNone: {
                 Tcl_Obj *data;
