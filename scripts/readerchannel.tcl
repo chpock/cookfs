@@ -48,6 +48,7 @@ proc cookfs::createReadableChannel {fsid path} {
         lappend ch(chunkinfo) $offset $chunkId $chunkOffset $chunkSize
         incr offset $chunkSize
     }
+    set ch(filesize) $offset
 
     # create channel
     set ch(refchannel) \
@@ -117,7 +118,7 @@ proc cookfs::readableChannelHandler {fsid chid command args} {
                     incr ch(offset) $offset
                 }
                 end {
-                    set ch(offset) [expr {$ch(filesize) - $offset}]
+                    set ch(offset) [expr {$ch(filesize) + $offset}]
                 }
             }
             if {$ch(offset) < 0} {set ch(offset) 0}
