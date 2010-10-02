@@ -5,7 +5,44 @@ tcltest::test cookfsFsindex-1.1 "Create empty fsindex" -setup {
     $fsidx delete
 } -returnCodes {ok} -match glob -result {::cookfs::fsindexhandle*}
 
-tcltest::test cookfsFsindex-1.2 "Create fsindex based on other fsindex" -setup {
+tcltest::test cookfsFsindex-1.2 "Create empty fsindex and create file" -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set testfile 2 {0 1 2 3 4 5}
+    if {[$fsidx list ""] != "testfile"} {
+	error "Listing main directory failed: [$fsidx list ""]"
+    }
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok}
+
+tcltest::test cookfsFsindex-1.3 "Create empty fsindex and create directory and files" -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set testdir 1
+    $fsidx set testfile 2 {0 1 2 3 4 5}
+    $fsidx set testdir/otherfile 3 {6 7 8}
+    $fsidx set testfile 4 {9 10 11}
+    if {[lsort [$fsidx list ""]] != "testdir testfile"} {
+	error "Listing main directory failed"
+    }
+    if {[$fsidx list "testdir"] != "otherfile"} {
+	error "Listing testdir directory failed"
+    }
+    if {[$fsidx get testfile] != {4 11 {9 10 11}} } {
+	error "testfile contents differs from expected: [$fsidx get testfile]"
+    }
+    if {[$fsidx get testdir] != {1} } {
+	error "testdir contents differs from expected: [$fsidx get testdir]"
+    }
+    if {[$fsidx get testdir/otherfile] != {3 8 {6 7 8}} } {
+	error "testdir/otherfile contents differs from expected: [$fsidx get testdir/otherfile]"
+    }
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok}
+
+tcltest::test cookfsFsindex-2.1 "Create fsindex based on other fsindex" -setup {
 } -body {
     set fsidx [cookfs::fsindex]
 
@@ -21,7 +58,7 @@ tcltest::test cookfsFsindex-1.2 "Create fsindex based on other fsindex" -setup {
     $fsidx2 delete
 } -returnCodes {ok} -result 1,0
 
-tcltest::test cookfsFsindex-2.1 "Test handling of entries in non-existing paths" -setup {
+tcltest::test cookfsFsindex-2.2 "Test handling of entries in non-existing paths" -setup {
 } -body {
     set fsidx [cookfs::fsindex]
 

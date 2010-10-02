@@ -1,6 +1,6 @@
 # Handling for Tcl VFS functionality.
 #
-# (c) 2010 Pawel Salawa
+# (c) 2010 Wojciech Kocjan, Pawel Salawa
 
 namespace eval cookfs {}
 

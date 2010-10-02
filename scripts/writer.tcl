@@ -2,7 +2,7 @@
 # Mainly used by close event handler of memchan, but can also be
 # invoked separately to add files without writing them to channel first
 #
-# (c) 2010 Pawel Salawa
+# (c) 2010 Wojciech Kocjan, Pawel Salawa
 
 namespace eval cookfs {}
 

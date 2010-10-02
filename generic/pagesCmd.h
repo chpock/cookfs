@@ -1,4 +1,4 @@
-/* (c) 2010 Pawel Salawa */
+/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
 
 #ifndef PAGESCMD_H
 #define PAGESCMD_H 1

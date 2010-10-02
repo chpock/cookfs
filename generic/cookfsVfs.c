@@ -1,4 +1,4 @@
-/* (c) 2010 Pawel Salawa */
+/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
 
 static Tcl_FSStatProc CookfsStat;
 static Tcl_FSAccessProc CookfsAccess;

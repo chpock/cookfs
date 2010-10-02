@@ -1,6 +1,6 @@
 # Handling of read-only channels.
 #
-# (c) 2010 Pawel Salawa
+# (c) 2010 Wojciech Kocjan, Pawel Salawa
 
 namespace eval cookfs {}
 

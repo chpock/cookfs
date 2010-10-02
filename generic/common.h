@@ -1,4 +1,4 @@
-/* (c) 2010 Pawel Salawa */
+/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
 
 #ifndef COOKFS_PAGES_H
 #define COOKFS_PAGES_H 1

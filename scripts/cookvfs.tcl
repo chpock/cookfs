@@ -1,6 +1,6 @@
 # Tcl part of Cookfs package
 #
-# (c) 2010 Pawel Salawa
+# (c) 2010 Wojciech Kocjan, Pawel Salawa
 
 namespace eval cookfs {}
 namespace eval vfs::cookfs {}
