@@ -110,12 +110,73 @@ proc cookfs::fsindex::cleanup {name} {
 
 proc cookfs::fsindex::import {name data} {
     upvar #0 $name c
-    array set c $data
+    if {[string range $data 0 7] != "CFS2.200"} {
+	error "Unable to create index object"
+    }
+    set data [string range $data 8 end]
+    importPath $name {} data
+}
+
+proc cookfs::fsindex::importPath {name path varname} {
+    upvar #0 $name c
+    upvar 1 $varname data
+    if {[binary scan $data Ia* numitems data] != 2} {
+	error "Unable to create index object"
+    }
+    set c($path) {}
+    for {set i 0} {$i < $numitems} {incr i} {
+	if {[binary scan $data ca* numchars data] != 2} {
+	    error "Unable to create index object"
+	}
+	set filename [string range $data 0 [expr {$numchars - 1}]]
+	set data [string range $data [expr {$numchars + 1}] end]
+	set filename [encoding convertfrom utf-8 $filename]
+	if {[binary scan $data WIa* time numblocks data] != 3} {
+	    error "Unable to create index object"
+	}
+	set pathname [_normalizePath [file join $path $filename]]
+	if {$numblocks == -1} {
+	    importPath $name $pathname data
+	    lappend c($path) $filename [list $time]
+	}  else  {
+	    set numdata [expr {$numblocks * 3}]
+	    if {[binary scan $data I${numdata}a* bosdata data] != 2} {
+		error "Unable to create index object"
+	    }
+	    set size 0
+	    foreach {- - cs} $bosdata {
+		incr size $cs
+	    }
+	    lappend c($path) $filename [list $time $size $bosdata]
+	}
+    }
 }
 
 proc cookfs::fsindex::export {name} {
     upvar #0 $name c
-    return [array get c]
+    return "CFS2.200[exportPath $name {}]"
+}
+
+proc cookfs::fsindex::exportPath {name path} {
+    upvar #0 $name c
+    upvarPath $name $path d
+    array set da $d
+
+    set rc ""
+    append rc [binary format I [llength [array names da]]]
+    foreach n [array names da] {
+	set un [encoding convertto utf-8 $n]
+	append rc [binary format c [string length $un] ] $un \u0000
+	append rc [binary format W [lindex $da($n) 0]]
+	if {[llength $da($n)] == 1} {
+	    append rc [binary format I -1]
+	    append rc [exportPath $name [file join $path $n]]
+	}  else  {
+	    set numblocks [expr {[llength [lindex $da($n) 2]] / 3}]
+	    append rc [binary format II* $numblocks [lindex $da($n) 2]]
+	}
+    }
+    return $rc
 }
 
 proc cookfs::fsindex::handle {name cmd args} {
