@@ -11,8 +11,9 @@ proc cookfs::pages {args} {
     upvar #0 $name c
     array set c {
 	readonly 0
+	cachelist {}
 	compression zlib
-	cachesize 4
+	cachesize 8
 	indexdata ""
 	endoffset ""
 	cfsname "CFS0002"
@@ -44,7 +45,7 @@ proc cookfs::pages {args} {
     } err]} {
 	error $err $err
     }
-    if {[llength $args] == 0} {
+    if {[llength $args] != 1} {
 	error "No filename provided"
     }
 
@@ -201,12 +202,12 @@ proc cookfs::pages::pageAdd {name contents} {
 	# TODO: optimize not to seek in subsequent writes
 	seek $c(fh) 0 end
     }
-    set c(haschanged) 1
     if {[catch {
 	puts -nonewline $c(fh) $contents
     }]} {
 	error "Unable to add page"
     }
+    set c(haschanged) 1
     set idx [llength $c(idx.sizelist)]
     lappend c(idx.md5list) $md5
     lappend c(idx.sizelist) [string length $contents]
@@ -238,6 +239,15 @@ proc cookfs::pages::cleanup {name} {
 proc cookfs::pages::pageGet {name idx} {
     upvar #0 $name c
     set o $c(startoffset)
+
+    set cidx [lsearch -exact $c(cachelist) $idx]
+    if {$cidx >= 0} {
+	if {$cidx > 0} {
+	    set c(cachelist) [linsert [lreplace $c(cachelist) $cidx $cidx] 0 $idx]
+	}
+	return $c(cache,$idx)
+    }
+
     if {$idx >= [llength $c(idx.sizelist)]} {
 	error "Out of range"
     }
@@ -247,7 +257,20 @@ proc cookfs::pages::pageGet {name idx} {
     seek $c(fh) $o start
     set fc [read $c(fh) [lindex $c(idx.sizelist) $idx]]
     set c(lastop) read
-    return [decompress $name $fc]
+
+    set fc [decompress $name $fc]
+
+    if {$c(cachesize) > 0} {
+	if {[llength $c(cachelist)] >= $c(cachesize)} {
+	    set remidx [lindex $c(cachelist) [expr {$c(cachesize) - 1}]]
+	    unset c(cache,$remidx)
+	    set c(cachelist) [lrange $c(cachelist) 0 [expr {$c(cachesize) - 2}]]
+	}
+	set c(cachelist) [linsert $c(cachelist) 0 $idx]
+	set c(cache,$idx) $fc
+    }
+
+    return $fc
 }
 
 proc cookfs::pages::handle {name cmd args} {

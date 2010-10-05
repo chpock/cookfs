@@ -308,7 +308,6 @@ Tcl_Obj *Cookfs_MD5FromObj(Tcl_Obj *obj) {
     char hex[36];
     int i;
     int size;
-    Tcl_Obj *result;
 
     bytes = Tcl_GetByteArrayFromObj(obj, &size);
 

@@ -7,7 +7,6 @@
 
 #define COOKFS_SUFFIX_BYTES 16
 
-
 const char *cookfsCompressionOptions[] = {
     "none",
     "zlib",
@@ -24,9 +23,32 @@ static Tcl_WideInt CookfsGetOffset(Cookfs_Pages *p, int idx);
 static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data);
 static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size);
 
-Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside) {
+Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside) {
     Cookfs_Pages *rc = (Cookfs_Pages *) Tcl_Alloc(sizeof(Cookfs_Pages));
     int i;
+
+    rc->interp = interp;
+#ifdef USE_ZLIB_VFSZIP
+    rc->zipCmdCompress[0] = Tcl_NewStringObj("vfs::zip", -1);
+    rc->zipCmdCompress[1] = Tcl_NewStringObj("-mode", -1);
+    rc->zipCmdCompress[2] = Tcl_NewStringObj("compress", -1);
+    rc->zipCmdCompress[3] = Tcl_NewStringObj("-nowrap", -1);
+    rc->zipCmdCompress[4] = Tcl_NewIntObj(1);
+
+    rc->zipCmdDecompress[0] = rc->zipCmdCompress[0];
+    rc->zipCmdDecompress[1] = rc->zipCmdCompress[1];
+    rc->zipCmdDecompress[2] = Tcl_NewStringObj("decompress", -1);
+    rc->zipCmdDecompress[3] = rc->zipCmdCompress[3];
+    rc->zipCmdDecompress[4] = rc->zipCmdCompress[4];
+
+    Tcl_IncrRefCount(rc->zipCmdCompress[0]);
+    Tcl_IncrRefCount(rc->zipCmdCompress[1]);
+    Tcl_IncrRefCount(rc->zipCmdCompress[2]);
+    Tcl_IncrRefCount(rc->zipCmdCompress[3]);
+    Tcl_IncrRefCount(rc->zipCmdCompress[4]);
+
+    Tcl_IncrRefCount(rc->zipCmdDecompress[2]);
+#endif
 
     rc->useFoffset = useFoffset;
     rc->foffset = foffset;
@@ -250,8 +272,12 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
     p->dataPagesSize[idx] = dataSize;
     if (p->indexUptodate) {
         /* only truncate if index might have been there */
-        p->indexUptodate = 0;
+#ifdef USE_TCL_TRUNCATE
         Tcl_TruncateChannel(p->fileChannel, offset + dataSize);
+#else
+	/* TODO: truncate is still possible using ftruncate() */
+#endif
+        p->indexUptodate = 0;
         CookfsLog(printf("Truncating to %d",(int) (offset + dataSize)))
     }
 
@@ -350,8 +376,6 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
     if (rc == NULL) {
         return NULL;
     }
-
-    Tcl_IncrRefCount(rc);
 
     newIdx = p->cacheSize - 1;
 
@@ -623,6 +647,7 @@ static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data) {
                 break;
             }
             case cookfsCompressionZlib: {
+#ifdef USE_ZLIB_TCL86
                 Tcl_Obj *cobj;
                 Tcl_ZlibStream zshandle;
 
@@ -654,6 +679,30 @@ static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data) {
 
                 Tcl_WriteObj(p->fileChannel, cobj);
                 Tcl_DecrRefCount(cobj);
+#else
+		Tcl_Obj *prevResult;
+		Tcl_Obj *compressed;
+
+                Tcl_IncrRefCount(data);
+		p->zipCmdCompress[5] = data;
+		prevResult = Tcl_GetObjResult(p->interp);
+		Tcl_IncrRefCount(prevResult);
+		if (Tcl_EvalObjv(p->interp, 6, p->zipCmdCompress, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
+		    Tcl_SetObjResult(p->interp, prevResult);
+                    CookfsLog(printf("Unable to compress"))
+                    Tcl_DecrRefCount(data);
+		    return NULL;
+		}
+                Tcl_DecrRefCount(data);
+		compressed = Tcl_GetObjResult(p->interp);
+		Tcl_IncrRefCount(compressed);
+		Tcl_SetObjResult(p->interp, prevResult);
+		Tcl_DecrRefCount(prevResult);
+		Tcl_GetByteArrayFromObj(compressed, &size);
+                Tcl_WriteObj(p->fileChannel, compressed);
+		Tcl_DecrRefCount(compressed);
+
+#endif
                 break;
             }
 #ifdef COOKFS_USEBZ2
@@ -740,9 +789,11 @@ static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
                     return NULL;
                 }
 
+                Tcl_IncrRefCount(data);
                 return data;
             }
             case cookfsCompressionZlib: {
+#ifdef USE_ZLIB_TCL86
                 Tcl_Obj *data;
                 Tcl_Obj *cobj;
                 Tcl_ZlibStream zshandle;
@@ -784,9 +835,40 @@ static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
                         return NULL;
                     }
                 }
+		Tcl_IncrRefCount(cobj);
                 CookfsLog(printf("Returning = [%s]", cobj == NULL ? "NULL" : "SET"))
                 Tcl_ZlibStreamClose(zshandle);
                 return cobj;
+#else
+		Tcl_Obj *prevResult;
+		Tcl_Obj *compressed;
+		Tcl_Obj *data;
+                compressed = Tcl_NewObj();
+                Tcl_IncrRefCount(compressed);
+                count = Tcl_ReadChars(p->fileChannel, compressed, size, 0);
+
+                CookfsLog(printf("Reading - %d vs %d", count, size))
+                if (count != size) {
+                    CookfsLog(printf("Unable to read - %d != %d", count, size))
+                    Tcl_DecrRefCount(compressed);
+                    return NULL;
+                }
+		p->zipCmdDecompress[5] = compressed;
+		prevResult = Tcl_GetObjResult(p->interp);
+		Tcl_IncrRefCount(prevResult);
+		if (Tcl_EvalObjv(p->interp, 6, p->zipCmdDecompress, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
+                    CookfsLog(printf("Unable to decompress"))
+		    printf("TEST0x - %s\n", Tcl_GetStringFromObj(Tcl_GetObjResult(p->interp), NULL));
+                    Tcl_DecrRefCount(compressed);
+		    return NULL;
+		}
+                Tcl_DecrRefCount(compressed);
+		data = Tcl_GetObjResult(p->interp);
+		Tcl_IncrRefCount(data);
+		Tcl_SetObjResult(p->interp, prevResult);
+                Tcl_DecrRefCount(prevResult);
+		return data;
+#endif
                 break;
             }
 #ifdef COOKFS_USEBZ2
@@ -813,6 +895,7 @@ static Tcl_Obj *CookfsReadPage(Cookfs_Pages *p, int size) {
                 }
 
                 destObj = Tcl_NewByteArrayObj(NULL, 0);
+		Tcl_IncrRefCount(destObj);
                 Cookfs_Binary2Int(source, &destSize, 1);
 
                 CookfsLog(printf("CookfsReadPage: uncompressed size=%d from %d", destSize, size))

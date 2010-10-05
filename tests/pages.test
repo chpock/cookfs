@@ -86,6 +86,33 @@ tcltest::test cookfsPages-2.2 "Test read-only error for adding a page" -setup {
     catch {file delete -force $file}
 } -returnCodes {error} -result {Unable to add page}
 
+tcltest::test cookfsPages-2.3 "Test correctness of pages after write - large number of pages" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set idxlist {}
+    set conlist {}
+    set pg [cookfs::pages -compression zlib $file]
+    for {set i 0} {$i < 64} {incr i} {
+	set contents [string repeat [format PAGE%04d $i] 1024]
+	lappend conlist $contents
+        lappend idxlist [$pg add $contents]
+    }
+    $pg delete
+
+    set pg [cookfs::pages -readonly -cachesize 8 $file]
+    for {set i 0} {$i < 102400} {incr i} {
+	set pr [expr {int(rand() * 64)}]
+	set pi [lindex $idxlist $pr]
+	set pc [lindex $conlist $pr]
+	if {[$pg get $pi] != $pc} {
+	    error "Incorrect page contents - iteration $i, page $pr"
+	}
+    }
+    $pg delete
+} -cleanup {
+    catch {file delete -force $file}
+} -returnCodes {ok}
+
 tcltest::test cookfsPages-3.1 "Test appended file handling" -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set file2 [tcltest::makeFile {} pages2.cfs]

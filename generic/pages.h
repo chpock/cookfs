@@ -3,6 +3,16 @@
 #ifndef PAGES_H
 #define PAGES_H 1
 
+#if 10 * TCL_MAJOR_VERSION + TCL_MINOR_VERSION < 86
+#define USE_ZLIB_VFSZIP 1
+#else
+#define USE_ZLIB_TCL86 1
+#endif
+
+#if 10 * TCL_MAJOR_VERSION + TCL_MINOR_VERSION >= 85
+#define USE_TCL_TRUNCATE 1
+#endif
+
 enum {
     COOKFS_LASTOP_UNKNOWN = 0,
     COOKFS_LASTOP_READ,
@@ -28,6 +38,12 @@ enum {
 #define COOKFS_PAGES_ISASIDE(value) (((value) & COOKFS_PAGES_ASIDE) == COOKFS_PAGES_ASIDE)
 
 typedef struct Cookfs_Pages {
+    /* main interp */
+    Tcl_Interp *interp;
+#ifdef USE_ZLIB_VFSZIP
+    Tcl_Obj *zipCmdCompress[6];
+    Tcl_Obj *zipCmdDecompress[6];
+#endif
     /* file */
     Tcl_Mutex pagesLock;
     int fileReadOnly;
@@ -60,7 +76,7 @@ typedef struct Cookfs_Pages {
     
 } Cookfs_Pages;
 
-Cookfs_Pages *Cookfs_PagesInit(Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside);
+Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside);
 void Cookfs_PagesFini(Cookfs_Pages *p);
 int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj);
 Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index);
