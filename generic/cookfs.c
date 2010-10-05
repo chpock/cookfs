@@ -5,6 +5,7 @@
 int
 Cookfs_Init(Tcl_Interp *interp)
 {
+    char buf[256];
     if (Tcl_InitStubs(interp, "8.4", 0) == NULL) {
         return TCL_ERROR;
     }
@@ -13,7 +14,10 @@ Cookfs_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
     
-    Tcl_CreateNamespace(interp, "::cookfs", NULL, NULL);
+    strcpy(buf, "namespace eval ::cookfs {}");
+    if (Tcl_EvalEx(interp, buf, -1, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
+        return TCL_ERROR;
+    }
     if (Cookfs_InitPagesCmd(interp) != TCL_OK) {
         return TCL_ERROR;
     }
