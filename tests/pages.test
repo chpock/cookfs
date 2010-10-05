@@ -235,6 +235,10 @@ tcltest::test cookfsPages-5.1 "Test multiple compression algorithms" -setup {
     set fs0 [file size $file]
 
     set pg [cookfs::pages -compression zlib $file]
+    if {![string equal [$pg get $i0] [string repeat "TESTNONE" 2048]]} {
+	error "Incorrect uncompressed page contents after first attempt"
+    }
+
     set i1 [$pg add [string repeat "TESTZLIB" 2048]]
     set i [$pg index]
     if {![string equal $i "Index0"]} {

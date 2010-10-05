@@ -34,7 +34,6 @@ proc cookfs::createReadableChannel {fsid path} {
         offset 0
     }
 
-
     # if this is a small file, currently pending write, pass it to memchan
     if {([llength $chunklist] == 3) && ([lindex $chunklist 0] < 0)} {
         #vfs::log [list cookfs::createReadableChannel $fsid $path smallfile]
@@ -51,11 +50,26 @@ proc cookfs::createReadableChannel {fsid path} {
     set ch(filesize) $offset
 
     # create channel
-    set ch(refchannel) \
-        [chan create {read} [list cookfs::readableChannelHandler $fsid $chid]]
+    if {[info commands ::chan] != ""} {
+	set ch(refchannel) \
+	    [::chan create {read} [list cookfs::readableChannelHandler $fsid $chid]]
+    }  else  {
+	# fallback to rechan
+	set ch(refchannel) \
+	    [rechan [list cookfs::readableChannelHandler $fsid $chid] 2]
+    }
 
     fconfigure $ch(refchannel) -buffersize 65536
     return $ch(refchannel)
+}
+
+proc cookfs::readableChannelRechan {fsid chid command args} {
+    switch -- $command {
+	seek {
+	    foreach {channelId offset mode} $args break
+	    return [readableChannelHandler $fsid $chid "seek" $chid $channelId $offset [lindex {start current end} $mode]
+	}
+    }
 }
 
 # handle command for a channel
@@ -111,13 +125,13 @@ proc cookfs::readableChannelHandler {fsid chid command args} {
             # seek within the file
             foreach {channelId offset base} $args break
             switch -- $base {
-                start {
+                start - 0 {
                     set ch(offset) $offset
                 }
-                current {
+                current - 1 {
                     incr ch(offset) $offset
                 }
-                end {
+                end - 2 {
                     set ch(offset) [expr {$ch(filesize) + $offset}]
                 }
             }

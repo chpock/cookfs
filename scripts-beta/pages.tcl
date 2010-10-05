@@ -39,6 +39,11 @@ proc cookfs::pages {args} {
 	}
     }
 
+    if {[catch {
+	set c(cid) [::cookfs::pages::compression2cid $c(compression)]
+    } err]} {
+	error $err $err
+    }
     if {[llength $args] == 0} {
 	error "No filename provided"
     }
@@ -80,11 +85,62 @@ proc cookfs::pages {args} {
 
 proc cookfs::pages::compress {name data} {
     upvar #0 $name c
-    set data "\u0000$data"
+    if {[string length $data] == 0} {
+	return ""
+    }
+    if {$c(cid) == 1} {
+	set data "\u0001[vfs::zip -mode compress -nowrap 1 $data]"
+    }  else  {
+	set data "\u0000$data"
+    } 
+    return $data
 }
 
 proc cookfs::pages::decompress {name data} {
-    return [string range $data 1 end]
+    if {[string length $data] == 0} {
+	return ""
+    }
+    if {[binary scan $data ca* cid data] != 2} {
+	error "Unable to decompress page"
+    }
+    switch -- $cid {
+	0 {
+	    return $data
+	}
+	1 {
+	    return [vfs::zip -mode decompress -nowrap 1 $data]
+	}
+    }
+
+    error "Unable to decompress page"
+}
+
+proc cookfs::pages::compression2cid {name} {
+    switch -- $name {
+	none {
+	    return 0
+	}
+	zlib {
+	    return 1
+	}
+	default {
+	    error "Unknown compression \"$name\""
+	}
+    }
+}
+
+proc cookfs::pages::cid2compression {name} {
+    switch -- $name {
+	0 {
+	    return "none"
+	}
+	1 {
+	    return "zlib"
+	}
+	default {
+	    error "Unknown compression id \"$name\""
+	}
+    }
 }
 
 proc cookfs::pages::readIndex {name} {
@@ -98,12 +154,14 @@ proc cookfs::pages::readIndex {name} {
     if {[string length $fc] != 16} {
 	return 0
     }
-    if {[string range $fc 8 15] != "\u0000$c(cfsname)"} {
+    if {[string range $fc 9 15] != "$c(cfsname)"} {
 	return 0
     }
     binary scan [string range $fc 0 7] II idxsize numpages
 
     set idxoffset [expr {$c(endoffset) - (16 + $idxsize + ($numpages * 20))}]
+    set c(indexoffset) $idxoffset
+
     seek $c(fh) $idxoffset start
     set md5data [read $c(fh) [expr {$numpages * 16}]]
     set sizedata [read $c(fh) [expr {$numpages * 4}]]
@@ -138,7 +196,7 @@ proc cookfs::pages::pageAdd {name contents} {
     set contents [compress $name $contents]
 
     if {!$c(haschanged)} {
-	error "Need to trim archive here!"
+	seek $c(fh) $c(indexoffset) start
     }
 
     if {1} {
@@ -156,13 +214,21 @@ proc cookfs::pages::pageAdd {name contents} {
 proc cookfs::pages::cleanup {name} {
     upvar #0 $name c
     if {$c(haschanged)} {
+	set offset $c(startoffset)
+	foreach i $c(idx.sizelist) {
+	    incr offset $i
+	}
+	seek $c(fh) $offset start
 	# write MD5 indexes
 	puts -nonewline $c(fh) [binary format H* [join $c(idx.md5list) ""]]
 	# write size indexes
 	puts -nonewline $c(fh) [binary format I* $c(idx.sizelist)]
 	set idx [compress $name $c(indexdata)]
 	puts -nonewline $c(fh) $idx
-	puts -nonewline $c(fh) [binary format IIca* [string length $idx] [llength $c(idx.sizelist)] 0 $c(cfsname)]
+	puts -nonewline $c(fh) [binary format IIca* [string length $idx] [llength $c(idx.sizelist)] [compression2cid $c(compression)] $c(cfsname)]
+	if {[tell $c(fh)] < $c(endoffset)} {
+	    chan truncate $c(fh)
+	}
     }
     close $c(fh)
 }

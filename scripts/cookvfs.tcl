@@ -14,7 +14,7 @@ if {![info exists cookfs::mountId]} {
 }
 
 proc vfs::cookfs::Mount {args} {
-    return [::cookfs::Mount {*}$args]
+    return [eval [concat [list ::cookfs::Mount] $args]]
 }
 
 # Mount VFS - usage:
@@ -85,7 +85,7 @@ proc cookfs::Mount {args} {
 
     # initialize FS data
     array set fs {
-        channelid 0
+        channelId 0
         smallfilepaths {}
         smallfilebuf {}
         smallfilebufsize 0
