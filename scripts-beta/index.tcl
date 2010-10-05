@@ -73,7 +73,11 @@ proc cookfs::fsindex::entrySet {name path data} {
     # TODO: validate entry - data types
     # TODO: validate entry - parent has to be existing directory
     upvar #0 $name c
-    upvarPathDir $name $path d tail
+    if {[catch {
+	upvarPathDir $name $path d tail
+    }]} {
+	error "Unable to create entry"
+    }
     array set da $d
     if {[llength $data] == 2} {
 	set size 0
@@ -100,6 +104,17 @@ proc cookfs::fsindex::entrySet {name path data} {
 }
 
 proc cookfs::fsindex::entrySetmtime {name path mtime} {
+    if {[catch {
+	upvarPathDir $name $path d tail
+    }]} {
+	error "Unable to create entry"
+    }
+    if {![info exists da($tail)]} {
+	error "Entry not found"
+    }  else  {
+	lset da($tail) 0 $mtime
+    }
+
 }
 
 proc cookfs::fsindex::entryUnset {name path} {

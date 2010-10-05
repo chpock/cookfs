@@ -197,14 +197,16 @@ proc cookfs::pages::pageAdd {name contents} {
 
     if {!$c(haschanged)} {
 	seek $c(fh) $c(indexoffset) start
-    }
-
-    if {1} {
-	# TODO: optimize
+    }  else  {
+	# TODO: optimize not to seek in subsequent writes
 	seek $c(fh) 0 end
     }
     set c(haschanged) 1
-    puts -nonewline $c(fh) $contents
+    if {[catch {
+	puts -nonewline $c(fh) $contents
+    }]} {
+	error "Unable to add page"
+    }
     set idx [llength $c(idx.sizelist)]
     lappend c(idx.md5list) $md5
     lappend c(idx.sizelist) [string length $contents]
