@@ -6,6 +6,10 @@ tcltest::testsDirectory [file dir [info script]]
 
 package require vfs::cookfs
 
+if {[info tclversion] == "8.4"} {
+    package require rechan
+}
+
 puts stdout "Tests running in interp:  [info nameofexecutable]"
 puts stdout "Tests running in working dir:  $::tcltest::testsDirectory"
 if {[llength $::tcltest::skip] > 0} {
