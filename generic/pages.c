@@ -627,9 +627,10 @@ static Tcl_WideInt CookfsGetOffset(Cookfs_Pages *p, int idx) {
 static int CookfsWritePage(Cookfs_Pages *p, Tcl_Obj *data) {
     unsigned char *bytes;
     int size;
-    Tcl_IncrRefCount(data);
     Tcl_Obj *byteObj;
+
     bytes = Tcl_GetByteArrayFromObj(data, &size);
+    Tcl_IncrRefCount(data);
     if (size > 0) {
 	if (1) {
 	    /* write compression algorithm */
