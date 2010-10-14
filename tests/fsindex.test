@@ -67,3 +67,69 @@ tcltest::test cookfsFsindex-2.2 "Test handling of entries in non-existing paths"
     $fsidx delete
 } -returnCodes {error} -result {Unable to create entry}
 
+tcltest::test cookfsFsindex-3.1 "Create small number of entries in single directory" -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+    for {set i 0} {$i < 10} {incr i} {
+	$fsidx set file$i $i [list $i $i $i]
+    }
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    for {set i 0} {$i < 10} {incr i} {
+	set j [$fsidx get file$i]
+	if {([lindex $j 0] != $i) || ([lindex $j 1] != $i)} {
+	    error "Invalid value for file $i: $j"
+	}
+	if {([lindex $j 2 0] != $i) || ([lindex $j 2 1] != $i) || ([lindex $j 2 2] != $i)} {
+	    error "Invalid value for file $i: $j"
+	}
+    }
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok}
+
+tcltest::test cookfsFsindex-3.2 "Create medium number of entries in single directory" -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+    for {set i 0} {$i < 100} {incr i} {
+	$fsidx set file$i $i [list $i $i $i]
+    }
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    for {set i 0} {$i < 100} {incr i} {
+	set j [$fsidx get file$i]
+	if {([lindex $j 0] != $i) || ([lindex $j 1] != $i)} {
+	    error "Invalid value for file $i: $j"
+	}
+	if {([lindex $j 2 0] != $i) || ([lindex $j 2 1] != $i) || ([lindex $j 2 2] != $i)} {
+	    error "Invalid value for file $i: $j"
+	}
+    }
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok}
+
+tcltest::test cookfsFsindex-3.3 "Create large number of entries in single directory" -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+    for {set i 0} {$i < 1000} {incr i} {
+	$fsidx set file$i $i [list $i $i $i]
+    }
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    for {set i 0} {$i < 1000} {incr i} {
+	set j [$fsidx get file$i]
+	if {([lindex $j 0] != $i) || ([lindex $j 1] != $i)} {
+	    error "Invalid value for file $i: $j"
+	}
+	if {([lindex $j 2 0] != $i) || ([lindex $j 2 1] != $i) || ([lindex $j 2 2] != $i)} {
+	    error "Invalid value for file $i: $j"
+	}
+    }
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok}
+
