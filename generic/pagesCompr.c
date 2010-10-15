@@ -13,6 +13,8 @@ static int CookfsWritePageZlib(Cookfs_Pages *p, Tcl_Obj *data, int size);
 static Tcl_Obj *CookfsReadPageBz2(Cookfs_Pages *p, int size);
 static int CookfsWritePageBz2(Cookfs_Pages *p, Tcl_Obj *data, int size);
 
+static void CookfsWriteCompression(Cookfs_Pages *p, int compression);
+
 Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size) {
     int count;
     int compression = p->fileCompression;
@@ -64,42 +66,44 @@ Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size) {
 
 int Cookfs_WritePage(Cookfs_Pages *p, Tcl_Obj *data) {
     unsigned char *bytes;
-    Tcl_Obj *byteObj;
-    int size;
+    int origSize;
+    int size = -1;
 
-    bytes = Tcl_GetByteArrayFromObj(data, &size);
+    bytes = Tcl_GetByteArrayFromObj(data, &origSize);
     Tcl_IncrRefCount(data);
-    if (size > 0) {
-	/* write compression algorithm */
-	unsigned char byte[4];
-	byte[0] = (unsigned char) p->fileCompression;
-	byteObj = Tcl_NewByteArrayObj(byte, 1);
-	Tcl_IncrRefCount(byteObj);
-	Tcl_WriteObj(p->fileChannel, byteObj);
-	Tcl_DecrRefCount(byteObj);
-
+    if (origSize > 0) {
         switch (p->fileCompression) {
-            case cookfsCompressionNone:
-                CookfsLog(printf("Cookfs_WritePage writing %d byte(s) as raw data", size))
-                Tcl_WriteObj(p->fileChannel, data);
-		break;
-
             case cookfsCompressionZlib:
-		size = CookfsWritePageZlib(p, data, size);
+		size = CookfsWritePageZlib(p, data, origSize);
 		break;
 
             case cookfsCompressionBz2:
-		size = CookfsWritePageBz2(p, data, size);
+		size = CookfsWritePageBz2(p, data, origSize);
 		break;
         }
 
-	if (size != -1) {
-	    /* add 1 byte needed to store compression algorithm */
+	if (size == -1) {
+	    CookfsWriteCompression(p, cookfsCompressionNone);
+	    Tcl_WriteObj(p->fileChannel, data);
+	    size = origSize + 1;
+	}  else  {
 	    size += 1;
 	}
+    }  else  {
+	size = 0;
     }
     Tcl_DecrRefCount(data);
     return size;
+}
+
+static void CookfsWriteCompression(Cookfs_Pages *p, int compression) {
+    Tcl_Obj *byteObj;
+    unsigned char byte[4];
+    byte[0] = (unsigned char) p->fileCompression;
+    byteObj = Tcl_NewByteArrayObj(byte, 1);
+    Tcl_IncrRefCount(byteObj);
+    Tcl_WriteObj(p->fileChannel, byteObj);
+    Tcl_DecrRefCount(byteObj);
 }
 
 static Tcl_Obj *CookfsReadPageZlib(Cookfs_Pages *p, int size) {
@@ -186,8 +190,9 @@ static Tcl_Obj *CookfsReadPageZlib(Cookfs_Pages *p, int size) {
 #endif
 }
 
-static int CookfsWritePageZlib(Cookfs_Pages *p, Tcl_Obj *data, int size) {
+static int CookfsWritePageZlib(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
 #ifdef USE_ZLIB_TCL86
+    int size = origSize;
     /* use Tcl 8.6 API for zlib compression */
     Tcl_Obj *cobj;
     Tcl_ZlibStream zshandle;
@@ -218,9 +223,15 @@ static int CookfsWritePageZlib(Cookfs_Pages *p, Tcl_Obj *data, int size) {
     Tcl_IncrRefCount(cobj);
     Tcl_GetByteArrayFromObj(cobj, &size);
 
-    Tcl_WriteObj(p->fileChannel, cobj);
+    if (1) {
+	CookfsWriteCompression(p, cookfsCompressionZlib);
+	Tcl_WriteObj(p->fileChannel, cobj);
+    }  else  {
+	size = -1;
+    }
     Tcl_DecrRefCount(cobj);
 #else
+    int size = origSize;
     /* use vfs::zip command for compression */
     Tcl_Obj *prevResult;
     Tcl_Obj *compressed;
@@ -241,7 +252,13 @@ static int CookfsWritePageZlib(Cookfs_Pages *p, Tcl_Obj *data, int size) {
     Tcl_SetObjResult(p->interp, prevResult);
     Tcl_DecrRefCount(prevResult);
     Tcl_GetByteArrayFromObj(compressed, &size);
-    Tcl_WriteObj(p->fileChannel, compressed);
+
+    if (1) {
+	CookfsWriteCompression(p, cookfsCompressionZlib);
+	Tcl_WriteObj(p->fileChannel, compressed);
+    }  else  {
+	size = -1;
+    }
     Tcl_DecrRefCount(compressed);
 #endif
     return size;
@@ -324,6 +341,7 @@ static int CookfsWritePageBz2(Cookfs_Pages *p, Tcl_Obj *data, int size) {
     Tcl_SetByteArrayLength(destObj, destSize + 4);
 
     Tcl_IncrRefCount(destObj);
+    CookfsWriteCompression(p, cookfsCompressionBz2);
     Tcl_WriteObj(p->fileChannel, destObj);
     Tcl_DecrRefCount(destObj);
 
