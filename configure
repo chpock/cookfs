@@ -6910,7 +6910,7 @@ done
 
 
 
-    vars="cookfs.c common.c pages.c pagesCmd.c fsindex.c fsindexIO.c fsindexCmd.c md5.h"
+    vars="cookfs.c common.c pages.c pagesCompr.c pagesCmd.c fsindex.c fsindexIO.c fsindexCmd.c md5.h"
     for i in $vars; do
 	case $i in
 	    \$*)

@@ -92,4 +92,7 @@ void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside);
 void Cookfs_PagesSetIndex(Cookfs_Pages *p, Tcl_Obj *dataIndex);
 Tcl_Obj *Cookfs_PagesGetIndex(Cookfs_Pages *p);
 
+int Cookfs_WritePage(Cookfs_Pages *p, Tcl_Obj *data);
+Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size);
+
 #endif
