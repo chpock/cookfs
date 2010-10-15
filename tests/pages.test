@@ -46,7 +46,44 @@ tcltest::test cookfsPages-1.4 "Create empty pages as read-only" -setup {
     catch {file delete -force $file}
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object}
 
-tcltest::test cookfsPages-2.1 "Test correctness of pages after write" -setup {
+tcltest::test cookfsPages-2.1 "Test that different pages get different indexes" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    set i0 [$pg add "TEST00"]
+    set i1 [$pg add "TEST01"]
+    $pg delete
+    expr {($i0 == $i1) ? 1 : 0}
+} -cleanup {
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 0
+
+tcltest::test cookfsPages-2.2 "Test that same pages get same indexes" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    set i0 [$pg add "TEST00"]
+    set i1 [$pg add "TEST00"]
+    $pg delete
+    expr {($i0 == $i1) ? 1 : 0}
+} -cleanup {
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 1
+
+tcltest::test cookfsPages-2.3 "Test that different pages with same MD5 checksum get different indexes" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    # MD5 checksum for both values is 79054025255FB1A26E4BC422AEF54EB4
+    set i0 [$pg add [binary format H* d131dd02c5e6eec4693d9a0698aff95c2fcab58712467eab4004583eb8fb7f8955ad340609f4b30283e488832571415a085125e8f7cdc99fd91dbdf280373c5bd8823e3156348f5bae6dacd436c919c6dd53e2b487da03fd02396306d248cda0e99f33420f577ee8ce54b67080a80d1ec69821bcb6a8839396f9652b6ff72a70]]
+    set i1 [$pg add [binary format H* d131dd02c5e6eec4693d9a0698aff95c2fcab50712467eab4004583eb8fb7f8955ad340609f4b30283e4888325f1415a085125e8f7cdc99fd91dbd7280373c5bd8823e3156348f5bae6dacd436c919c6dd53e23487da03fd02396306d248cda0e99f33420f577ee8ce54b67080280d1ec69821bcb6a8839396f965ab6ff72a70]]
+    $pg delete
+    expr {($i0 == $i1) ? 1 : 0}
+} -cleanup {
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 0
+
+tcltest::test cookfsPages-3.1 "Test correctness of pages after write" -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression zlib $file]
@@ -72,7 +109,7 @@ tcltest::test cookfsPages-2.1 "Test correctness of pages after write" -setup {
     catch {file delete -force $file}
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-2.2 "Test read-only error for adding a page" -setup {
+tcltest::test cookfsPages-3.2 "Test read-only error for adding a page" -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression zlib $file]
@@ -86,7 +123,7 @@ tcltest::test cookfsPages-2.2 "Test read-only error for adding a page" -setup {
     catch {file delete -force $file}
 } -returnCodes {error} -result {Unable to add page}
 
-tcltest::test cookfsPages-2.3 "Test correctness of pages after write - large number of pages" -setup {
+tcltest::test cookfsPages-3.3 "Test correctness of pages after write - large number of pages" -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set idxlist {}
@@ -113,7 +150,7 @@ tcltest::test cookfsPages-2.3 "Test correctness of pages after write - large num
     catch {file delete -force $file}
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-3.1 "Test appended file handling" -setup {
+tcltest::test cookfsPages-4.1 "Test appended file handling" -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set file2 [tcltest::makeFile {} pages2.cfs]
 } -body {
@@ -154,7 +191,7 @@ tcltest::test cookfsPages-3.1 "Test appended file handling" -setup {
     catch {file delete -force $file2}
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-3.2 "Test appended file handling - adding same page to new archive" -setup {
+tcltest::test cookfsPages-4.2 "Test appended file handling - adding same page to new archive" -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set file2 [tcltest::makeFile {} pages2.cfs]
 } -body {
@@ -210,7 +247,7 @@ tcltest::test cookfsPages-3.2 "Test appended file handling - adding same page to
     catch {file delete -force $file2}
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-4.1 "Test specifying -endoffset" -setup {
+tcltest::test cookfsPages-5.1 "Test specifying -endoffset" -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression zlib $file]
@@ -251,7 +288,7 @@ tcltest::test cookfsPages-4.1 "Test specifying -endoffset" -setup {
     catch {file delete -force $file}
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-5.1 "Test multiple compression algorithms" -setup {
+tcltest::test cookfsPages-6.1 "Test multiple compression algorithms" -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression none $file]

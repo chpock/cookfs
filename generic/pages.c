@@ -228,11 +228,34 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
     CookfsLog(printf("Cookfs_PageAdd: Matching page (size=%d bytes)", objLength))
     for (idx = 0; idx < p->dataNumPages; idx++, pageMD5 += 16) {
         if (memcmp(pageMD5, md5sum, 16) == 0) {
-            CookfsLog(printf("Cookfs_PageAdd: Matched page (size=%d bytes) as %d", objLength, idx))
-            if (p->dataPagesIsAside) {
-                idx |= COOKFS_PAGES_ASIDE;
-            }
-            return idx;
+            /* even if MD5 checksums are the same, we still need to validate contents of the page */
+	    Tcl_Obj *otherPageData;
+	    unsigned char *otherBytes;
+	    int otherObjLength;
+	    int isMatched = 1;
+
+	    otherPageData = Cookfs_PageGet(p, idx);
+
+	    Tcl_IncrRefCount(otherPageData);
+	    otherBytes = Tcl_GetByteArrayFromObj(otherPageData, &otherObjLength);
+
+	    if (otherObjLength != objLength) {
+		isMatched = 0;
+	    }  else  {
+		if (memcmp(bytes, otherBytes, objLength) != 0) {
+		    isMatched = 0;
+		}
+	    }
+
+	    Tcl_DecrRefCount(otherPageData);
+
+	    if (isMatched) {
+		CookfsLog(printf("Cookfs_PageAdd: Matched page (size=%d bytes) as %d", objLength, idx))
+		if (p->dataPagesIsAside) {
+		    idx |= COOKFS_PAGES_ASIDE;
+		}
+		return idx;
+	    }
         }
     }
 
