@@ -133,3 +133,26 @@ tcltest::test cookfsFsindex-3.3 "Create large number of entries in single direct
     $fsidx delete
 } -returnCodes {ok}
 
+tcltest::test cookfsFsindex-4.1 "Create filename outside iso8859-1 encoding" -setup {
+} -body {
+    set fn "File\u0105\u4e2d"
+    set fsidx [cookfs::fsindex]
+    $fsidx set $fn 1
+    lindex [$fsidx get $fn] 0
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok} -result 1
+
+tcltest::test cookfsFsindex-4.2 "Create filename outside iso8859-1 encoding after export/import" -setup {
+} -body {
+    set fn "File\u0105\u4e2d"
+    set fsidx [cookfs::fsindex]
+    $fsidx set $fn 1
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    lindex [$fsidx get $fn] 0
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok} -result 1
+
