@@ -191,8 +191,14 @@ proc cookfs::pages::readIndex {name} {
 proc cookfs::pages::pageAdd {name contents} {
     upvar #0 $name c
     set md5 [string toupper [md5::md5 -hex $contents]]
-    if {[set idx [lsearch -exact $c(idx.md5list) $md5]] >= 0} {
-	return $idx
+    set idx 0
+    foreach imd5 $c(idx.md5list) {
+	if {[string equal $md5 $imd5]} {
+	    if {[string equal [pageGet $name $idx] $contents]} {
+		return $idx
+	    }
+	}
+	incr idx
     }
     set contents [compress $name $contents]
 
