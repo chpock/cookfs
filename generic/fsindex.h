@@ -4,6 +4,8 @@
 #define FSINDEX_H 1
 
 #define COOKFS_NUMBLOCKS_DIRECTORY -1
+#define COOKFS_FSINDEX_TABLE_REVERT_NUMENTRIES 2
+#define COOKFS_FSINDEX_TABLE_MAXENTRIES 4
 
 /* all filenames are stored in UTF-8 */
 typedef struct Cookfs_FsindexEntry {
@@ -17,10 +19,14 @@ typedef struct Cookfs_FsindexEntry {
             char *memoryBlock;
             int fileBlockOffsetSize[1];
         } fileInfo;
-        struct {
-            Tcl_HashTable children;
-            int childCount;
-        } dirInfo;
+	struct {
+	    union {
+		Tcl_HashTable children;
+		struct Cookfs_FsindexEntry *table[COOKFS_FSINDEX_TABLE_MAXENTRIES];
+	    } dirData;
+	    char isHash;
+	    int childCount;
+	} dirInfo;
     } data;
     /* this stores series of 3 values: block number, block offset, size of element */
 } Cookfs_FsindexEntry;

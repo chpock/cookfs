@@ -77,38 +77,42 @@ static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
     Cookfs_Int2Binary(&entry->data.dirInfo.childCount, bytes + objOffset, 1);
     objOffset += 4;
 
-    hashEntry = Tcl_FirstHashEntry(&entry->data.dirInfo.children, &hashSearch);
-    while (hashEntry != NULL) {
-        itemNode = (Cookfs_FsindexEntry *) Tcl_GetHashValue(hashEntry);
-        hashEntry = Tcl_NextHashEntry(&hashSearch);
+    if (1) {
+	hashEntry = Tcl_FirstHashEntry(&entry->data.dirInfo.dirData.children, &hashSearch);
+	while (hashEntry != NULL) {
+	    itemNode = (Cookfs_FsindexEntry *) Tcl_GetHashValue(hashEntry);
+	    hashEntry = Tcl_NextHashEntry(&hashSearch);
 
-        if (objLength < (objOffset + COOKFS_FSINDEX_MAXENTRYSIZE)) {
-            objLength += COOKFS_FSINDEX_BUFFERINCREASE;
-            bytes = Tcl_SetByteArrayLength(result, objLength);
-        }
+	    if (objLength < (objOffset + COOKFS_FSINDEX_MAXENTRYSIZE)) {
+		objLength += COOKFS_FSINDEX_BUFFERINCREASE;
+		bytes = Tcl_SetByteArrayLength(result, objLength);
+	    }
 
-        bytes[objOffset] = itemNode->fileNameLen;
-        objOffset++;
+	    bytes[objOffset] = itemNode->fileNameLen;
+	    objOffset++;
 
-        CookfsLog(printf("Copying filename \"%s\" (%d bytes)", itemNode->fileName, ((int) itemNode->fileNameLen)))
+	    CookfsLog(printf("Copying filename \"%s\" (%d bytes)", itemNode->fileName, ((int) itemNode->fileNameLen)))
 
-        memcpy(bytes + objOffset, itemNode->fileName, itemNode->fileNameLen);
-        objOffset += itemNode->fileNameLen;
-        bytes[objOffset] = 0;
-        objOffset ++;
+	    memcpy(bytes + objOffset, itemNode->fileName, itemNode->fileNameLen);
+	    objOffset += itemNode->fileNameLen;
+	    bytes[objOffset] = 0;
+	    objOffset ++;
 
-        Cookfs_WideInt2Binary(&itemNode->fileTime, bytes + objOffset, 1);
-        objOffset += 8;
+	    Cookfs_WideInt2Binary(&itemNode->fileTime, bytes + objOffset, 1);
+	    objOffset += 8;
 
-        Cookfs_Int2Binary(&itemNode->fileBlocks, bytes + objOffset, 1);
-        objOffset += 4;
+	    Cookfs_Int2Binary(&itemNode->fileBlocks, bytes + objOffset, 1);
+	    objOffset += 4;
 
-        if (itemNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
-            objOffset = CookfsFsindexExportDirectory(fsIndex, itemNode, result, objOffset);
-        }  else  {
-            Cookfs_Int2Binary(itemNode->data.fileInfo.fileBlockOffsetSize, bytes + objOffset, itemNode->fileBlocks * 3);
-            objOffset += itemNode->fileBlocks * 12;
-        }
+	    if (itemNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
+		objOffset = CookfsFsindexExportDirectory(fsIndex, itemNode, result, objOffset);
+	    }  else  {
+		Cookfs_Int2Binary(itemNode->data.fileInfo.fileBlockOffsetSize, bytes + objOffset, itemNode->fileBlocks * 3);
+		objOffset += itemNode->fileBlocks * 12;
+	    }
+	}
+    }  else  {
+	/* TODO: handle dirTable */
     }
     
     return objOffset;
@@ -127,6 +131,7 @@ static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
 static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexEntry *entry, unsigned char *bytes, int objLength, int objOffset) {
     int fileId;
     int isNew;
+    int useHash;
     int fileBlocks;
     char *fileName;
     int fileNameLength;
@@ -138,6 +143,14 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
     Cookfs_Binary2Int(bytes + objOffset, &entry->data.dirInfo.childCount, 1);
     objOffset += 4;
     CookfsLog(printf("CookfsFsindexImportDirectory init"))
+
+    /* TODO: condition */
+    if (1) {
+	useHash = 1;
+    }  else  {
+	useHash = 0;
+    }
+
     for (fileId = 0; fileId < entry->data.dirInfo.childCount; fileId++) {
         fileNameLength = bytes[objOffset];
         objOffset++;
@@ -158,13 +171,17 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
         }
         strcpy(itemNode->fileName, fileName);
 
-        hashEntry = Tcl_CreateHashEntry(&entry->data.dirInfo.children, fileName, &isNew);
-        
-        if (!isNew) {
-            CookfsLog(printf("CookfsFsindexImportDirectory - duplicate entry %s", fileName))
-            return -1;
-        }
-        Tcl_SetHashValue(hashEntry, itemNode);
+	if (useHash) {
+	    hashEntry = Tcl_CreateHashEntry(&entry->data.dirInfo.dirData.children, fileName, &isNew);
+	    
+	    if (!isNew) {
+		CookfsLog(printf("CookfsFsindexImportDirectory - duplicate entry %s", fileName))
+		return -1;
+	    }
+	    Tcl_SetHashValue(hashEntry, itemNode);
+	}  else  {
+	    /* TODO: handle dirTable */
+	}
 
         if (fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
             objOffset = CookfsFsindexImportDirectory(fsIndex, itemNode, bytes, objLength, objOffset);

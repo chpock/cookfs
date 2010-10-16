@@ -121,10 +121,10 @@ Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Tcl_Obj *pathList, i
         return NULL;
     }
 
-    if (1) {
-	result = (Cookfs_FsindexEntry **) Tcl_Alloc((dirNode->data.dirInfo.childCount + 1) * sizeof(Cookfs_FsindexEntry *));
+    result = (Cookfs_FsindexEntry **) Tcl_Alloc((dirNode->data.dirInfo.childCount + 1) * sizeof(Cookfs_FsindexEntry *));
 	
-	hashEntry = Tcl_FirstHashEntry(&dirNode->data.dirInfo.children, &hashSearch);
+    if (dirNode->data.dirInfo.isHash) {
+	hashEntry = Tcl_FirstHashEntry(&dirNode->data.dirInfo.dirData.children, &hashSearch);
 	while (hashEntry != NULL) {
 	    itemNode = (Cookfs_FsindexEntry *) Tcl_GetHashValue(hashEntry);
 	    result[idx] = itemNode;
@@ -133,8 +133,6 @@ Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Tcl_Obj *pathList, i
 	}
 
 	result[idx] = NULL;
-    }  else  {
-	/* TODO: handle */
     }
 	
     if (itemCountPtr != NULL) {
@@ -168,11 +166,12 @@ Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks)
     e->fileNameLen = fileNameLength;
     if (numBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
 	if (1) {
-	    Tcl_InitHashTable(&e->data.dirInfo.children, TCL_STRING_KEYS);
+	    Tcl_InitHashTable(&e->data.dirInfo.dirData.children, TCL_STRING_KEYS);
 	}  else  {
-	    /* TODO: handle */
+	    /* TODO: handle dirTable */
 	}
         e->data.dirInfo.childCount = 0;
+        e->data.dirInfo.isHash = 1;
     }  else  {
         e->data.fileInfo.memoryBlock = NULL;
     }
@@ -186,17 +185,17 @@ void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
         Tcl_HashEntry *hashEntry;
         Cookfs_FsindexEntry *itemNode;
 
-	if (1) {
-	    hashEntry = Tcl_FirstHashEntry(&e->data.dirInfo.children, &hashSearch);
+	if (e->data.dirInfo.isHash) {
+	    hashEntry = Tcl_FirstHashEntry(&e->data.dirInfo.dirData.children, &hashSearch);
 	    while (hashEntry != NULL) {
 		itemNode = (Cookfs_FsindexEntry *) Tcl_GetHashValue(hashEntry);
 		hashEntry = Tcl_NextHashEntry(&hashSearch);
 		Cookfs_FsindexEntryFree(itemNode);
 	    }
 	
-	    Tcl_DeleteHashTable(&e->data.dirInfo.children);
+	    Tcl_DeleteHashTable(&e->data.dirInfo.dirData.children);
 	}  else  {
-	    /* TODO: handle */
+	    /* TODO: handle dirTable */
 	}
     }
     Tcl_Free((void *) e);
@@ -232,15 +231,15 @@ static Cookfs_FsindexEntry *CookfsFsindexFindElement(Cookfs_Fsindex *i, Tcl_Obj 
         currentPathStr = Tcl_GetStringFromObj(currentPath, NULL);
         CookfsLog(printf("Looking for %s", currentPathStr))
 
-	if (1) {
-	    hashEntry = Tcl_FindHashEntry(&currentNode->data.dirInfo.children, currentPathStr);
+	if (currentNode->data.dirInfo.isHash) {
+	    hashEntry = Tcl_FindHashEntry(&currentNode->data.dirInfo.dirData.children, currentPathStr);
 	    if (hashEntry == NULL) {
 		CookfsLog(printf("Unable to find item"))
 		return NULL;
 	    }
 	    currentNode = (Cookfs_FsindexEntry *) Tcl_GetHashValue(hashEntry);
 	}  else  {
-	    /* TODO: handle */
+	    /* TODO: handle dirTable */
 	}
     }
     return currentNode;
@@ -290,14 +289,14 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
 	*dirPtr = currentNode;
     }
 
-    if (1) {
+    if (currentNode->data.dirInfo.isHash) {
 	Cookfs_FsindexEntry *fileNode = NULL;
 	Tcl_HashEntry *hashEntry;
 	int isNew;
 	if (command == COOKFSFSINDEX_FIND_CREATE) {
-	    hashEntry = Tcl_CreateHashEntry(&currentNode->data.dirInfo.children, pathTailStr, &isNew);
+	    hashEntry = Tcl_CreateHashEntry(&currentNode->data.dirInfo.dirData.children, pathTailStr, &isNew);
 	}  else  {
-	    hashEntry = Tcl_FindHashEntry(&currentNode->data.dirInfo.children, pathTailStr);
+	    hashEntry = Tcl_FindHashEntry(&currentNode->data.dirInfo.dirData.children, pathTailStr);
 	}
 
 	if (hashEntry != NULL) {
@@ -336,7 +335,7 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
 	}
 
     }  else  {
-	/* TODO: handle */
+	/* TODO: handle dirTable */
     }
     return NULL;
 }
