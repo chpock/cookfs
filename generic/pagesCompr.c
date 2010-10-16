@@ -8,7 +8,7 @@
 #define COOKFS_SUFFIX_BYTES 16
 
 /* let's gain at least 16 bytes and/or 5% to compress it */
-#define SHOULD_COMPRESS(origSize, size) ((size < (origSize - 16)) && ((size * 100) >= (origSize * 95)))
+#define SHOULD_COMPRESS(origSize, size) ((size < (origSize - 16)) && ((size * 100) <= (origSize * 95)))
 
 static Tcl_Obj *CookfsReadPageZlib(Cookfs_Pages *p, int size);
 static int CookfsWritePageZlib(Cookfs_Pages *p, Tcl_Obj *data, int origSize);
