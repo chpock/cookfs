@@ -202,9 +202,12 @@ static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc,
                 }
                 CookfsLog(printf("Size: %d", (int) entry->data.fileInfo.fileSize))
             }
+            CookfsLog(printf("set 0"))
             entry->fileTime = fileTime;
+            CookfsLog(printf("set 1"))
             
             Tcl_DecrRefCount(splitPath);
+            CookfsLog(printf("set 2"))
             break;
         }
         case cmdUnset: {

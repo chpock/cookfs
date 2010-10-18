@@ -40,6 +40,24 @@ tcltest::test cookfsVfs-2.1 "Test compressing entire directory structure" -setup
     tcltest::removeFile $file
 } -returnCodes {ok} -result 1
 
+tcltest::test cookfsVfs-2.2 "Test compressing entire directory structure after remount" -setup {
+    set dir [tcltest::makeDirectory cookfs.vfs]
+    set file [tcltest::makeFile {} cookfs.cfs]
+} -body {
+    foreach d {scripts generic tclconfig configure} {
+	file copy -force [file join [tcltest::testsDirectory] .. $d] [file join $dir $d]
+    }
+    vfs::cookfs::Mount $file $file
+    file copy -force $dir [file join $file vfs]
+    vfs::unmount $file
+    vfs::cookfs::Mount $file $file
+    testIfEqual $dir [file join $file vfs]
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeDirectory $dir
+    tcltest::removeFile $file
+} -returnCodes {ok} -result 1
+
 tcltest::test cookfsVfs-3.1 "Test creating files in non-existant directory in VFS" -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
     set fsid [vfs::cookfs::Mount $file $file]
