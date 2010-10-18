@@ -23,16 +23,6 @@ enum {
 #define COOKFS_MAX_CACHE_PAGES 32
 #define COOKFS_DEFAULT_CACHE_PAGES 4
 
-extern const char *cookfsCompressionOptions[];
-enum {
-    cookfsCompressionNone = 0,
-    cookfsCompressionZlib = 1,
-#ifdef COOKFS_USEBZ2
-    cookfsCompressionBz2 = 2,
-#endif
-    cookfsCompressionMax
-};
-
 #define COOKFS_PAGES_ASIDE 0x10000000
 #define COOKFS_PAGES_MASK  0x0fffffff
 #define COOKFS_PAGES_ISASIDE(value) (((value) & COOKFS_PAGES_ASIDE) == COOKFS_PAGES_ASIDE)
@@ -91,8 +81,5 @@ void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside);
 
 void Cookfs_PagesSetIndex(Cookfs_Pages *p, Tcl_Obj *dataIndex);
 Tcl_Obj *Cookfs_PagesGetIndex(Cookfs_Pages *p);
-
-int Cookfs_WritePage(Cookfs_Pages *p, Tcl_Obj *data);
-Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size);
 
 #endif

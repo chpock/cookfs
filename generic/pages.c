@@ -4,15 +4,6 @@
 
 #define COOKFS_SUFFIX_BYTES 16
 
-const char *cookfsCompressionOptions[] = {
-    "none",
-    "zlib",
-#ifdef COOKFS_USEBZ2
-    "bz2",
-#endif
-    NULL
-};
-
 static Tcl_Obj *PageGetInt(Cookfs_Pages *p, int index);
 static void PageCacheMoveToTop(Cookfs_Pages *p, int index);
 static void CookfsPageExtendIfNeeded(Cookfs_Pages *p, int count);
@@ -23,27 +14,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     int i;
 
     rc->interp = interp;
-#ifdef USE_ZLIB_VFSZIP
-    rc->zipCmdCompress[0] = Tcl_NewStringObj("vfs::zip", -1);
-    rc->zipCmdCompress[1] = Tcl_NewStringObj("-mode", -1);
-    rc->zipCmdCompress[2] = Tcl_NewStringObj("compress", -1);
-    rc->zipCmdCompress[3] = Tcl_NewStringObj("-nowrap", -1);
-    rc->zipCmdCompress[4] = Tcl_NewIntObj(1);
-
-    rc->zipCmdDecompress[0] = rc->zipCmdCompress[0];
-    rc->zipCmdDecompress[1] = rc->zipCmdCompress[1];
-    rc->zipCmdDecompress[2] = Tcl_NewStringObj("decompress", -1);
-    rc->zipCmdDecompress[3] = rc->zipCmdCompress[3];
-    rc->zipCmdDecompress[4] = rc->zipCmdCompress[4];
-
-    Tcl_IncrRefCount(rc->zipCmdCompress[0]);
-    Tcl_IncrRefCount(rc->zipCmdCompress[1]);
-    Tcl_IncrRefCount(rc->zipCmdCompress[2]);
-    Tcl_IncrRefCount(rc->zipCmdCompress[3]);
-    Tcl_IncrRefCount(rc->zipCmdCompress[4]);
-
-    Tcl_IncrRefCount(rc->zipCmdDecompress[2]);
-#endif
+    Cookfs_PagesInitCompr(rc);
 
     rc->useFoffset = useFoffset;
     rc->foffset = foffset;

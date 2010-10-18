@@ -24,7 +24,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     int cmdidx = ++deprecatedCounter;
     int idx;
     int oReadOnly = 0;
-    int oCompression = cookfsCompressionZlib;
+    int oCompression = COOKFS_COMPRESSION_ZLIB;
     int tobjc = objc;
     int oCachesize = -1;
     int useFoffset = 0;
@@ -52,6 +52,8 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 if (Tcl_GetIndexFromObj(interp, tobjv[1], (const char **) cookfsCompressionOptions, "compression", 0, &oCompression) != TCL_OK) {
                     return TCL_ERROR;
                 }
+		/* map compression from cookfsCompressionOptionMap */
+		oCompression = cookfsCompressionOptionMap[oCompression];
                 break;
             }
             case optEndoffset: {

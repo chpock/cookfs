@@ -18,6 +18,7 @@
 #include "common.h"
 
 #include "pages.h"
+#include "pagesCompr.h"
 #include "pagesCmd.h"
 
 #include "fsindex.h"

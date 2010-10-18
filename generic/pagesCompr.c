@@ -18,6 +18,48 @@ static int CookfsWritePageBz2(Cookfs_Pages *p, Tcl_Obj *data, int origSize);
 
 static void CookfsWriteCompression(Cookfs_Pages *p, int compression);
 
+const char *cookfsCompressionOptions[] = {
+    "none",
+    "zlib",
+#ifdef COOKFS_USEBZ2
+    "bz2",
+#endif
+    NULL
+};
+
+const int cookfsCompressionOptionMap[] = {
+    COOKFS_COMPRESSION_NONE,
+    COOKFS_COMPRESSION_ZLIB,
+#ifdef COOKFS_USEBZ2
+    COOKFS_COMPRESSION_BZ2,
+#endif
+    -1 /* dummy entry */
+};
+
+void Cookfs_PagesInitCompr(Cookfs_Pages *rc) {
+#ifdef USE_ZLIB_VFSZIP
+    rc->zipCmdCompress[0] = Tcl_NewStringObj("vfs::zip", -1);
+    rc->zipCmdCompress[1] = Tcl_NewStringObj("-mode", -1);
+    rc->zipCmdCompress[2] = Tcl_NewStringObj("compress", -1);
+    rc->zipCmdCompress[3] = Tcl_NewStringObj("-nowrap", -1);
+    rc->zipCmdCompress[4] = Tcl_NewIntObj(1);
+
+    rc->zipCmdDecompress[0] = rc->zipCmdCompress[0];
+    rc->zipCmdDecompress[1] = rc->zipCmdCompress[1];
+    rc->zipCmdDecompress[2] = Tcl_NewStringObj("decompress", -1);
+    rc->zipCmdDecompress[3] = rc->zipCmdCompress[3];
+    rc->zipCmdDecompress[4] = rc->zipCmdCompress[4];
+
+    Tcl_IncrRefCount(rc->zipCmdCompress[0]);
+    Tcl_IncrRefCount(rc->zipCmdCompress[1]);
+    Tcl_IncrRefCount(rc->zipCmdCompress[2]);
+    Tcl_IncrRefCount(rc->zipCmdCompress[3]);
+    Tcl_IncrRefCount(rc->zipCmdCompress[4]);
+
+    Tcl_IncrRefCount(rc->zipCmdDecompress[2]);
+#endif
+}
+
 Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size) {
     int count;
     int compression = p->fileCompression;
@@ -42,7 +84,7 @@ Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size) {
 	size = size - 1;
 
         switch (compression) {
-            case cookfsCompressionNone: {
+            case COOKFS_COMPRESSION_NONE: {
                 Tcl_Obj *data;
                 
                 data = Tcl_NewObj();
@@ -57,10 +99,10 @@ Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size) {
                 Tcl_IncrRefCount(data);
                 return data;
             }
-            case cookfsCompressionZlib:
+            case COOKFS_COMPRESSION_ZLIB:
 		return CookfsReadPageZlib(p, size);
 
-            case cookfsCompressionBz2:
+            case COOKFS_COMPRESSION_BZ2:
 		return CookfsReadPageBz2(p, size);
         }
     }
@@ -76,17 +118,17 @@ int Cookfs_WritePage(Cookfs_Pages *p, Tcl_Obj *data) {
     Tcl_IncrRefCount(data);
     if (origSize > 0) {
         switch (p->fileCompression) {
-            case cookfsCompressionZlib:
+            case COOKFS_COMPRESSION_ZLIB:
 		size = CookfsWritePageZlib(p, data, origSize);
 		break;
 
-            case cookfsCompressionBz2:
+            case COOKFS_COMPRESSION_BZ2:
 		size = CookfsWritePageBz2(p, data, origSize);
 		break;
         }
 
 	if (size == -1) {
-	    CookfsWriteCompression(p, cookfsCompressionNone);
+	    CookfsWriteCompression(p, COOKFS_COMPRESSION_NONE);
 	    Tcl_WriteObj(p->fileChannel, data);
 	    size = origSize + 1;
 	}  else  {
@@ -227,7 +269,7 @@ static int CookfsWritePageZlib(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
     Tcl_GetByteArrayFromObj(cobj, &size);
 
     if (SHOULD_COMPRESS(origSize, size)) {
-	CookfsWriteCompression(p, cookfsCompressionZlib);
+	CookfsWriteCompression(p, COOKFS_COMPRESSION_ZLIB);
 	Tcl_WriteObj(p->fileChannel, cobj);
     }  else  {
 	size = -1;
@@ -257,7 +299,7 @@ static int CookfsWritePageZlib(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
     Tcl_GetByteArrayFromObj(compressed, &size);
 
     if (SHOULD_COMPRESS(origSize, size)) {
-	CookfsWriteCompression(p, cookfsCompressionZlib);
+	CookfsWriteCompression(p, COOKFS_COMPRESSION_ZLIB);
 	Tcl_WriteObj(p->fileChannel, compressed);
     }  else  {
 	size = -1;
@@ -345,7 +387,7 @@ static int CookfsWritePageBz2(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
 
     Tcl_IncrRefCount(destObj);
     if (SHOULD_COMPRESS(origSize, size)) {
-	CookfsWriteCompression(p, cookfsCompressionBz2);
+	CookfsWriteCompression(p, COOKFS_COMPRESSION_BZ2);
 	Tcl_WriteObj(p->fileChannel, destObj);
     }  else  {
 	size = -1;
