@@ -1,4 +1,4 @@
-source ../../cookfs/cookfswriter/cookfswriter.tcl
+source [file join [tcltest::testsDirectory] .. cookfswriter cookfswriter.tcl]
 
 tcltest::test cookfsWriter-1.1 "Create empty archive" -constraints runCookfsWriter -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -13,7 +13,6 @@ tcltest::test cookfsWriter-1.1 "Create empty archive" -constraints runCookfsWrit
 tcltest::test cookfsWriter-1.2 "Create empty archive with bootstrap" -constraints runCookfsWriter -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
-    source ../../cookfs/cookfswriter/cookfswriter.tcl
     cookfs::createArchive $file {} {SAMPLE BOOTSTRAP}
     set fsid [vfs::cookfs::Mount -readonly $file $file]
     set p [set ${fsid}(pages)]
@@ -28,11 +27,10 @@ tcltest::test cookfsWriter-1.2 "Create empty archive with bootstrap" -constraint
 tcltest::test cookfsWriter-1.3 "Create non-empty archive with bootstrap" -constraints runCookfsWriter -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
-    source ../../cookfs/cookfswriter/cookfswriter.tcl
 
     set files {}
     lappend files file1 data {SAMPLECONTENTS} ""
-    lappend files cookfswriter.tcl file ../../cookfs/cookfswriter/cookfswriter.tcl ""
+    lappend files cookfswriter.tcl file [file join [tcltest::testsDirectory] .. cookfswriter cookfswriter.tcl] ""
 
     cookfs::createArchive $file $files {SAMPLE BOOTSTRAP}
 

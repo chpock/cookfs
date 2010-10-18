@@ -2,13 +2,19 @@ package require tcltest
 
 lappend auto_path [pwd]
 
-tcltest::testsDirectory [file dir [info script]]
+set tmpdir [file join [file dirname [info script]] _tmp]
+catch {file delete -force $tmpdir}
+file mkdir $tmpdir
+tcltest::temporaryDirectory $tmpdir
+tcltest::testsDirectory [file dirname [info script]]
 
 package require vfs::cookfs
 
 if {[info tclversion] == "8.4"} {
     package require rechan
 }
+
+source [file join [file dirname [info script]] common.tcl]
 
 puts stdout "Tests running in interp:  [info nameofexecutable]"
 puts stdout "Tests running in working dir:  $::tcltest::testsDirectory"
