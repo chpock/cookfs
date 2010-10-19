@@ -59,7 +59,7 @@ proc cookfs::Mount {args} {
 	    set optarg(-$name) 0
 	    set vhelp " (flag)"
 	}
-	append help [format "\n  %38s %s%s" "-$name" [lindex $o end] $vhelp]
+	append help [format "\n %-20s %s%s" "-$name" [lindex $o end] $vhelp]
     }
 
     set setopt {}
