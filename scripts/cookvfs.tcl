@@ -6,7 +6,6 @@ namespace eval cookfs {}
 namespace eval vfs::cookfs {}
 
 # load required packages
-package require cmdline
 package require vfs
 
 if {![info exists cookfs::mountId]} {
@@ -45,28 +44,59 @@ proc cookfs::Mount {args} {
 
     set usage {archive local}
 
-    if {[catch {
-        array set opt [cmdline::getoptions args $options $usage]
-    } error]} {
-        return -code error -errorinfo $error $error
+    set showhelp 0
+
+    set newargs {}
+    set help "Usage: vfs::cookfs::Mount ?options? archive local ?options?\nOptions are:"
+    foreach o [lsort -index 0 $options] {
+	set name [lindex $o 0]
+	if {[regexp "^(.*)\\.arg\$" $name - name]} {
+	    set opt($name) [lindex $o 1]
+	    set optarg(-$name) 1
+	    set vhelp " (default: [lindex $o 1])"
+	}  else  {
+	    set opt($name) 0
+	    set optarg(-$name) 0
+	    set vhelp " (flag)"
+	}
+	append help [format "\n  %38s %s%s" "-$name" [lindex $o end] $vhelp]
     }
 
-    if {[llength $args] != 2} {
-        set args -help
-        catch {cmdline::getoptions args $options $usage} error
-        return -code error -errorinfo $error $error
+    set setopt {}
+    foreach arg $args {
+	if {$setopt != ""} {
+	    set opt($setopt) $arg
+	    set setopt ""
+	}  elseif {[info exists optarg($arg)]} {
+	    if {$optarg($arg)} {
+		set setopt [string range $arg 1 end]
+	    }  else  {
+		set opt([string range $arg 1 end]) 1
+	    }
+	}  elseif {$arg == "-help"} {
+	    set showhelp 1
+	    break
+	}  else  {
+	    lappend newargs $arg
+	}
     }
+    if {($setopt != "") || ([llength $newargs] != 2)} {
+	set showhelp 1
+    }
+    unset optarg
+
+    if {$showhelp} {
+	error $help
+    }
+
+    # extract paths from remaining arguments
+    set archive [lindex $newargs 0]
+    set local [lindex $newargs 1]
 
     # if write to memory option was selected, open archive as read only anyway
     if {$opt(writetomemory)} {
         set opt(readonly) 1
     }
-
-    #
-    # extract paths from remaining arguments
-    #
-    set archive [lindex $args 0]
-    set local [lindex $args 1]
 
     if {![catch {package require Tcl 8.4}]} {
         set archive [file normalize [file join [pwd] $archive]]
