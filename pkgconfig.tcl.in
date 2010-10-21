@@ -1,0 +1,40 @@
+namespace eval cookfs {}
+namespace eval cookfs {}
+
+proc cookfs::pkgconfig {{command ""} {value ""}} {
+    variable pkgconfig
+    variable pkgconfigInitialized
+
+    if {![info exists pkgconfigInitialized]} {
+	array set pkgconfig {
+	    package-version "@PACKAGE_VERSION@"
+
+	    c-pages "@COOKFS_PKGCONFIG_USECPAGES@"
+	    c-index "@COOKFS_PKGCONFIG_USECINDEX@"
+	    c-readerchannel "@COOKFS_PKGCONFIG_USECREADERCHAN@"
+
+	    feature-bzip2 "@COOKFS_PKGCONFIG_USEBZ2@"
+	}
+	set pkgconfigInitialized 1
+    }
+
+    switch -- $command {
+	get {
+	    if {[info exists pkgconfig($value)]} {
+		return $pkgconfig($value)
+	    }  elseif  {$value != ""} {
+		set an [lsort [array names pkgconfig]]
+		error "Unknown field \"$value\"; should be one of: [join [lrange $an 0 end-1] {, }] or [lindex $an end]."
+	    }
+	}
+	list {
+	    if {$value == ""} {
+		return [lsort [array names pkgconfig]]
+	    }
+	}
+    }
+    error "Usage: ::cookfs::pkgconfig list|get paramName"
+}
+
+package provide vfs::cookfs::pkgconfig 1.1
+
