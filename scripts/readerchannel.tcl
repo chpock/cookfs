@@ -145,4 +145,4 @@ proc cookfs::readableChannelHandler {fsid chid command args} {
     }
 }
 
-package provide vfs::cookfs 1.0
+package provide vfs::cookfs::tcl::readerchannel 1.1

@@ -16,13 +16,29 @@ proc vfs::cookfs::Mount {args} {
     return [eval [concat [list ::cookfs::Mount] $args]]
 }
 
+# initialize package - load Tcl or C versions of parts of cookfs
+proc cookfs::initialize {} {
+    variable pkginitialized
+
+    if {![info exists pkginitialized]} {
+	package require vfs::cookfs::pkgconfig
+
+	# load Tcl versions of packages for now
+	package require vfs::cookfs::c [pkgconfig get package-version]
+	package require vfs::cookfs::tcl::vfs [pkgconfig get package-version]
+	package require vfs::cookfs::tcl::readerchannel [pkgconfig get package-version]
+	package require vfs::cookfs::tcl::memchan [pkgconfig get package-version]
+	package require vfs::cookfs::tcl::writer [pkgconfig get package-version]
+	set pkginitialized 1
+    }
+}
+
 # Mount VFS - usage:
 # cookfs::Mount ?options? archive local
 # Run cookfs::Mount -help for a description of all options
 #
 proc cookfs::Mount {args} {
     variable mountId
-
     #
     # Parse options and get paths from args variable
     #
@@ -216,4 +232,6 @@ proc cookfs::writetomemory {fsid} {
     set fs(writetomemory) 1
 }
 
-package provide vfs::cookfs 1.0
+cookfs::initialize
+
+package provide vfs::cookfs 1.1
