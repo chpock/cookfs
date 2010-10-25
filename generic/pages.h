@@ -1,7 +1,10 @@
 /* (c) 2010 Wojciech Kocjan, Pawel Salawa */
 
-#ifndef PAGES_H
-#define PAGES_H 1
+#ifndef COOKFS_PAGES_H
+#define COOKFS_PAGES_H 1
+
+/* only handle pages code if enabled in configure */
+#ifdef COOKFS_USECPAGES
 
 #if 10 * TCL_MAJOR_VERSION + TCL_MINOR_VERSION < 86
 #define USE_ZLIB_VFSZIP 1
@@ -33,7 +36,7 @@ typedef struct Cookfs_Pages {
 #ifdef USE_ZLIB_VFSZIP
     Tcl_Obj *zipCmdCompress[6];
     Tcl_Obj *zipCmdDecompress[6];
-#endif
+#endif /* USE_ZLIB_VFSZIP */
     /* file */
     Tcl_Mutex pagesLock;
     int fileReadOnly;
@@ -82,4 +85,6 @@ void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside);
 void Cookfs_PagesSetIndex(Cookfs_Pages *p, Tcl_Obj *dataIndex);
 Tcl_Obj *Cookfs_PagesGetIndex(Cookfs_Pages *p);
 
-#endif
+#endif /* COOKFS_USECPAGES */
+
+#endif /* COOKFS_PAGES_H */

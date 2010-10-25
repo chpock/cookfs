@@ -1,12 +1,15 @@
 /* (c) 2010 Wojciech Kocjan, Pawel Salawa */
 
-#ifndef FSINDEX_H
-#define FSINDEX_H 1
+#ifndef COOKFS_FSINDEX_H
+#define COOKFS_FSINDEX_H 1
 
 #define COOKFS_NUMBLOCKS_DIRECTORY -1
 #define COOKFS_FSINDEX_TABLE_MAXENTRIES 8
 
 #define COOKFS_USEHASH_DEFAULT 0
+
+/* only handle Fsindex code if enabled in configure */
+#ifdef COOKFS_USECFSINDEX
 
 /* all filenames are stored in UTF-8 */
 typedef struct Cookfs_FsindexEntry {
@@ -50,4 +53,6 @@ int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Tcl_Obj *pathList);
 Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Tcl_Obj *pathList, int *itemCountPtr);
 void Cookfs_FsindexListFree(Cookfs_FsindexEntry **items);
 
-#endif
+#endif /* COOKFS_USECFSINDEX */
+
+#endif /* COOKFS_FSINDEX_H */

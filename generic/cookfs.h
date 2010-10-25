@@ -18,11 +18,13 @@
 #include "common.h"
 
 #include "pages.h"
-#include "pagesCompr.h"
 #include "pagesCmd.h"
+#include "pagesCompr.h"
 
 #include "fsindex.h"
 #include "fsindexIO.h"
 #include "fsindexCmd.h"
 
-#endif
+#include "readerchannel.h"
+
+#endif /* COOKFS_H */

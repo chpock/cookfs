@@ -7,11 +7,11 @@ proc cookfs::pkgconfig {{command ""} {value ""}} {
 
     if {![info exists pkgconfigInitialized]} {
 	array set pkgconfig {
-	    package-version "@PACKAGE_VERSION@"
+	    package-version	"@PACKAGE_VERSION@"
 
-	    c-pages "@COOKFS_PKGCONFIG_USECPAGES@"
-	    c-index "@COOKFS_PKGCONFIG_USECINDEX@"
-	    c-readerchannel "@COOKFS_PKGCONFIG_USECREADERCHAN@"
+	    c-pages		"@COOKFS_PKGCONFIG_USECPAGES@"
+	    c-fsindex		"@COOKFS_PKGCONFIG_USECFSINDEX@"
+	    c-readerchannel	"@COOKFS_PKGCONFIG_USECREADERCHAN@"
 
 	    feature-bzip2 "@COOKFS_PKGCONFIG_USEBZ2@"
 	}

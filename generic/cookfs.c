@@ -18,13 +18,24 @@ Cookfs_Init(Tcl_Interp *interp)
     if (Tcl_EvalEx(interp, buf, -1, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
         return TCL_ERROR;
     }
+
+#ifdef COOKFS_USECPAGES
     if (Cookfs_InitPagesCmd(interp) != TCL_OK) {
         return TCL_ERROR;
     }
+#endif
 
+#ifdef COOKFS_USECFSINDEX
     if (Cookfs_InitFsindexCmd(interp) != TCL_OK) {
         return TCL_ERROR;
     }
+#endif
+
+#ifdef COOKFS_USECREADERCHANNEL
+    if (Cookfs_InitReaderchannelCmd(interp) != TCL_OK) {
+        return TCL_ERROR;
+    }
+#endif
 
     return TCL_OK;
 }

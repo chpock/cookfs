@@ -1,7 +1,5 @@
-/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
-
-#ifndef MD5_H
-#define MD5_H
+#ifndef COOKFS_MD5_H
+#define COOKFS_MD5_H
 
 /*
  ***********************************************************************
@@ -65,4 +63,4 @@ static void MD5Update (MD5_CTX *mdContext, unsigned char *buf, unsigned int len)
 static void MD5Final  (unsigned char digest[16], MD5_CTX *mdContext);
 static void Transform (UINT4 *buf, UINT4 *in);
 
-#endif
+#endif /* COOKFS_MD5_H */

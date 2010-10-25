@@ -1,7 +1,11 @@
 /* (c) 2010 Wojciech Kocjan, Pawel Salawa */
 
-#ifndef PAGESCOMPR_H
-#define PAGESCOMPR_H 1
+#ifndef COOKFS_PAGESCOMPR_H
+#define COOKFS_PAGESCOMPR_H 1
+
+/* only handle pages code if enabled in configure */
+
+#ifdef COOKFS_USECPAGES
 
 extern const char *cookfsCompressionOptions[];
 extern const int cookfsCompressionOptionMap[];
@@ -15,7 +19,7 @@ enum {
     cookfsCompressionOptZlib,
 #ifdef COOKFS_USEBZ2
     cookfsCompressionOptBz2,
-#endif
+#endif /* COOKFS_USEBZ2 */
     cookfsCompressionOptMax
 };
 
@@ -24,4 +28,6 @@ void Cookfs_PagesInitCompr(Cookfs_Pages *rc);
 int Cookfs_WritePage(Cookfs_Pages *p, Tcl_Obj *data);
 Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size);
 
-#endif
+#endif /* COOKFS_USECPAGES */
+
+#endif /* COOKFS_PAGESCOMPR_H */

@@ -29,6 +29,15 @@ proc cookfs::initialize {} {
 	package require vfs::cookfs::tcl::readerchannel [pkgconfig get package-version]
 	package require vfs::cookfs::tcl::memchan [pkgconfig get package-version]
 	package require vfs::cookfs::tcl::writer [pkgconfig get package-version]
+	
+	if {![pkgconfig get c-pages]} {
+	    package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
+	}
+
+	if {![pkgconfig get c-fsindex]} {
+	    package require vfs::cookfs::tcl::fsindex [pkgconfig get package-version]
+	}
+
 	set pkginitialized 1
     }
 }

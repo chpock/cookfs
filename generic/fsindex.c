@@ -6,7 +6,6 @@
 #define COOKFSFSINDEX_FIND_CREATE 1
 #define COOKFSFSINDEX_FIND_DELETE 2
 
-/* TODO: merge those three functions */
 static Cookfs_FsindexEntry *CookfsFsindexFindElement(Cookfs_Fsindex *i, Tcl_Obj *pathList, int listSize);
 static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexEntry **dirPtr, Tcl_Obj *pathList, int command, Cookfs_FsindexEntry *newFileNode);
 static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_Fsindex *i, Cookfs_FsindexEntry *currentNode, char *pathTailStr, int command, Cookfs_FsindexEntry *newFileNode);
@@ -531,4 +530,3 @@ static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e) {
 
     CookfsLog(printf("CookfsFsindexChildtableToHash: FINISHED"))
 }
-
