@@ -31,7 +31,7 @@ Cookfs_Init(Tcl_Interp *interp)
     }
 #endif
 
-#ifdef COOKFS_USECREADERCHANNEL
+#ifdef COOKFS_USECREADERCHAN
     if (Cookfs_InitReaderchannelCmd(interp) != TCL_OK) {
         return TCL_ERROR;
     }

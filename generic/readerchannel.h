@@ -3,14 +3,17 @@
 #ifndef COOKFS_READERCHANNEL_H
 #define COOKFS_READERCHANNEL_H 1
 
-#ifdef COOKFS_USECREADERCHANNEL
-
-/*
+#ifdef COOKFS_USECREADERCHAN
 typedef struct Cookfs_ReaderChannelInstData {
+    Tcl_Channel channel;
+    Tcl_TimerToken watchTimer;
+
+    Cookfs_Pages *pages;
+
     Tcl_WideInt currentOffset;
     int currentBlock;
     int currentBlockOffset;
-    
+
     int bufSize;
     int buf[1];
 } Cookfs_ReaderChannelInstData;
@@ -24,9 +27,10 @@ int Cookfs_Readerchannel_Seek(ClientData instanceData, long offset, int seekMode
 Tcl_WideInt Cookfs_Readerchannel_WideSeek(ClientData instanceData, Tcl_WideInt offset, int seekMode, int *errorCodePtr);
 
 void Cookfs_Readerchannel_Watch(ClientData instanceData, int mask);
- */
 
-#endif /* COOKFS_USECREADERCHANNEL */
+int Cookfs_InitReaderchannelCmd(Tcl_Interp *interp);
+
+#endif /* COOKFS_USECREADERCHAN */
 
 #endif /* COOKFS_READERCHANNEL_H */
 
