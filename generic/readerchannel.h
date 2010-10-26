@@ -5,18 +5,26 @@
 
 #ifdef COOKFS_USECREADERCHAN
 typedef struct Cookfs_ReaderChannelInstData {
+    char channelName[20];
     Tcl_Channel channel;
     Tcl_TimerToken watchTimer;
 
     Cookfs_Pages *pages;
 
     Tcl_WideInt currentOffset;
+    Tcl_WideInt fileSize;
     int currentBlock;
     int currentBlockOffset;
 
     int bufSize;
     int buf[1];
 } Cookfs_ReaderChannelInstData;
+
+Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Tcl_Obj *pagesList, Tcl_Interp *interp);
+
+Cookfs_ReaderChannelInstData *Cookfs_CreateReaderchannelAlloc(Cookfs_Pages *pages, int bufSize);
+int Cookfs_CreateReaderchannelCreate(Cookfs_ReaderChannelInstData *instData, Tcl_Interp *interp);
+void Cookfs_CreateReaderchannelFree(Cookfs_ReaderChannelInstData *instData);
 
 int Cookfs_Readerchannel_Close(ClientData instanceData, Tcl_Interp *interp);
 

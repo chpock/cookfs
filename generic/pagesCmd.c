@@ -127,8 +127,17 @@ ERROR:
 }
 
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    static char *commands[] = { "add", "aside", "get", "gethead", "getheadmd5", "gettail", "gettailmd5", "index", "length", "dataoffset", "delete", NULL };
-    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail, cmdGetTailMD5, cmdIndex, cmdLength, cmdDataoffset, cmdDelete };
+    static char *commands[] = {
+	"add", "aside", "get", "gethead", "getheadmd5", "gettail", "gettailmd5", "index", "length", "dataoffset", "delete",
+#ifdef COOKFS_USECREADERCHAN
+	"readerchannel",
+#endif
+	NULL };
+    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail, cmdGetTailMD5, cmdIndex, cmdLength, cmdDataoffset, cmdDelete,
+#ifdef COOKFS_USECREADERCHAN
+	cmdReaderchannel,
+#endif    
+	cmdDummy };
     int idx;
     Cookfs_Pages *p = (Cookfs_Pages *) clientData;
     
@@ -309,6 +318,28 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
 
             break;
         }
+
+#ifdef COOKFS_USECREADERCHAN
+	case cmdReaderchannel:
+	{
+	    Tcl_Channel channel;
+	    
+            if (objc != 3) {
+                Tcl_WrongNumArgs(interp, 2, objv, "posList");
+                return TCL_ERROR;
+            }
+	    
+	    channel = Cookfs_CreateReaderchannel(p, objv[2], interp);
+	    
+	    if (channel == NULL) {
+		return TCL_ERROR;
+	    }
+	    
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(Tcl_GetChannelName(channel), -1));
+
+	    break;
+	}
+#endif
     }
     return TCL_OK;
 }

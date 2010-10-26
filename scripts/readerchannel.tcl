@@ -9,8 +9,6 @@ namespace eval cookfs {}
 proc cookfs::createReadableChannel {fsid path} {
     variable dirlistParameters
     upvar #0 $fsid fs
-    upvar #0 $fsid.dir fsdir
-    upvar #0 $fsid.chk fschk
 
     # try to get information about specified path    
     if {[catch {
@@ -40,6 +38,14 @@ proc cookfs::createReadableChannel {fsid path} {
         return [lindex [initMemchan $fsid $path true] 0]
     }
 
+    # create C channel if available
+    if {[pkgconfig get c-readerchannel]} {
+	set chan [$fs(pages) readerchannel $chunklist]
+	fconfigure $chan -buffersize 65536
+	return $chan
+    }
+
+
     # initialize internal information with chunk list
     set ch(chunkinfo) [list]
     set offset 0
@@ -49,7 +55,7 @@ proc cookfs::createReadableChannel {fsid path} {
     }
     set ch(filesize) $offset
 
-    # create channel
+    # create Tcl channel
     if {[info commands ::chan] != ""} {
 	set ch(refchannel) \
 	    [::chan create {read} [list cookfs::readableChannelHandler $fsid $chid]]
