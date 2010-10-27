@@ -101,11 +101,9 @@ static Tcl_Obj **CookfsCreateCopressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd,
     int listObjc;
     int i;
 
-    printf("CMD=%08x\n", cmd);
     if (Tcl_ListObjGetElements(interp, cmd, &listObjc, &listObjv) != TCL_OK) {
 	return NULL;
     }
-    printf("CMD=%d\n", listObjc);
     rc = (Tcl_Obj **) Tcl_Alloc(sizeof(Tcl_Obj *) * (listObjc + 1));
     for (i = 0; i < listObjc; i++) {
 	rc[i] = listObjv[i];
