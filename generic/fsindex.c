@@ -15,6 +15,18 @@ static void CookfsFsindexHashToChildtable(Cookfs_FsindexEntry *e);
 #endif
 static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e);
 
+Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName) {
+    Tcl_CmdInfo cmdInfo;
+    
+    /* TODO: verify command suffix etc */
+
+    if (!Tcl_GetCommandInfo(interp, cmdName, &cmdInfo)) {
+	return NULL;
+    }
+
+    return (Cookfs_Fsindex *) (cmdInfo.objClientData);
+}
+
 Cookfs_Fsindex *Cookfs_FsindexInit() {
     Cookfs_Fsindex *rc;
     rc = (Cookfs_Fsindex *) Tcl_Alloc(sizeof(Cookfs_Fsindex));

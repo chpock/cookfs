@@ -39,6 +39,7 @@ typedef struct Cookfs_Pages {
 #endif /* USE_ZLIB_VFSZIP */
     /* file */
     Tcl_Mutex pagesLock;
+    int isAside;
     int fileReadOnly;
     int fileCompression;
     int fileCompressionLevel;
@@ -62,6 +63,12 @@ typedef struct Cookfs_Pages {
     int dataPagesIsAside;
     struct Cookfs_Pages *dataAsidePages;
     
+    /* custom compression */
+    int compressCommandLen;
+    Tcl_Obj **compressCommandPtr;
+    int decompressCommandLen;
+    Tcl_Obj **decompressCommandPtr;
+    
     /* cache */
     int cacheSize;
     int cachePageIdx[COOKFS_MAX_CACHE_PAGES];
@@ -69,7 +76,9 @@ typedef struct Cookfs_Pages {
     
 } Cookfs_Pages;
 
-Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside);
+Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName);
+
+Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand);
 void Cookfs_PagesFini(Cookfs_Pages *p);
 int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj);
 Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index);

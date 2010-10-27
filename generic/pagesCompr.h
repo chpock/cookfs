@@ -10,9 +10,10 @@
 extern const char *cookfsCompressionOptions[];
 extern const int cookfsCompressionOptionMap[];
 
-#define COOKFS_COMPRESSION_NONE 0
-#define COOKFS_COMPRESSION_ZLIB 1
-#define COOKFS_COMPRESSION_BZ2  2
+#define COOKFS_COMPRESSION_NONE      0
+#define COOKFS_COMPRESSION_ZLIB      1
+#define COOKFS_COMPRESSION_BZ2       2
+#define COOKFS_COMPRESSION_CUSTOM  255
 
 enum {
     cookfsCompressionOptNone,
@@ -20,10 +21,14 @@ enum {
 #ifdef COOKFS_USEBZ2
     cookfsCompressionOptBz2,
 #endif /* COOKFS_USEBZ2 */
+    cookfsCompressionOptCustom,
     cookfsCompressionOptMax
 };
 
 void Cookfs_PagesInitCompr(Cookfs_Pages *rc);
+void Cookfs_PagesFiniCompr(Cookfs_Pages *rc);
+
+int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand);
 
 int Cookfs_WritePage(Cookfs_Pages *p, Tcl_Obj *data);
 Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size);

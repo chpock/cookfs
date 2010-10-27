@@ -9,12 +9,30 @@ static void PageCacheMoveToTop(Cookfs_Pages *p, int index);
 static void CookfsPageExtendIfNeeded(Cookfs_Pages *p, int count);
 static Tcl_WideInt CookfsGetOffset(Cookfs_Pages *p, int idx);
 
-Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside) {
+Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName) {
+    Tcl_CmdInfo cmdInfo;
+    
+    /* TODO: verify command suffix etc */
+
+    if (!Tcl_GetCommandInfo(interp, cmdName, &cmdInfo)) {
+	return NULL;
+    }
+
+    return (Cookfs_Pages *) (cmdInfo.objClientData);
+}
+
+Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand) {
     Cookfs_Pages *rc = (Cookfs_Pages *) Tcl_Alloc(sizeof(Cookfs_Pages));
     int i;
 
     rc->interp = interp;
+    rc->isAside = isAside;
     Cookfs_PagesInitCompr(rc);
+
+    if (Cookfs_SetCompressCommands(rc, compressCommand, decompressCommand) != TCL_OK) {
+	Tcl_Free((void *) rc);
+	return NULL;
+    }
 
     rc->useFoffset = useFoffset;
     rc->foffset = foffset;
@@ -34,7 +52,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     rc->dataPagesMD5 = (unsigned char *) Tcl_Alloc(rc->dataPagesDataSize * 16);
     rc->dataAsidePages = NULL;
     rc->dataPagesIsAside = isAside;
-
+    
     rc->dataIndex = Tcl_NewStringObj("", 0);
     Tcl_IncrRefCount(rc->dataIndex);
 
@@ -166,7 +184,10 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
             Tcl_DecrRefCount(p->cachePageObj[i]);
         }
     }
-
+    
+    /* clean up compression information */
+    Cookfs_PagesFiniCompr(p);
+    
     /* clean up index */
     CookfsLog(printf("Cleaning up index data"))
     Tcl_DecrRefCount(p->dataIndex);

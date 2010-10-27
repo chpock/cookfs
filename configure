@@ -11267,7 +11267,7 @@ _ACEOF
 
     COOKFS_PKGCONFIG_USECREADERCHAN=1
 
-    vars="readerchannel.c"
+    vars="readerchannel.c readerchannelIO.c"
     for i in $vars; do
 	case $i in
 	    \$*)

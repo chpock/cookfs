@@ -40,7 +40,7 @@ proc cookfs::createReadableChannel {fsid path} {
 
     # create C channel if available
     if {[pkgconfig get c-readerchannel]} {
-	set chan [$fs(pages) readerchannel $chunklist]
+	set chan [cookfs::readerchannel $fs(pages) $chunklist]
 	fconfigure $chan -buffersize 65536
 	return $chan
     }

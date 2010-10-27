@@ -38,6 +38,8 @@ typedef struct Cookfs_Fsindex {
     Cookfs_FsindexEntry *rootItem;
 } Cookfs_Fsindex;
 
+Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName);
+
 Cookfs_Fsindex *Cookfs_FsindexInit();
 void Cookfs_FsindexFini(Cookfs_Fsindex *i);
 
