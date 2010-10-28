@@ -121,7 +121,6 @@ void Cookfs_CreateReaderchannelFree(Cookfs_ReaderChannelInstData *instData) {
 
 /* command for creating new objects that deal with pages */
 static int CookfsCreateReaderchannelCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    const char *pagesCmd;
     Cookfs_Pages *pages;
     Tcl_Channel channel;
 

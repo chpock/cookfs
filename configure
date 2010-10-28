@@ -641,10 +641,10 @@ MAKE_STUB_LIB
 MAKE_STATIC_LIB
 MAKE_SHARED_LIB
 MAKE_LIB
-COOKFS_PKGCONFIG_USECREADERCHAN
 COOKFS_PKGCONFIG_USECFSINDEX
-COOKFS_PKGCONFIG_USECPAGES
 COOKFS_PKGCONFIG_USEBZ2
+COOKFS_PKGCONFIG_USECREADERCHAN
+COOKFS_PKGCONFIG_USECPAGES
 TCL_DBGX
 LDFLAGS_DEFAULT
 CFLAGS_DEFAULT
@@ -758,6 +758,7 @@ with_celib
 enable_load
 enable_symbols
 enable_bz2
+enable_tcl_fallback
 enable_c_pages
 enable_c_fsindex
 enable_c_readerchannel
@@ -1402,9 +1403,10 @@ Optional Features:
                           on)
   --enable-symbols        build with debugging symbols (default: off)
   --enable-bz2              Use bz2 compression. Defaults to false.
-  --enable-c-pages          Use pages handling written in C. Defaults to true
-  --enable-c-fsindex        Use index handling written in C. Defaults to true
-  --enable-c-readerchannel  Use reader handler written in C. Defaults to true
+  --enable-tcl-fallback     Install Tcl scripts if load fails. Defaults to false
+  --disable-c-pages         Use pages handling written in C. Defaults to true
+  --disable-c-fsindex       Use index handling written in C. Defaults to true
+  --disable-c-readerchannel Use reader handler written in C. Defaults to true
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -11070,6 +11072,13 @@ else
   USEBZ2=no
 fi
 
+# Check whether --enable-tcl-fallback was given.
+if test "${enable_tcl_fallback+set}" = set; then
+  enableval=$enable_tcl_fallback; USEFALLBACK=${enableval}
+else
+  USEFALLBACK=no
+fi
+
 # Check whether --enable-c-pages was given.
 if test "${enable_c_pages+set}" = set; then
   enableval=$enable_c_pages; USECPAGES=${enableval}
@@ -11089,54 +11098,6 @@ if test "${enable_c_readerchannel+set}" = set; then
   enableval=$enable_c_readerchannel; USECREADERCHAN=${enableval}
 else
   USECREADERCHAN=yes
-fi
-
-
-# TODO: how to handle enabling bz2 and disabling c-pages options?
-if test ${USEBZ2} = yes; then
-
-    vars="bzip2/blocksort.c bzip2/huffman.c bzip2/crctable.c bzip2/randtable.c bzip2/compress.c bzip2/decompress.c bzip2/bzlib.c"
-    for i in $vars; do
-	case $i in
-	    \$*)
-		# allow $-var names
-		PKG_SOURCES="$PKG_SOURCES $i"
-		PKG_OBJECTS="$PKG_OBJECTS $i"
-		;;
-	    *)
-		# check for existence - allows for generic/win/unix VPATH
-		# To add more dirs here (like 'src'), you have to update VPATH
-		# in Makefile.in as well
-		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
-		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
-		    ; then
-		    { { $as_echo "$as_me:$LINENO: error: could not find source file '$i'" >&5
-$as_echo "$as_me: error: could not find source file '$i'" >&2;}
-   { (exit 1); exit 1; }; }
-		fi
-		PKG_SOURCES="$PKG_SOURCES $i"
-		# this assumes it is in a VPATH dir
-		i=`basename $i`
-		# handle user calling this before or after TEA_SETUP_COMPILER
-		if test x"${OBJEXT}" != x ; then
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
-		else
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
-		fi
-		PKG_OBJECTS="$PKG_OBJECTS $j"
-		;;
-	esac
-    done
-
-
-
-    cat >>confdefs.h <<\_ACEOF
-#define COOKFS_USEBZ2 1
-_ACEOF
-
-    COOKFS_PKGCONFIG_USEBZ2=1
-else
-    COOKFS_PKGCONFIG_USEBZ2=0
 fi
 
 
@@ -11182,6 +11143,146 @@ $as_echo "$as_me: error: could not find source file '$i'" >&2;}
 
 
 
+
+    # reader channel requires support for pages in C
+    if test ${USECREADERCHAN} = yes; then
+	cat >>confdefs.h <<\_ACEOF
+#define COOKFS_USECREADERCHAN 1
+_ACEOF
+
+	COOKFS_PKGCONFIG_USECREADERCHAN=1
+
+    vars="readerchannel.c readerchannelIO.c"
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    ; then
+		    { { $as_echo "$as_me:$LINENO: error: could not find source file '$i'" >&5
+$as_echo "$as_me: error: could not find source file '$i'" >&2;}
+   { (exit 1); exit 1; }; }
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+	if test ${USEFALLBACK} = yes; then
+
+    vars="scripts/readerchannel.tcl"
+    for i in $vars; do
+	# check for existence, be strict because it is installed
+	if test ! -f "${srcdir}/$i" ; then
+	    { { $as_echo "$as_me:$LINENO: error: could not find tcl source file '${srcdir}/$i'" >&5
+$as_echo "$as_me: error: could not find tcl source file '${srcdir}/$i'" >&2;}
+   { (exit 1); exit 1; }; }
+	fi
+	PKG_TCL_SOURCES="$PKG_TCL_SOURCES $i"
+    done
+
+
+	fi
+    else
+	COOKFS_PKGCONFIG_USECREADERCHAN=0
+
+    vars="scripts/readerchannel.tcl"
+    for i in $vars; do
+	# check for existence, be strict because it is installed
+	if test ! -f "${srcdir}/$i" ; then
+	    { { $as_echo "$as_me:$LINENO: error: could not find tcl source file '${srcdir}/$i'" >&5
+$as_echo "$as_me: error: could not find tcl source file '${srcdir}/$i'" >&2;}
+   { (exit 1); exit 1; }; }
+	fi
+	PKG_TCL_SOURCES="$PKG_TCL_SOURCES $i"
+    done
+
+
+    fi
+
+    # if fallback option was enabled, exit?
+    if test ${USEFALLBACK} = yes; then
+
+    vars="scripts/pages.tcl"
+    for i in $vars; do
+	# check for existence, be strict because it is installed
+	if test ! -f "${srcdir}/$i" ; then
+	    { { $as_echo "$as_me:$LINENO: error: could not find tcl source file '${srcdir}/$i'" >&5
+$as_echo "$as_me: error: could not find tcl source file '${srcdir}/$i'" >&2;}
+   { (exit 1); exit 1; }; }
+	fi
+	PKG_TCL_SOURCES="$PKG_TCL_SOURCES $i"
+    done
+
+
+    fi
+
+    # enable bz2 files only if pages are handled using C
+    if test ${USEBZ2} = yes; then
+	BUILDCCODE=yes
+
+    vars="bzip2/blocksort.c bzip2/huffman.c bzip2/crctable.c bzip2/randtable.c bzip2/compress.c bzip2/decompress.c bzip2/bzlib.c"
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    ; then
+		    { { $as_echo "$as_me:$LINENO: error: could not find source file '$i'" >&5
+$as_echo "$as_me: error: could not find source file '$i'" >&2;}
+   { (exit 1); exit 1; }; }
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+	cat >>confdefs.h <<\_ACEOF
+#define COOKFS_USEBZ2 1
+_ACEOF
+
+	COOKFS_PKGCONFIG_USEBZ2=1
+    else
+	COOKFS_PKGCONFIG_USEBZ2=0
+    fi
 else
     COOKFS_PKGCONFIG_USECPAGES=0
 
@@ -11197,7 +11298,28 @@ $as_echo "$as_me: error: could not find tcl source file '${srcdir}/$i'" >&2;}
     done
 
 
+
+    # if not using c-pages, use Tcl only readerchannel
+    COOKFS_PKGCONFIG_USECREADERCHAN=0
+
+    vars="scripts/readerchannel.tcl"
+    for i in $vars; do
+	# check for existence, be strict because it is installed
+	if test ! -f "${srcdir}/$i" ; then
+	    { { $as_echo "$as_me:$LINENO: error: could not find tcl source file '${srcdir}/$i'" >&5
+$as_echo "$as_me: error: could not find tcl source file '${srcdir}/$i'" >&2;}
+   { (exit 1); exit 1; }; }
+	fi
+	PKG_TCL_SOURCES="$PKG_TCL_SOURCES $i"
+    done
+
+
+
+    # Tcl implementation offers bzip2 compression assuming Trf package is present
+    COOKFS_PKGCONFIG_USEBZ2=1
 fi
+
+
 
 
 if test ${USECFSINDEX} = yes; then
@@ -11242,6 +11364,21 @@ $as_echo "$as_me: error: could not find source file '$i'" >&2;}
 
 
 
+    if test ${USEFALLBACK} = yes; then
+
+    vars="scripts/fsindex.tcl"
+    for i in $vars; do
+	# check for existence, be strict because it is installed
+	if test ! -f "${srcdir}/$i" ; then
+	    { { $as_echo "$as_me:$LINENO: error: could not find tcl source file '${srcdir}/$i'" >&5
+$as_echo "$as_me: error: could not find tcl source file '${srcdir}/$i'" >&2;}
+   { (exit 1); exit 1; }; }
+	fi
+	PKG_TCL_SOURCES="$PKG_TCL_SOURCES $i"
+    done
+
+
+    fi
 else
     COOKFS_PKGCONFIG_USECFSINDEX=0
 
@@ -11259,65 +11396,6 @@ $as_echo "$as_me: error: could not find tcl source file '${srcdir}/$i'" >&2;}
 
 fi
 
-
-if test ${USECREADERCHAN} = yes; then
-    cat >>confdefs.h <<\_ACEOF
-#define COOKFS_USECREADERCHAN 1
-_ACEOF
-
-    COOKFS_PKGCONFIG_USECREADERCHAN=1
-
-    vars="readerchannel.c readerchannelIO.c"
-    for i in $vars; do
-	case $i in
-	    \$*)
-		# allow $-var names
-		PKG_SOURCES="$PKG_SOURCES $i"
-		PKG_OBJECTS="$PKG_OBJECTS $i"
-		;;
-	    *)
-		# check for existence - allows for generic/win/unix VPATH
-		# To add more dirs here (like 'src'), you have to update VPATH
-		# in Makefile.in as well
-		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
-		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
-		    ; then
-		    { { $as_echo "$as_me:$LINENO: error: could not find source file '$i'" >&5
-$as_echo "$as_me: error: could not find source file '$i'" >&2;}
-   { (exit 1); exit 1; }; }
-		fi
-		PKG_SOURCES="$PKG_SOURCES $i"
-		# this assumes it is in a VPATH dir
-		i=`basename $i`
-		# handle user calling this before or after TEA_SETUP_COMPILER
-		if test x"${OBJEXT}" != x ; then
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
-		else
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
-		fi
-		PKG_OBJECTS="$PKG_OBJECTS $j"
-		;;
-	esac
-    done
-
-
-
-else
-    COOKFS_PKGCONFIG_USECREADERCHAN=0
-
-    vars="scripts/readerchannel.tcl"
-    for i in $vars; do
-	# check for existence, be strict because it is installed
-	if test ! -f "${srcdir}/$i" ; then
-	    { { $as_echo "$as_me:$LINENO: error: could not find tcl source file '${srcdir}/$i'" >&5
-$as_echo "$as_me: error: could not find tcl source file '${srcdir}/$i'" >&2;}
-   { (exit 1); exit 1; }; }
-	fi
-	PKG_TCL_SOURCES="$PKG_TCL_SOURCES $i"
-    done
-
-
-fi
 
 
 #--------------------------------------------------------------------

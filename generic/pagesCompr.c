@@ -404,7 +404,7 @@ static Tcl_Obj *CookfsReadPageCustom(Cookfs_Pages *p, int size) {
     int count;
 
     if (p->decompressCommandPtr == NULL) {
-	return -1;
+	return NULL;
     }
 
     compressed = Tcl_NewObj();

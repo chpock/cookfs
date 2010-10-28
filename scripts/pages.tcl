@@ -15,6 +15,8 @@ proc cookfs::pages {args} {
 	readonly 0
 	cachelist {}
 	compression zlib
+	compresscommand ""
+	decompresscommand ""
 	cachesize 8
 	indexdata ""
 	endoffset ""
@@ -23,7 +25,7 @@ proc cookfs::pages {args} {
     }
     while {[llength $args] > 1} {
 	switch -- [lindex $args 0] {
-	    -endoffset - -compression - -cachesize - -cfsname {
+	    -endoffset - -compression - -cachesize - -cfsname - -compresscommand - -decompresscommand {
 		set c([string range [lindex $args 0] 1 end]) [lindex $args 1 end]
 		set args [lrange $args 2 end]
 	    }
@@ -93,6 +95,11 @@ proc cookfs::pages::compress {name data} {
     }
     if {$c(cid) == 1} {
 	set data "\u0001[vfs::zip -mode compress -nowrap 1 $data]"
+    }  elseif {$c(cid) == 2} {
+	package require Trf
+	set data "\u0002[binary format I [string length $data]][bz2 -mode compress $data]"
+    }  elseif {$c(cid) == 255} {
+	set data "\u00ff[uplevel #0 [concat $c(compresscommand) [list $data]]]"
     }  else  {
 	set data "\u0000$data"
     } 
@@ -100,6 +107,7 @@ proc cookfs::pages::compress {name data} {
 }
 
 proc cookfs::pages::decompress {name data} {
+    upvar #0 $name c
     if {[string length $data] == 0} {
 	return ""
     }
@@ -112,6 +120,13 @@ proc cookfs::pages::decompress {name data} {
 	}
 	1 {
 	    return [vfs::zip -mode decompress -nowrap 1 $data]
+	}
+	2 {
+	    package require Trf
+	    return [bz2 -mode decompress [string range $data 4 end]]
+	}
+	255 - -1 {
+	    return [uplevel #0 [concat $c(decompresscommand) [list $data]]]
 	}
     }
 
@@ -126,6 +141,12 @@ proc cookfs::pages::compression2cid {name} {
 	zlib {
 	    return 1
 	}
+	bz2 {
+	    return 2
+	}
+	custom {
+	    return 255
+	}
 	default {
 	    error "Unknown compression \"$name\""
 	}
@@ -139,6 +160,12 @@ proc cookfs::pages::cid2compression {name} {
 	}
 	1 {
 	    return "zlib"
+	}
+	2 {
+	    return "bz2"
+	}
+	255 {
+	    return "custom"
 	}
 	default {
 	    error "Unknown compression id \"$name\""

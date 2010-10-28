@@ -146,7 +146,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     return TCL_OK;
 
 ERROR:
-    Tcl_WrongNumArgs(interp, 1, objv, "?-readonly|-readwrite? ?-compression mode? fileName");
+    Tcl_WrongNumArgs(interp, 1, objv, "?-readonly|-readwrite? ?-compression mode? ?-cachesize numPages? ?-endoffset numBytes? ?-compresscommand tclCmd? ?-decompresscommand tclcmd? fileName");
     return TCL_ERROR;
 }
 
