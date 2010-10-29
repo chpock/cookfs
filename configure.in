@@ -116,6 +116,7 @@ AC_ARG_ENABLE(c-readerchannel, [  --disable-c-readerchannel Use reader handler w
 if test ${USECPAGES} = yes; then
     AC_DEFINE(COOKFS_USECPAGES)
     COOKFS_PKGCONFIG_USECPAGES=1
+    COOKFS_PKGCONFIG_FEATURE_ASIDE=1
     TEA_ADD_SOURCES([pages.c pagesCompr.c pagesCmd.c])
 
     # reader channel requires support for pages in C
@@ -147,6 +148,7 @@ if test ${USECPAGES} = yes; then
     fi
 else
     COOKFS_PKGCONFIG_USECPAGES=0
+    COOKFS_PKGCONFIG_FEATURE_ASIDE=0
     TEA_ADD_TCL_SOURCES([scripts/pages.tcl])
 
     # if not using c-pages, use Tcl only readerchannel
@@ -156,6 +158,8 @@ else
     # Tcl implementation offers bzip2 compression assuming Trf package is present
     COOKFS_PKGCONFIG_USEBZ2=1
 fi
+
+AC_SUBST(COOKFS_PKGCONFIG_FEATURE_ASIDE)
 AC_SUBST(COOKFS_PKGCONFIG_USECPAGES)
 AC_SUBST(COOKFS_PKGCONFIG_USECREADERCHAN)
 AC_SUBST(COOKFS_PKGCONFIG_USEBZ2)

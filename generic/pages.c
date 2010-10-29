@@ -222,6 +222,11 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
 	    int isMatched = 1;
 
 	    otherPageData = Cookfs_PageGet(p, idx);
+	    /* fail in case when decompression is not available */
+	    if (otherPageData == NULL) {
+		CookfsLog(printf("Cookfs_PageAdd: Unable to verify page with same MD5 checksum"))
+		return -1;
+	    }
 
 	    Tcl_IncrRefCount(otherPageData);
 	    otherBytes = Tcl_GetByteArrayFromObj(otherPageData, &otherObjLength);

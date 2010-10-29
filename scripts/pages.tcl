@@ -99,6 +99,9 @@ proc cookfs::pages::compress {name data} {
 	package require Trf
 	set data "\u0002[binary format I [string length $data]][bz2 -mode compress $data]"
     }  elseif {$c(cid) == 255} {
+	if {$c(compresscommand) == ""} {
+	    error "No compresscommand specified"
+	}
 	set data "\u00ff[uplevel #0 [concat $c(compresscommand) [list $data]]]"
     }  else  {
 	set data "\u0000$data"
@@ -126,6 +129,9 @@ proc cookfs::pages::decompress {name data} {
 	    return [bz2 -mode decompress [string range $data 4 end]]
 	}
 	255 - -1 {
+	    if {$c(decompresscommand) == ""} {
+		error "No decompresscommand specified"
+	    }
 	    return [uplevel #0 [concat $c(decompresscommand) [list $data]]]
 	}
     }
@@ -315,13 +321,25 @@ proc cookfs::pages::handle {name cmd args} {
 	    if {[llength $args] != 1} {
 		error "TODO: help"
 	    }
-	    pageGet $name [lindex $args 0]
+	    if {[catch {
+		pageGet $name [lindex $args 0]
+	    } rc]} {
+		# TODO: log error
+		error "Unable to retrieve chunk"
+	    }
+	    return $rc
 	}
 	add {
 	    if {[llength $args] != 1} {
 		error "TODO: help"
 	    }
-	    pageAdd $name [lindex $args 0]
+	    if {[catch {
+		pageAdd $name [lindex $args 0]
+	    } rc]} {
+		# TODO: log error
+		error "Unable to add page"
+	    }
+	    return $rc
 	}
 	length {
 	    if {[llength $args] != 0} {

@@ -14,7 +14,20 @@ if {[info tclversion] == "8.4"} {
     package require rechan
 }
 
-source [file join [file dirname [info script]] common.tcl]
+source [file join [tcltest::testsDirectory] common.tcl]
+
+set constraints [tcltest::configure -constraints]
+
+if {[file exists [file join [tcltest::testsDirectory] .. cookfswriter cookfswriter.tcl]]} {
+    source [file join [tcltest::testsDirectory] .. cookfswriter cookfswriter.tcl]
+    lappend constraints runCookfsWriter
+}
+
+if {[cookfs::pkgconfig get feature-aside]} {
+    lappend constraints cookfsAside
+}
+
+tcltest::configure -constraints $constraints
 
 puts stdout "Tests running in interp:  [info nameofexecutable]"
 puts stdout "Tests running in working dir:  $::tcltest::testsDirectory"

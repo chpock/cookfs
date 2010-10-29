@@ -645,6 +645,7 @@ COOKFS_PKGCONFIG_USECFSINDEX
 COOKFS_PKGCONFIG_USEBZ2
 COOKFS_PKGCONFIG_USECREADERCHAN
 COOKFS_PKGCONFIG_USECPAGES
+COOKFS_PKGCONFIG_FEATURE_ASIDE
 TCL_DBGX
 LDFLAGS_DEFAULT
 CFLAGS_DEFAULT
@@ -11107,6 +11108,7 @@ if test ${USECPAGES} = yes; then
 _ACEOF
 
     COOKFS_PKGCONFIG_USECPAGES=1
+    COOKFS_PKGCONFIG_FEATURE_ASIDE=1
 
     vars="pages.c pagesCompr.c pagesCmd.c"
     for i in $vars; do
@@ -11285,6 +11287,7 @@ _ACEOF
     fi
 else
     COOKFS_PKGCONFIG_USECPAGES=0
+    COOKFS_PKGCONFIG_FEATURE_ASIDE=0
 
     vars="scripts/pages.tcl"
     for i in $vars; do
@@ -11318,6 +11321,8 @@ $as_echo "$as_me: error: could not find tcl source file '${srcdir}/$i'" >&2;}
     # Tcl implementation offers bzip2 compression assuming Trf package is present
     COOKFS_PKGCONFIG_USEBZ2=1
 fi
+
+
 
 
 

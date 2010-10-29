@@ -153,7 +153,7 @@ tcltest::test cookfsPages-3.3 "Test correctness of pages after write - large num
     catch {file delete -force $file}
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-4.1 "Test appended file handling" -setup {
+tcltest::test cookfsPages-4.1 "Test appended file handling" -constraints cookfsAside -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set file2 [tcltest::makeFile {} pages2.cfs]
 } -body {
@@ -194,7 +194,7 @@ tcltest::test cookfsPages-4.1 "Test appended file handling" -setup {
     catch {file delete -force $file2}
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-4.2 "Test appended file handling - adding same page to new archive" -setup {
+tcltest::test cookfsPages-4.2 "Test appended file handling - adding same page to new archive" -constraints cookfsAside -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set file2 [tcltest::makeFile {} pages2.cfs]
 } -body {
@@ -366,7 +366,7 @@ tcltest::test cookfsPages-7.1 "Test custom compression algorithm" -setup {
     catch {file delete -force $file}
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-7.2 "Test custom compression algorithm - no compress command error" -setup {
+tcltest::test cookfsPages-7.2 "Test custom compression algorithm - no decompress command error" -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression custom -compresscommand testcompress $file]
@@ -379,4 +379,15 @@ tcltest::test cookfsPages-7.2 "Test custom compression algorithm - no compress c
     catch {$pg delete}
     catch {file delete -force $file}
 } -returnCodes {error} -result {Unable to retrieve chunk}
+
+tcltest::test cookfsPages-7.3 "Test custom compression algorithm - no decompress command error when adding same page" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression custom -compresscommand testcompress $file]
+    set i0 [$pg add [string repeat "TEST" 1024]]
+    set i1 [$pg add [string repeat "TEST" 1024]]
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {error} -result {Unable to add page}
 

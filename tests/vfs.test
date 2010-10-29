@@ -111,7 +111,7 @@ tcltest::test cookfsVfs-3.4 "Test creating directories and files" -setup {
     tcltest::removeFile $file
 } -returnCodes {ok} -result {dir1 dir2 dir2/dir3 dir2/dir3/file5 dir2/file4 file2 dir1 dir2 dir2/dir3 dir2/dir3/file5 dir2/file4 file2}
 
-tcltest::test cookfsVfs-4.1 "Test add-aside feature" -setup {
+tcltest::test cookfsVfs-4.1 "Test add-aside feature" -constraints cookfsAside -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
     set file2 [tcltest::makeFile {} cookfs2.cfs]
     set fsid [vfs::cookfs::Mount $file $file]

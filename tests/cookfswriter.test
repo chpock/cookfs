@@ -1,5 +1,3 @@
-source [file join [tcltest::testsDirectory] .. cookfswriter cookfswriter.tcl]
-
 tcltest::test cookfsWriter-1.1 "Create empty archive" -constraints runCookfsWriter -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
