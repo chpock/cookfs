@@ -44,3 +44,12 @@ proc testIfEqual {a b} {
     return $ok
 }
 
+proc testcompress {d} {
+    binary scan [vfs::zip -mode compress $d] H* rc
+    return "HEXTEST-$rc"
+}
+proc testdecompress {d} {
+    set rc [vfs::zip -mode decompress [binary format H* [string range $d 8 end]]]
+    return $rc
+}
+

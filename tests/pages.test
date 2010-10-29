@@ -341,3 +341,42 @@ tcltest::test cookfsPages-6.1 "Test multiple compression algorithms" -setup {
     catch {file delete -force $file}
 } -returnCodes {ok}
 
+tcltest::test cookfsPages-7.1 "Test custom compression algorithm" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
+    set i0 [$pg add [string repeat "TEST" 1024]]
+    $pg delete
+
+    set fh [open $file r]
+    fconfigure $fh -translation binary
+    set fc [read $fh]
+    close $fh
+
+    if {![string match *HEXTEST* $fc]} {
+	error "Not used testcompress command"
+    }
+    set pg [cookfs::pages -readonly -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
+    if {![string equal [string repeat "TEST" 1024] [$pg get $i0]]} {
+	$pg delete
+	error "Page contents differs"
+    }
+    $pg delete
+} -cleanup {
+    catch {file delete -force $file}
+} -returnCodes {ok}
+
+tcltest::test cookfsPages-7.2 "Test custom compression algorithm - no compress command error" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression custom -compresscommand testcompress $file]
+    set i0 [$pg add [string repeat "TEST" 1024]]
+    $pg delete
+
+    set pg [cookfs::pages -readonly -compression custom -compresscommand testcompress $file]
+    $pg get $i0
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {error} -result {Unable to retrieve chunk}
+
