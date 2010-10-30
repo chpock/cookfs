@@ -27,6 +27,7 @@ proc cookfs::initialize {} {
 	package require vfs::cookfs::tcl::vfs [pkgconfig get package-version]
 	package require vfs::cookfs::tcl::memchan [pkgconfig get package-version]
 	package require vfs::cookfs::tcl::writer [pkgconfig get package-version]
+	package require vfs::cookfs::tcl::optimize [pkgconfig get package-version]
 	
 	if {[pkgconfig get c-pages]} {
 	    package require vfs::cookfs::c [pkgconfig get package-version]
