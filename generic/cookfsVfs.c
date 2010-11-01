@@ -1,4 +1,14 @@
-/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
+/*
+ * cookfsVfs.c
+ *
+ * Code for providing Cookfs VFS layer in pure C
+ * 
+ * CURRENTLY NOT USED
+ *
+ * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ *
+ * Code partially based on tclvfs generic/vfs.c source code
+ */
 
 static Tcl_FSStatProc CookfsStat;
 static Tcl_FSAccessProc CookfsAccess;
@@ -66,7 +76,7 @@ static Tcl_Filesystem cookfsFilesystem = {
 };
 
 static int 
-VfsPathInFilesystem(Tcl_Obj *pathPtr, ClientData *clientDataPtr) {
+CookfsPathInFilesystem(Tcl_Obj *pathPtr, ClientData *clientDataPtr) {
     Tcl_Obj *normedObj;
     int len, splitPosition;
     char *normed;

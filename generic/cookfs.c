@@ -1,6 +1,28 @@
-/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
+/*
+ * cookfs.c
+ *
+ * Provides Cookfs initialization code.
+ *
+ * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ */
 
 #include "cookfs.h"
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_Init --
+ *
+ *	Initializes Cookfs C layer in a Tcl interpreter.
+ *
+ * Results:
+ *	TCL_OK on success; TCL_ERROR otherwise
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
 
 int
 Cookfs_Init(Tcl_Interp *interp)
@@ -39,4 +61,4 @@ Cookfs_Init(Tcl_Interp *interp)
 
     return TCL_OK;
 }
-
+

@@ -1,4 +1,15 @@
-/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
+/*
+ * md5.c
+ *
+ * Provides wrapper around MD5 and includes MD5 code
+ * as static functions to prevent issues with linking other
+ * libraries that also include MD5 code
+ *
+ * (c) 2010 Wojciech Kocjan, Pawel Salawa 
+ *
+ * MD5 copyright information specified below
+ */
+
 
 /*
  ***********************************************************************
@@ -293,14 +304,49 @@ register UINT4 *in;
   buf[2] += c;
   buf[3] += d;
 }
+
 
-/* Interface to cookfs - all other stuff is static to avoid dlopen collissions */
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_MD5 --
+ *
+ *	Calculates MD5 checksum of specified amount of bytes.
+ *	Result is stored as 16 binary bytes at memory specified as digest.
+ *
+ * Results:
+ *	None
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
 void Cookfs_MD5(unsigned char *buf, unsigned int len, unsigned char digest[16]) {
     MD5_CTX ctx;
     MD5Init(&ctx);
     MD5Update(&ctx, buf, len);
     MD5Final(digest, &ctx);
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_MD5FromObj --
+ *
+ *	Calculates MD5 checksum of specified Tcl object.
+ *	It calculates checksum of contents as byte array.
+ *
+ * Results:
+ *	Tcl_Obj that contains MD5 checksum as hexadecimal string
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
 
 Tcl_Obj *Cookfs_MD5FromObj(Tcl_Obj *obj) {
     unsigned char *bytes;
@@ -319,4 +365,4 @@ Tcl_Obj *Cookfs_MD5FromObj(Tcl_Obj *obj) {
     hex[32] = 0;
     return Tcl_NewStringObj(hex, 32);
 }
-
+

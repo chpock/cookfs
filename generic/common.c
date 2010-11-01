@@ -1,68 +1,155 @@
-/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
+/*
+ * common.c
+ *
+ * Provides common functionality for Cookfs C-based code.
+ *
+ * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ */
 
 #include "cookfs.h"
 
-unsigned char *Cookfs_Binary2Int(unsigned char *bytes, int *values, int count) {
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_Binary2Int --
+ *
+ *	Converts count integers from platform independant (high endian)
+ *	stored at input into an array of platform dependant integers
+ *	at output.
+ *
+ * Results:
+ *	Pointer to bytes following count integers at input:
+ *	result = input + count * 4
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+unsigned char *Cookfs_Binary2Int(unsigned char *input, int *output, int count) {
     int b;
     while (count > 0) {
-        b = (bytes[0] << 24)
-            | (bytes[1] << 16)
-            | (bytes[2] << 8)
-            | bytes[3];
-        *values++ = b;
-        bytes += 4;
+        b = (input[0] << 24)
+            | (input[1] << 16)
+            | (input[2] << 8)
+            | input[3];
+        *output++ = b;
+        input += 4;
         count--;
     }
-    return bytes;
+    return input;
 }
+
 
-unsigned char *Cookfs_Int2Binary(int *values, unsigned char *bytes, int count) {
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_Int2Binary --
+ *
+ *	Converts count integers from platform dependant stored at
+ *	input into an array of platform independant (high endian)
+ *	integers at output.
+ *
+ * Results:
+ *	Pointer to output following count integers stored at output:
+ *	result = output + count * 4
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+unsigned char *Cookfs_Int2Binary(int *input, unsigned char *output, int count) {
     while (count > 0) {
-        bytes[0] = ((*values & 0xff000000) >> 24);
-        bytes[1] = ((*values & 0x00ff0000) >> 16);
-        bytes[2] = ((*values & 0x0000ff00) >> 8);
-        bytes[3] = ((*values & 0x000000ff));
+        output[0] = ((*input & 0xff000000) >> 24);
+        output[1] = ((*input & 0x00ff0000) >> 16);
+        output[2] = ((*input & 0x0000ff00) >> 8);
+        output[3] = ((*input & 0x000000ff));
         count--;
-        bytes += 4;
-        values++;
+        output += 4;
+        input++;
     }
-    return bytes;
+    return output;
 }
+
 
-unsigned char *Cookfs_Binary2WideInt(unsigned char *bytes, Tcl_WideInt *values, int count) {
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_Binary2WideInt --
+ *
+ *	Converts count wide integers from platform independant
+ *	(high endian) stored at input into an array of platform
+ *	dependant wide integers at output.
+ *
+ * Results:
+ *	Pointer to bytes following count wide integers at input:
+ *	result = input + count * 8
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+unsigned char *Cookfs_Binary2WideInt(unsigned char *input, Tcl_WideInt *output, int count) {
     Tcl_WideInt v;
     while (count > 0) {
-        v = bytes[0]; v = v << 8;
-        v |= bytes[1]; v = v << 8;
-        v |= bytes[2]; v = v << 8;
-        v |= bytes[3]; v = v << 8;
-        v |= bytes[4]; v = v << 8;
-        v |= bytes[5]; v = v << 8;
-        v |= bytes[6]; v = v << 8;
-        v |= bytes[7];
-        *values = v;
-        values++;
+        v = input[0]; v = v << 8;
+        v |= input[1]; v = v << 8;
+        v |= input[2]; v = v << 8;
+        v |= input[3]; v = v << 8;
+        v |= input[4]; v = v << 8;
+        v |= input[5]; v = v << 8;
+        v |= input[6]; v = v << 8;
+        v |= input[7];
+        *output = v;
+        output++;
         count--;
-        bytes += 8;
+        input += 8;
     }
-    return bytes;
+    return input;
 }
+
 
-unsigned char *Cookfs_WideInt2Binary(Tcl_WideInt *values, unsigned char *bytes, int count) {
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_WideInt2Binary --
+ *
+ *	Converts count wide integers from platform dependant stored at
+ *	input into an array of platform independant (high endian)
+ *	wide integers at output.
+ *
+ * Results:
+ *	Pointer to output following count wide integers stored at output:
+ *	result = output + count * 8
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+unsigned char *Cookfs_WideInt2Binary(Tcl_WideInt *input, unsigned char *output, int count) {
     Tcl_WideInt v;
     while (count > 0) {
-        v = *values;
-        bytes[7] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
-        bytes[6] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
-        bytes[5] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
-        bytes[4] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
-        bytes[3] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
-        bytes[2] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
-        bytes[1] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
-        bytes[0] = v & ((Tcl_WideInt) 0x000000ff);
+        v = *input;
+        output[7] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
+        output[6] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
+        output[5] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
+        output[4] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
+        output[3] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
+        output[2] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
+        output[1] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
+        output[0] = v & ((Tcl_WideInt) 0x000000ff);
         count--;
-        bytes += 8;
-        values++;
+        output += 8;
+        input++;
     }
-    return bytes;
+    return output;
 }
+
