@@ -24,13 +24,13 @@ static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e);
  *
  * Cookfs_FsindexGetHandle --
  *
- *	TODO
+ *	Returns fsindex handle from provided Tcl command name
  *
  * Results:
- *	TODO
+ *	Pointer to Cookfs_Fsindex or NULL in case of failure
  *
  * Side effects:
- *	TODO
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -53,13 +53,13 @@ Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName)
  *
  * Cookfs_FsindexInit --
  *
- *	TODO
+ *	Create new fsindex instance.
  *
  * Results:
- *	TODO
+ *	Returns pointer to new instance
  *
  * Side effects:
- *	TODO
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -79,13 +79,13 @@ Cookfs_Fsindex *Cookfs_FsindexInit() {
  *
  * Cookfs_FsindexFini --
  *
- *	TODO
+ *	Frees entire fsindex along with its child elements
  *
  * Results:
- *	TODO
+ *	None
  *
  * Side effects:
- *	TODO
+ *	None
  *
  *----------------------------------------------------------------------
  */
