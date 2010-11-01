@@ -1,4 +1,13 @@
-/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
+/*
+ * cookfs.h
+ *
+ * Main cookfs include file:
+ * - includes standard headers
+ * - defines (temporary) debug/logging macro definitions
+ * - includes additional header files, if enabled in configure
+ *
+ * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ */
 
 #ifndef COOKFS_H
 #define COOKFS_H 1

@@ -1,4 +1,8 @@
-/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
+/*
+ * common.h
+ *
+ * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ */
 
 #ifndef COOKFS_COMMON_H
 #define COOKFS_COMMON_H 1

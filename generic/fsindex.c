@@ -1,4 +1,10 @@
-/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
+/*
+ * fsindex.c
+ *
+ * Provides functions for managing filesystem indexes
+ *
+ * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ */
 
 #include "cookfs.h"
 
@@ -6,14 +12,28 @@
 #define COOKFSFSINDEX_FIND_CREATE 1
 #define COOKFSFSINDEX_FIND_DELETE 2
 
+/* declarations of static and/or internal functions */
 static Cookfs_FsindexEntry *CookfsFsindexFindElement(Cookfs_Fsindex *i, Tcl_Obj *pathList, int listSize);
 static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexEntry **dirPtr, Tcl_Obj *pathList, int command, Cookfs_FsindexEntry *newFileNode);
 static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_Fsindex *i, Cookfs_FsindexEntry *currentNode, char *pathTailStr, int command, Cookfs_FsindexEntry *newFileNode);
-
-#if 0
-static void CookfsFsindexHashToChildtable(Cookfs_FsindexEntry *e);
-#endif
 static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e);
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexGetHandle --
+ *
+ *	TODO
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
 
 Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName) {
     Tcl_CmdInfo cmdInfo;
@@ -26,6 +46,23 @@ Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName)
 
     return (Cookfs_Fsindex *) (cmdInfo.objClientData);
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexInit --
+ *
+ *	TODO
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
 
 Cookfs_Fsindex *Cookfs_FsindexInit() {
     Cookfs_Fsindex *rc;
@@ -35,10 +72,46 @@ Cookfs_Fsindex *Cookfs_FsindexInit() {
     return rc;
 }
 
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexFini --
+ *
+ *	TODO
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
+
 void Cookfs_FsindexFini(Cookfs_Fsindex *i) {
     Cookfs_FsindexEntryFree(i->rootItem);
     Tcl_Free((void *) i);
 }
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexGet --
+ *
+ *	TODO
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
 
 Cookfs_FsindexEntry *Cookfs_FsindexGet(Cookfs_Fsindex *i, Tcl_Obj *pathList) {
     Cookfs_FsindexEntry *fileNode;
@@ -55,6 +128,24 @@ Cookfs_FsindexEntry *Cookfs_FsindexGet(Cookfs_Fsindex *i, Tcl_Obj *pathList) {
     
     return fileNode;
 }
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexSet --
+ *
+ *	TODO
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
 
 Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Tcl_Obj *pathList, int numBlocks) {
     Cookfs_FsindexEntry *dirNode = NULL;
@@ -102,6 +193,24 @@ Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Tcl_Obj *pathList, int
     return fileNode;
 }
 
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexSetInDirectory --
+ *
+ *	TODO
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
+
 Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_Fsindex *i, Cookfs_FsindexEntry *currentNode, char *pathTailStr, int pathTailLen, int numBlocks) {
     Cookfs_FsindexEntry *fileNode;
     Cookfs_FsindexEntry *foundFileNode;
@@ -120,6 +229,24 @@ Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_Fsindex *i, Cookfs_Fsin
     return fileNode;
 }
 
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexUnset --
+ *
+ *	TODO
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
+
 int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Tcl_Obj *pathList) {
     Cookfs_FsindexEntry *fileNode;
 
@@ -135,6 +262,24 @@ int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Tcl_Obj *pathList) {
     
     return 1;
 }
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexList --
+ *
+ *	TODO
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
 
 Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Tcl_Obj *pathList, int *itemCountPtr) {
     Cookfs_FsindexEntry *dirNode = NULL;
@@ -189,9 +334,45 @@ Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Tcl_Obj *pathList, i
     return result;
 }
 
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexListFree --
+ *
+ *	TODO
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
+
 void Cookfs_FsindexListFree(Cookfs_FsindexEntry **items) {
     Tcl_Free((void *) items);
 }
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexEntryAlloc --
+ *
+ *	TODO
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
 
 Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks, int useHash) {
     int size0 = sizeof(Cookfs_FsindexEntry);
@@ -230,6 +411,24 @@ Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks,
     return e;   
 }
 
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexEntryFree --
+ *
+ *	TODO
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
+
 void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
     if (e->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
         Tcl_HashSearch hashSearch;
@@ -256,7 +455,25 @@ void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
     }
     Tcl_Free((void *) e);
 }
+
 
+/* definitions of static and/or internal functions */
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsFsindexFindElement --
+ *
+ *	TODO
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
 static Cookfs_FsindexEntry *CookfsFsindexFindElement(Cookfs_Fsindex *i, Tcl_Obj *pathList, int listSize) {
     int idx;
     Tcl_Obj *currentPath;
@@ -311,6 +528,23 @@ static Cookfs_FsindexEntry *CookfsFsindexFindElement(Cookfs_Fsindex *i, Tcl_Obj 
     }
     return currentNode;
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsFsindexFind --
+ *
+ *	TODO
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
 
 static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexEntry **dirPtr, Tcl_Obj *pathList, int command, Cookfs_FsindexEntry *newFileNode) {
     Cookfs_FsindexEntry *currentNode;
@@ -359,6 +593,25 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
 
     return CookfsFsindexFindInDirectory(i, currentNode, pathTailStr, command, newFileNode);
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsFsindexFindInDirectory --
+ *
+ *	TODO - describe what it does for all commands
+ *
+ *	TODO: comment why it made more sense to write as single function
+ *
+ * Results:
+ *	TODO
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
 
 static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_Fsindex *i, Cookfs_FsindexEntry *currentNode, char *pathTailStr, int command, Cookfs_FsindexEntry *newFileNode) {
     /* iterate until a solution is found - break is placed at the end,
@@ -415,14 +668,6 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_Fsindex *i, Cook
 		    currentNode->data.dirInfo.childCount--;
 		    Tcl_DeleteHashEntry(hashEntry);
 		    Cookfs_FsindexEntryFree(fileNode);
-
-		    /* if entry has been deleted and number of children decreased
-		     * below specified number, convert from hash table to static array */
-#if 0
-		    if (currentNode->data.dirInfo.childCount <= COOKFS_FSINDEX_TABLE_REVERT_NUMENTRIES) {
-			CookfsFsindexHashToChildtable(currentNode);
-		    }
-#endif
 		}
 		return fileNode;
 	    }
@@ -501,18 +746,24 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_Fsindex *i, Cook
     }
     return NULL;
 }
+
 
-#if 0
-static void CookfsFsindexHashToChildtable(Cookfs_FsindexEntry *e) {
-    Cookfs_FsindexEntry *childTable[COOKFS_FSINDEX_TABLE_MAXENTRIES];
-    int i;
-    for (i = 0 ; i < COOKFS_FSINDEX_TABLE_MAXENTRIES; i++) {
-	childTable[i] = NULL;
-    }
-
-    e->data.dirInfo.isHash = 0;
-}
-#endif
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsFsindexChildtableToHash --
+ *
+ *	Converts directory fsindex entry from using static array of
+ *	children into hash table based.
+ *
+ * Results:
+ *	None
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
 
 static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e) {
     Cookfs_FsindexEntry *childTable[COOKFS_FSINDEX_TABLE_MAXENTRIES];
