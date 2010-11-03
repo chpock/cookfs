@@ -24,7 +24,6 @@ static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
 static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdDelete(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
-
 
 /*
  *----------------------------------------------------------------------
@@ -35,7 +34,7 @@ static int CookfsFsindexCmdDelete(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, i
  *	Tcl interpreter
  *
  * Results:
- *	None
+ *	TCL_OK on success; TCL_ERROR on error
  *
  * Side effects:
  *	Creates command for creating fsindex instances
@@ -66,7 +65,7 @@ int Cookfs_InitFsindexCmd(Tcl_Interp *interp) {
  *	with binary data from [$fsindex export] as first argument
  *
  * Results:
- *	TCL_OK on success; TCL_ERROR otherwise; result for interp
+ *	TCL_OK on success; TCL_ERROR on error; result for interp
  *	is set with proper error message in case of failure
  *
  * Side effects:
@@ -169,6 +168,7 @@ static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc,
         return TCL_ERROR;
     }
 
+    /* run proper subcommand */
     switch (idx) {
         case cmdExport:
 	    return CookfsFsindexCmdExport(fsIndex, interp, objc, objv);
@@ -199,10 +199,11 @@ static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc,
  *
  * CookfsFsindexCmdExport --
  *
- *	TODO
+ *	Exports fsindex internal storage to binary, platform-independant
+ *	format.
  *
  * Results:
- *	Returns TCL_OK on error; TCL_ERROR on failure
+ *	Returns TCL_OK on success; TCL_ERROR on error
  *	On success interp result is set to binary object containing
  *	exported data
  *
@@ -214,11 +215,14 @@ static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc,
 
 static int CookfsFsindexCmdExport(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     Tcl_Obj *exportObj;
+
+    /* check arguments */
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 2, objv, "");
 	return TCL_ERROR;
     }
 
+    /* export to Tcl_Obj */
     exportObj = Cookfs_FsindexToObject(fsIndex);
 
     if (exportObj == NULL) {
@@ -239,7 +243,7 @@ static int CookfsFsindexCmdExport(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, i
  *	Gets modification time for specified file
  *
  * Results:
- *	Returns TCL_OK on error; TCL_ERROR on failure
+ *	Returns TCL_OK on success; TCL_ERROR on error
  *	On success interp result contains mtime for specified file
  *
  * Side effects:
@@ -251,11 +255,14 @@ static int CookfsFsindexCmdExport(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, i
 static int CookfsFsindexCmdGetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     Tcl_Obj *splitPath;
     Cookfs_FsindexEntry *entry;
+
+    /* check arguments */
     if (objc != 3) {
 	Tcl_WrongNumArgs(interp, 2, objv, "path");
 	return TCL_ERROR;
     }
 
+    /* get split path to entry */
     splitPath = Tcl_FSSplitPath(objv[2], NULL);
     Tcl_IncrRefCount(splitPath);
     if (splitPath == NULL) {
@@ -263,14 +270,17 @@ static int CookfsFsindexCmdGetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
 	return TCL_ERROR;
     }
 
+    /* get entry and free splitPath */
     entry = Cookfs_FsindexGet(fsIndex, splitPath);
     Tcl_DecrRefCount(splitPath);
     
+    /* check if entry was returned */
     if (entry == NULL) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("Entry not found", -1));
 	return TCL_ERROR;
     }
 
+    /* return mtime as wide integer */
     Tcl_SetObjResult(interp, Tcl_NewWideIntObj(entry->fileTime));
     return TCL_OK;
 }
@@ -284,7 +294,7 @@ static int CookfsFsindexCmdGetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
  *	Sets modification time for specified file
  *
  * Results:
- *	Returns TCL_OK on error; TCL_ERROR on failure
+ *	Returns TCL_OK on success; TCL_ERROR on error
  *
  * Side effects:
  *	None
@@ -297,15 +307,18 @@ static int CookfsFsindexCmdSetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
     Cookfs_FsindexEntry *entry;
     Tcl_WideInt fileTime;
 
+    /* check arguments */
     if (objc != 4) {
 	Tcl_WrongNumArgs(interp, 2, objv, "path mtime");
 	return TCL_ERROR;
     }
 
+    /* get new fileTime, return error if not a valid wide integer */
     if (Tcl_GetWideIntFromObj(interp, objv[3], &fileTime) != TCL_OK) {
 	return TCL_ERROR;
     }
 
+    /* get split path to entry */
     splitPath = Tcl_FSSplitPath(objv[2], NULL);
     Tcl_IncrRefCount(splitPath);
     if (splitPath == NULL) {
@@ -313,14 +326,17 @@ static int CookfsFsindexCmdSetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
 	return TCL_ERROR;
     }
 
+    /* get entry and free splitPath */
     entry = Cookfs_FsindexGet(fsIndex, splitPath);
     Tcl_DecrRefCount(splitPath);
     
+    /* check if entry was returned */
     if (entry == NULL) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("Entry not found", -1));
 	return TCL_ERROR;
     }
 
+    /* update mtime */
     entry->fileTime = fileTime;
 
     return TCL_OK;
@@ -345,7 +361,7 @@ static int CookfsFsindexCmdSetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
  *	If run with 1 argument, new item is created as directory
  *
  * Results:
- *	Returns TCL_OK on error; TCL_ERROR on failure
+ *	Returns TCL_OK on success; TCL_ERROR on error
  *
  * Side effects:
  *	Modifies fsindex hierarchy
@@ -361,6 +377,8 @@ static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
     Tcl_Obj **listElements;
     Tcl_WideInt fileTime;
     Cookfs_FsindexEntry *entry;
+
+    /* check number of arguments */
     if ((objc < 4) || (objc > 5)) {
 	Tcl_WrongNumArgs(interp, 2, objv, "path mtime ?filedata?");
 	return TCL_ERROR;
@@ -371,7 +389,7 @@ static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
 	return TCL_ERROR;
     }
 
-    /* try to get split path from specified path */
+    /* get split path to entry */
     splitPath = Tcl_FSSplitPath(objv[2], NULL);
     Tcl_IncrRefCount(splitPath);
     if (splitPath == NULL) {
@@ -443,7 +461,7 @@ static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
  *	Unsets specified entry in fsindex
  *
  * Results:
- *	Returns TCL_OK on error; TCL_ERROR on failure
+ *	Returns TCL_OK on success; TCL_ERROR on error
  *
  * Side effects:
  *	Corresponding entry is removed
@@ -488,13 +506,20 @@ static int CookfsFsindexCmdUnset(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, in
  *
  * CookfsFsindexCmdGet --
  *
- *	TODO
+ *	Gets fsindex entry and returns it as a Tcl list
  *
  * Results:
- *	TODO
+ *	Returns TCL_OK on success; TCL_ERROR on error
+ *	In case of success result is set with a list describing entry
+ *	
+ *	For directories, result is a 1 element list containing file
+ *	modification time
+ *
+ *	For files, it is a list consisting of file modification time,
+ *	file size and block-offset-size triplet list
  *
  * Side effects:
- *	TODO
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -504,11 +529,14 @@ static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
     Tcl_Obj *resultObjects[3];
     Tcl_Obj **resultList;
     Cookfs_FsindexEntry *entry;
+
+    /* check arguments */
     if (objc != 3) {
 	Tcl_WrongNumArgs(interp, 2, objv, "path");
 	return TCL_ERROR;
     }
 
+    /* get split path to entry */
     splitPath = Tcl_FSSplitPath(objv[2], NULL);
     Tcl_IncrRefCount(splitPath);
     if (splitPath == NULL) {
@@ -516,25 +544,32 @@ static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
 	return TCL_ERROR;
     }
 
+    /* get entry and free splitPath */
     entry = Cookfs_FsindexGet(fsIndex, splitPath);
     Tcl_DecrRefCount(splitPath);
     
+    /* check if entry was returned */
     if (entry == NULL) {
 	CookfsLog(printf("cmdGet - entry==NULL"))
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("Entry not found", -1));
 	return TCL_ERROR;
     }
 
+    /* create file time in resulting list */
     resultObjects[0] = Tcl_NewWideIntObj(entry->fileTime);
     if (entry->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
+	/* for directories, return a 1 element list only containing file modification time */
 	Tcl_SetObjResult(interp, Tcl_NewListObj(1, resultObjects));
     }  else  {
 	int i;
+
+	/* for files, store file size and create a sublist with block-offset-size triplets */
 	resultObjects[1] = Tcl_NewWideIntObj(entry->data.fileInfo.fileSize);
 	resultList = (Tcl_Obj **) Tcl_Alloc(sizeof(Tcl_Obj *) * (entry->fileBlocks * 3));
 	for (i = 0; i < (entry->fileBlocks * 3); i++) {
 	    resultList[i] = Tcl_NewIntObj(entry->data.fileInfo.fileBlockOffsetSize[i]);
 	}
+	/* create new list from newly created array, free temporary memory and return 3 element list */
 	resultObjects[2] = Tcl_NewListObj(entry->fileBlocks * 3, resultList);
 	Tcl_Free((void *) resultList);
 	Tcl_SetObjResult(interp, Tcl_NewListObj(3, resultObjects));
@@ -548,13 +583,15 @@ static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
  *
  * CookfsFsindexCmdList --
  *
- *	TODO
+ *	List entries in specified path
  *
  * Results:
- *	TODO
+ *	Returns TCL_OK on success; TCL_ERROR on error
+ *	In case of success result is set with a list of names of
+ *	all children
  *
  * Side effects:
- *	TODO
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -564,11 +601,14 @@ static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int
     Tcl_Obj **resultList;
     Cookfs_FsindexEntry **results;
     int itemCount, idx;
+
+    /* check arguments */
     if (objc != 3) {
 	Tcl_WrongNumArgs(interp, 2, objv, "path");
 	return TCL_ERROR;
     }
 
+    /* get split path to entry */
     splitPath = Tcl_FSSplitPath(objv[2], NULL);
     Tcl_IncrRefCount(splitPath);
     if (splitPath == NULL) {
@@ -576,6 +616,7 @@ static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int
 	return TCL_ERROR;
     }
 
+    /* list specified path; return error if path not found */
     results = Cookfs_FsindexList(fsIndex, splitPath, &itemCount);
     Tcl_DecrRefCount(splitPath);
     
@@ -585,10 +626,13 @@ static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int
 	return TCL_ERROR;
     }
 
+    /* create a file list from result of Cookfs_FsindexList() */
     resultList = (Tcl_Obj **) Tcl_Alloc(sizeof(Tcl_Obj *) * itemCount);
     for (idx = 0; idx < itemCount; idx++) {
 	resultList[idx] = Tcl_NewStringObj(results[idx]->fileName, -1);
     }
+    
+    /* the list is now copied, we can free the original memory */
     Cookfs_FsindexListFree(results);
 
     Tcl_SetObjResult(interp, Tcl_NewListObj(itemCount, resultList));
@@ -606,15 +650,17 @@ static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int
  *	Deletes fsindex object and all associated elements
  *
  * Results:
- *	TODO
+ *	Returns TCL_OK on success; TCL_ERROR on error
  *
  * Side effects:
- *	TODO
+ *	None
  *
  *----------------------------------------------------------------------
  */
 
 static int CookfsFsindexCmdDelete(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+
+    /* check arguments */
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 2, objv, "");
 	return TCL_ERROR;
