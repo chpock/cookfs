@@ -1,7 +1,7 @@
 namespace eval cookfs {}
 namespace eval cookfs {}
 
-proc cookfs::pkgconfig {{command ""} {value ""}} {
+proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
     variable pkgconfig
     variable pkgconfigInitialized
 
@@ -19,18 +19,28 @@ proc cookfs::pkgconfig {{command ""} {value ""}} {
 	set pkgconfigInitialized 1
     }
 
-    switch -- $command {
-	get {
-	    if {[info exists pkgconfig($value)]} {
-		return $pkgconfig($value)
-	    }  elseif  {$value != ""} {
-		set an [lsort [array names pkgconfig]]
-		error "Unknown field \"$value\"; should be one of: [join [lrange $an 0 end-1] {, }] or [lindex $an end]."
-	    }
+    if {$command == "set"} {
+	if {[info exists pkgconfig($value)]} {
+	    set pkgconfig($value) $newValue
+	    return $pkgconfig($value)
+	}  elseif  {$value != ""} {
+	    set an [lsort [array names pkgconfig]]
+	    error "Unknown field \"$value\"; should be one of: [join [lrange $an 0 end-1] {, }] or [lindex $an end]."
 	}
-	list {
-	    if {$value == ""} {
-		return [lsort [array names pkgconfig]]
+    }  elseif {$newValue == ""} {
+	switch -- $command {
+	    get {
+		if {[info exists pkgconfig($value)]} {
+		    return $pkgconfig($value)
+		}  elseif  {$value != ""} {
+		    set an [lsort [array names pkgconfig]]
+		    error "Unknown field \"$value\"; should be one of: [join [lrange $an 0 end-1] {, }] or [lindex $an end]."
+		}
+	    }
+	    list {
+		if {$value == ""} {
+		    return [lsort [array names pkgconfig]]
+		}
 	    }
 	}
     }

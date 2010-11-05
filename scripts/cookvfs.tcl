@@ -29,21 +29,37 @@ proc cookfs::initialize {} {
 	package require vfs::cookfs::tcl::writer [pkgconfig get package-version]
 	package require vfs::cookfs::tcl::optimize [pkgconfig get package-version]
 	
+	# in case loading C version fails, fall back to Tcl version
 	if {[pkgconfig get c-pages]} {
-	    package require vfs::cookfs::c [pkgconfig get package-version]
+	    if {[catch {
+		package require vfs::cookfs::c [pkgconfig get package-version]
+	    }]} {
+		pkgconfig set c-pages 0
+		package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
+	    }
 	}  else  {
 	    package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
 	}
 
 	if {[pkgconfig get c-fsindex]} {
-	    package require vfs::cookfs::c [pkgconfig get package-version]
+	    if {[catch {
+		package require vfs::cookfs::c [pkgconfig get package-version]
+	    }]} {
+		pkgconfig set c-fsindex 0
+		package require vfs::cookfs::tcl::fsindex [pkgconfig get package-version]
+	    }
 	}  else  {
 	    package require vfs::cookfs::tcl::fsindex [pkgconfig get package-version]
 	}
 
 	package require vfs::cookfs::tcl::readerchannel [pkgconfig get package-version]
+	# unlike fsindex and pages, readerchannel 
 	if {[pkgconfig get c-readerchannel]} {
-	    package require vfs::cookfs::c [pkgconfig get package-version]
+	    if {[catch {
+		package require vfs::cookfs::c [pkgconfig get package-version]
+	    }]} {
+		pkgconfig set c-readerchannel 0
+	    }
 	}
 
 	set pkginitialized 1
