@@ -53,10 +53,13 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	    goto error;
 	}
 	
+	Tcl_IncrRefCount(pageObj);
 	pageBuf = (char *) Tcl_GetByteArrayFromObj(pageObj, NULL);
 
 	CookfsLog(printf("Cookfs_Readerchannel_Input: copying %d+%d", instData->buf[instData->currentBlock + 1], instData->currentBlockOffset))
 	memcpy(buf + bytesRead, pageBuf + instData->buf[instData->currentBlock + 1] + instData->currentBlockOffset, blockRead);
+	Tcl_DecrRefCount(pageObj);
+
 	instData->currentBlockOffset += blockRead;
 	bytesRead += blockRead;
 	instData->currentOffset += bytesRead;
