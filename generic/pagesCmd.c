@@ -51,16 +51,18 @@ int Cookfs_InitPagesCmd(Tcl_Interp *interp) {
  * CookfsRegisterPagesObjectCmd --
  *
  *	Creates a new pages instance and Tcl command for managing
- *	this pagesobject
+ *	this pages object
  *
- *	TODO: describe all flags:
- *	  -readonly
- *	  -readwrite
- *	  -compression
- *	  -cachesize
- *	  -endoffset
- *	  -compresscommand
- *	  -decompresscommand
+ *	It accepts the following flags
+ *	  -readonly		Open file as read-only
+ *	  -readwrite		Open file for reading and writing
+ *	  -cachesize		Number of pages to cache
+ *	  -endoffset		If specified, use following offset as end of cookfs archive
+ *	  			If not specified, end of file used as end of cookfs archive
+ *	  -compression		Compression to use for new pages/index
+ *	  			(allowed values: none, zlib, bzip2, custom)
+ *	  -compresscommand	Command used for compressing archive, if -compression is set to custom
+ *	  -decompresscommand	Command to use for decompressing pages with custom compression
  *
  * Results:
  *	TCL_OK on success; TCL_ERROR on error; result for interp
@@ -183,7 +185,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
         goto ERROR;
     }
 
-    /* TODO: parse arguments etc */    
+    /* Create cookfs instance */
     pages = Cookfs_PagesInit(interp, tobjv[1], oReadOnly, oCompression, NULL, useFoffset, foffset, 0, compressCmd, decompressCmd);
 
     if (pages == NULL) {
@@ -191,11 +193,13 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
         return TCL_ERROR;
     }
 
+    /* set up cache size, if > 0 */
     if (oCachesize >= 0) {
         pages->cacheSize = oCachesize;
     }
-    sprintf(buf, "::cookfs::pageshandle%d", cmdidx);
 
+    /* create Tcl command and return its name */
+    sprintf(buf, "::cookfs::pageshandle%d", cmdidx);
     Tcl_CreateObjCommand(interp, buf, CookfsPagesCmd, (ClientData) pages, CookfsPagesDeleteProc);
 
     Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));   
