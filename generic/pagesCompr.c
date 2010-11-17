@@ -480,7 +480,6 @@ static Tcl_Obj *CookfsReadPageZlib(Cookfs_Pages *p, int size) {
     Tcl_IncrRefCount(prevResult);
     if (Tcl_EvalObjv(p->interp, 6, p->zipCmdDecompress, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
 	CookfsLog(printf("Unable to decompress"))
-	printf("TEST0x - %s\n", Tcl_GetStringFromObj(Tcl_GetObjResult(p->interp), NULL));
 	Tcl_DecrRefCount(compressed);
 	return NULL;
     }
