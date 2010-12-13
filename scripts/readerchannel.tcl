@@ -69,12 +69,37 @@ proc cookfs::createReadableChannel {fsid path} {
     return $ch(refchannel)
 }
 
-proc cookfs::readableChannelRechan {fsid chid command args} {
-    switch -- $command {
-	seek {
-	    foreach {channelId offset mode} $args break
-	    return [readableChannelHandler $fsid $chid "seek" $chid $channelId $offset [lindex {start current end} $mode]
-	}
+# event handling for watch subcommand
+proc ::cookfs::eventClean {fd} {
+    variable eventEnable
+    eventSet $fd 0
+}
+
+proc ::cookfs::eventWatch {fd a} {
+    if {[lindex $a 0] == "read"} {
+	eventSet $fd 1
+    }  else  {
+	eventSet $fd 0
+    }
+}
+
+proc cookfs::eventSet {fd e} {
+    variable eventEnable
+    set cmd [list ::cookfs:::eventPost $fd]
+    after cancel $cmd
+    if {$e} {
+	set eventEnable($fd) 1
+	after 0 $cmd
+    }  else  {
+	catch {unset eventEnable($fd)}
+    }
+}
+
+proc cookfs::eventPost {fd} {
+    variable eventEnable
+    if {[info exists eventEnable($fd)] && $eventEnable($fd)} {
+	chan postevent $fd read
+	eventSet $fd 1
     }
 }
 
@@ -87,14 +112,13 @@ proc cookfs::readableChannelHandler {fsid chid command args} {
         initialize {
             return [list initialize finalize watch read seek]
         }
-        finalize {
+        finalize - close {
+            eventClean [lindex $args 0]
             unset $chid
         }
         watch {
-            # TODO: handle readable events
-            error "Sorry, not supported yet"
+            eventWatch [lindex $args 0] [lindex $args 1]
         }
-
         read {
             # read data from a channel
             foreach {channelId bytesleft} $args break
