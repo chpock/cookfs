@@ -156,3 +156,28 @@ tcltest::test cookfsFsindex-4.2 "Create filename outside iso8859-1 encoding afte
     $fsidx delete
 } -returnCodes {ok} -result 1
 
+tcltest::test cookfsFsindex-5.1 "Test metadata setting" -constraints cookfsMetadata -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx setmetadata test1 t0
+    $fsidx setmetadata test2 t2
+    $fsidx setmetadata test1 t1
+    format %s,%s [$fsidx getmetadata test1] [$fsidx getmetadata test2]
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok} -result t1,t2
+
+tcltest::test cookfsFsindex-5.2 "Test metadata setting across export/import" -constraints cookfsMetadata -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx setmetadata test1 t0
+    $fsidx setmetadata test2 t2
+    $fsidx setmetadata test1 t1
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    format %s,%s [$fsidx getmetadata test1] [$fsidx getmetadata test2]
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok} -result t1,t2
+

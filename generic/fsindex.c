@@ -70,6 +70,7 @@ Cookfs_Fsindex *Cookfs_FsindexInit() {
     rc = (Cookfs_Fsindex *) Tcl_Alloc(sizeof(Cookfs_Fsindex));
     rc->rootItem = Cookfs_FsindexEntryAlloc(0, COOKFS_NUMBLOCKS_DIRECTORY, COOKFS_USEHASH_DEFAULT);
     rc->rootItem->fileName = ".";
+    Tcl_InitHashTable(&rc->metadataHash, TCL_STRING_KEYS);
     return rc;
 }
 
@@ -91,8 +92,18 @@ Cookfs_Fsindex *Cookfs_FsindexInit() {
  */
 
 void Cookfs_FsindexFini(Cookfs_Fsindex *i) {
+    Tcl_HashEntry *hashEntry;
+    Tcl_HashSearch hashSearch;
+
     /* free up root entry and memory for storing fsindex */
     Cookfs_FsindexEntryFree(i->rootItem);
+
+    /* free all entries in hash table */
+    for (hashEntry = Tcl_FirstHashEntry(&i->metadataHash, &hashSearch); hashEntry != NULL; hashEntry = Tcl_NextHashEntry(&hashSearch)) {
+	Tcl_DecrRefCount((Tcl_Obj *) Tcl_GetHashValue(hashEntry));
+        Tcl_DeleteHashEntry(hashEntry);
+    }
+    Tcl_DeleteHashTable(&i->metadataHash);
     Tcl_Free((void *) i);
 }
 
@@ -492,6 +503,97 @@ void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
     
     /* free entry structure itself */
     Tcl_Free((void *) e);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexGetMetadata --
+ *
+ *	Gets object at current metadata; this should be binary data and
+ *	is stored as series of bytes when (de)serializing
+ *
+ * Results:
+ *	Tcl_Obj containing currently set data
+ *	Tcl_IncrRefCount and Tcl_DecrRefCount should be used to handle
+ *	reference counter for returned object
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Tcl_Obj *Cookfs_FsindexGetMetadata(Cookfs_Fsindex *i, const char *paramName) {
+    Tcl_HashEntry *hashEntry;
+    hashEntry = Tcl_FindHashEntry(&i->metadataHash, paramName);
+    if (hashEntry != NULL) {
+	return (Tcl_Obj *) Tcl_GetHashValue(hashEntry);
+    }  else  {
+	return NULL;
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexSetMetadata --
+ *
+ *	TODO
+ *
+ * Results:
+ *	None
+ *
+ * Side effects:
+ *	Previously set value is removed if present; its reference counter
+ *	is decremented, which might free it
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_FsindexSetMetadata(Cookfs_Fsindex *i, const char *paramName, Tcl_Obj *data) {
+    int isNew;
+    Tcl_HashEntry *hashEntry;
+    hashEntry = Tcl_CreateHashEntry(&i->metadataHash, paramName, &isNew);
+
+    /* decrement reference count for old value, if set */
+    if (!isNew) {
+	Tcl_DecrRefCount((Tcl_Obj *) Tcl_GetHashValue(hashEntry));
+    }
+    Tcl_IncrRefCount(data);
+    Tcl_SetHashValue(hashEntry, (ClientData) data);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexUnsetMetadata --
+ *
+ *	TODO
+ *
+ * Results:
+ *	Non-zero value if entry existed
+ *
+ * Side effects:
+ *	Previously set value is removed if present; its reference counter
+ *	is decremented, which might free it
+ *
+ *----------------------------------------------------------------------
+ */
+
+int Cookfs_FsindexUnsetMetadata(Cookfs_Fsindex *i, const char *paramName) {
+    Tcl_HashEntry *hashEntry;
+    hashEntry = Tcl_FindHashEntry(&i->metadataHash, paramName);
+    if (hashEntry != NULL) {
+	Tcl_DecrRefCount((Tcl_Obj *) Tcl_GetHashValue(hashEntry));
+	Tcl_DeleteHashEntry(hashEntry);
+	return 1;
+    }  else  {
+	return 0;
+    }
 }
 
 
@@ -899,3 +1001,5 @@ static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e) {
 
     CookfsLog(printf("CookfsFsindexChildtableToHash: FINISHED"))
 }
+
+

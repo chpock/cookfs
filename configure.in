@@ -167,15 +167,18 @@ AC_SUBST(COOKFS_PKGCONFIG_USEBZ2)
 if test ${USECFSINDEX} = yes; then
     AC_DEFINE(COOKFS_USECFSINDEX)
     COOKFS_PKGCONFIG_USECFSINDEX=1
+    COOKFS_PKGCONFIG_FEATURE_METADATA=1
     TEA_ADD_SOURCES([fsindex.c fsindexIO.c fsindexCmd.c])
     if test ${USEFALLBACK} = yes; then
 	TEA_ADD_TCL_SOURCES([scripts/fsindex.tcl])
     fi
 else
     COOKFS_PKGCONFIG_USECFSINDEX=0
+    COOKFS_PKGCONFIG_FEATURE_METADATA=0
     TEA_ADD_TCL_SOURCES([scripts/fsindex.tcl])
 fi
 AC_SUBST(COOKFS_PKGCONFIG_USECFSINDEX)
+AC_SUBST(COOKFS_PKGCONFIG_FEATURE_METADATA)
 
 
 #--------------------------------------------------------------------

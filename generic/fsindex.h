@@ -36,6 +36,7 @@ typedef struct Cookfs_FsindexEntry {
 
 typedef struct Cookfs_Fsindex {
     Cookfs_FsindexEntry *rootItem;
+    Tcl_HashTable metadataHash;
 } Cookfs_Fsindex;
 
 Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName);
@@ -54,6 +55,10 @@ int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Tcl_Obj *pathList);
 
 Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Tcl_Obj *pathList, int *itemCountPtr);
 void Cookfs_FsindexListFree(Cookfs_FsindexEntry **items);
+
+Tcl_Obj *Cookfs_FsindexGetMetadata(Cookfs_Fsindex *i, const char *paramName);
+void Cookfs_FsindexSetMetadata(Cookfs_Fsindex *i, const char *paramName, Tcl_Obj *data);
+int Cookfs_FsindexUnsetMetadata(Cookfs_Fsindex *i, const char *paramName);
 
 #endif /* COOKFS_USECFSINDEX */
 

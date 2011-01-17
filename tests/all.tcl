@@ -27,6 +27,10 @@ if {[cookfs::pkgconfig get feature-aside]} {
     lappend constraints cookfsAside
 }
 
+if {[cookfs::pkgconfig get feature-metadata]} {
+    lappend constraints cookfsMetadata
+}
+
 tcltest::configure -constraints $constraints
 
 puts stdout "Tests running in interp:  [info nameofexecutable]"

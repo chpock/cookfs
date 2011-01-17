@@ -18,6 +18,8 @@
 /* declarations of static and/or internal functions */
 static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexEntry *entry, Tcl_Obj *result, int objOffset);
 static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexEntry *entry, unsigned char *bytes, int objLength, int objOffset);
+static int CookfsFsindexExportMetadata(Cookfs_Fsindex *fsIndex, Tcl_Obj *result, int objOffset);
+static int CookfsFsindexImportMetadata(Cookfs_Fsindex *fsIndex, unsigned char *bytes, int objLength, int objOffset);
 
 /* binary data directory format:
  *  <4:numChildren>
@@ -62,6 +64,10 @@ Tcl_Obj *Cookfs_FsindexToObject(Cookfs_Fsindex *fsIndex) {
     /* export root entry into newly created object; all subdirectories
      * are created recursively */
     objSize = CookfsFsindexExportDirectory(fsIndex, fsIndex->rootItem, result, COOKFS_FSINDEX_HEADERLENGTH);
+    Tcl_SetByteArrayLength(result, objSize);
+
+    /* export metadata */
+    objSize = CookfsFsindexExportMetadata(fsIndex, result, objSize);
     Tcl_SetByteArrayLength(result, objSize);
 
     return result;
@@ -116,6 +122,9 @@ Cookfs_Fsindex *Cookfs_FsindexFromObject(Tcl_Obj *o) {
     i = CookfsFsindexImportDirectory(result, result->rootItem, bytes, objLength, 8);
     
     CookfsLog(printf("Import done - %d vs %d", i, objLength))
+    if (i < objLength) {
+        i = CookfsFsindexImportMetadata(result, bytes, objLength, i);
+    }
     
     /* return imported fsindex */
     return result;
@@ -358,3 +367,145 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
     CookfsLog(printf("CookfsFsindexImportDirectory - IMPORT END"))
     return objOffset;
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsFsindexExportMetadata --
+ *
+ *	Exports metadata from fsindex into a binary object
+ *	starting at specified offset
+ *
+ *	TODO: protect against malicious index information
+ *
+ * Results:
+ *	Offset specifying end of imported data; can be used by
+ *	export to continue processing its data
+ *	-1 in case of import error
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int CookfsFsindexExportMetadata(Cookfs_Fsindex *fsIndex, Tcl_Obj *result, int objOffset) {
+    Tcl_HashEntry *hashEntry;
+    Tcl_HashSearch hashSearch;
+    int objSize = objOffset;
+    int objInitialOffset = objOffset;
+    int objSizeChanged;
+    const char *paramName;
+    Tcl_Obj *valueObj;
+    unsigned char *valueData;
+    unsigned char *resultData;
+    int keySize;
+    int valueSize;
+    int size;
+    int count = 0;
+    
+    resultData = Tcl_GetByteArrayFromObj(result, NULL);
+
+    if (objSize < (objOffset + 4)) {
+        objSize += COOKFS_FSINDEX_BUFFERINCREASE;
+        Tcl_SetByteArrayLength(result, objSize);
+    }
+    objInitialOffset = objOffset;
+    objOffset += 4;
+
+    for (hashEntry = Tcl_FirstHashEntry(&fsIndex->metadataHash, &hashSearch); hashEntry != NULL; hashEntry = Tcl_NextHashEntry(&hashSearch)) {
+        paramName = Tcl_GetHashKey(&fsIndex->metadataHash, hashEntry);
+        keySize = strlen(paramName);
+        valueObj = Tcl_GetHashValue(hashEntry);
+        valueData = Tcl_GetByteArrayFromObj(valueObj, &valueSize);
+        size = keySize + 1 + valueSize;
+        count++;
+
+        /* calculate target object size, set new size if needed */
+        objSizeChanged = 0;
+        while (objSize < (objOffset + size + 4)) {
+            objSize += COOKFS_FSINDEX_BUFFERINCREASE;
+            objSizeChanged = 1;
+        }
+
+        if (objSizeChanged) {
+            Tcl_SetByteArrayLength(result, objSize);
+            resultData = Tcl_GetByteArrayFromObj(result, NULL);
+        }
+
+        /* export sizes */
+        Cookfs_Int2Binary(&size, resultData + objOffset, 1);
+        objOffset += 4;
+
+        /* export parameter name */
+        memcpy(resultData + objOffset, paramName, keySize + 1);
+        objOffset += keySize + 1;
+        
+        /* export value */
+        memcpy(resultData + objOffset, valueData, valueSize);
+        objOffset += valueSize;
+    }
+    Cookfs_Int2Binary(&count, resultData + objInitialOffset, 1);
+
+    return objOffset;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsFsindexImportMetadata --
+ *
+ *	Imports metadata from fsindex into a binary object
+ *	starting at specified offset
+ *
+ *	TODO: protect against malicious index information
+ *
+ * Results:
+ *	Offset specifying end of imported data; can be used by
+ *	import to continue processing its data
+ *	-1 in case of import error
+ *
+ * Side effects:
+ *	TODO
+ *
+ *----------------------------------------------------------------------
+ */
+
+
+static int CookfsFsindexImportMetadata(Cookfs_Fsindex *fsIndex, unsigned char *bytes, int objLength, int objOffset) {
+    int count;
+    int size;
+    int keySize;
+    int valueSize;
+    const char *paramName;
+    const unsigned char *valueData;
+    int i;
+
+    if ((objOffset + 4) > objLength) {
+        return objLength;
+    }
+    Cookfs_Binary2Int(bytes + objOffset, &count, 1);
+    objOffset += 4;
+
+    for (i = 0; i < count; i++) {
+        /* check if we are not reading out of bounds */
+        if ((objOffset + 4) > objLength) {
+            return -1;
+        }
+        Cookfs_Binary2Int(bytes + objOffset, &size, 1);
+        objOffset += 4;
+        if ((objOffset + size) > objLength) {
+            return -1;
+        }
+        paramName = bytes + objOffset;
+        keySize = strlen(paramName);
+        valueData = bytes + objOffset + (keySize + 1);
+        valueSize = size - (keySize + 1);
+        Cookfs_FsindexSetMetadata(fsIndex, paramName, Tcl_NewByteArrayObj(valueData, valueSize));
+        objOffset += size;
+    }
+    return objOffset;
+}
+

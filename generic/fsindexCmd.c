@@ -23,6 +23,9 @@ static int CookfsFsindexCmdUnset(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, in
 static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdDelete(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+static int CookfsFsindexCmdSetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+static int CookfsFsindexCmdUnsetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+static int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
 
 /*
@@ -153,8 +156,8 @@ static void CookfsFsindexDeleteProc(ClientData clientData) {
  */
 
 static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    static char *commands[] = { "export", "list", "get", "getmtime", "set", "setmtime", "unset", "delete", NULL };
-    enum { cmdExport, cmdList, cmdGet, cmdGetmtime, cmdSet, cmdSetmtime, cmdUnset, cmdDelete };
+    static char *commands[] = { "export", "list", "get", "getmtime", "set", "setmtime", "unset", "delete", "setmetadata", "getmetadata", "unsetmetadata", NULL };
+    enum { cmdExport, cmdList, cmdGet, cmdGetmtime, cmdSet, cmdSetmtime, cmdUnset, cmdDelete, cmdSetMetadata, cmdGetMetadata, cmdUnsetMetadata };
     int idx;
     
     Cookfs_Fsindex *fsIndex = (Cookfs_Fsindex *) clientData;
@@ -186,6 +189,12 @@ static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc,
 	     return CookfsFsindexCmdList(fsIndex, interp, objc, objv);
         case cmdDelete:
 	    return CookfsFsindexCmdDelete(fsIndex, interp, objc, objv);
+        case cmdSetMetadata:
+	    return CookfsFsindexCmdSetMetadata(fsIndex, interp, objc, objv);
+        case cmdUnsetMetadata:
+	    return CookfsFsindexCmdUnsetMetadata(fsIndex, interp, objc, objv);
+        case cmdGetMetadata:
+	     return CookfsFsindexCmdGetMetadata(fsIndex, interp, objc, objv);
         default:
             return TCL_ERROR;
     }
@@ -669,3 +678,118 @@ static int CookfsFsindexCmdDelete(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, i
     return TCL_OK;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsFsindexCmdSetMetadata --
+ *
+ *	TODO
+ *
+ * Results:
+ *	Returns TCL_OK
+ *
+ * Side effects:
+ *	Modifies fsindex metadata
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int CookfsFsindexCmdSetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+    const char *paramName;
+
+    /* check number of arguments */
+    if (objc != 4) {
+	Tcl_WrongNumArgs(interp, 2, objv, "parameter value");
+	return TCL_ERROR;
+    }
+
+    paramName = Tcl_GetStringFromObj(objv[2], NULL);
+
+    Cookfs_FsindexSetMetadata(fsIndex, paramName, objv[3]);
+
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsFsindexCmdUnsetMetadata --
+ *
+ *	TODO
+ *
+ * Results:
+ *	Returns TCL_OK on success; TCL_ERROR on error
+ *
+ * Side effects:
+ *	Corresponding entry is removed
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int CookfsFsindexCmdUnsetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+    const char *paramName;
+
+    /* check number of arguments */
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 2, objv, "parameter");
+	return TCL_ERROR;
+    }
+
+    paramName = Tcl_GetStringFromObj(objv[2], NULL);
+
+    if (!Cookfs_FsindexUnsetMetadata(fsIndex, paramName)) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("Parameter not defined", -1));
+	return TCL_ERROR;
+    }
+
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsFsindexCmdGetMetadata --
+ *
+ *	TODO
+ *
+ * Results:
+ *	Returns TCL_OK on success; TCL_ERROR on error
+ *	TODO
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+    Tcl_Obj *value;
+    const char *paramName;
+
+    /* check arguments */
+    if ((objc < 3) || (objc > 4)) {
+	Tcl_WrongNumArgs(interp, 2, objv, "paramater ?defaultValue?");
+	return TCL_ERROR;
+    }
+
+    paramName = Tcl_GetStringFromObj(objv[2], NULL);
+    value = Cookfs_FsindexGetMetadata(fsIndex, paramName);
+
+    if (value == NULL) {
+	if (objc >= 4) {
+	    value = objv[3];
+	}  else  {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj("Parameter not defined", -1));
+	    return TCL_ERROR;
+	}
+    }
+
+    Tcl_SetObjResult(interp, value);
+
+    return TCL_OK;
+}
+
+
