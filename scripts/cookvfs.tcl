@@ -241,7 +241,6 @@ proc cookfs::Unmount {fsid args} {
 
     # finalize pages and index
     set offset [$fs(pages) close]
-    puts "O=$offset"
     $fs(pages) delete
     $fs(index) delete
 

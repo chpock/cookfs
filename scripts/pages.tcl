@@ -257,6 +257,7 @@ proc cookfs::pages::pageAdd {name contents} {
 
 proc cookfs::pages::cleanup {name} {
     upvar #0 $name c
+
     if {$c(haschanged)} {
 	set offset $c(startoffset)
 	foreach i $c(idx.sizelist) {
@@ -270,11 +271,20 @@ proc cookfs::pages::cleanup {name} {
 	set idx [compress $name $c(indexdata)]
 	puts -nonewline $c(fh) $idx
 	puts -nonewline $c(fh) [binary format IIca* [string length $idx] [llength $c(idx.sizelist)] [compression2cid $c(compression)] $c(cfsname)]
-	if {[tell $c(fh)] < $c(endoffset)} {
+	set eo [tell $c(fh)]
+	if {$eo < $c(endoffset)} {
 	    chan truncate $c(fh)
 	}
+	set c(endoffset) $eo
+	set c(haschanged) 0
     }
-    close $c(fh)
+
+    if {$c(fh) != ""} {
+	close $c(fh)
+	set c(fh) ""
+    }
+    
+    return $c(endoffset)
 }
 
 proc cookfs::pages::pageGet {name idx} {
@@ -360,6 +370,9 @@ proc cookfs::pages::handle {name cmd args} {
 	    cleanup $name
 	    unset $name
 	    rename $name ""
+	}
+	close {
+	    return [cleanup $name]
 	}
 	dataoffset {
 	    error "Not implemented"

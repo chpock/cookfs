@@ -1,6 +1,6 @@
 package require tcltest
 
-lappend auto_path [pwd]
+#lappend auto_path [pwd]
 
 set tmpdir [file join [file dirname [info script]] _tmp]
 catch {file delete -force $tmpdir}

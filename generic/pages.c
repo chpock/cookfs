@@ -86,7 +86,6 @@ Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName) {
  */
 Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand) {
     Cookfs_Pages *rc = (Cookfs_Pages *) Tcl_Alloc(sizeof(Cookfs_Pages));
-    char *strFileName;
     int i;
 
     /* initialize basic information */
@@ -98,13 +97,6 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
 	Tcl_Free((void *) rc);
 	return NULL;
     }
-
-    /* copy fileName in case it's needed later on */
-#ifndef USE_TCL_TRUNCATE
-    strFileName = Tcl_GetStringFromObj(fileName, &i);
-    rc->fileName = (char *) Tcl_Alloc(i+1);
-    memcpy(rc->fileName, strFileName, i+1);
-#endif
 
     /* initialize structure */
     rc->useFoffset = useFoffset;
@@ -207,10 +199,10 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
 Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
     Tcl_Obj *obj;
 
-    Tcl_WideInt rc = -1;
-
+    CookfsLog(printf("Cookfs_PagesClose - BEGIN"))
+    
     if (p->fileChannel != NULL) {
-        CookfsLog(printf("Index up to date = %d", p->indexUptodate))
+        CookfsLog(printf("Cookfs_PagesClose - Index up to date = %d", p->indexUptodate))
         /* if changes were made, save them to disk */
         if (!p->indexUptodate) {
             int indexSize;
@@ -218,7 +210,7 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
             unsigned char *bufSizes;
             Tcl_WideInt offset;
 
-            CookfsLog(printf("Writing index"))
+            CookfsLog(printf("Cookfs_PagesClose - Writing index"))
             offset = CookfsPagesGetPageOffset(p, p->dataNumPages);
  
             Tcl_Seek(p->fileChannel, offset, SEEK_SET);
@@ -247,7 +239,7 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
                 Tcl_Panic("Unable to compress index");
             }
 
-            CookfsLog(printf("Offset write: %d", (int) Tcl_Seek(p->fileChannel, 0, SEEK_CUR)))
+            CookfsLog(printf("Cookfs_PagesClose - Offset write: %d", (int) Tcl_Seek(p->fileChannel, 0, SEEK_CUR)))
 
             /* provide index size and number of pages */
             Cookfs_Int2Binary(&indexSize, buf, 1);
@@ -261,16 +253,22 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
             Tcl_IncrRefCount(obj);
             Tcl_WriteObj(p->fileChannel, obj);
             Tcl_DecrRefCount(obj);
-        }
-	
-	rc = Tcl_Tell(p->fileChannel);
+	    p->foffset = Tcl_Tell(p->fileChannel);
+	    
+        }  else  {
+	    
+	}
 
         /* close file channel */
-        CookfsLog(printf("Closing channel"))
+        CookfsLog(printf("Cookfs_PagesClose - Closing channel - rc=%d", ((int) ((p->foffset) & 0x7fffffff)) ))
         Tcl_Close(NULL, p->fileChannel);
+	
+	p->fileChannel = NULL;
     }
     
-    return rc;
+    CookfsLog(printf("Cookfs_PagesClose - END"))
+    
+    return p->foffset;
 }
 
 
@@ -293,7 +291,7 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
 void Cookfs_PagesFini(Cookfs_Pages *p) {
     int i;
 
-    Cookfs_PagesFini(p);
+    Cookfs_PagesClose(p);
 
     /* clean up add-aside pages */
     if (p->dataAsidePages != NULL) {
@@ -320,12 +318,6 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     Tcl_Free((void *) p->dataPagesSize);
     Tcl_Free((void *) p->dataPagesMD5);
 
-    /* clean up fileName */
-#ifndef USE_TCL_TRUNCATE
-    if (p->fileName != NULL) {
-        Tcl_Free(p->fileName);
-    }
-#endif
     /* clean up storage */
     Tcl_Free((void *) p);
 }
@@ -909,10 +901,10 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     /* seek to beginning of suffix */
     if (p->useFoffset) {
         seekOffset = Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
-        seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES, SEEK_CUR);
     }  else  {
-        seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES, SEEK_END);
+	p->foffset = Tcl_Seek(p->fileChannel, 0, SEEK_END);
     }
+    seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES, SEEK_CUR);
 
     /* if seeking fails, we assume no index exists */
     if (seekOffset < 0) {

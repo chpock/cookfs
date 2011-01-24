@@ -391,3 +391,70 @@ tcltest::test cookfsPages-7.3 "Test custom compression algorithm - no decompress
     catch {file delete -force $file}
 } -returnCodes {error} -result {Unable to add page}
 
+tcltest::test cookfsPages-8.1 "Test returning offset to end of file during close without changes" -setup {
+    set file [tcltest::makeFile {TESTTEST} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    set offset [$pg close]
+    $pg delete
+    expr {[file size $file] == $offset}
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 1
+
+tcltest::test cookfsPages-8.2 "Test returning offset to end of file during close with changes" -setup {
+    set file [tcltest::makeFile {TESTTEST} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg add TEST
+    set offset [$pg close]
+    $pg delete
+    expr {[file size $file] == $offset}
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 1
+
+tcltest::test cookfsPages-8.3 "Test returning offset to end of file during close without changes when remounting" -setup {
+    set file [tcltest::makeFile {TESTTEST} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg add TEST
+    $pg delete
+
+    set pg [cookfs::pages $file]
+    set offset [$pg close]
+    $pg delete
+    expr {[file size $file] == $offset}
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 1
+
+tcltest::test cookfsPages-8.4 "Test returning offset when overwriting appended data" -setup {
+    set file [tcltest::makeFile {TESTTEST} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg add TEST
+    set offset [$pg close]
+    $pg delete
+
+    set fh [open $file a]
+    fconfigure $fh -translation binary
+    puts -nonewline $fh [string repeat . 1024]
+    close $fh
+
+    for {set i 0} {$i < 1024} {incr i} {
+        set pg [cookfs::pages -endoffset $offset $file]
+        $pg add TEST$i
+        set offset [$pg close]
+        $pg delete
+    }
+
+    set pg [cookfs::pages -endoffset $offset $file]
+    $pg length
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 1025
