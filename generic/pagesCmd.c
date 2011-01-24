@@ -195,13 +195,18 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
 
     /* set up cache size, if > 0 */
     if (oCachesize >= 0) {
+        if (oCachesize > COOKFS_MAX_CACHE_PAGES) {
+            oCachesize = COOKFS_MAX_CACHE_PAGES;
+        }
         pages->cacheSize = oCachesize;
     }
+    CookfsLog(printf("Cookfs Page Cmd: %08x -> %d\n", pages, pages->cacheSize))
 
     /* create Tcl command and return its name */
     sprintf(buf, "::cookfs::pageshandle%d", cmdidx);
     Tcl_CreateObjCommand(interp, buf, CookfsPagesCmd, (ClientData) pages, CookfsPagesDeleteProc);
 
+    CookfsLog(printf("Cookfs Page Cmd: %s", buf))
     Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));   
     return TCL_OK;
 

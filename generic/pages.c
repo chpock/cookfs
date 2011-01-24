@@ -491,6 +491,12 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
     }
     
     /* iterate through pages cache and check if it already is in memory */
+    CookfsLog(printf("Cookfs_PageGet: %08x -> %d\n", p, p->cacheSize))
+/*
+    for (i = 0; i < p->cacheSize; i++) {
+        CookfsLog(printf("Cookfs_PageGet: cache.%d %d = %s", i, p->cachePageIdx[i], p->cachePageObj[i] ? "SET" : "NULL"))
+    }
+*/
     for (i = 0; i < p->cacheSize; i++) {
         if (p->cachePageIdx[i] == index) {
             rc = p->cachePageObj[i];

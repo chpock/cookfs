@@ -176,7 +176,6 @@ tcltest::test cookfsFsindex-5.2 "Test metadata setting across export/import" -co
     set d [$fsidx export]
     $fsidx delete
     set fh [open /tmp/dump w]; fconfigure $fh -translation binary; puts -nonewline $fh $d ; close $fh
-    puts "D: [string length $d]"
     set fsidx [cookfs::fsindex $d]
     format %s,%s [$fsidx getmetadata test1] [$fsidx getmetadata test2]
 } -cleanup {
