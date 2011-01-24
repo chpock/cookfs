@@ -23,13 +23,13 @@ static Tcl_WideInt CookfsPagesGetPageOffset(Cookfs_Pages *p, int idx);
  *
  * Cookfs_PagesGetHandle --
  *
- *        Returns pages handle from provided Tcl command name
+ *	Returns pages handle from provided Tcl command name
  *
  * Results:
- *        Pointer to Cookfs_Pages or NULL in case of failure
+ *	Pointer to Cookfs_Pages or NULL in case of failure
  *
  * Side effects:
- *        None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -53,34 +53,34 @@ Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName) {
  *
  * Cookfs_PagesInit --
  *
- *        Initializes new pages instance
+ *	Initializes new pages instance
  *
- *        Takes file name as Tcl_Obj
+ *	Takes file name as Tcl_Obj
  *
- *        If fileReadOnly is non-zero, file must exist and be a readable
- *        cookfs archive; if fileReadOnly is zero, if file is not a
- *        cookfs archive or does not exist, new one is created/appended at
- *        the end of existing file
+ *	If fileReadOnly is non-zero, file must exist and be a readable
+ *	cookfs archive; if fileReadOnly is zero, if file is not a
+ *	cookfs archive or does not exist, new one is created/appended at
+ *	the end of existing file
  *
- *        fileCompression indicates compression for fsindex storage and
- *        newly created pages;
- *        if compresion is set to COOKFS_COMPRESSION_CUSTOM, compressCommand and
- *        decompressCommand need to be specified and cookfs will invoke these
- *        commands when needed
- *        
- *        fileSignature is only meant for advanced users; it allows specifying
- *        custom pages signature, which can be used to create non-standard
- *        pages storage
+ *	fileCompression indicates compression for fsindex storage and
+ *	newly created pages;
+ *	if compresion is set to COOKFS_COMPRESSION_CUSTOM, compressCommand and
+ *	decompressCommand need to be specified and cookfs will invoke these
+ *	commands when needed
+ *	
+ *	fileSignature is only meant for advanced users; it allows specifying
+ *	custom pages signature, which can be used to create non-standard
+ *	pages storage
  *
- *        If useFoffset is non-zero, foffset is used as indicator to where
- *        end of cookfs archive is; it can be used to store cookfs at location
- *        other than end of file
+ *	If useFoffset is non-zero, foffset is used as indicator to where
+ *	end of cookfs archive is; it can be used to store cookfs at location
+ *	other than end of file
  *
  * Results:
- *        Pointer to new instance; NULL in case of error
+ *	Pointer to new instance; NULL in case of error
  *
  * Side effects:
- *        None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -185,13 +185,13 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
  *
  * Cookfs_PagesClose --
  *
- *        Write and close cookfs pages object; object is not yet deleted
+ *	Write and close cookfs pages object; object is not yet deleted
  *
  * Results:
- *        Offset to end of data
+ *	Offset to end of data
  *
  * Side effects:
- *        Any attempts to write afterwards might end up in segfault
+ *	Any attempts to write afterwards might end up in segfault
  *
  *----------------------------------------------------------------------
  */
@@ -277,13 +277,13 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
  *
  * Cookfs_PagesFini --
  *
- *        Cleanup pages instance
+ *	Cleanup pages instance
  *
  * Results:
- *        None
+ *	None
  *
  * Side effects:
- *        None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -328,14 +328,14 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
  *
  * Cookfs_PageAdd --
  *
- *        Add new page or return index of existing page, if page with
- *        same content already exists
+ *	Add new page or return index of existing page, if page with
+ *	same content already exists
  *
  * Results:
- *        Index that can be used in subsequent calls to Cookfs_PageGet()
+ *	Index that can be used in subsequent calls to Cookfs_PageGet()
  *
  * Side effects:
- *        None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -460,18 +460,18 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
  *
  * Cookfs_PageGet --
  *
- *        Gets contents of a page at specified index
+ *	Gets contents of a page at specified index
  *
  * Results:
- *        Tcl_Obj with page data as bytearray object
- *        This Tcl_Obj may also be used by pages cache therefore it is
- *        needed to Tcl_IncrRefCount() / Tcl_DecrRefCount() to properly
- *        handle memory management
+ *	Tcl_Obj with page data as bytearray object
+ *	This Tcl_Obj may also be used by pages cache therefore it is
+ *	needed to Tcl_IncrRefCount() / Tcl_DecrRefCount() to properly
+ *	handle memory management
  *
  * Side effects:
- *        May remove other pages from pages cache; if reference counter is
- *        not properly managed, objects for other pages might be invalidated
- *        while they are used by caller of this API
+ *	May remove other pages from pages cache; if reference counter is
+ *	not properly managed, objects for other pages might be invalidated
+ *	while they are used by caller of this API
  *
  *----------------------------------------------------------------------
  */
@@ -529,13 +529,13 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
  *
  * Cookfs_PageGetHead --
  *
- *        Get all bytes before beginning of cookfs archive
+ *	Get all bytes before beginning of cookfs archive
  *
  * Results:
- *        Tcl_Obj containing read bytes
+ *	Tcl_Obj containing read bytes
  *
  * Side effects:
- *        None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -563,13 +563,13 @@ Tcl_Obj *Cookfs_PageGetHead(Cookfs_Pages *p) {
  *
  * Cookfs_PageGetHeadMD5 --
  *
- *        Get MD5 checksum of all bytes before beginning of cookfs archive
+ *	Get MD5 checksum of all bytes before beginning of cookfs archive
  *
  * Results:
- *        Tcl_Obj containing MD5 as hexadecimal string
+ *	Tcl_Obj containing MD5 as hexadecimal string
  *
  * Side effects:
- *        None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -584,15 +584,15 @@ Tcl_Obj *Cookfs_PageGetHeadMD5(Cookfs_Pages *p) {
  *
  * Cookfs_PageGetTail --
  *
- *        Get all bytes of cookfs archive
- *        This should not be called if archive has been modified
- *        after opening it
+ *	Get all bytes of cookfs archive
+ *	This should not be called if archive has been modified
+ *	after opening it
  *
  * Results:
- *        Tcl_Obj containing data as byte array
+ *	Tcl_Obj containing data as byte array
  *
  * Side effects:
- *        None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -620,15 +620,15 @@ Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p) {
  *
  * Cookfs_PageGetTailMD5 --
  *
- *        Get MD5 checksum of all bytes of cookfs archive
- *        This should not be called if archive has been modified
- *        after opening it
+ *	Get MD5 checksum of all bytes of cookfs archive
+ *	This should not be called if archive has been modified
+ *	after opening it
  *
  * Results:
- *        Tcl_Obj containing MD5 as hexadecimal string
+ *	Tcl_Obj containing MD5 as hexadecimal string
  *
  * Side effects:
- *        None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -644,21 +644,21 @@ Tcl_Obj *Cookfs_PageGetTailMD5(Cookfs_Pages *p) {
  *
  * Cookfs_PagesSetAside --
  *
- *        Sets another pages object as commit aside pages for a base
- *        set of pages.
+ *	Sets another pages object as commit aside pages for a base
+ *	set of pages.
  *
- *        This causes p to add new pages to aside pages object, instead
- *        of appending to its own pages.
- *        It allows saving changes to read-only pages in a separate file.
- *        
- *        If aside pages also contain non-zero length index information,
- *        aside index overwrites main index.
+ *	This causes p to add new pages to aside pages object, instead
+ *	of appending to its own pages.
+ *	It allows saving changes to read-only pages in a separate file.
+ *	
+ *	If aside pages also contain non-zero length index information,
+ *	aside index overwrites main index.
  *
  * Results:
- *        None
+ *	None
  *
  * Side effects:
- *        If p contained another aside pages, these pages are cleaned up
+ *	If p contained another aside pages, these pages are cleaned up
  *
  *----------------------------------------------------------------------
  */
@@ -687,18 +687,18 @@ void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside) {
  *
  * Cookfs_PagesSetIndex --
  *
- *        Sets index information that is stored as part of cookfs archive
- *        metadata
+ *	Sets index information that is stored as part of cookfs archive
+ *	metadata
  *
- *        This is usually set with output from Cookfs_FsindexToObject()
+ *	This is usually set with output from Cookfs_FsindexToObject()
  *
  * Results:
- *        None
+ *	None
  *
  * Side effects:
- *        Reference counter for Tcl_Obj storing previous index is
- *        decremented; improper handling of ref count for indexes
- *        might cause crashes
+ *	Reference counter for Tcl_Obj storing previous index is
+ *	decremented; improper handling of ref count for indexes
+ *	might cause crashes
  *
  *----------------------------------------------------------------------
  */
@@ -719,16 +719,16 @@ void Cookfs_PagesSetIndex(Cookfs_Pages *p, Tcl_Obj *dataIndex) {
  *
  * Cookfs_PagesGetIndex --
  *
- *        Gets index information that is stored as part of cookfs archive
- *        metadata
+ *	Gets index information that is stored as part of cookfs archive
+ *	metadata
  *
  * Results:
- *        Tcl_Obj storing index as bytearray
+ *	Tcl_Obj storing index as bytearray
  *
- *        This is passed to Cookfs_FsindexFromObject()
+ *	This is passed to Cookfs_FsindexFromObject()
  *
  * Side effects:
- *        None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -749,17 +749,17 @@ Tcl_Obj *Cookfs_PagesGetIndex(Cookfs_Pages *p) {
  *
  * CookfsPagesPageGetInt --
  *
- *        Get contents of specified page. This function does not use cache
- *        and always reads page data. It is used by Cookfs_PageGet() which
- *        also manages caching of pages.
+ *	Get contents of specified page. This function does not use cache
+ *	and always reads page data. It is used by Cookfs_PageGet() which
+ *	also manages caching of pages.
  *
  * Results:
- *        Tcl_Obj with page information; NULL otherwise
- *        If non-NULL, returned object already has its reference counter
- *        incremented by 1 (i.e. should not eb incremented again if cached)
+ *	Tcl_Obj with page information; NULL otherwise
+ *	If non-NULL, returned object already has its reference counter
+ *	incremented by 1 (i.e. should not eb incremented again if cached)
  *
  * Side effects:
- *        None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -820,13 +820,13 @@ static Tcl_Obj *CookfsPagesPageGetInt(Cookfs_Pages *p, int index) {
  *
  * CookfsPagesPageCacheMoveToTop --
  *
- *        Move specified entry in page cache to top of page cache
+ *	Move specified entry in page cache to top of page cache
  *
  * Results:
- *        None
+ *	None
  *
  * Side effects:
- *        None
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -859,28 +859,28 @@ static void CookfsPagesPageCacheMoveToTop(Cookfs_Pages *p, int index) {
  *
  * CookfsReadIndex --
  *
- *        Index contents:
- *          (pagesMD5checksums)(pagesSizes)(indexBinaryData)(indexSuffix)
+ *	Index contents:
+ *	  (pagesMD5checksums)(pagesSizes)(indexBinaryData)(indexSuffix)
  *
- *        Page MD5 checksums - 16 bytes * number of pages; contains MD5
- *          checksum stored as binary data (not hexadecimal)
+ *	Page MD5 checksums - 16 bytes * number of pages; contains MD5
+ *	  checksum stored as binary data (not hexadecimal)
  *
- *        Page sizes - 4 bytes * number of pages; sizes of each page
+ *	Page sizes - 4 bytes * number of pages; sizes of each page
  *
- *        Index binary data - archive fsindex stored as binary data
- *          (accessible via Cookfs_PagesGetIndex() and Cookfs_PagesSetIndex() API)
+ *	Index binary data - archive fsindex stored as binary data
+ *	  (accessible via Cookfs_PagesGetIndex() and Cookfs_PagesSetIndex() API)
  *
- *        Index suffix - 16 bytes:
- *          4 - size of index (compressed, bytes)
- *          4 - number of pages
- *          1 - default compression
- *           7 - signature
+ *	Index suffix - 16 bytes:
+ *	  4 - size of index (compressed, bytes)
+ *	  4 - number of pages
+ *	  1 - default compression
+ *	   7 - signature
  *
  * Results:
- *        non-zero value on success; 0 otherwise
+ *	non-zero value on success; 0 otherwise
  *
  * Side effects:
- *        May change various attributes in Cookfs_Pages structure
+ *	May change various attributes in Cookfs_Pages structure
  *
  *----------------------------------------------------------------------
  */
@@ -1027,15 +1027,15 @@ int CookfsReadIndex(Cookfs_Pages *p) {
  *
  * CookfsPagesPageExtendIfNeeded --
  *
- *        Reallocate dataPagesSize and dataPagesMD5 to fit count number
- *        of pages; reallocation is only made if current number of memory
- *        is smaller than count
+ *	Reallocate dataPagesSize and dataPagesMD5 to fit count number
+ *	of pages; reallocation is only made if current number of memory
+ *	is smaller than count
  *
  * Results:
- *        None
+ *	None
  *
  * Side effects:
- *        dataPagesSize and dataPagesMD5 might be moved to new location(s)
+ *	dataPagesSize and dataPagesMD5 might be moved to new location(s)
  *
  *----------------------------------------------------------------------
  */
@@ -1066,14 +1066,14 @@ static void CookfsPagesPageExtendIfNeeded(Cookfs_Pages *p, int count) {
  *
  * CookfsPagesGetPageOffset --
  *
- *        Calculate offset of a page from start of file
- *        (not start of cookfs archive)
+ *	Calculate offset of a page from start of file
+ *	(not start of cookfs archive)
  *
  * Results:
- *        File offset to beginning of a page
+ *	File offset to beginning of a page
  *
  * Side effects:
- *        None
+ *	None
  *
  *----------------------------------------------------------------------
  */
