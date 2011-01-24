@@ -18,7 +18,7 @@
 #include <string.h>
 
 /* TODO: provide a better logging mechanism? */
-#if 0
+#if 1
 #define CookfsLog(a) {a; printf("\n"); fflush(stdout);}
 #else
 #define CookfsLog(a) {}

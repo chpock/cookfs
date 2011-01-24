@@ -86,6 +86,7 @@ Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName) {
  */
 Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand) {
     Cookfs_Pages *rc = (Cookfs_Pages *) Tcl_Alloc(sizeof(Cookfs_Pages));
+    char *strFileName;
     int i;
 
     /* initialize basic information */
@@ -98,6 +99,13 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
 	return NULL;
     }
 
+    /* copy fileName in case it's needed later on */
+#ifndef USE_TCL_TRUNCATE
+    strFileName = Tcl_GetStringFromObj(fileName, &i);
+    rc->fileName = (char *) Tcl_Alloc(i+1);
+    memcpy(rc->fileName, strFileName, i+1);
+#endif
+
     /* initialize structure */
     rc->useFoffset = useFoffset;
     rc->foffset = foffset;
@@ -108,6 +116,8 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     else
         memcpy(rc->fileSignature, "CFS0002", 7);
 
+    
+    /* initialize parameters */
     rc->fileLastOp = COOKFS_LASTOP_UNKNOWN;
     rc->fileCompression = fileCompression;
     rc->fileCompressionLevel = 9;
@@ -181,22 +191,23 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
 /*
  *----------------------------------------------------------------------
  *
- * Cookfs_PagesFini --
+ * Cookfs_PagesClose --
  *
- *	Cleanup pages instance
+ *	Write and close cookfs pages object; object is not yet deleted
  *
  * Results:
- *	None
+ *	Offset to end of data
  *
  * Side effects:
- *	None
+ *	Any attempts to write afterwards might end up in segfault
  *
  *----------------------------------------------------------------------
  */
 
-void Cookfs_PagesFini(Cookfs_Pages *p) {
+Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
     Tcl_Obj *obj;
-    int i;
+
+    Tcl_WideInt rc = -1;
 
     if (p->fileChannel != NULL) {
         CookfsLog(printf("Index up to date = %d", p->indexUptodate))
@@ -251,10 +262,38 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
             Tcl_WriteObj(p->fileChannel, obj);
             Tcl_DecrRefCount(obj);
         }
+	
+	rc = Tcl_Tell(p->fileChannel);
+
         /* close file channel */
         CookfsLog(printf("Closing channel"))
         Tcl_Close(NULL, p->fileChannel);
     }
+    
+    return rc;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PagesFini --
+ *
+ *	Cleanup pages instance
+ *
+ * Results:
+ *	None
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_PagesFini(Cookfs_Pages *p) {
+    int i;
+
+    Cookfs_PagesFini(p);
 
     /* clean up add-aside pages */
     if (p->dataAsidePages != NULL) {
@@ -280,6 +319,14 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     CookfsLog(printf("Cleaning up pages MD5/size"))
     Tcl_Free((void *) p->dataPagesSize);
     Tcl_Free((void *) p->dataPagesMD5);
+
+    /* clean up fileName */
+#ifndef USE_TCL_TRUNCATE
+    if (p->fileName != NULL) {
+        Tcl_Free(p->fileName);
+    }
+#endif
+    /* clean up storage */
     Tcl_Free((void *) p);
 }
 
@@ -1048,3 +1095,4 @@ static Tcl_WideInt CookfsPagesGetPageOffset(Cookfs_Pages *p, int idx) {
     }
     return rc;
 }
+

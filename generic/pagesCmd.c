@@ -232,8 +232,8 @@ ERROR:
 
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     static char *commands[] = {
-	"add", "aside", "get", "gethead", "getheadmd5", "gettail", "gettailmd5", "index", "length", "dataoffset", "delete", NULL };
-    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail, cmdGetTailMD5, cmdIndex, cmdLength, cmdDataoffset, cmdDelete };
+	"add", "aside", "get", "gethead", "getheadmd5", "gettail", "gettailmd5", "index", "length", "dataoffset", "close", "delete", NULL };
+    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail, cmdGetTailMD5, cmdIndex, cmdLength, cmdDataoffset, cmdClose, cmdDelete };
     int idx;
     Cookfs_Pages *p = (Cookfs_Pages *) clientData;
     
@@ -375,6 +375,17 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             }
             Tcl_DeleteCommand(interp, Tcl_GetStringFromObj(objv[0], NULL));
+            break;
+        }
+        case cmdClose:
+        {
+	    Tcl_WideInt offset;
+            if (objc != 2) {
+                Tcl_WrongNumArgs(interp, 2, objv, "");
+                return TCL_ERROR;
+            }
+	    offset = Cookfs_PagesClose(p);
+            Tcl_SetObjResult(interp, Tcl_NewWideIntObj(offset));
             break;
         }
         case cmdDataoffset:
