@@ -447,7 +447,7 @@ tcltest::test cookfsPages-8.4 "Test returning offset when overwriting appended d
 
     for {set i 0} {$i < 1024} {incr i} {
         set pg [cookfs::pages -endoffset $offset $file]
-        $pg add TEST$i
+        set idx [$pg add TEST$i]
         set offset [$pg close]
         $pg delete
     }
@@ -458,3 +458,24 @@ tcltest::test cookfsPages-8.4 "Test returning offset when overwriting appended d
     catch {$pg delete}
     catch {file delete -force $file}
 } -returnCodes {ok} -result 1025
+
+tcltest::test cookfsPages-9.1 "Test only changing index information" -setup {
+    set file [tcltest::makeFile {TESTTEST} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg add TEST
+    $pg index IDX0
+    set offset [$pg close]
+    $pg delete
+
+    set pg [cookfs::pages $file]
+    $pg index IDX1
+    $pg delete
+
+    set pg [cookfs::pages $file]
+    $pg index
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {ok} -result IDX1
+

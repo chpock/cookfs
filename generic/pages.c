@@ -15,6 +15,7 @@ static Tcl_Obj *CookfsPagesPageGetInt(Cookfs_Pages *p, int index);
 static void CookfsPagesPageCacheMoveToTop(Cookfs_Pages *p, int index);
 static void CookfsPagesPageExtendIfNeeded(Cookfs_Pages *p, int count);
 static Tcl_WideInt CookfsPagesGetPageOffset(Cookfs_Pages *p, int idx);
+static void CookfsTruncateFileIfNeeded(Cookfs_Pages *p, Tcl_WideInt targetOffset);
 
 
 
@@ -156,16 +157,24 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     /* read index or fail */
     if (!CookfsReadIndex(rc)) {
 	if (rc->fileReadOnly) {
-	    rc->indexUptodate = 1;
+	    rc->pagesUptodate = 1;
+	    rc->indexChanged = 0;
+	    rc->shouldTruncate = 0;
 	    Cookfs_PagesFini(rc);
 	    return NULL;
 	}  else  {
 	    rc->dataInitialOffset = Tcl_Seek(rc->fileChannel, 0, SEEK_END);
 	    rc->dataAllPagesSize = 0;
 	    rc->dataNumPages = 0;
-	    rc->indexUptodate = 0;
+	    rc->pagesUptodate = 0;
+	    rc->indexChanged = 1;
+	    rc->shouldTruncate = 1;
 	}
 	CookfsLog(printf("Index not read!"))
+    }  else  {
+	rc->pagesUptodate = 1;
+	rc->indexChanged = 0;
+	rc->shouldTruncate = 1;
     }
     
     /* force compression since we want to use target compression anyway */
@@ -202,9 +211,9 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
     CookfsLog(printf("Cookfs_PagesClose - BEGIN"))
     
     if (p->fileChannel != NULL) {
-	CookfsLog(printf("Cookfs_PagesClose - Index up to date = %d", p->indexUptodate))
+	CookfsLog(printf("Cookfs_PagesClose - Pages up to date = %d, Index changed = ", p->pagesUptodate, p->indexChanged))
 	/* if changes were made, save them to disk */
-	if (!p->indexUptodate) {
+	if ((!p->pagesUptodate) || (p->indexChanged)) {
 	    int indexSize;
 	    unsigned char buf[COOKFS_SUFFIX_BYTES];
 	    unsigned char *bufSizes;
@@ -254,7 +263,8 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
 	    Tcl_WriteObj(p->fileChannel, obj);
 	    Tcl_DecrRefCount(obj);
 	    p->foffset = Tcl_Tell(p->fileChannel);
-	    
+
+            CookfsTruncateFileIfNeeded(p, p->foffset);
 	}  else  {
 	    
 	}
@@ -432,20 +442,9 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
 	return -1;
     }
     p->fileLastOp = COOKFS_LASTOP_WRITE;
+    p->pagesUptodate = 0;
     
     p->dataPagesSize[idx] = dataSize;
-    if (p->indexUptodate) {
-	/* TODO: only truncate if current size is larger than what it should be */
-#ifdef USE_TCL_TRUNCATE
-	Tcl_TruncateChannel(p->fileChannel, offset + dataSize);
-#else
-	/* TODO: truncate is still possible using ftruncate() */
-#endif
-	p->indexUptodate = 0;
-	CookfsLog(printf("Truncating to %d",(int) (offset + dataSize)))
-    }
-
-    // Tcl_MutexUnlock(&p->pagesLock);
 
     if (p->dataPagesIsAside) {
 	idx |= COOKFS_PAGES_ASIDE;
@@ -709,6 +708,7 @@ void Cookfs_PagesSetIndex(Cookfs_Pages *p, Tcl_Obj *dataIndex) {
     }  else  {
 	Tcl_DecrRefCount(p->dataIndex);
 	p->dataIndex = dataIndex;
+        p->indexChanged = 1;
 	Tcl_IncrRefCount(p->dataIndex);
     }
 }
@@ -1012,8 +1012,6 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     p->dataInitialOffset = fileSize - 
 	(COOKFS_SUFFIX_BYTES + p->dataAllPagesSize + (p->dataNumPages * 20) + indexLength);
 
-    p->indexUptodate = 1;
-
     CookfsLog(printf("Pages size=%d offset=%d", (int) p->dataAllPagesSize, (int) p->dataInitialOffset))
     for (i = 0; i < pageCount; i++) {
 	CookfsLog(printf("Offset %d is %d", i, (int) CookfsPagesGetPageOffset(p, i)))
@@ -1086,5 +1084,34 @@ static Tcl_WideInt CookfsPagesGetPageOffset(Cookfs_Pages *p, int idx) {
 	rc += p->dataPagesSize[i];
     }
     return rc;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsTruncateFileIfNeeded --
+ *
+ *	Truncate pages file if needed
+ *
+ * Results:
+ *	None
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void CookfsTruncateFileIfNeeded(Cookfs_Pages *p, Tcl_WideInt targetOffset) {
+#ifdef USE_TCL_TRUNCATE
+    if (p->shouldTruncate == 1) {
+	/* TODO: only truncate if current size is larger than what it should be */
+	Tcl_TruncateChannel(p->fileChannel, targetOffset);
+	/* TODO: truncate is still possible using ftruncate() */
+	p->shouldTruncate = 0;
+	CookfsLog(printf("Truncating to %d", (int) targetOffset));
+    }
+#endif
 }
 

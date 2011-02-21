@@ -58,6 +58,36 @@ tcltest::test cookfsVfs-2.2 "Test compressing entire directory structure after r
     tcltest::removeFile $file
 } -returnCodes {ok} -result 1
 
+tcltest::test cookfsVfs-2.3 "Test correct storing of empty files or new directory as only change in existing cookfs" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+} -body {
+    set fsid [vfs::cookfs::Mount $file $file]
+
+    set fh [open $file/file1 w]
+    puts $fh [string repeat TEST 1024]
+    close $fh
+    vfs::unmount $file
+
+    set fsid [vfs::cookfs::Mount $file $file]
+    close [open $file/file2 w]
+    vfs::unmount $file
+
+    set fsid [vfs::cookfs::Mount $file $file]
+    if {![file exists $file/file2]} {
+        error "Unable to find file2 in archive"
+    }
+    file mkdir $file/dir1
+    vfs::unmount $file
+
+    set fsid [vfs::cookfs::Mount $file $file]
+    if {![file exists $file/dir1]} {
+        error "Unable to find dir1 in archive"
+    }
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok}
+
 tcltest::test cookfsVfs-3.1 "Test creating files in non-existant directory in VFS" -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
     set fsid [vfs::cookfs::Mount $file $file]

@@ -74,12 +74,14 @@ proc cookfs::pages {args} {
 
     if {[pages::readIndex $name]} {
 	set c(haschanged) 0
+	set c(indexChanged) 0
     }  else  {
 	if {$c(readonly)} {
 	    error "Unable to create Cookfs object"
 	}
 	set c(startoffset) $c(endoffset)
 	set c(haschanged) 1
+	set c(indexChanged) 1
 	set c(idx.md5list) {}
 	set c(idx.sizelist) {}
     }
@@ -258,7 +260,7 @@ proc cookfs::pages::pageAdd {name contents} {
 proc cookfs::pages::cleanup {name} {
     upvar #0 $name c
 
-    if {$c(haschanged)} {
+    if {$c(haschanged) || $c(indexChanged)} {
 	set offset $c(startoffset)
 	foreach i $c(idx.sizelist) {
 	    incr offset $i
@@ -277,6 +279,7 @@ proc cookfs::pages::cleanup {name} {
 	}
 	set c(endoffset) $eo
 	set c(haschanged) 0
+	set c(indexChanged) 0
     }
 
     if {$c(fh) != ""} {
@@ -360,6 +363,7 @@ proc cookfs::pages::handle {name cmd args} {
 	index {
 	    if {[llength $args] == 1} {
 		set c(indexdata) [lindex $args 0]
+		set c(indexChanged) 1
 	    }  elseif {[llength $args] == 0} {
 		return $c(indexdata)
 	    }  else  {

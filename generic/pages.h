@@ -48,9 +48,11 @@ typedef struct Cookfs_Pages {
     int fileLastOp;
     int useFoffset;
     Tcl_WideInt foffset;
+    int shouldTruncate;
 
     /* index */
-    int indexUptodate;
+    int pagesUptodate;
+    int indexChanged;
 
     /* pages */
     Tcl_WideInt dataInitialOffset;

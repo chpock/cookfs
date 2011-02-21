@@ -146,6 +146,7 @@ proc cookfs::writeFiles {fsid args} {
             incr fs(smallfilebufsize) [string length $fc]
 
             $fs(index) set $path $clk [list [expr {-$sfidx - 1}] 0 $size]
+            incr fs(changeCount)
 
             # if current buffer exceeds maximum, write small files to clean it
             # but only if not writing to memory
