@@ -141,7 +141,7 @@ tcltest::test cookfsVfs-3.4 "Test creating directories and files" -setup {
     tcltest::removeFile $file
 } -returnCodes {ok} -result {dir1 dir2 dir2/dir3 dir2/dir3/file5 dir2/file4 file2 dir1 dir2 dir2/dir3 dir2/dir3/file5 dir2/file4 file2}
 
-tcltest::test cookfsVfs-4.1 "Test add-aside feature" -constraints cookfsAside -setup {
+tcltest::test cookfsVfs-4.1 "Test add-aside feature using cookfs::aside command" -constraints cookfsAside -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
     set file2 [tcltest::makeFile {} cookfs2.cfs]
     set fsid [vfs::cookfs::Mount $file $file]
@@ -164,3 +164,128 @@ tcltest::test cookfsVfs-4.1 "Test add-aside feature" -constraints cookfsAside -s
     tcltest::removeFile $file2
 } -returnCodes {ok} -result {dir1 dir2 file1 file2}
 
+tcltest::test cookfsVfs-4.2 "Test add-aside feature using fsid aside command" -constraints cookfsAside -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set file2 [tcltest::makeFile {} cookfs2.cfs]
+    set fsid [vfs::cookfs::Mount $file $file]
+    close [open $file/file1 w]
+    file mkdir $file/dir1
+    vfs::unmount $file
+} -body {
+    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    $fsid aside $file2
+    file mkdir $file/dir2
+    close [open $file/file2 w]
+    vfs::unmount $file
+
+    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    $fsid aside $file2
+    lsort [glob -directory $file -tails *]
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+    tcltest::removeFile $file2
+} -returnCodes {ok} -result {dir1 dir2 file1 file2}
+
+tcltest::test cookfsVfs-4.3 "Test write to memory feature using cookfs::writetomemory command" -constraints cookfsAside -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [vfs::cookfs::Mount $file $file]
+    close [open $file/file1 w]
+    file mkdir $file/dir1
+    vfs::unmount $file
+} -body {
+    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    cookfs::writetomemory $fsid
+    file mkdir $file/dir2
+    close [open $file/file2 w]
+    vfs::unmount $file
+
+    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    lsort [glob -directory $file -tails *]
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result {dir1 file1}
+
+tcltest::test cookfsVfs-4.4 "Test write to memory feature using fsid writetomemory command" -constraints cookfsAside -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [vfs::cookfs::Mount $file $file]
+    close [open $file/file1 w]
+    file mkdir $file/dir1
+    vfs::unmount $file
+} -body {
+    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    $fsid writetomemory
+    file mkdir $file/dir2
+    close [open $file/file2 w]
+    vfs::unmount $file
+
+    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    lsort [glob -directory $file -tails *]
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result {dir1 file1}
+
+tcltest::test cookfsVfs-5.1 "Test getting metadata using fsid getmetadata command without default value" -constraints cookfsMetadata -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [vfs::cookfs::Mount $file $file]
+} -body {
+    vfs::unmount $file
+
+    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    $fsid getmetadata nonexistant
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {error} -result {Parameter not defined}
+
+tcltest::test cookfsVfs-5.2 "Test getting metadata using fsid getmetadata command with default value" -constraints cookfsMetadata -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [vfs::cookfs::Mount $file $file]
+} -body {
+    vfs::unmount $file
+
+    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    $fsid getmetadata nonexistant 12
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result {12}
+
+tcltest::test cookfsVfs-5.3 "Test setting metadata using fsid setmetadata command" -constraints cookfsMetadata -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [vfs::cookfs::Mount $file $file]
+} -body {
+    $fsid setmetadata somename othervalue
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok}
+
+tcltest::test cookfsVfs-5.4 "Test setting metadata in a read-only mount" -constraints cookfsMetadata -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [vfs::cookfs::Mount $file $file]
+} -body {
+    vfs::unmount $file
+
+    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    $fsid setmetadata somename othervalue
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {error} -result {Archive is read-only}
+
+tcltest::test cookfsVfs-5.5 "Test setting and getting metadata" -constraints cookfsMetadata -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [vfs::cookfs::Mount $file $file]
+} -body {
+    $fsid setmetadata somename othervalue
+    vfs::unmount $file
+
+    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    $fsid getmetadata somename
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result {othervalue}

@@ -134,10 +134,12 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     CookfsLog(printf("Opening file %s as %s with compression %d", Tcl_GetStringFromObj(fileName, NULL), (rc->fileReadOnly ? "r" : "a+"), fileCompression))
 
     /* open file for reading / writing */
+    CookfsLog(printf("Cookfs_PagesInit - Tcl_FSOpenFileChannel"))
     rc->fileChannel = Tcl_FSOpenFileChannel(NULL, fileName,
 	(rc->fileReadOnly ? "r" : "a+"), 0666);
     
     if (rc->fileChannel == NULL) {
+        CookfsLog(printf("Cookfs_PagesInit - cleaning up"))
 	Cookfs_PagesFini(rc);
 	return NULL;
     }

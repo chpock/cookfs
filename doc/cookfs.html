@@ -1,0 +1,361 @@
+<html><head>
+<title>cookfs - vfs::cookfs</title>
+<style type="text/css"><!--
+    HTML {
+	background: 	#FFFFFF;
+	color: 		black;
+    }
+    BODY {
+	background: 	#FFFFFF;
+	color:	 	black;
+    }
+    DIV.doctools {
+	margin-left:	10%;
+	margin-right:	10%;
+    }
+    DIV.doctools H1,DIV.doctools H2 {
+	margin-left:	-5%;
+    }
+    H1, H2, H3, H4 {
+	margin-top: 	1em;
+	font-family:	sans-serif;
+	font-size:	large;
+	color:		#005A9C;
+	background: 	transparent;
+	text-align:		left;
+    }
+    H1.title {
+	text-align: center;
+    }
+    UL,OL {
+	margin-right: 0em;
+	margin-top: 3pt;
+	margin-bottom: 3pt;
+    }
+    UL LI {
+	list-style: disc;
+    }
+    OL LI {
+	list-style: decimal;
+    }
+    DT {
+	padding-top: 	1ex;
+    }
+    UL.toc,UL.toc UL, UL.toc UL UL {
+	font:		normal 12pt/14pt sans-serif;
+	list-style:	none;
+    }
+    LI.section, LI.subsection {
+	list-style: 	none;
+	margin-left: 	0em;
+	text-indent:	0em;
+	padding: 	0em;
+    }
+    PRE {
+	display: 	block;
+	font-family:	monospace;
+	white-space:	pre;
+	margin:		0%;
+	padding-top:	0.5ex;
+	padding-bottom:	0.5ex;
+	padding-left:	1ex;
+	padding-right:	1ex;
+	width:		100%;
+    }
+    PRE.example {
+	color: 		black;
+	background: 	#f5dcb3;
+	border:		1px solid black;
+    }
+    UL.requirements LI, UL.syntax LI {
+	list-style: 	none;
+	margin-left: 	0em;
+	text-indent:	0em;
+	padding:	0em;
+    }
+    DIV.synopsis {
+	color: 		black;
+	background: 	#80ffff;
+	border:		1px solid black;
+	font-family:	serif;
+	margin-top: 	1em;
+	margin-bottom: 	1em;
+    }
+    UL.syntax {
+	margin-top: 	1em;
+	border-top:	1px solid black;
+    }
+    UL.requirements {
+	margin-bottom: 	1em;
+	border-bottom:	1px solid black;
+    }
+--></style>
+</head>
+<! -- Generated from file 'cookfs.man' by tcllib/doctools with format 'html'
+   -->
+<! -- Copyright &copy; 2010-2011 Wojciech Kocjan &lt;wojciech@kocjan.org&gt;
+   -->
+<! -- CVS: $Id$ cookfs.n
+   -->
+<body><div class="doctools">
+<h1 class="title">cookfs(n) 1.2 cookfs &quot;vfs::cookfs&quot;</h1>
+<div id="name" class="section"><h2><a name="name">Name</a></h2>
+<p>cookfs - vfs::cookfs</p>
+</div>
+<div id="toc" class="section"><h2><a name="toc">Table Of Contents</a></h2>
+<ul class="toc">
+<li class="section"><a href="#toc">Table Of Contents</a></li>
+<li class="section"><a href="#synopsis">Synopsis</a></li>
+<li class="section"><a href="#section1">Description</a></li>
+<li class="section"><a href="#section2">COMMANDS</a></li>
+<li class="section"><a href="#section3">MOUNT OPTIONS</a></li>
+<li class="section"><a href="#section4">COOKFS STORAGE</a></li>
+<li class="section"><a href="#section5">COMPRESSSION</a></li>
+<li class="section"><a href="#section6">COOKFS METADATA</a></li>
+<li class="section"><a href="#section7">ASIDE AND WRITE TO MEMORY</a></li>
+<li class="section"><a href="#see-also">See Also</a></li>
+<li class="section"><a href="#keywords">Keywords</a></li>
+<li class="section"><a href="#copyright">Copyright</a></li>
+</ul>
+</div>
+<div id="synopsis" class="section"><h2><a name="synopsis">Synopsis</a></h2>
+<div class="synopsis">
+<ul class="requirements">
+<li>package require <b class="pkgname">Tcl 8.5</b></li>
+<li>package require <b class="pkgname">vfs::cookfs <span class="opt">?1.2?</span></b></li>
+</ul>
+<ul class="syntax">
+<li><a href="#1"><b class="cmd">::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></li>
+<li><a href="#2"><b class="cmd">::vfs::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></li>
+<li><a href="#3"><b class="cmd">::cookfs::Unmount</b> <b class="method">fsid</b></a></li>
+<li><a href="#4"><i class="arg">cookfsHandle</i> <b class="method">aside</b> <i class="arg">filename</i></a></li>
+<li><a href="#5"><i class="arg">cookfsHandle</i> <b class="method">writetomemory</b></a></li>
+<li><a href="#6"><i class="arg">cookfsHandle</i> <b class="method">optimizelist</b> <i class="arg">base</i> <i class="arg">filelist</i></a></li>
+<li><a href="#7"><i class="arg">cookfsHandle</i> <b class="method">getmetadata</b> <i class="arg">parameterName</i> <span class="opt">?<i class="arg">defaultValue</i>?</span></a></li>
+<li><a href="#8"><i class="arg">cookfsHandle</i> <b class="method">setmetadata</b> <i class="arg">parameterName</i> <i class="arg">value</i></a></li>
+</ul>
+</div>
+</div>
+<div id="section1" class="section"><h2><a name="section1">Description</a></h2>
+<p>Package <b class="package">vfs::cookfs</b> is a Tcl virtual filesystem (VFS) that allows
+storing one or more files in a single file. This is similar to mk4vfs, zipvfs
+and many other archive formats.</p>
+<p>The main difference is that cookfs was designed for Tcl-related use and is
+optimized for both shipping Tcl scripts as well as delivering large payloads
+in an efficient way.</p>
+</div>
+<div id="section2" class="section"><h2><a name="section2">COMMANDS</a></h2>
+<dl class="definitions">
+<dt><a name="1"><b class="cmd">::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></dt>
+<dd></dd>
+<dt><a name="2"><b class="cmd">::vfs::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></dt>
+<dd><p>Mounts cookfs archive. Archive is read from <i class="arg">archive</i> and can later be accessed from Tcl using <i class="arg">local</i> as mount point. Options can preceed or succeed <i class="arg">archive</i> and <i class="arg">local</i> arguments.</p>
+<p>The command returns a cookfs handle which is also a command that can be used to perform certain actions on cookfs archive.</p>
+<p>For definition of available options, see <span class="sectref"><a href="#section3">MOUNT OPTIONS</a></span>.</p></dd>
+<dt><a name="3"><b class="cmd">::cookfs::Unmount</b> <b class="method">fsid</b></a></dt>
+<dd><p>Unmounts a cookfs archive. This is called internally by tclvfs. Command <b class="cmd">vfs::unmount</b> should be used to unmount Tcl archives, not <b class="cmd">cookfs::Unmount</b> directly.</p>
+<p>For cookfs archives it is very important to properly unmount them after performing all operations as many changes are only stored on unmount operation.</p></dd>
+<dt><a name="4"><i class="arg">cookfsHandle</i> <b class="method">aside</b> <i class="arg">filename</i></a></dt>
+<dd><p>Uses a separate file for storing changes to an archive. This can be used to keep changes for a read-only archive in a separate file.</p>
+<p>See <span class="sectref"><a href="#section7">ASIDE AND WRITE TO MEMORY</a></span> for more details on aside files and how they can be used.</p></dd>
+<dt><a name="5"><i class="arg">cookfsHandle</i> <b class="method">writetomemory</b></a></dt>
+<dd><p>Stores all further changes to this archive only in memory.
+This can be used to store temporary data or applying changes that do not persist across cookfs filesystem remounts and/or application restarts.</p>
+<p>See <span class="sectref"><a href="#section7">ASIDE AND WRITE TO MEMORY</a></span> for more details on write to memory feature.</p></dd>
+<dt><a name="6"><i class="arg">cookfsHandle</i> <b class="method">optimizelist</b> <i class="arg">base</i> <i class="arg">filelist</i></a></dt>
+<dd><p>Takes a list of files and optimizes them to reduce number of pages read by cookfs.
+This is mainly useful when unpacking very large number of files.</p>
+<p>Parameter <i class="arg">base</i> specifies path to be prepended when getting file information.
+When list of files is relative to archive root, <i class="arg">base</i> should be empty.
+When <i class="arg">filelist</i> contains paths relative to subdirectory of archive root,
+<i class="arg">base</i> should specify path to this subdirectory.</p>
+<p>For example if archive contains files
+<b class="const">contents/dir1/file1</b> and <b class="const">contents/dir1/subdir/file2</b>, the following code can be used:
+Specifying <i class="arg">filelist</i> relative to a directory and proper <i class="arg">base</i>:</p>
+<pre class="example">
+% puts [$fsid optimizelist contents/dir1 {file1 subdir/file2}]
+subdir/file2
+file1
+</pre>
+<p>Specifying <i class="arg">filelist</i> relative to root directory:</p>
+<pre class="example">
+% puts [$fsid optimizelist &quot;&quot; {contents/dir1/file1 contents/dir1/subdir/file2}]
+contents/dir1/subdir/file2
+contents/dir1/file1
+</pre>
+</dd>
+<dt><a name="7"><i class="arg">cookfsHandle</i> <b class="method">getmetadata</b> <i class="arg">parameterName</i> <span class="opt">?<i class="arg">defaultValue</i>?</span></a></dt>
+<dd><p>Gets a parameter from cookfs metadata. If <i class="arg">parameterName</i> is currently set in metadata, value for it is returned.</p>
+<p>If  <i class="arg">parameterName</i> is not currently set, <i class="arg">defaultValue</i> is returned if it was specified.
+If <i class="arg">defaultValue</i> was not specified and parameter is not set, an error is thrown.</p>
+<p>See <span class="sectref"><a href="#section6">COOKFS METADATA</a></span> for more details on metadata storage in cookfs archives.</p></dd>
+<dt><a name="8"><i class="arg">cookfsHandle</i> <b class="method">setmetadata</b> <i class="arg">parameterName</i> <i class="arg">value</i></a></dt>
+<dd><p>Set <i class="arg">parameterName</i> to specified <i class="arg">value</i>. If parameter currently exists, it is overwritten.</p>
+<p>See <span class="sectref"><a href="#section6">COOKFS METADATA</a></span> for more details on metadata storage in cookfs archives.</p></dd>
+</dl>
+</div>
+<div id="section3" class="section"><h2><a name="section3">MOUNT OPTIONS</a></h2>
+<p>The following options can be specified when mounting a cookfs archive:</p>
+<dl class="definitions">
+<dt><b class="option">-readonly</b></dt>
+<dd><p>Mount archive as read-only. Archive must exist and be a valid cookfs archive, otherwise mount will fail.</p></dd>
+<dt><b class="option">-writetomemory</b></dt>
+<dd><p>Enable write to memory feature for this mount.</p>
+<p>See <span class="sectref"><a href="#section7">ASIDE AND WRITE TO MEMORY</a></span> for more details on write to memory feature.</p></dd>
+<dt><b class="option">-pagesize</b> <i class="arg">bytes</i></dt>
+<dd><p>Specifies maximum size of a page. This specifies how much bytes a chunk
+(storing entire file, part of a file or multiple files) can be.
+Setting larger values increases memory usage, but may increase compression ratio,
+especially for compressors such as bzip2 or LZMA, which compress larger chunks
+of information more efficiently.</p>
+<p>See <span class="sectref"><a href="#section4">COOKFS STORAGE</a></span> for more details on how cookfs stores files, index and metadata.</p></dd>
+<dt><b class="option">-pagecachesize</b> <i class="arg">numPages</i></dt>
+<dd><p>Maximum number of pages to be stored in memory when reading data from cookfs archive.
+If 0, no cache is used. Otherwise, up to <i class="arg">numPages</i> are kept in memory for efficient access.
+Increasing the value directly affects speed of reading operations, but also increases
+memory.</p>
+<p>Maximum number of memory used for cache is number of pages to cache multiplied by
+maximum size of a page.</p>
+<p>See <span class="sectref"><a href="#section4">COOKFS STORAGE</a></span> for more details on how cookfs stores files, index and metadata.</p></dd>
+<dt><b class="option">-smallfilesize</b> <i class="arg">bytes</i></dt>
+<dd><p>Specifies threshold for small files. All files smaller than this value are treated as small files
+and are stored and compressed as multiple files for efficiency.</p>
+<p>See <span class="sectref"><a href="#section4">COOKFS STORAGE</a></span> for more details on how cookfs stores files, index and metadata.</p></dd>
+<dt><b class="option">-smallfilebuffer</b> <i class="arg">bytes</i></dt>
+<dd><p>Specifies maximum buffer for small files. Specifying larger value allows
+storing more files in memory before saving them on disk. This can produce 
+better compression ratio.</p>
+<p>See <span class="sectref"><a href="#section4">COOKFS STORAGE</a></span> for more details on how cookfs stores files, index and metadata.</p></dd>
+<dt><b class="option">-volume</b></dt>
+<dd><p>Register mount point as Tcl volume - useful for creating mount points in locations that do not exist - such as <i class="arg">archive://</i>.</p></dd>
+<dt><b class="option">-compression</b> <i class="arg">none|zlib|bzip2|custom</i></dt>
+<dd><p>Compression to use for storing new files.</p>
+<p>See <span class="sectref"><a href="#section5">COMPRESSSION</a></span> for more details on compression in cookfs.</p></dd>
+<dt><b class="option">-compresscommand</b> <i class="arg">tcl command</i></dt>
+<dd><p>For <i class="arg">custom</i> compression, specifies command to use for compressing pages.</p>
+<p>See <span class="sectref"><a href="#section5">COMPRESSSION</a></span> for more details on compression in cookfs.</p></dd>
+<dt><b class="option">-decompresscommand</b> <i class="arg">tcl command</i></dt>
+<dd><p>For <i class="arg">custom</i> compression, specifies command to use for decompressing pages.</p>
+<p>See <span class="sectref"><a href="#section5">COMPRESSSION</a></span> for more details on compression in cookfs.</p></dd>
+<dt><b class="option">-endoffset</b> <i class="arg">offset</i></dt>
+<dd><p>Read archive starting at specified offset, instead of reading from end of file.</p>
+<p>This feature is used when cookfs archive is not stored at end of file - for example if it is
+used in tclkit and followed by mk4vfs archive.</p></dd>
+<dt><b class="option">-noregister</b></dt>
+<dd><p>Do not register this mount point with tclvfs. Mainly for internal use.</p></dd>
+<dt><b class="option">-nocommand</b></dt>
+<dd><p>Do not register Tcl command for this cookfs handle. Mainly for internal use.</p></dd>
+<dt><b class="option">-bootstrap</b> <i class="arg">tcl code</i></dt>
+<dd><p>Bootstrap code for cookit binaries. Mainly for internal use.</p></dd>
+<dt><b class="option">-pagesobject</b> <i class="arg">pagesObject</i></dt>
+<dd><p>Do not create cookfs::pages object, use specified pages object. Mainly for internal use.</p></dd>
+</dl>
+</div>
+<div id="section4" class="section"><h2><a name="section4">COOKFS STORAGE</a></h2>
+<p>Cookfs uses <b class="sectref">cookfs::pages</b> for storing all files and
+directories in an archive. Information on which pages store what files is stored
+in <b class="sectref">cookfs::fsindex</b> object, that is stored as part of archive.</p>
+<p>Cookfs stores files in one of the following ways:</p>
+<ol class="enumerated">
+<li><p>Entire file is stored in a single cookfs page.
+This happens if file's size is larger than <i class="arg">-smallfilesize</i>,
+but smaller than <i class="arg">-pagesize</i>.</p></li>
+<li><p>Entire file is stored in multiple cookfs pages.
+This happens if file's size is larger than <i class="arg">-smallfilesize</i>,
+and larger than <i class="arg">-pagesize</i>.</p></li>
+<li><p>Multiple files are stored in a single cookfs page.
+This happens if file's size is smaller than <i class="arg">-smallfilesize</i>.</p></li>
+</ol>
+<p>First and second case are similar and a limit on page size is mainly
+used to allow faster seek operations and increate I/O operation speed.</p>
+<p>When compressing large files as a single stream (such as in zipvfs and mk4vfs),
+seeking operation requires re-reading and ignoring all data up to new location.
+With this approach, seek operations are instant since only new pages are read
+and data prior to new seek location is ignored.</p>
+<p>Storing multiple files in a single page is used to increase compression
+ratio for multiple small files - such as Tcl scripts. All small files
+(whose size does not exceed <i class="arg">-smallfilesize</i>) are grouped by
+their extension, followed by their file name. This allows files such as
+<b class="const">pkgIndex.tcl</b> to be compressed in same page, which is much more efficient
+than compressing each of them independantly.</p>
+</div>
+<div id="section5" class="section"><h2><a name="section5">COMPRESSSION</a></h2>
+<p>Cookfs uses compression to store pages and filesystem index more efficiently.
+Pages are compressed as a whole and independant of files. Filesystem index is
+also compressed to reduce file size.</p>
+<p>Compression is specified as <i class="arg">-compression</i> option when mounting an archive.
+This option applies to newly stored pages and whenever a file index should be
+saved. Existing pages are not re-compressed on compression change.</p>
+<p>Cookfs provides the following compressions:</p>
+<ul class="itemized">
+<li><p><b class="const">none</b> -
+no compression is used at all; mainly used for testing purposes or when
+content should not be packed at all</p></li>
+<li><p><b class="const">zlib</b> -
+use zlib compression to compress - same as with mk4vfs and zipvfs</p></li>
+<li><p><b class="const">bz2</b> -
+use bzip2 for compression; requires specifying <b class="const">--enable-bz2</b> when building
+cookfs</p></li>
+<li><p><b class="const">custom</b> -
+use Tcl commands for compressing and decompressing pages</p></li>
+</ul>
+<p>For <b class="const">custom</b> compression, <i class="arg">-compresscommand</i> and <i class="arg">-decompresscommand</i>
+have to be specified. These commands will be used to compress data and will be called
+with data to be compressed or decompressed as additional argument.</p>
+<p>For example the following are sample compress and decompress commands:</p>
+<pre class="example">
+# use vfs::zip to (de)compress data and encode it in HEX
+proc testc {d} {
+    binary scan [vfs::zip -mode compress $d] H* rc
+    return &quot;HEXTEST-$rc&quot;
+}
+proc testd {d} {
+    set rc [vfs::zip -mode decompress [binary format H* [string range $d 8 end]]]
+    return $rc
+}
+vfs::cookfs::Mount archive archive -compression custom -compresscommand testc -decompresscommand testd
+</pre>
+<p>See <span class="sectref"><a href="#section4">COOKFS STORAGE</a></span> for more details on how files are stored in cookfs.</p>
+<p>Default values for <i class="arg">-pagesize</i>, <i class="arg">-smallfilesize</i> and
+<i class="arg">-smallfilebuffer</i> parameters provided by cookfs have been chosen carefully.
+These are outcome of performing multiple tests.
+It is not recommended to change it for <b class="const">zlib</b> compression.</p>
+</div>
+<div id="section6" class="section"><h2><a name="section6">COOKFS METADATA</a></h2>
+<p>Cookfs supports storing metadata in an archive. Metadata are any number of
+properties stored in a cookfs archive.</p>
+<p>Cookfs does not impose any limits or rules on naming of properties as well as
+possible values, but it is recommended that cookfs internal properties are stored
+using <b class="const">cookfs.*</b> prefix and cookit related properties use
+<b class="const">cookit.*</b> format.</p>
+<p>User properties do not need to use any prefix or suffix, but it is recommended
+to use form of <b class="const"><i class="arg">appname</i>.*</b>.</p>
+</div>
+<div id="section7" class="section"><h2><a name="section7">ASIDE AND WRITE TO MEMORY</a></h2>
+<p>Cookfs supports a feature called aside changes. It stores all changes
+in a separate file. It can be used for updating files in read-only archives such
+as standalone binaries or data on read-only media.</p>
+<p>Aside functionality can be enabled for read-only and read-write archives.
+All types of changes can be performed and they will be stored in the new file.
+Operations such as deletions from a file are also possible.</p>
+<p>Aside changes are persistent. It is possible to mount an archive, setup an aside
+file and perform changes and unmount it. When remounting the archive, changes will
+not be visible. However, after enabling aside and pointing to same file as before,
+changes will instantly be visible.</p>
+<p>Aside changes do not cause increased use of memory - changes are written to disk in same
+fashion, using new file instead of the original one.</p>
+<p>Write to memory feature is slightly different. It allows read-only and read-write
+archives to store all changes in memory and those will not be saved back on disk.
+This feature is mainly intended for handling temporary files or running legacy code that
+requires write access to files inside a read-only archive.</p>
+</div>
+<div id="see-also" class="section"><h2><a name="see-also">See Also</a></h2>
+<p>cookfs_fsindex, cookfs_pages</p>
+</div>
+<div id="keywords" class="section"><h2><a name="keywords">Keywords</a></h2>
+<p>cookfs, vfs</p>
+</div>
+<div id="copyright" class="section"><h2><a name="copyright">Copyright</a></h2>
+<p>Copyright &copy; 2010-2011 Wojciech Kocjan &lt;wojciech@kocjan.org&gt;</p>
+</div>
+</div></body></html>

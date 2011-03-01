@@ -77,6 +77,7 @@ proc cookfs::Mount {args} {
     #
     set options {
         {noregister                                     {Do not register this filesystem (for temporary writes)}}
+        {nocommand                                      {Do not create command for managing cookfs archive}}
         {bootstrap.arg                  ""              {Bootstrap code to add in the beginning}}
         {compression.arg                "zlib"          {Compression type to use}}
 	{compresscommand.arg            ""              {Command to use for custom compression}}
@@ -175,10 +176,12 @@ proc cookfs::Mount {args} {
     set fs(local) $local
     set fs(pagesize) $opt(pagesize)
     set fs(noregister) $opt(noregister)
+    set fs(nocommand) $opt(nocommand)
     set fs(smallfilesize) $opt(smallfilesize)
     set fs(smallfilebuffersize) $opt(smallfilebuffer)
     set fs(changeCount) 0
     set fs(writetomemory) $opt(writetomemory)
+    set fs(readonly) $opt(readonly)
 
     # initialize pages
     if {$opt(pagesobject) == ""} {
@@ -226,6 +229,10 @@ proc cookfs::Mount {args} {
         }
     }
 
+    if {!$fs(nocommand)} {
+        interp alias {} $fsid {} ::cookfs::handleVfsCommandAlias $fsid
+    }
+
     return $fsid
 }
 
@@ -248,8 +255,76 @@ proc cookfs::Unmount {fsid args} {
     if {!$fs(noregister)} {
         vfs::filesystem unmount $fs(local)
     }
+    # remove command alias
+    if {!$fs(nocommand)} {
+        catch {rename $fsid ""}
+    }
+
     unset $fsid
+
     return $offset
+}
+
+proc cookfs::handleVfsCommandAlias {fsid args} {
+    upvar #0 $fsid fs
+
+    if {[llength $args] == 0} {
+        set ei "Usage: $fsid subcommand ?argument ...?"
+        error $ei $ei
+    }
+
+    switch -- [lindex $args 0] {
+        aside {
+	    if {[llength $args] != 2} {
+                set ei "wrong # args: should be \"$fsid aside filename\""
+                error $ei $ei
+	    }
+            return [::cookfs::aside $fsid [lindex $args 1]]
+        }
+        optimizelist {
+	    if {[llength $args] != 3} {
+                set ei "wrong # args: should be \"$fsid optimizelist base filelist\""
+                error $ei $ei
+	    }
+            return [::cookfs::optimizelist $fsid [lindex $args 1] [lindex $args 2]]
+        }
+	writetomemory {
+	    if {[llength $args] != 1} {
+                set ei "wrong # args: should be \"$fsid writetomemory\""
+                error $ei $ei
+	    }
+            return [::cookfs::writetomemory $fsid]
+	}
+        getmetadata {
+            if {![pkgconfig get feature-metadata]} { set ei "metadata not supported" ; error $ei $ei }
+	    if {[llength $args] == 2} {
+                return [$fs(index) getmetadata [lindex $args 1]]
+	    }  elseif {[llength $args] == 3} {
+                return [$fs(index) getmetadata [lindex $args 1] [lindex $args 2]]
+            }  else  {
+                set ei "wrong # args: should be \"$fsid getmetadata property ?defaultValue?"
+                error $ei $ei
+	    }
+        }
+        setmetadata {
+            if {![pkgconfig get feature-metadata]} { set ei "metadata not supported" ; error $ei $ei }
+	    if {[llength $args] == 3} {
+	        if {$fs(readonly)} {
+                    set ei "Archive is read-only"
+                    error $ei $ei
+                }
+		incr fs(changeCount)
+                return [$fs(index) setmetadata [lindex $args 1] [lindex $args 2]]
+            }  else  {
+                set ei "wrong # args: should be \"$fsid setmetadata property value"
+                error $ei $ei
+	    }
+        }
+        default {
+            set ei "unknown subcommand \"[lindex $args 0]\": must be aside, optimizelist, or writetomemory"
+            error $ei $ei
+        }
+    }
 }
 
 proc cookfs::aside {fsid filename} {
@@ -263,11 +338,13 @@ proc cookfs::aside {fsid filename} {
     set newindex [cookfs::fsindex [$fs(pages) index]]
     $fs(index) delete
     set fs(index) $newindex
+    set fs(readonly) 0
 }
 
 proc cookfs::writetomemory {fsid} {
     upvar #0 $fsid fs
     set fs(writetomemory) 1
+    set fs(readonly) 0
 }
 
 cookfs::initialize

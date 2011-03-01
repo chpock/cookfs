@@ -1,0 +1,114 @@
+[manpage_begin cookfs::fsindex n 1.2]
+[copyright {2010-2011 Wojciech Kocjan <wojciech@kocjan.org>}]
+[moddesc   {vfs::cookfs::fsindex}]
+[titledesc {vfs::cookfs::fsindex}]
+[require Tcl 8.5]
+[require vfs::cookfs [opt 1.2]]
+
+[description]
+
+Cookfs fsindex provide a low level mechanism for storing mapping between files in cookfs archive and pages they correspond to.
+
+[para]
+This mechanism should only be used by advanced users and is only documented for reference.
+
+[section {COMMANDS}]
+
+[list_begin definitions]
+
+[call [cmd ::cookfs::fsindex] [opt [arg exportedData]]]
+
+Creates a new fsindex object.
+If [arg exportedData] is specified, index is imported from this data and error is
+thrown if data is not correct.
+
+[para]
+If [arg exportedData] is not provided, new fsindex is created.
+
+[para]
+The command returns a fsindex command that can be used to perform actions on index.
+
+[call [arg fsindexHandle] [method export]]
+Export current index as binary data.
+This data can be stored in [sectref-external cookfs_pages] object and later on
+imported using [cmd cookfs::fsindex] command.
+
+[call [arg fsindexHandle] [method list] [arg path]]
+List all entries in specified path. Path should be separated by slashes.
+Specify empty path to list contents of main directory for archive.
+
+[call [arg fsindexHandle] [method get] [arg path]]
+Get information about specified entry. Path should be separated by slashes.
+
+[para]
+Method [method get] returns file information as a list.
+For directories, this is a single-element list containing file modification time.
+For files, first element is modification time, second element is file size and
+third element is a list of block-offset-size triplets.
+
+[para]
+See [sectref {BLOCK-OFFSET-SIZE INFORMATION}] for more details on
+block-offset-size triplets.
+
+[call [arg fsindexHandle] [method getmtime] [arg path]]
+Get file modification about specified entry. Path should be separated by slashes.
+
+[call [arg fsindexHandle] [method set] [arg path] [arg mtime] [opt [arg data]]]
+Set information about specified entry. Path should be separated by slashes.
+If [arg data] is omitted, new entry is created as directory.
+
+[para]
+If [arg data] specified, entry is created as file and data is created as
+block-offset-size triplets.
+
+[para]
+See [sectref {BLOCK-OFFSET-SIZE INFORMATION}] for more details on
+block-offset-size triplets.
+
+[call [arg fsindexHandle] [method setmtime] [arg path] [arg mtime]]
+Set file modification about specified entry. Path should be separated by slashes.
+
+[call [arg fsindexHandle] [method unset] [arg path]]
+Deletes specified entry. Path should be separated by slashes.
+
+[call [arg fsindexHandle] [method delete]]
+Delete fsindex object. Frees up all memory associated with an index.
+
+[call [arg fsindexHandle] [method getmetadata] [arg name] [opt [arg defaultValue]]]
+Get metadata with specified [arg name] from an index, if it exists.
+
+If metadata does not exist, [arg defaultValue] is returned if specified.
+If metadata does not exist and [arg defaultValue] is not specified, an error is thrown.
+
+[call [arg fsindexHandle] [method setmetadata] [arg name] [arg value]]
+Set metadata with specified [arg name] to [arg value].
+Overwrites previous value if it existed.
+
+[call [arg fsindexHandle] [method unsetmetadata] [arg name]]
+Removes metadata with specified name from index.
+
+[list_end]
+
+[section {BLOCK-OFFSET-SIZE INFORMATION}]
+Files in cookfs are described storing block-offset-size triplets. These specify
+block (index of cookfs page), offset in the page and size of the data in a page.
+Each 3 elements of a list describe one part of a file.
+
+[para]
+For example [const {{1 0 2048}}] specifies that page with index [const 1]
+should be used, data starts at offset [const 0] and that
+data is [const 2048] bytes.
+Index data of [const {{0 0 65536 1 10240 40960}}] specifies that data is
+first stored in page [const 0] and uses [const 65536] bytes from this page.
+Next, data is stored in page [const 1] from [const 10240]-th byte and uses up
+another [const 40960] bytes. This means that file's total size is 106496 bytes.
+
+[para]
+Cookfs index only stores block-offset-size triplets and calculates size
+based on all sizes of its elements.
+Therefore setting cookfs data only requires specifying list itself,
+not summed up size of the file.
+
+[see_also cookfs_fsindex cookfs_fsindex]
+[keywords vfs cookfs]
+[manpage_end]

@@ -1,0 +1,123 @@
+[manpage_begin cookfs::pages n 1.2]
+[copyright {2010-2011 Wojciech Kocjan <wojciech@kocjan.org>}]
+[moddesc   {vfs::cookfs::pages}]
+[titledesc {vfs::cookfs::pages}]
+[require Tcl 8.5]
+[require vfs::cookfs [opt 1.2]]
+
+[description]
+
+Cookfs pages provide a low level mechanism for reading and writing to cookfs pages.
+
+[para]
+This mechanism should only be used by advanced users and is only documented for reference.
+
+[section {COMMANDS}]
+
+[list_begin definitions]
+
+[call [cmd ::cookfs::pages] [opt [arg options]] [arg archive]]
+Creates a new pages object that can be used to read and write pages.
+
+[para]
+The command returns a pages command that can be used to perform actions on pages.
+
+[para]
+For definition of available options, see [sectref {PAGES OPTIONS}].
+
+[call [arg pagesHandle] [method aside] [arg filename]]
+Uses a separate file for storing changes to an archive. This can be used to keep changes for a read-only archive in a separate file.
+See [sectref-external cookfs] for more details on aside files and how they can be used.
+
+[call [arg pagesHandle] [method add] [arg contents]]
+Add a new page to archive. Index of new page is returned. Index will be between 0 and [method length]-1.
+
+[para]
+When adding a page that already exists, index to already existing page is returned.
+Otherwise a new page is added at the end and its index is returned.
+
+[call [arg pagesHandle] [method get] [arg pageIdx]]
+Gets a page in an archive. This can be between 0 and [method length]-1.
+
+[call [arg pagesHandle] [method length]]
+Returns number of pages in an archive.
+
+[call [arg pagesHandle] [method index] [opt [arg newIndex]]]
+Get or set index data. Index is a binary data that is stored in an archive and can be changed at any time.
+This is used to store exported version of [sectref-external cookfs_fsindex].
+
+[call [arg pagesHandle] [method dataoffset]]
+Returns offset to beginning of cookfs archive in the file.
+
+[call [arg pagesHandle] [method delete]]
+Saves all changes and deletes a cookfs pages object.
+
+[call [arg pagesHandle] [method gethead]]
+[call [arg pagesHandle] [method getheadmd5]]
+[call [arg pagesHandle] [method gettail]]
+[call [arg pagesHandle] [method gettailmd5]]
+
+Gets part of file as binary data or MD5 checksum of it.
+Head is the part of the file prior to cookfs archive.
+Tail is the entire cookfs archive.
+
+[para]
+These commands can be used as helper procedures to read or compare currently open/mounted binaries.
+
+[call [arg pagesHandle] [method close]]
+Closes pages object and return offset to end of cookfs archive.
+This is almost an equivalent of calling [method delete].
+
+[para]
+This is meant for internal development and should not be used outside cookfs.
+
+[list_end]
+
+[section {PAGES OPTIONS}]
+
+The following options can be specified when creating a cookfs pages object:
+
+[list_begin definitions]
+
+[def "[option -readwrite]"]
+Open as read-write, which is the default. If file exists and is valid cookfs pages format archive, it is used.
+Otherwise new cookfs pages archive is created at end of file.
+
+[def "[option -readonly]"]
+Open as read-only. File must exist and be in valid cookfs pages format archive, otherwise operation will fail.
+
+[def "[option -cachesize] [arg numPages]"]
+Maximum number of pages to store in cache.
+If 0, no cache is used. Otherwise, up to [arg numPages] are kept in memory
+for efficient access.
+
+[def "[option -endoffset] [arg offset]"]
+Read archive starting at specified offset, instead of reading from end of file.
+
+[para]
+This feature is used when cookfs archive is not stored at end of file - for example if it is
+used in tclkit and followed by mk4vfs archive.
+
+[def "[option -compression] [arg {none|zlib|bzip2|custom}]"]
+Compression to use for storing new files.
+
+[para]
+See [sectref-external cookfs] for more details on compression in cookfs.
+
+[def "[option -compresscommand] [arg {tcl command}]"]
+For [arg custom] compression, specifies command to use for compressing pages.
+
+[para]
+See [sectref-external cookfs] for more details on compression in cookfs.
+
+[def "[option -decompresscommand] [arg {tcl command}]"]
+For [arg custom] compression, specifies command to use for decompressing pages.
+
+[para]
+See [sectref-external cookfs] for more details on compression in cookfs.
+
+[list_end]
+
+[see_also cookfs_pages cookfs_fsindex]
+[keywords vfs cookfs]
+[manpage_end]

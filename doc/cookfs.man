@@ -1,0 +1,344 @@
+[manpage_begin cookfs n 1.2]
+[copyright {2010-2011 Wojciech Kocjan <wojciech@kocjan.org>}]
+[moddesc   {vfs::cookfs}]
+[titledesc {vfs::cookfs}]
+[require Tcl 8.5]
+[require vfs::cookfs [opt 1.2]]
+
+[description]
+
+Package [package vfs::cookfs] is a Tcl virtual filesystem (VFS) that allows
+storing one or more files in a single file. This is similar to mk4vfs, zipvfs
+and many other archive formats.
+
+[para]
+The main difference is that cookfs was designed for Tcl-related use and is
+optimized for both shipping Tcl scripts as well as delivering large payloads
+in an efficient way.
+
+[section {COMMANDS}]
+
+[list_begin definitions]
+
+[call [cmd ::cookfs::Mount] [opt [arg options]] [arg archive] [arg local] [opt [arg options]]]
+[call [cmd ::vfs::cookfs::Mount] [opt [arg options]] [arg archive] [arg local] [opt [arg options]]]
+
+Mounts cookfs archive. Archive is read from [arg archive] and can later be accessed from Tcl using [arg local] as mount point. Options can preceed or succeed [arg archive] and [arg local] arguments.
+
+[para]
+The command returns a cookfs handle which is also a command that can be used to perform certain actions on cookfs archive.
+
+[para]
+For definition of available options, see [sectref {MOUNT OPTIONS}].
+
+[call [cmd ::cookfs::Unmount] [method fsid]]
+Unmounts a cookfs archive. This is called internally by tclvfs. Command [cmd vfs::unmount] should be used to unmount Tcl archives, not [cmd cookfs::Unmount] directly.
+
+[para]
+For cookfs archives it is very important to properly unmount them after performing all operations as many changes are only stored on unmount operation.
+
+[call [arg cookfsHandle] [method aside] [arg filename]]
+Uses a separate file for storing changes to an archive. This can be used to keep changes for a read-only archive in a separate file.
+
+[para]
+See [sectref {ASIDE AND WRITE TO MEMORY}] for more details on aside files and how they can be used.
+
+[call [arg cookfsHandle] [method writetomemory]]
+Stores all further changes to this archive only in memory.
+This can be used to store temporary data or applying changes that do not persist across cookfs filesystem remounts and/or application restarts.
+
+[para]
+See [sectref {ASIDE AND WRITE TO MEMORY}] for more details on write to memory feature.
+
+[call [arg cookfsHandle] [method optimizelist] [arg base] [arg filelist]]
+Takes a list of files and optimizes them to reduce number of pages read by cookfs.
+This is mainly useful when unpacking very large number of files.
+
+[para]
+Parameter [arg base] specifies path to be prepended when getting file information.
+When list of files is relative to archive root, [arg base] should be empty.
+When [arg filelist] contains paths relative to subdirectory of archive root,
+[arg base] should specify path to this subdirectory.
+
+[para]
+For example if archive contains files
+[const contents/dir1/file1] and [const contents/dir1/subdir/file2], the following code can be used:
+
+Specifying [arg filelist] relative to a directory and proper [arg base]:
+[example {
+% puts [$fsid optimizelist contents/dir1 {file1 subdir/file2}]
+subdir/file2
+file1
+}]
+
+Specifying [arg filelist] relative to root directory:
+[example {
+% puts [$fsid optimizelist "" {contents/dir1/file1 contents/dir1/subdir/file2}]
+contents/dir1/subdir/file2
+contents/dir1/file1
+}]
+
+[call [arg cookfsHandle] [method getmetadata] [arg parameterName] [opt [arg defaultValue]]]
+Gets a parameter from cookfs metadata. If [arg parameterName] is currently set in metadata, value for it is returned.
+
+[para]
+If  [arg parameterName] is not currently set, [arg defaultValue] is returned if it was specified.
+If [arg defaultValue] was not specified and parameter is not set, an error is thrown.
+
+[para]
+See [sectref {COOKFS METADATA}] for more details on metadata storage in cookfs archives.
+
+[call [arg cookfsHandle] [method setmetadata] [arg parameterName] [arg value]]
+Set [arg parameterName] to specified [arg value]. If parameter currently exists, it is overwritten.
+
+[para]
+See [sectref {COOKFS METADATA}] for more details on metadata storage in cookfs archives.
+
+[list_end]
+
+[section {MOUNT OPTIONS}]
+
+The following options can be specified when mounting a cookfs archive:
+
+[list_begin definitions]
+
+[def "[option -readonly]"]
+
+Mount archive as read-only. Archive must exist and be a valid cookfs archive, otherwise mount will fail.
+
+[def "[option -writetomemory]"]
+
+Enable write to memory feature for this mount.
+
+[para]
+See [sectref {ASIDE AND WRITE TO MEMORY}] for more details on write to memory feature.
+
+[def "[option -pagesize] [arg bytes]"]
+
+Specifies maximum size of a page. This specifies how much bytes a chunk
+(storing entire file, part of a file or multiple files) can be.
+Setting larger values increases memory usage, but may increase compression ratio,
+especially for compressors such as bzip2 or LZMA, which compress larger chunks
+of information more efficiently.
+
+[para]
+See [sectref {COOKFS STORAGE}] for more details on how cookfs stores files, index and metadata.
+
+[def "[option -pagecachesize] [arg numPages]"]
+
+Maximum number of pages to be stored in memory when reading data from cookfs archive.
+If 0, no cache is used. Otherwise, up to [arg numPages] are kept in memory for efficient access.
+Increasing the value directly affects speed of reading operations, but also increases
+memory.
+
+[para]
+Maximum number of memory used for cache is number of pages to cache multiplied by
+maximum size of a page.
+
+[para]
+See [sectref {COOKFS STORAGE}] for more details on how cookfs stores files, index and metadata.
+
+[def "[option -smallfilesize] [arg bytes]"]
+Specifies threshold for small files. All files smaller than this value are treated as small files
+and are stored and compressed as multiple files for efficiency.
+
+[para]
+See [sectref {COOKFS STORAGE}] for more details on how cookfs stores files, index and metadata.
+
+[def "[option -smallfilebuffer] [arg bytes]"]
+Specifies maximum buffer for small files. Specifying larger value allows
+storing more files in memory before saving them on disk. This can produce 
+better compression ratio.
+
+[para]
+See [sectref {COOKFS STORAGE}] for more details on how cookfs stores files, index and metadata.
+
+[def "[option -volume]"]
+Register mount point as Tcl volume - useful for creating mount points in locations that do not exist - such as [arg archive://].
+
+[def "[option -compression] [arg {none|zlib|bzip2|custom}]"]
+
+Compression to use for storing new files.
+
+[para]
+See [sectref {COMPRESSSION}] for more details on compression in cookfs.
+
+[def "[option -compresscommand] [arg {tcl command}]"]
+For [arg custom] compression, specifies command to use for compressing pages.
+
+[para]
+See [sectref {COMPRESSSION}] for more details on compression in cookfs.
+[def "[option -decompresscommand] [arg {tcl command}]"]
+
+For [arg custom] compression, specifies command to use for decompressing pages.
+
+[para]
+See [sectref {COMPRESSSION}] for more details on compression in cookfs.
+
+[def "[option -endoffset] [arg offset]"]
+Read archive starting at specified offset, instead of reading from end of file.
+
+[para]
+This feature is used when cookfs archive is not stored at end of file - for example if it is
+used in tclkit and followed by mk4vfs archive.
+
+[def "[option -noregister]"]
+Do not register this mount point with tclvfs. Mainly for internal use.
+
+[def "[option -nocommand]"]
+Do not register Tcl command for this cookfs handle. Mainly for internal use.
+
+[def "[option -bootstrap] [arg {tcl code}]"]
+Bootstrap code for cookit binaries. Mainly for internal use.
+
+[def "[option -pagesobject] [arg pagesObject]"]
+Do not create cookfs::pages object, use specified pages object. Mainly for internal use.
+
+[list_end]
+
+[section {COOKFS STORAGE}]
+Cookfs uses [sectref-external cookfs::pages] for storing all files and
+directories in an archive. Information on which pages store what files is stored
+in [sectref-external cookfs::fsindex] object, that is stored as part of archive.
+
+[para]
+Cookfs stores files in one of the following ways:
+
+[list_begin enumerated]
+
+[enum]
+Entire file is stored in a single cookfs page.
+This happens if file's size is larger than [arg -smallfilesize],
+but smaller than [arg -pagesize].
+
+[enum]
+Entire file is stored in multiple cookfs pages.
+This happens if file's size is larger than [arg -smallfilesize],
+and larger than [arg -pagesize].
+
+[enum]
+Multiple files are stored in a single cookfs page.
+This happens if file's size is smaller than [arg -smallfilesize].
+
+[list_end]
+
+First and second case are similar and a limit on page size is mainly
+used to allow faster seek operations and increate I/O operation speed.
+
+[para]
+When compressing large files as a single stream (such as in zipvfs and mk4vfs),
+seeking operation requires re-reading and ignoring all data up to new location.
+With this approach, seek operations are instant since only new pages are read
+and data prior to new seek location is ignored.
+
+[para]
+Storing multiple files in a single page is used to increase compression
+ratio for multiple small files - such as Tcl scripts. All small files
+(whose size does not exceed [arg -smallfilesize]) are grouped by
+their extension, followed by their file name. This allows files such as
+[const pkgIndex.tcl] to be compressed in same page, which is much more efficient
+than compressing each of them independantly.
+
+[section {COMPRESSSION}]
+Cookfs uses compression to store pages and filesystem index more efficiently.
+Pages are compressed as a whole and independant of files. Filesystem index is
+also compressed to reduce file size.
+
+[para]
+Compression is specified as [arg -compression] option when mounting an archive.
+This option applies to newly stored pages and whenever a file index should be
+saved. Existing pages are not re-compressed on compression change.
+
+[para]
+Cookfs provides the following compressions:
+
+[list_begin itemized]
+
+[item] [const none] -
+no compression is used at all; mainly used for testing purposes or when
+content should not be packed at all
+
+[item] [const zlib] -
+use zlib compression to compress - same as with mk4vfs and zipvfs
+
+[item] [const bz2] -
+use bzip2 for compression; requires specifying [const {--enable-bz2}] when building
+cookfs
+
+[item] [const custom] -
+use Tcl commands for compressing and decompressing pages
+
+[list_end]
+
+For [const custom] compression, [arg -compresscommand] and [arg -decompresscommand]
+have to be specified. These commands will be used to compress data and will be called
+with data to be compressed or decompressed as additional argument.
+
+[para]
+For example the following are sample compress and decompress commands:
+[example {
+# use vfs::zip to (de)compress data and encode it in HEX
+proc testc {d} {
+    binary scan [vfs::zip -mode compress $d] H* rc
+    return "HEXTEST-$rc"
+}
+proc testd {d} {
+    set rc [vfs::zip -mode decompress [binary format H* [string range $d 8 end]]]
+    return $rc
+}
+
+vfs::cookfs::Mount archive archive -compression custom -compresscommand testc -decompresscommand testd
+}]
+
+[para]
+See [sectref {COOKFS STORAGE}] for more details on how files are stored in cookfs.
+
+[para]
+Default values for [arg -pagesize], [arg -smallfilesize] and
+[arg -smallfilebuffer] parameters provided by cookfs have been chosen carefully.
+These are outcome of performing multiple tests.
+It is not recommended to change it for [const zlib] compression.
+
+[section {COOKFS METADATA}]
+Cookfs supports storing metadata in an archive. Metadata are any number of
+properties stored in a cookfs archive.
+
+[para]
+Cookfs does not impose any limits or rules on naming of properties as well as
+possible values, but it is recommended that cookfs internal properties are stored
+using [const "cookfs.*"] prefix and cookit related properties use
+[const "cookit.*"] format.
+
+[para]
+User properties do not need to use any prefix or suffix, but it is recommended
+to use form of [const "[arg appname].*"].
+
+[section {ASIDE AND WRITE TO MEMORY}]
+Cookfs supports a feature called aside changes. It stores all changes
+in a separate file. It can be used for updating files in read-only archives such
+as standalone binaries or data on read-only media.
+
+[para]
+Aside functionality can be enabled for read-only and read-write archives.
+All types of changes can be performed and they will be stored in the new file.
+Operations such as deletions from a file are also possible.
+
+[para]
+Aside changes are persistent. It is possible to mount an archive, setup an aside
+file and perform changes and unmount it. When remounting the archive, changes will
+not be visible. However, after enabling aside and pointing to same file as before,
+changes will instantly be visible.
+
+[para]
+Aside changes do not cause increased use of memory - changes are written to disk in same
+fashion, using new file instead of the original one.
+
+[para]
+Write to memory feature is slightly different. It allows read-only and read-write
+archives to store all changes in memory and those will not be saved back on disk.
+This feature is mainly intended for handling temporary files or running legacy code that
+requires write access to files inside a read-only archive.
+
+[see_also cookfs_pages cookfs_fsindex]
+[keywords vfs cookfs]
+[manpage_end]

@@ -188,6 +188,12 @@ Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Tcl_Obj *pathList, int
         return NULL;
     }
 
+    CookfsLog(printf("Cookfs_FsindexSet - listSize=%d", listSize))
+
+    if (listSize == 0) {
+        return NULL;
+    }
+
     if (Tcl_ListObjIndex(NULL, pathList, listSize - 1, &pathTail) != TCL_OK) {
         CookfsLog(printf("Cookfs_FsindexSet - Unable to get element from a list"))
         return NULL;
