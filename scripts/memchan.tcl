@@ -59,4 +59,4 @@ proc cookfs::onMemchanClose {fsid path chan} {
     writeFiles $fsid $path channel $chan ""
 }
 
-package provide vfs::cookfs::tcl::memchan 1.1
+package provide vfs::cookfs::tcl::memchan 1.2

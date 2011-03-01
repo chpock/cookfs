@@ -281,4 +281,4 @@ proc cookfs::vfshandleOpen {fsid relative mode} {
     }
 }
 
-package provide vfs::cookfs::tcl::vfs 1.1
+package provide vfs::cookfs::tcl::vfs 1.2

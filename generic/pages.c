@@ -213,7 +213,7 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
     CookfsLog(printf("Cookfs_PagesClose - BEGIN"))
     
     if (p->fileChannel != NULL) {
-	CookfsLog(printf("Cookfs_PagesClose - Pages up to date = %d, Index changed = ", p->pagesUptodate, p->indexChanged))
+	CookfsLog(printf("Cookfs_PagesClose - Pages up to date = %d, Index changed = %d", p->pagesUptodate, p->indexChanged))
 	/* if changes were made, save them to disk */
 	if ((!p->pagesUptodate) || (p->indexChanged)) {
 	    int indexSize;

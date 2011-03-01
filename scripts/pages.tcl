@@ -390,4 +390,4 @@ proc cookfs::pages::handle {name cmd args} {
     }
 }
 
-package provide vfs::cookfs::tcl::pages 1.1
+package provide vfs::cookfs::tcl::pages 1.2

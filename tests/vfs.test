@@ -69,14 +69,18 @@ tcltest::test cookfsVfs-2.3 "Test correct storing of empty files or new director
     vfs::unmount $file
 
     set fsid [vfs::cookfs::Mount $file $file]
+    # create 2 files so length of new index is not smaller than previously
     close [open $file/file2 w]
+    close [open $file/file34 w]
     vfs::unmount $file
 
     set fsid [vfs::cookfs::Mount $file $file]
     if {![file exists $file/file2]} {
         error "Unable to find file2 in archive"
     }
+    # create 2 directories so length of new index is not smaller than previously
     file mkdir $file/dir1
+    file mkdir $file/dir23
     vfs::unmount $file
 
     set fsid [vfs::cookfs::Mount $file $file]

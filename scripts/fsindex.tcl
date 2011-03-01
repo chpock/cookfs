@@ -243,4 +243,4 @@ proc cookfs::fsindex::handle {name cmd args} {
     }
 }
 
-package provide vfs::cookfs::tcl::fsindex 1.1
+package provide vfs::cookfs::tcl::fsindex 1.2
