@@ -755,6 +755,8 @@ static Tcl_Obj *CookfsReadPageCustom(Cookfs_Pages *p, int size) {
 	p->decompressCommandPtr[p->decompressCommandLen - 1] = NULL;
 	CookfsLog(printf("Unable to decompress"))
 	Tcl_DecrRefCount(compressed);
+        Tcl_SetObjResult(p->interp, prevResult);
+        Tcl_DecrRefCount(prevResult);
 	return NULL;
     }
     p->decompressCommandPtr[p->decompressCommandLen - 1] = NULL;
