@@ -396,6 +396,8 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
 #else
 	b[3] = (int) Tcl_ZlibCRC32(Tcl_ZlibCRC32(0,NULL,0), bytes, objLength);
 #endif
+	/* copy to checksum memory */
+	Cookfs_Int2Binary(b, bytes, 4);
     }  else  {
 	Cookfs_MD5(bytes, objLength, md5sum);
     }
