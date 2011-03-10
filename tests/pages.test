@@ -479,3 +479,61 @@ tcltest::test cookfsPages-9.1 "Test only changing index information" -setup {
     catch {file delete -force $file}
 } -returnCodes {ok} -result IDX1
 
+tcltest::test cookfsPages-10.1 "Test crc32 checksum algorithm" -setup {
+    set file [tcltest::makeFile {TESTTEST} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg hash crc32
+    set i0 [$pg add TEST]
+    set i1 [$pg add TEST]
+    expr {$i0 == $i1}
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 1
+
+tcltest::test cookfsPages-10.2 "Test crc32 checksum algorithm fail if not re-set" -setup {
+    set file [tcltest::makeFile {TESTTEST} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg hash crc32
+    set i0 [$pg add TEST]
+
+    $pg delete
+    set pg [cookfs::pages $file]
+    set i1 [$pg add TEST]
+    expr {$i0 != $i1}
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 1
+
+tcltest::test cookfsPages-10.3 "Test crc32 checksum algorithm after re-reading" -setup {
+    set file [tcltest::makeFile {TESTTEST} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg hash crc32
+    set i0 [$pg add TEST]
+
+    $pg delete
+    set pg [cookfs::pages $file]
+    $pg hash crc32
+    set i1 [$pg add TEST]
+    expr {$i0 == $i1}
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 1
+
+tcltest::test cookfsPages-10.4 "Test crc32 with large chunks" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression custom -compresscommand testcompress $file]
+    $pg hash crc32
+    set i0 [$pg add [string repeat "TEST" 1024]]
+    set i1 [$pg add [string repeat "TEST" 1024]]
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {error} -result {Unable to add page}
+

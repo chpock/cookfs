@@ -80,14 +80,15 @@ proc cookfs::Mount {args} {
         {nocommand                                      {Do not create command for managing cookfs archive}}
         {bootstrap.arg                  ""              {Bootstrap code to add in the beginning}}
         {compression.arg                "zlib"          {Compression type to use}}
-	{compresscommand.arg            ""              {Command to use for custom compression}}
-	{decompresscommand.arg          ""              {Command to use for custom decompression}}
+        {compresscommand.arg            ""              {Command to use for custom compression}}
+        {decompresscommand.arg          ""              {Command to use for custom decompression}}
         {endoffset.arg                  ""              {Force reading VFS ending at specific offset instead of end of file}}
         {pagesobject.arg                ""              {Reuse existing pages object}}
         {readonly                                       {Open as read only}}
         {writetomemory                                  {Open as read only and keep new files in memory}}
         {pagesize.arg                   262144          {Maximum page size}}
         {pagecachesize.arg              8               {Number of pages to cache}}
+        {pagehash.arg                   "md5"           {Hash algorithm to use for page hashing}}
         {volume                                         {Mount as volume}}
         {smallfilesize.arg              32768           {Maximum size of small files}}
         {smallfilebuffer.arg            4194304         {Maximum buffer for optimizing small files}}
@@ -202,16 +203,27 @@ proc cookfs::Mount {args} {
         set fs(pages) $opt(pagesobject)
     }
     
-    if {([$fs(pages) length] == 0) && ([string length $opt(bootstrap)] > 0)} {
-        $fs(pages) add $opt(bootstrap)
-    }
-
     # initialize directory listing
     set idx [$fs(pages) index]
     if {[string length $idx] > 0} {
         set fs(index) [cookfs::fsindex $idx]
     }  else  {
         set fs(index) [cookfs::fsindex]
+    }
+
+    # additional initialization if no pages currently exist
+    if {[$fs(pages) length] == 0} {
+	# add bootstrap if specified
+	if {[string length $opt(bootstrap)] > 0} {
+	    $fs(pages) add $opt(bootstrap)
+	}
+
+	$fs(pages) hash $opt(pagehash)
+
+	$fs(index) setmetadata cookfs.pagehash $opt(pagehash)
+    }  else  {
+	# by default, md5 was the page hashing algorithm used
+	$fs(pages) hash [$fs(index) getmetadata cookfs.pagehash "md5"]
     }
 
     # initialize Tcl mountpoint

@@ -293,3 +293,23 @@ tcltest::test cookfsVfs-5.5 "Test setting and getting metadata" -constraints coo
     catch {vfs::unmount $file}
     tcltest::removeFile $file
 } -returnCodes {ok} -result {othervalue}
+
+tcltest::test cookfsVfs-6.1 "Test crc32 based VFS and page handling" -constraints cookfsMetadata -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+} -body {
+    vfs::cookfs::Mount -pagehash crc32 $file $file
+    set fh [open $file/test1 w]
+    puts $fh "TEST TEST"
+    close $fh
+    vfs::unmount $file
+
+    set h [vfs::cookfs::Mount $file $file]
+    set fh [open $file/test2 w]
+    puts $fh "TEST TEST"
+    close $fh
+    
+    [set ${h}(pages)] length
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result {1}

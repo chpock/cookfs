@@ -67,7 +67,7 @@ const int cookfsCompressionOptionMap[] = {
  */
 
 void Cookfs_PagesInitCompr(Cookfs_Pages *rc) {
-#ifdef USE_ZLIB_VFSZIP
+#ifdef USE_VFS_COMMANDS_FOR_ZIP
     /* initialize list for calling vfs::zip command for (de)compressing */
     rc->zipCmdCompress[0] = Tcl_NewStringObj("vfs::zip", -1);
     rc->zipCmdCompress[1] = Tcl_NewStringObj("-mode", -1);
@@ -111,7 +111,7 @@ void Cookfs_PagesInitCompr(Cookfs_Pages *rc) {
  */
 
 void Cookfs_PagesFiniCompr(Cookfs_Pages *rc) {
-#ifdef USE_ZLIB_VFSZIP
+#ifdef USE_VFS_COMMANDS_FOR_ZIP
     /* free up memory for invoking commands */
     Tcl_DecrRefCount(rc->zipCmdCompress[0]);
     Tcl_DecrRefCount(rc->zipCmdCompress[1]);

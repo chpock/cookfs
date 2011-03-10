@@ -13,6 +13,7 @@ static int deprecatedCounter = 0;
 
 /* definitions of static and/or internal functions */
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static void CookfsPagesDeleteProc(ClientData clientData);
 static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
@@ -237,8 +238,8 @@ ERROR:
 
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     static char *commands[] = {
-	"add", "aside", "get", "gethead", "getheadmd5", "gettail", "gettailmd5", "index", "length", "dataoffset", "close", "delete", NULL };
-    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail, cmdGetTailMD5, cmdIndex, cmdLength, cmdDataoffset, cmdClose, cmdDelete };
+	"add", "aside", "get", "gethead", "getheadmd5", "gettail", "gettailmd5", "hash", "index", "length", "dataoffset", "close", "delete", NULL };
+    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail, cmdGetTailMD5, cmdHash, cmdIndex, cmdLength, cmdDataoffset, cmdClose, cmdDelete };
     int idx;
     Cookfs_Pages *p = (Cookfs_Pages *) clientData;
     
@@ -356,6 +357,10 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             }
             break;
         }
+	case cmdHash:
+	{
+	    return CookfsPagesCmdHash(p, interp, objc, objv);
+	}
         case cmdIndex:
         {
             if (objc == 3) {
@@ -432,6 +437,42 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             break;
         }
     }
+    return TCL_OK;
+}
+
+ 
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsPagesCmdHash --
+ *
+ *	Set hash function used for storing cookfs pages
+ *
+ * Results:
+ *	Returns TCL_OK on success; TCL_ERROR on error
+ *	On success hash method is set
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+    static char *commands[] = { "md5", "crc32", NULL };
+    int idx;
+    
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 2, objv, "hash");
+        return TCL_ERROR;
+    }
+
+    if (Tcl_GetIndexFromObj(interp, objv[2], (const char **) commands, "hash", 0, &idx) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+    pages->pageHash = idx;
+
     return TCL_OK;
 }
 

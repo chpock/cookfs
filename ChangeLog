@@ -1,4 +1,14 @@
 2011-03-10 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* generic/pages.c: Added support for crc32 as alternate checksum algorithm
+	* generic/pagesCompr.c:
+	* generic/pages.h:
+	* generic/pagesCmd.c:
+	* scripts/pages.tcl:
+	* scripts/cookvfs.tcl:
+	* tests/vfs.test:
+	* tests/pages.test:
+
+2011-03-10 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/fsindex.tcl: Support for metadata in pure Tcl version of cookfs
 	* configure:
 	* configure.in:

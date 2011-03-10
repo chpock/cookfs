@@ -22,6 +22,7 @@ proc cookfs::pages {args} {
 	endoffset ""
 	cfsname "CFS0002"
 	lastop read
+	hash md5
     }
     while {[llength $args] > 1} {
 	switch -- [lindex $args 0] {
@@ -227,7 +228,14 @@ proc cookfs::pages::readIndex {name} {
 
 proc cookfs::pages::pageAdd {name contents} {
     upvar #0 $name c
-    set md5 [string toupper [md5::md5 -hex $contents]]
+
+    if {$c(hash) == "crc32"} {
+	set crc32 [vfs::crc $contents]
+	set md5 [string toupper [format %08x%08x%08x%08x 0 0 [string length $contents] $crc32]]
+    }  else  {
+	set md5 [string toupper [md5::md5 -hex $contents]]
+    }
+
     set idx 0
     foreach imd5 $c(idx.md5list) {
 	if {[string equal $md5 $imd5]} {
@@ -327,43 +335,48 @@ proc cookfs::pages::pageGet {name idx} {
     return $fc
 }
 
+proc cookfs::pages::sethash {name hash} {
+    upvar #0 $name c
+    set c(hash) $hash
+}
+
 proc cookfs::pages::handle {name cmd args} {
     upvar #0 $name c
     switch -- $cmd {
 	get {
-	    if {[llength $args] != 1} {
-		error "TODO: help"
+	    if {[llength $args] == 1} {
+		if {[catch {
+		    pageGet $name [lindex $args 0]
+		} rc]} {
+		    # TODO: log error
+		    error "Unable to retrieve chunk"
+		}
+		return $rc
 	    }
-	    if {[catch {
-		pageGet $name [lindex $args 0]
-	    } rc]} {
-		# TODO: log error
-		error "Unable to retrieve chunk"
-	    }
-	    return $rc
 	}
 	add {
-	    if {[llength $args] != 1} {
-		error "TODO: help"
+	    if {[llength $args] == 1} {
+		if {[catch {
+		    pageAdd $name [lindex $args 0]
+		} rc]} {
+		    # TODO: log error
+		    error "Unable to add page"
+		}
+		return $rc
 	    }
-	    if {[catch {
-		pageAdd $name [lindex $args 0]
-	    } rc]} {
-		# TODO: log error
-		error "Unable to add page"
-	    }
-	    return $rc
+	    
 	}
 	length {
-	    if {[llength $args] != 0} {
-		error "TODO: help"
+	    if {[llength $args] == 0} {
+		return [llength $c(idx.sizelist)]
 	    }
-	    return [llength $c(idx.sizelist)]
+	    
 	}
 	index {
 	    if {[llength $args] == 1} {
 		set c(indexdata) [lindex $args 0]
 		set c(indexChanged) 1
+		return ""
 	    }  elseif {[llength $args] == 0} {
 		return $c(indexdata)
 	    }  else  {
@@ -374,9 +387,16 @@ proc cookfs::pages::handle {name cmd args} {
 	    cleanup $name
 	    unset $name
 	    rename $name ""
+	    return ""
 	}
 	close {
 	    return [cleanup $name]
+	}
+	hash {
+	    if {[llength $args] == 1} {
+		sethash $name [lindex $args 0]
+		return
+	    }
 	}
 	dataoffset {
 	    error "Not implemented"
@@ -388,6 +408,7 @@ proc cookfs::pages::handle {name cmd args} {
 	    error "Not implemented"
 	}
     }
+    error "TODO: help"
 }
 
 package provide vfs::cookfs::tcl::pages 1.2

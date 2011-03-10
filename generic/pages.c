@@ -122,6 +122,10 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     rc->dataPagesIsAside = isAside;
     
     rc->dataIndex = Tcl_NewStringObj("", 0);
+
+    rc->pageHash = COOKFS_HASH_MD5;
+    rc->zipCmdCrc[0] = Tcl_NewStringObj("vfs::crc", -1);
+    
     Tcl_IncrRefCount(rc->dataIndex);
 
     /* initialize cache */
@@ -362,7 +366,37 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
     unsigned char *pageMD5 = p->dataPagesMD5;
 
     bytes = Tcl_GetByteArrayFromObj(dataObj, &objLength);
-    Cookfs_MD5(bytes, objLength, md5sum);
+    
+    if (p->pageHash == COOKFS_HASH_CRC32) {
+	int b[4] = { 0, 0, objLength, 0 };
+#ifdef USE_VFS_COMMANDS_FOR_ZIP
+	Tcl_Obj *data;
+	Tcl_Obj *prevResult;
+
+	Tcl_IncrRefCount(dataObj);
+	p->zipCmdCrc[1] = dataObj;
+
+	prevResult = Tcl_GetObjResult(p->interp);
+	Tcl_IncrRefCount(prevResult);
+
+	if (Tcl_EvalObjv(p->interp, 2, p->zipCmdCrc, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) == TCL_OK) {
+	    data = Tcl_GetObjResult(p->interp);
+	    Tcl_IncrRefCount(data);
+	    Tcl_GetIntFromObj(NULL, data, &b[3]);
+	    Tcl_DecrRefCount(data);
+	}
+
+	p->zipCmdCrc[1] = NULL;
+	Tcl_DecrRefCount(dataObj);
+
+	Tcl_SetObjResult(p->interp, prevResult);
+	Tcl_DecrRefCount(prevResult);
+#else
+	b[3] = (int) Tcl_ZlibCRC32(Tcl_ZlibCRC32(0,NULL,0), bytes, objLength);
+#endif
+    }  else  {
+	Cookfs_MD5(bytes, objLength, md5sum);
+    }
 
     /* see if this entry already exists */
     CookfsLog(printf("Cookfs_PageAdd: Matching page (size=%d bytes)", objLength))

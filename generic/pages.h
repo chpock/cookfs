@@ -7,7 +7,7 @@
 #ifdef COOKFS_USECPAGES
 
 #if 10 * TCL_MAJOR_VERSION + TCL_MINOR_VERSION < 86
-#define USE_ZLIB_VFSZIP 1
+#define USE_VFS_COMMANDS_FOR_ZIP 1
 #else
 #define USE_ZLIB_TCL86 1
 #endif
@@ -22,6 +22,11 @@ enum {
     COOKFS_LASTOP_WRITE
 };
 
+enum {
+    COOKFS_HASH_MD5 = 0,
+    COOKFS_HASH_CRC32
+};
+
 #define COOKFS_SIGNATURE_LENGTH 7
 #define COOKFS_MAX_CACHE_PAGES 256
 #define COOKFS_DEFAULT_CACHE_PAGES 4
@@ -33,10 +38,11 @@ enum {
 typedef struct Cookfs_Pages {
     /* main interp */
     Tcl_Interp *interp;
-#ifdef USE_ZLIB_VFSZIP
+#ifdef USE_VFS_COMMANDS_FOR_ZIP
+    Tcl_Obj *zipCmdCrc[2];
     Tcl_Obj *zipCmdCompress[6];
     Tcl_Obj *zipCmdDecompress[6];
-#endif /* USE_ZLIB_VFSZIP */
+#endif /* USE_VFS_COMMANDS_FOR_ZIP */
     /* file */
     Tcl_Mutex pagesLock;
     int isAside;
@@ -49,6 +55,7 @@ typedef struct Cookfs_Pages {
     int useFoffset;
     Tcl_WideInt foffset;
     int shouldTruncate;
+    int pageHash;
 
     /* index */
     int pagesUptodate;
