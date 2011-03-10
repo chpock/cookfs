@@ -1,3 +1,8 @@
+2011-03-10 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* scripts/fsindex.tcl: Support for metadata in pure Tcl version of cookfs
+	* configure:
+	* configure.in:
+
 2011-02-21 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* generic/pages.c: Cookfs index not updated if no changes to pages are made
 	* generic/pages.h:
@@ -5,7 +10,6 @@
 	* scripts/writer.tcl:
 	* tests/vfs.test:
 	* tests/pages.test
-
 
 2011-01-31 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* Started logging changes

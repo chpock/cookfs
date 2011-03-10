@@ -9,6 +9,10 @@ set ::cookfs::fsindexhandleIdx 0
 proc cookfs::fsindex {{data ""}} {
     set name ::cookfs::fsindexhandle[incr ::cookfs::fsindexhandleIdx]
     upvar #0 $name c
+    upvar #0 $name.m cm
+
+    # initialize metadata array
+    array set cm {}
 
     if {$data != ""} {
 	fsindex::import $name $data
@@ -132,6 +136,7 @@ proc cookfs::fsindex::import {name data} {
     }
     set data [string range $data 8 end]
     importPath $name {} data
+    importMetadata $name data
 }
 
 proc cookfs::fsindex::importPath {name path varname} {
@@ -171,7 +176,7 @@ proc cookfs::fsindex::importPath {name path varname} {
 
 proc cookfs::fsindex::export {name} {
     upvar #0 $name c
-    return "CFS2.200[exportPath $name {}]"
+    return "CFS2.200[exportPath $name {}][exportMetadata $name]"
 }
 
 proc cookfs::fsindex::exportPath {name path} {
@@ -196,6 +201,63 @@ proc cookfs::fsindex::exportPath {name path} {
     return $rc
 }
 
+proc cookfs::fsindex::importMetadata {name varname} {
+    upvar #0 $name.m cm
+    upvar $varname data
+    if {([string length $data] >= 4) && ([binary scan $data I count] > 0)} {
+	set data [string range $data 4 end]
+	for {set i 0} {$i < $count} {incr i} {
+	    if {![binary scan $data I size]} {
+		set data {}
+		return
+	    }
+	    set bindata [string range $data 4 [expr {$size + 3}]]
+	    set si [string first \0 $bindata]
+
+	    if {$si >= 0} {
+		set key [string range $bindata 0 [expr {$si - 1}]]
+		set value [string range $bindata [expr {$si + 1}] end]
+		set cm($key) $value
+	    }
+	    set data [string range $data [expr {$size + 4}] end]
+	}
+    }
+}
+
+proc cookfs::fsindex::exportMetadata {name} {
+    upvar #0 $name.m cm
+
+    set nl [array names cm]
+    set rc [binary format I [llength $nl]]
+    foreach n $nl {
+	set v $cm($n)
+	set size [expr {[string length $n] + [string length $v] + 1}]
+	append rc [binary format I $size] $n \0 $v
+    }
+    return $rc
+}
+
+proc cookfs::fsindex::getMetadata {name paramname valuevariable} {
+    upvar #0 $name.m cm
+    if {[info exists cm($paramname)]} {
+	upvar 1 $valuevariable v
+	set v $cm($paramname)
+	return 1
+    }  else  {
+	return 0
+    }
+}
+
+proc cookfs::fsindex::setMetadata {name paramname paramvalue} {
+    upvar #0 $name.m cm
+    set cm($paramname) $paramvalue
+}
+
+proc cookfs::fsindex::unsetMetadata {name paramname} {
+    upvar #0 $name.m cm
+    unset -nocomplain cm($paramname)
+}
+
 proc cookfs::fsindex::handle {name cmd args} {
     #puts "handle $name $cmd $args"
     switch -- $cmd {
@@ -203,44 +265,68 @@ proc cookfs::fsindex::handle {name cmd args} {
 	    return [export $name]
 	}
 	list {
-	    if {([llength $args] != 1)} {
-		error "TODO: args"
+	    if {([llength $args] == 1)} {
+		return [entriesList $name [lindex $args 0]]
 	    }
-	    return [entriesList $name [lindex $args 0]]
 	}
 	get {
-	    if {([llength $args] != 1)} {
-		error "TODO: args"
+	    if {([llength $args] == 1)} {
+		return [entryGet $name [lindex $args 0]]
 	    }
-	    return [entryGet $name [lindex $args 0]]
 	}
 	getmtime {
-	    if {([llength $args] != 1)} {
-		error "TODO: args"
+	    if {([llength $args] == 1)} {
+		return [entryGetmtime $name [lindex $args 0]]
 	    }
-	    return [entryGetmtime $name [lindex $args 0]]
 	}
 	set {
 	    if {([llength $args] == 2) || ([llength $args] == 3)} {
 		# directory: path mtime
 		entrySet $name [lindex $args 0] [lrange $args 1 end]
 	    }
+	    return ""
 	}
 	setmtime {
+	    # TODO: implement
 	    error "Not implemented"
 	}
 	unset {
+	    # TODO: implement
 	    error "Not implemented"
 	}
 	delete {
 	    cleanup $name
 	    unset $name
+	    unset $name.m
 	    rename $name ""
+	    return ""
 	}
-	default {
-	    error "Not implemented"
+	getmetadata {
+	    if {([llength $args] == 1) || ([llength $args] == 2)} {
+		# name ?defaultValue?
+		set value [lindex $args 1]
+		if {![getMetadata $name [lindex $args 0] value]} {
+		    if {[llength $args] == 1} {
+			error "Parameter not defined"
+		    }
+		}
+		return $value
+	    }
+	}
+	setmetadata {
+	    if {[llength $args] == 2} {
+		setMetadata $name [lindex $args 0] [lindex $args 1]
+		return ""
+	    }
+	}
+	unsetmetadata {
+	    if {[llength $args] == 1} {
+		unsetMetadata $name [lindex $args 0]
+		return ""
+	    }
 	}
     }
+    error "TODO: args"
 }
 
 package provide vfs::cookfs::tcl::fsindex 1.2

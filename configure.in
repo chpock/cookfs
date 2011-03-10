@@ -174,7 +174,10 @@ if test ${USECFSINDEX} = yes; then
     fi
 else
     COOKFS_PKGCONFIG_USECFSINDEX=0
-    COOKFS_PKGCONFIG_FEATURE_METADATA=0
+    
+    # TODO: move this outside conditions since
+    # metadata is supported in pure Tcl version as well
+    COOKFS_PKGCONFIG_FEATURE_METADATA=1
     TEA_ADD_TCL_SOURCES([scripts/fsindex.tcl])
 fi
 AC_SUBST(COOKFS_PKGCONFIG_USECFSINDEX)
