@@ -64,6 +64,13 @@ proc cookfs::initialize {} {
 
 	set pkginitialized 1
     }
+
+    # decide on crc32 implementation based on if zlib command is present
+    if {(![catch {zlib crc32 ""} testvalue]) && ($testvalue == "0")} {
+        proc ::cookfs::getCRC32 {v} {return [zlib crc32 $v]}
+    }  else  {
+        proc ::cookfs::getCRC32 {v} {package require crc32 ; return [crc::crc32 -format %d $v]}
+    }
 }
 
 # Mount VFS - usage:

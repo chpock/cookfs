@@ -125,7 +125,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
 
     rc->pageHash = COOKFS_HASH_MD5;
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
-    rc->zipCmdCrc[0] = Tcl_NewStringObj("vfs::crc", -1);
+    rc->zipCmdCrc[0] = Tcl_NewStringObj("::cookfs::getCRC32", -1);
 #endif
     
     Tcl_IncrRefCount(rc->dataIndex);

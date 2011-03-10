@@ -230,8 +230,9 @@ proc cookfs::pages::pageAdd {name contents} {
     upvar #0 $name c
 
     if {$c(hash) == "crc32"} {
-	set crc32 [vfs::crc $contents]
-	set md5 [string toupper [format %08x%08x%08x%08x 0 0 [string length $contents] $crc32]]
+	set md5 [string toupper [format %08x%08x%08x%08x \
+	    0 0 [string length $contents] [::cookfs::getCRC32 $contents] \
+	    ]]
     }  else  {
 	set md5 [string toupper [md5::md5 -hex $contents]]
     }
