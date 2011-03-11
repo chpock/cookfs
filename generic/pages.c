@@ -412,6 +412,8 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
 	    int otherObjLength;
 	    int isMatched = 1;
 
+	    CookfsLog(printf("Cookfs_PageAdd: Comparing page %d", idx))
+
 	    otherPageData = Cookfs_PageGet(p, idx);
 	    /* fail in case when decompression is not available */
 	    if (otherPageData == NULL) {

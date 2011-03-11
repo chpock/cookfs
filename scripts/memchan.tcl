@@ -16,7 +16,8 @@ proc cookfs::initMemchan {fsid path read} {
     
     set chan [vfs::memchan]
     set translation [fconfigure $chan -translation]
-    fconfigure $chan -translation binary
+    # larger buffer size speeds up memchan
+    fconfigure $chan -translation binary -buffersize 262144
 
     if {$read} {
         if {![catch {
