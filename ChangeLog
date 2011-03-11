@@ -1,3 +1,17 @@
+2011-03-11 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* doc/cookfs.man: Updated documentation for internal hash/pagehash method
+	* doc/cookfs_pages.man:
+	* doc/cookfs.html:
+	* doc/cookfs_pages.html:
+	* doc/cookfs.n:
+	* doc/cookfs_pages.n:
+
+
+2011-03-11 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* configure.in: Changed internal debugging so it is enabled at build time rather than just #if 0 / #if 1
+	* configure:
+	* generic/cookfs.h:
+
 2011-03-10 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* generic/pages.c: Added support for crc32 as alternate checksum algorithm
 	* generic/pagesCompr.c:

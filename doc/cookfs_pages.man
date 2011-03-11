@@ -64,6 +64,10 @@ Tail is the entire cookfs archive.
 [para]
 These commands can be used as helper procedures to read or compare currently open/mounted binaries.
 
+[call [arg pagesHandle] [method hash]]
+Hash function to use for comparing if pages are equal. This is mainly used as pre-check and entire page is still checked for.
+Defaults to [const md5], can also be [const crc32]. Mainly for internal/testing at this moment. Do not use.
+
 [call [arg pagesHandle] [method close]]
 Closes pages object and return offset to end of cookfs archive.
 This is almost an equivalent of calling [method delete].

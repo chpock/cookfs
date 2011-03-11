@@ -192,7 +192,8 @@ Do not register Tcl command for this cookfs handle. Mainly for internal use.
 Bootstrap code for cookit binaries. Mainly for internal use.
 
 [def "[option -pagehash] [arg hash]"]
-Hash function to use. Defaults to [const md5], can also be [const crc32]. Mainly for internal/testing at this moment. Do not use.
+Hash function to use for comparing if pages are equal. This is mainly used as pre-check and entire page is still checked for.
+Defaults to [const md5], can also be [const crc32]. Mainly for internal/testing at this moment. Do not use.
 
 [def "[option -pagesobject] [arg pagesObject]"]
 Do not create cookfs::pages object, use specified pages object. Mainly for internal use.

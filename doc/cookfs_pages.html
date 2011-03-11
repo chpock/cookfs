@@ -133,7 +133,8 @@
 <li><a href="#10"><i class="arg">pagesHandle</i> <b class="method">getheadmd5</b></a></li>
 <li><a href="#11"><i class="arg">pagesHandle</i> <b class="method">gettail</b></a></li>
 <li><a href="#12"><i class="arg">pagesHandle</i> <b class="method">gettailmd5</b></a></li>
-<li><a href="#13"><i class="arg">pagesHandle</i> <b class="method">close</b></a></li>
+<li><a href="#13"><i class="arg">pagesHandle</i> <b class="method">hash</b></a></li>
+<li><a href="#14"><i class="arg">pagesHandle</i> <b class="method">close</b></a></li>
 </ul>
 </div>
 </div>
@@ -176,7 +177,10 @@ This is used to store exported version of <b class="sectref">cookfs_fsindex</b>.
 Head is the part of the file prior to cookfs archive.
 Tail is the entire cookfs archive.</p>
 <p>These commands can be used as helper procedures to read or compare currently open/mounted binaries.</p></dd>
-<dt><a name="13"><i class="arg">pagesHandle</i> <b class="method">close</b></a></dt>
+<dt><a name="13"><i class="arg">pagesHandle</i> <b class="method">hash</b></a></dt>
+<dd><p>Hash function to use for comparing if pages are equal. This is mainly used as pre-check and entire page is still checked for.
+Defaults to <b class="const">md5</b>, can also be <b class="const">crc32</b>. Mainly for internal/testing at this moment. Do not use.</p></dd>
+<dt><a name="14"><i class="arg">pagesHandle</i> <b class="method">close</b></a></dt>
 <dd><p>Closes pages object and return offset to end of cookfs archive.
 This is almost an equivalent of calling <b class="method">delete</b>.</p>
 <p>This is meant for internal development and should not be used outside cookfs.</p></dd>

@@ -271,6 +271,8 @@ package require \fBvfs::cookfs  ?1.2?\fR
 .sp
 \fIpagesHandle\fR \fBgettailmd5\fR
 .sp
+\fIpagesHandle\fR \fBhash\fR
+.sp
 \fIpagesHandle\fR \fBclose\fR
 .sp
 .BE
@@ -325,6 +327,10 @@ Head is the part of the file prior to cookfs archive.
 Tail is the entire cookfs archive.
 .sp
 These commands can be used as helper procedures to read or compare currently open/mounted binaries.
+.TP
+\fIpagesHandle\fR \fBhash\fR
+Hash function to use for comparing if pages are equal. This is mainly used as pre-check and entire page is still checked for.
+Defaults to \fBmd5\fR, can also be \fBcrc32\fR. Mainly for internal/testing at this moment. Do not use.
 .TP
 \fIpagesHandle\fR \fBclose\fR
 Closes pages object and return offset to end of cookfs archive.
