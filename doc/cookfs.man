@@ -191,6 +191,9 @@ Do not register Tcl command for this cookfs handle. Mainly for internal use.
 [def "[option -bootstrap] [arg {tcl code}]"]
 Bootstrap code for cookit binaries. Mainly for internal use.
 
+[def "[option -pagehash] [arg hash]"]
+Hash function to use. Defaults to [const md5], can also be [const crc32]. Mainly for internal/testing at this moment. Do not use.
+
 [def "[option -pagesobject] [arg pagesObject]"]
 Do not create cookfs::pages object, use specified pages object. Mainly for internal use.
 

@@ -107,11 +107,16 @@ if test "${SHARED_BUILD}" = "1"; then
 AC_DEFINE(USE_TCL_STUBS, 1, [Use Tcl stubs])
 fi
 
-AC_ARG_ENABLE(bz2,             [  --enable-bz2              Use bz2 compression. Defaults to false.],               USEBZ2=${enableval},           USEBZ2=no)
+AC_ARG_ENABLE(internal-debug,  [  --enable-internal-debug   Enable internal debugging mechanism. Defaults to false],INTERNALDEBUG=${enableval},    INTERNALDEBUG=no)
+AC_ARG_ENABLE(bz2,             [  --enable-bz2              Use bz2 compression. Defaults to false],                USEBZ2=${enableval},           USEBZ2=no)
 AC_ARG_ENABLE(tcl-fallback,    [  --enable-tcl-fallback     Install Tcl scripts if load fails. Defaults to false],  USEFALLBACK=${enableval},      USEFALLBACK=no)
 AC_ARG_ENABLE(c-pages,         [  --disable-c-pages         Use pages handling written in C. Defaults to true],     USECPAGES=${enableval},        USECPAGES=yes)
 AC_ARG_ENABLE(c-fsindex,       [  --disable-c-fsindex       Use index handling written in C. Defaults to true],     USECFSINDEX=${enableval},      USECFSINDEX=yes)
 AC_ARG_ENABLE(c-readerchannel, [  --disable-c-readerchannel Use reader handler written in C. Defaults to true],     USECREADERCHAN=${enableval},   USECREADERCHAN=yes)
+
+if test ${INTERNALDEBUG} = yes; then
+    AC_DEFINE(COOKFS_INTERNAL_DEBUG)
+fi
 
 if test ${USECPAGES} = yes; then
     AC_DEFINE(COOKFS_USECPAGES)
