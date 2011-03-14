@@ -58,7 +58,7 @@ proc cookfs::pages {args} {
 	if {$c(readonly)} {
 	    set c(fh) [open [lindex $args 0] r]
 	}  else  {
-	    set c(fh) [open [lindex $args 0] a+]
+	    set c(fh) [open [lindex $args 0] {RDWR CREAT}]
 	}
     }]} {
 	error "Unable to create Cookfs object"

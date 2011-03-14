@@ -1,3 +1,7 @@
+2011-03-14 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* generic/pages.c: Changed a+ mode for writing to {RDWR CREAT} to prevent [tell] reporting incorrect location after writing index when using Tcl 8.4 on Windows
+	* scripts/pages.tcl:
+
 2011-03-11 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* doc/cookfs.man: Updated documentation for internal hash/pagehash method
 	* doc/cookfs_pages.man:
