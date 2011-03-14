@@ -284,7 +284,7 @@ proc cookfs::pages::cleanup {name} {
 	puts -nonewline $c(fh) [binary format IIca* [string length $idx] [llength $c(idx.sizelist)] [compression2cid $c(compression)] $c(cfsname)]
 	set eo [tell $c(fh)]
 	if {$eo < $c(endoffset)} {
-	    chan truncate $c(fh)
+	    catch {chan truncate $c(fh)}
 	}
 	set c(endoffset) $eo
 	set c(haschanged) 0
