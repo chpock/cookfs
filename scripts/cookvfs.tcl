@@ -92,6 +92,7 @@ proc cookfs::Mount {args} {
         {endoffset.arg                  ""              {Force reading VFS ending at specific offset instead of end of file}}
         {pagesobject.arg                ""              {Reuse existing pages object}}
         {fsindexobject.arg              ""              {Reuse existing fsindex object}}
+        {setmetadata.arg                ""              {Set metadata after mounting}}
         {readonly                                       {Open as read only}}
         {writetomemory                                  {Open as read only and keep new files in memory}}
         {pagesize.arg                   262144          {Maximum page size}}
@@ -236,6 +237,10 @@ proc cookfs::Mount {args} {
     }  else  {
 	# by default, md5 was the page hashing algorithm used
 	$fs(pages) hash [$fs(index) getmetadata cookfs.pagehash "md5"]
+    }
+
+    foreach {paramname paramvalue} $opt(setmetadata) {
+        $fs(index) setmetadata $paramname $paramvalue
     }
 
     # initialize Tcl mountpoint

@@ -182,6 +182,10 @@ Read archive starting at specified offset, instead of reading from end of file.
 This feature is used when cookfs archive is not stored at end of file - for example if it is
 used in tclkit and followed by mk4vfs archive.
 
+[def "[option -setmetadata] [arg list]"]
+Set specified metadata after mounting. Convenience for setting metadata in mount command.
+List should be a name-value pairs list indicating parameter names and values to set.
+
 [def "[option -noregister]"]
 Do not register this mount point with tclvfs. Mainly for internal use.
 

@@ -241,6 +241,9 @@ better compression ratio.</p>
 <dd><p>Read archive starting at specified offset, instead of reading from end of file.</p>
 <p>This feature is used when cookfs archive is not stored at end of file - for example if it is
 used in tclkit and followed by mk4vfs archive.</p></dd>
+<dt><b class="option">-setmetadata</b> <i class="arg">list</i></dt>
+<dd><p>Set specified metadata after mounting. Convenience for setting metadata in mount command.
+List should be a name-value pairs list indicating parameter names and values to set.</p></dd>
 <dt><b class="option">-noregister</b></dt>
 <dd><p>Do not register this mount point with tclvfs. Mainly for internal use.</p></dd>
 <dt><b class="option">-nocommand</b></dt>

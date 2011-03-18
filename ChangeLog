@@ -1,4 +1,11 @@
 2011-03-18 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* scripts/cookvfs.tcl: Added -setmetadata to Mount command; used to set metadata when mounting, for tools such as tabs
+	* tests/vfs.test:
+	* doc/cookfs.n:
+	* doc/cookfs.html:
+	* doc/cookfs.man:
+
+2011-03-18 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/cookvfs.tcl: Added -fsindexobject to Mount command; used by cookit to retrieve metadata before mounting binary
 	* tests/vfs.test:
 	* doc/cookfs.n:
