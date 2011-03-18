@@ -421,6 +421,9 @@ Bootstrap code for cookit binaries. Mainly for internal use.
 Hash function to use for comparing if pages are equal. This is mainly used as pre-check and entire page is still checked for.
 Defaults to \fBmd5\fR, can also be \fBcrc32\fR. Mainly for internal/testing at this moment. Do not use.
 .TP
+\fB-fsindexobject\fR \fIfsiagesObject\fR
+Do not create cookfs::fsindex object, use specified fsindex object. Mainly for internal use.
+.TP
 \fB-pagesobject\fR \fIpagesObject\fR
 Do not create cookfs::pages object, use specified pages object. Mainly for internal use.
 .PP

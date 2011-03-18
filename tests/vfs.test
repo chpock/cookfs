@@ -24,6 +24,57 @@ tcltest::test cookfsVfs-1.3 "Mount non-existant file as read-only" -setup {
     tcltest::removeFile $file
 } -returnCodes {error} -result {Unable to create Cookfs object}
 
+tcltest::test cookfsVfs-1.4 "Remounting archive" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+} -body {
+    vfs::cookfs::Mount $file $file
+    set fh [open [file join $file testfile] w]
+    puts $fh TEST
+    close $fh
+    vfs::unmount $file
+
+    vfs::cookfs::Mount $file $file
+    file exists [file join $file testfile]
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result 1
+
+tcltest::test cookfsVfs-1.5 "Remounting archive using -pagesobject" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+} -body {
+    vfs::cookfs::Mount $file $file
+    set fh [open [file join $file testfile] w]
+    puts $fh TEST
+    close $fh
+    vfs::unmount $file
+
+    set p [cookfs::pages $file]
+    set h [vfs::cookfs::Mount $file $file -pagesobject $p]
+    string equal [set ${h}(pages)] $p
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result 1
+
+tcltest::test cookfsVfs-1.6 "Remounting archive using -fsindexobject" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+} -body {
+    vfs::cookfs::Mount $file $file
+    set fh [open [file join $file testfile] w]
+    puts $fh TEST
+    close $fh
+    vfs::unmount $file
+
+    set p [cookfs::pages $file]
+    set i [cookfs::fsindex [$p index]]
+    set h [vfs::cookfs::Mount $file $file -pagesobject $p -fsindexobject $i]
+    string equal [set ${h}(index)] $i
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result 1
+
 tcltest::test cookfsVfs-2.1 "Test compressing entire directory structure" -setup {
     set dir [tcltest::makeDirectory cookfs.vfs]
     set file [tcltest::makeFile {} cookfs.cfs]

@@ -195,6 +195,9 @@ Bootstrap code for cookit binaries. Mainly for internal use.
 Hash function to use for comparing if pages are equal. This is mainly used as pre-check and entire page is still checked for.
 Defaults to [const md5], can also be [const crc32]. Mainly for internal/testing at this moment. Do not use.
 
+[def "[option -fsindexobject] [arg fsiagesObject]"]
+Do not create cookfs::fsindex object, use specified fsindex object. Mainly for internal use.
+
 [def "[option -pagesobject] [arg pagesObject]"]
 Do not create cookfs::pages object, use specified pages object. Mainly for internal use.
 

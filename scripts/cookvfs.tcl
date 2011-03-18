@@ -91,6 +91,7 @@ proc cookfs::Mount {args} {
         {decompresscommand.arg          ""              {Command to use for custom decompression}}
         {endoffset.arg                  ""              {Force reading VFS ending at specific offset instead of end of file}}
         {pagesobject.arg                ""              {Reuse existing pages object}}
+        {fsindexobject.arg              ""              {Reuse existing fsindex object}}
         {readonly                                       {Open as read only}}
         {writetomemory                                  {Open as read only and keep new files in memory}}
         {pagesize.arg                   262144          {Maximum page size}}
@@ -211,11 +212,15 @@ proc cookfs::Mount {args} {
     }
     
     # initialize directory listing
-    set idx [$fs(pages) index]
-    if {[string length $idx] > 0} {
-        set fs(index) [cookfs::fsindex $idx]
+    if {$opt(fsindexobject) == ""} {
+        set idx [$fs(pages) index]
+        if {[string length $idx] > 0} {
+            set fs(index) [cookfs::fsindex $idx]
+        }  else  {
+            set fs(index) [cookfs::fsindex]
+        }
     }  else  {
-        set fs(index) [cookfs::fsindex]
+        set fs(index) $opt(fsindexobject)
     }
 
     # additional initialization if no pages currently exist

@@ -250,6 +250,8 @@ used in tclkit and followed by mk4vfs archive.</p></dd>
 <dt><b class="option">-pagehash</b> <i class="arg">hash</i></dt>
 <dd><p>Hash function to use for comparing if pages are equal. This is mainly used as pre-check and entire page is still checked for.
 Defaults to <b class="const">md5</b>, can also be <b class="const">crc32</b>. Mainly for internal/testing at this moment. Do not use.</p></dd>
+<dt><b class="option">-fsindexobject</b> <i class="arg">fsiagesObject</i></dt>
+<dd><p>Do not create cookfs::fsindex object, use specified fsindex object. Mainly for internal use.</p></dd>
 <dt><b class="option">-pagesobject</b> <i class="arg">pagesObject</i></dt>
 <dd><p>Do not create cookfs::pages object, use specified pages object. Mainly for internal use.</p></dd>
 </dl>

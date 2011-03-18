@@ -1,3 +1,10 @@
+2011-03-18 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* scripts/cookvfs.tcl: Added -fsindexobject to Mount command; used by cookit to retrieve metadata before mounting binary
+	* tests/vfs.test:
+	* doc/cookfs.n:
+	* doc/cookfs.html:
+	* doc/cookfs.man:
+
 2011-03-14 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* generic/pages.c: Changed a+ mode for writing to {RDWR CREAT} to prevent [tell] reporting incorrect location after writing index when using Tcl 8.4 on Windows
 	* scripts/pages.tcl:
