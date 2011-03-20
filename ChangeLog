@@ -1,4 +1,8 @@
 2011-03-20 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* scripts/cookvfs.tcl: Properly handle mounting as volume if -volume option is specified
+	* tests/vfs.test:
+
+2011-03-20 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/cookvfs.tcl: Fix in -setmetadata not being stored if being only operation
 	* tests/vfs.test:
 

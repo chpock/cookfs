@@ -162,7 +162,9 @@ proc cookfs::Mount {args} {
 
     if {![catch {package require Tcl 8.4}]} {
         set archive [file normalize [file join [pwd] $archive]]
-        set local [file normalize [file join [pwd] $local]]
+        if {!$opt(volume)} {
+            set local [file normalize [file join [pwd] $local]]
+        }
     }
 
     if {$opt(readonly) && (!$opt(writetomemory)) && (![file exists $archive])} {

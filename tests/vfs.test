@@ -94,6 +94,22 @@ tcltest::test cookfsVfs-1.7 "Setting metadata on mount" -setup {
     tcltest::removeFile $file
 } -returnCodes {ok} -result 1,2
 
+tcltest::test cookfsVfs-1.8 "Mounting as volume" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+} -body {
+    vfs::cookfs::Mount $file $file
+    set fh [open [file join $file testfile] w]
+    puts $fh TEST
+    close $fh
+    vfs::unmount $file
+
+    set h [vfs::cookfs::Mount $file test:/ -volume]
+    expr {([lsearch [vfs::filesystem info] test:/]>=0)?1:0}
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result 1
+
 tcltest::test cookfsVfs-2.1 "Test compressing entire directory structure" -setup {
     set dir [tcltest::makeDirectory cookfs.vfs]
     set file [tcltest::makeFile {} cookfs.cfs]
