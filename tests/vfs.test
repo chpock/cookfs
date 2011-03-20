@@ -87,7 +87,7 @@ tcltest::test cookfsVfs-1.7 "Setting metadata on mount" -setup {
     set h [vfs::cookfs::Mount $file $file -setmetadata {test1 1 test2 2}]
     vfs::unmount $file
 
-    set h [vfs::cookfs::Mount $file $file -setmetadata {test1 1 test2 2}]
+    set h [vfs::cookfs::Mount $file $file]
     format %s,%s [$h getmetadata test1] [$h getmetadata test2]
 } -cleanup {
     catch {vfs::unmount $file}

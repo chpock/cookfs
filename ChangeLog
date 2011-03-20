@@ -1,3 +1,7 @@
+2011-03-20 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* scripts/cookvfs.tcl: Fix in -setmetadata not being stored if being only operation
+	* tests/vfs.test:
+
 2011-03-18 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/cookvfs.tcl: Added -setmetadata to Mount command; used to set metadata when mounting, for tools such as tabs
 	* tests/vfs.test:

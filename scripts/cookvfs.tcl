@@ -240,6 +240,7 @@ proc cookfs::Mount {args} {
     }
 
     foreach {paramname paramvalue} $opt(setmetadata) {
+        incr fs(changeCount)
         $fs(index) setmetadata $paramname $paramvalue
     }
 
