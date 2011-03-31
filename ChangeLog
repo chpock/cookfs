@@ -1,3 +1,9 @@
+2011-03-31 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* scripts/cookvfs.tcl: Added writeFiles subcommand to allow direct writing to cookfs archive
+	* doc/cookfs.n:
+	* doc/cookfs.html:
+	* doc/cookfs.man:
+
 2011-03-20 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/cookvfs.tcl: Properly handle mounting as volume if -volume option is specified
 	* tests/vfs.test:

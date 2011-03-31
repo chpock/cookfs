@@ -133,6 +133,7 @@
 <li><a href="#6"><i class="arg">cookfsHandle</i> <b class="method">optimizelist</b> <i class="arg">base</i> <i class="arg">filelist</i></a></li>
 <li><a href="#7"><i class="arg">cookfsHandle</i> <b class="method">getmetadata</b> <i class="arg">parameterName</i> <span class="opt">?<i class="arg">defaultValue</i>?</span></a></li>
 <li><a href="#8"><i class="arg">cookfsHandle</i> <b class="method">setmetadata</b> <i class="arg">parameterName</i> <i class="arg">value</i></a></li>
+<li><a href="#9"><i class="arg">cookfsHandle</i> <b class="method">writeFiles</b> <span class="opt">?<i class="arg">filename1</i> <i class="arg">type1</i> <i class="arg">data1</i> <i class="arg">size1</i> <span class="opt">?<i class="arg">filename2</i> <i class="arg">type2</i> <i class="arg">data2</i> <i class="arg">size2</i> <span class="opt">?<i class="arg">..</i>?</span>?</span>?</span></a></li>
 </ul>
 </div>
 </div>
@@ -192,6 +193,22 @@ If <i class="arg">defaultValue</i> was not specified and parameter is not set, a
 <dt><a name="8"><i class="arg">cookfsHandle</i> <b class="method">setmetadata</b> <i class="arg">parameterName</i> <i class="arg">value</i></a></dt>
 <dd><p>Set <i class="arg">parameterName</i> to specified <i class="arg">value</i>. If parameter currently exists, it is overwritten.</p>
 <p>See <span class="sectref"><a href="#section6">COOKFS METADATA</a></span> for more details on metadata storage in cookfs archives.</p></dd>
+<dt><a name="9"><i class="arg">cookfsHandle</i> <b class="method">writeFiles</b> <span class="opt">?<i class="arg">filename1</i> <i class="arg">type1</i> <i class="arg">data1</i> <i class="arg">size1</i> <span class="opt">?<i class="arg">filename2</i> <i class="arg">type2</i> <i class="arg">data2</i> <i class="arg">size2</i> <span class="opt">?<i class="arg">..</i>?</span>?</span>?</span></a></dt>
+<dd><p>Write one or more files to cookfs archive. Specified as list of one or more 4-element entries describing files.
+Each <i class="arg">filename</i> specifies name of the file, relative to archive root.
+Elements <i class="arg">type</i> and <i class="arg">data</i> specify source for adding a file as well as actual data.
+<i class="arg">Size</i> specifies size of the file. If specified as empty string, it is calculated based on <i class="arg">type</i>.</p>
+<p>The following values for <i class="arg">type</i> are accepted:</p>
+<ul class="itemized">
+<li><p><b class="const">file</b> -
+<i class="arg">data</i> specifies path to file that should be put in the cookfs archive; path is relative to current working directory, same as for command such as <b class="cmd">file copy</b>;
+file is copied directly and does not require staging file in memory, unlike writing a file in cookfs archive using <b class="cmd">open</b></p></li>
+<li><p><b class="const">data</b> -
+<i class="arg">data</i> is data to be stored in file as binary</p></li>
+<li><p><b class="const">channel</b> -
+<i class="arg">data</i> is a valid Tcl channel that should be read by cookfs;
+channel is read from current location until end or until <i class="arg">size</i> bytes have been read</p></li>
+</ul></dd>
 </dl>
 </div>
 <div id="section3" class="section"><h2><a name="section3">MOUNT OPTIONS</a></h2>

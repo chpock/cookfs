@@ -263,6 +263,8 @@ package require \fBvfs::cookfs  ?1.2?\fR
 .sp
 \fIcookfsHandle\fR \fBsetmetadata\fR \fIparameterName\fR \fIvalue\fR
 .sp
+\fIcookfsHandle\fR \fBwriteFiles\fR ?\fIfilename1\fR \fItype1\fR \fIdata1\fR \fIsize1\fR ?\fIfilename2\fR \fItype2\fR \fIdata2\fR \fIsize2\fR ?\fI..\fR???
+.sp
 .BE
 .SH DESCRIPTION
 Package \fBvfs::cookfs\fR is a Tcl virtual filesystem (VFS) that allows
@@ -339,6 +341,27 @@ See \fBCOOKFS METADATA\fR for more details on metadata storage in cookfs archive
 Set \fIparameterName\fR to specified \fIvalue\fR. If parameter currently exists, it is overwritten.
 .sp
 See \fBCOOKFS METADATA\fR for more details on metadata storage in cookfs archives.
+.TP
+\fIcookfsHandle\fR \fBwriteFiles\fR ?\fIfilename1\fR \fItype1\fR \fIdata1\fR \fIsize1\fR ?\fIfilename2\fR \fItype2\fR \fIdata2\fR \fIsize2\fR ?\fI..\fR???
+Write one or more files to cookfs archive. Specified as list of one or more 4-element entries describing files.
+Each \fIfilename\fR specifies name of the file, relative to archive root.
+Elements \fItype\fR and \fIdata\fR specify source for adding a file as well as actual data.
+\fISize\fR specifies size of the file. If specified as empty string, it is calculated based on \fItype\fR.
+.sp
+The following values for \fItype\fR are accepted:
+.RS
+.IP \(bu
+\fBfile\fR -
+\fIdata\fR specifies path to file that should be put in the cookfs archive; path is relative to current working directory, same as for command such as \fBfile copy\fR;
+file is copied directly and does not require staging file in memory, unlike writing a file in cookfs archive using \fBopen\fR
+.IP \(bu
+\fBdata\fR -
+\fIdata\fR is data to be stored in file as binary
+.IP \(bu
+\fBchannel\fR -
+\fIdata\fR is a valid Tcl channel that should be read by cookfs;
+channel is read from current location until end or until \fIsize\fR bytes have been read
+.RE
 .PP
 .SH "MOUNT OPTIONS"
 The following options can be specified when mounting a cookfs archive:

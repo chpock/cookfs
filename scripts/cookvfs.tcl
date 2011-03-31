@@ -352,6 +352,13 @@ proc cookfs::handleVfsCommandAlias {fsid args} {
                 error $ei $ei
 	    }
         }
+        writeFiles {
+	    if {([llength $args] % 4) != 0} {
+		set ei "wrong # args: should be \"$fsid writeFiles ?filename1 type1 data1 size1 ?filename2 type2 data2 size2? ?..??"
+                error $ei $ei
+	    }
+	    uplevel 1 [linsert $args 0 cookfs::writeFiles $fsid $args]
+        }
         default {
             set ei "unknown subcommand \"[lindex $args 0]\": must be aside, optimizelist, or writetomemory"
             error $ei $ei

@@ -94,6 +94,29 @@ Set [arg parameterName] to specified [arg value]. If parameter currently exists,
 [para]
 See [sectref {COOKFS METADATA}] for more details on metadata storage in cookfs archives.
 
+[call [arg cookfsHandle] [method writeFiles] [opt "[arg filename1] [arg type1] [arg data1] [arg size1] [opt "[arg filename2] [arg type2] [arg data2] [arg size2] [opt [arg ..]]"]"]]
+Write one or more files to cookfs archive. Specified as list of one or more 4-element entries describing files.
+Each [arg filename] specifies name of the file, relative to archive root.
+Elements [arg type] and [arg data] specify source for adding a file as well as actual data.
+[arg Size] specifies size of the file. If specified as empty string, it is calculated based on [arg type].
+
+[para]
+The following values for [arg type] are accepted:
+
+[list_begin itemized]
+
+[item] [const file] -
+[arg data] specifies path to file that should be put in the cookfs archive; path is relative to current working directory, same as for command such as [cmd "file copy"];
+file is copied directly and does not require staging file in memory, unlike writing a file in cookfs archive using [cmd "open"]
+
+[item] [const data] -
+[arg data] is data to be stored in file as binary
+
+[item] [const channel] -
+[arg data] is a valid Tcl channel that should be read by cookfs;
+channel is read from current location until end or until [arg size] bytes have been read
+
+[list_end]
 [list_end]
 
 [section {MOUNT OPTIONS}]
