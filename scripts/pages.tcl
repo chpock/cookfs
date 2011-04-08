@@ -400,7 +400,7 @@ proc cookfs::pages::handle {name cmd args} {
 	    }
 	}
 	dataoffset {
-	    error "Not implemented"
+	    return $c(startoffset)
 	}
 	aside - gethead - getheadmd5 - gettail - gettailmd5 {
 	    error "Not implemented"

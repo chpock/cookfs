@@ -46,6 +46,42 @@ tcltest::test cookfsPages-1.4 "Create empty pages as read-only" -setup {
     catch {file delete -force $file}
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object}
 
+tcltest::test cookfsPages-1.5 "Check dataoffset command reporting properly for empty files" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    puts -nonewline $fh ""
+    close $fh
+} -body {
+    set pg [cookfs::pages $file]
+    $pg add "Test"
+    $pg delete
+
+    set pg [cookfs::pages -readonly $file]
+    $pg dataoffset
+} -cleanup {
+    $pg delete
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 0
+
+tcltest::test cookfsPages-1.6 "Check dataoffset command reporting properly for files with prefix" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    puts -nonewline $fh [string repeat TEST 1024]
+    close $fh
+} -body {
+    set pg [cookfs::pages $file]
+    $pg add "Test"
+    $pg delete
+
+    set pg [cookfs::pages -readonly $file]
+    $pg dataoffset
+} -cleanup {
+    $pg delete
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 4096
+
 tcltest::test cookfsPages-2.1 "Test that different pages get different indexes" -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
@@ -536,4 +572,5 @@ tcltest::test cookfsPages-10.4 "Test crc32 with large chunks" -setup {
     catch {$pg delete}
     catch {file delete -force $file}
 } -returnCodes {error} -result {Unable to add page}
+
 
