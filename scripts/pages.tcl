@@ -341,6 +341,20 @@ proc cookfs::pages::sethash {name hash} {
     set c(hash) $hash
 }
 
+proc cookfs::pages::setcachesize {name csize} {
+    upvar #0 $name c
+    if {![string is integer -strict $csize]} {
+	error "Invalid cache size"
+    }  elseif  {$csize < 0} {
+	set csize 0
+    }  elseif  {$csize > 256} {
+	set csize 256
+    }
+    set c(cachelist) {}
+    array unset c cache,*
+    set c(cachesize) $csize
+}
+
 proc cookfs::pages::handle {name cmd args} {
     upvar #0 $name c
     switch -- $cmd {
@@ -404,6 +418,13 @@ proc cookfs::pages::handle {name cmd args} {
 	}
 	aside - gethead - getheadmd5 - gettail - gettailmd5 {
 	    error "Not implemented"
+	}
+	cachesize {
+	    if {[llength $args] == 1} {
+	        set csize [lindex $args 0]
+	        setcachesize $name $csize
+	    }
+	    return $c(cachesize)
 	}
 	default {
 	    error "Not implemented"

@@ -1,3 +1,12 @@
+2011-05-05 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* generic/pages.c: Added [$pages cachesize] command to allow modifying cache size
+	* generic/pages.h:
+	* generic/pagesCmd.c:
+	* scripts/pages.tcl:
+	* scripts/cookvfs.tcl: Change cache size if -pagesobject passed when mounting
+	* tests/pages.test: Tests for [$pages cachesize]
+	* tests/common.tcl:
+
 2011-04-08 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/pages.tcl: Added support for [$pages dataoffset] in pure Tcl version
 	* tests/pages.test: Test cases for [$pages dataoffset]

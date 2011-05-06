@@ -784,6 +784,44 @@ Tcl_Obj *Cookfs_PagesGetIndex(Cookfs_Pages *p) {
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PagesSetCacheSize --
+ *
+ *	Changes cache size for existing pages object
+ *
+ * Results:
+ *	None
+ *
+ * Side effects:
+ *	May remove all pages currently in cache
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size) {
+    int i;
+
+
+    if (size < 0) {
+        size = 0;
+    }
+    if (size > COOKFS_MAX_CACHE_PAGES) {
+        size = COOKFS_MAX_CACHE_PAGES;
+    }
+    /* TODO: only clean up pages above min(prevSize, currentSize) */
+    for (i = 0; i < COOKFS_MAX_CACHE_PAGES; i++) {
+	p->cachePageIdx[i] = -1;
+	if (p->cachePageObj[i] != NULL) {
+	    Tcl_DecrRefCount(p->cachePageObj[i]);
+	}
+	p->cachePageObj[i] = NULL;
+    }
+    p->cacheSize = size;
+}
+
+
 /* definitions of static and/or internal functions */
 
 /*

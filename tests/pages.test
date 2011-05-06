@@ -573,4 +573,51 @@ tcltest::test cookfsPages-10.4 "Test crc32 with large chunks" -setup {
     catch {file delete -force $file}
 } -returnCodes {error} -result {Unable to add page}
 
+tcltest::test cookfsPages-11.1 "Test increasing page cache" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
+    for {set i 0} {$i < 20} {incr i} {
+        lappend il $i [$pg add [string repeat "TEST" 1024][string repeat "TEST" $i]"]
+    }
+    $pg delete
+
+    set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress -cachesize 0 $file]
+    $pg cachesize 32
+    set ::testdecompresscount 0
+    foreach {i idx} $il {
+        $pg get $idx
+    }
+    set ::testdecompresscount
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 20
+
+tcltest::test cookfsPages-11.2 "Test decreasing page cache" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
+    for {set i 0} {$i < 20} {incr i} {
+        lappend il $i [$pg add [string repeat "TEST" 1024][string repeat "TEST" $i]"]
+    }
+    $pg delete
+
+    set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress -cachesize 32 $file]
+    $pg cachesize 32
+    set ::testdecompresscount 0
+    foreach {i idx} $il {
+        $pg get $idx
+    }
+    $pg cachesize 0
+    $pg cachesize 32
+    set ::testdecompresscount 0
+    foreach {i idx} $il {
+        $pg get $idx
+    }
+    set ::testdecompresscount
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 20
 

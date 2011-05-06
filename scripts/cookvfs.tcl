@@ -212,6 +212,7 @@ proc cookfs::Mount {args} {
         set fs(pages) [eval $pagescmd]
     }  else  {
         set fs(pages) $opt(pagesobject)
+        $fs(pages) cachesize $opt(pagecachesize)
     }
     
     # initialize directory listing

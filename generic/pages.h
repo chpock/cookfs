@@ -96,6 +96,7 @@ Tcl_Obj *Cookfs_PageGetHead(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetHeadMD5(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetTailMD5(Cookfs_Pages *p);
+void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size);
 
 int CookfsReadIndex(Cookfs_Pages *p);
 
