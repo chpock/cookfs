@@ -68,26 +68,48 @@ const int cookfsCompressionOptionMap[] = {
 
 void Cookfs_PagesInitCompr(Cookfs_Pages *rc) {
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
-    /* initialize list for calling vfs::zip command for (de)compressing */
-    rc->zipCmdCompress[0] = Tcl_NewStringObj("vfs::zip", -1);
-    rc->zipCmdCompress[1] = Tcl_NewStringObj("-mode", -1);
-    rc->zipCmdCompress[2] = Tcl_NewStringObj("compress", -1);
-    rc->zipCmdCompress[3] = Tcl_NewStringObj("-nowrap", -1);
-    rc->zipCmdCompress[4] = Tcl_NewIntObj(1);
+    Tcl_Obj *zlibString;
+    zlibString = Tcl_NewStringObj("::zlib", -1);
+    Tcl_IncrRefCount(zlibString);
+    if (Tcl_GetCommandFromObj(rc->interp, zlibString) != NULL) {
+        /* use built-in zlib command for (de)compressing */
+        rc->zipCmdCompress[0] = zlibString;
+        rc->zipCmdCompress[1] = Tcl_NewStringObj("deflate", -1);
+        rc->zipCmdDecompress[0] = zlibString;
+        rc->zipCmdDecompress[1] = Tcl_NewStringObj("inflate", -1);
 
-    rc->zipCmdDecompress[0] = rc->zipCmdCompress[0];
-    rc->zipCmdDecompress[1] = rc->zipCmdCompress[1];
-    rc->zipCmdDecompress[2] = Tcl_NewStringObj("decompress", -1);
-    rc->zipCmdDecompress[3] = rc->zipCmdCompress[3];
-    rc->zipCmdDecompress[4] = rc->zipCmdCompress[4];
+        Tcl_IncrRefCount(rc->zipCmdCompress[1]);
+        Tcl_IncrRefCount(rc->zipCmdDecompress[1]);
 
-    Tcl_IncrRefCount(rc->zipCmdCompress[0]);
-    Tcl_IncrRefCount(rc->zipCmdCompress[1]);
-    Tcl_IncrRefCount(rc->zipCmdCompress[2]);
-    Tcl_IncrRefCount(rc->zipCmdCompress[3]);
-    Tcl_IncrRefCount(rc->zipCmdCompress[4]);
+        rc->zipCmdOffset = 2;
+        rc->zipCmdLength = 3;
+    }  else  {
+        Tcl_DecrRefCount(zlibString);
 
-    Tcl_IncrRefCount(rc->zipCmdDecompress[2]);
+        /* initialize list for calling vfs::zip command for (de)compressing */
+        rc->zipCmdCompress[0] = Tcl_NewStringObj("::vfs::zip", -1);
+        rc->zipCmdCompress[1] = Tcl_NewStringObj("-mode", -1);
+        rc->zipCmdCompress[2] = Tcl_NewStringObj("compress", -1);
+        rc->zipCmdCompress[3] = Tcl_NewStringObj("-nowrap", -1);
+        rc->zipCmdCompress[4] = Tcl_NewIntObj(1);
+
+        rc->zipCmdDecompress[0] = rc->zipCmdCompress[0];
+        rc->zipCmdDecompress[1] = rc->zipCmdCompress[1];
+        rc->zipCmdDecompress[2] = Tcl_NewStringObj("decompress", -1);
+        rc->zipCmdDecompress[3] = rc->zipCmdCompress[3];
+        rc->zipCmdDecompress[4] = rc->zipCmdCompress[4];
+
+        Tcl_IncrRefCount(rc->zipCmdCompress[0]);
+        Tcl_IncrRefCount(rc->zipCmdCompress[1]);
+        Tcl_IncrRefCount(rc->zipCmdCompress[2]);
+        Tcl_IncrRefCount(rc->zipCmdCompress[3]);
+        Tcl_IncrRefCount(rc->zipCmdCompress[4]);
+
+        Tcl_IncrRefCount(rc->zipCmdDecompress[2]);
+
+        rc->zipCmdOffset = 5;
+        rc->zipCmdLength = 6;
+    }
 #endif
 }
 
@@ -113,13 +135,19 @@ void Cookfs_PagesInitCompr(Cookfs_Pages *rc) {
 void Cookfs_PagesFiniCompr(Cookfs_Pages *rc) {
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
     /* free up memory for invoking commands */
-    Tcl_DecrRefCount(rc->zipCmdCompress[0]);
-    Tcl_DecrRefCount(rc->zipCmdCompress[1]);
-    Tcl_DecrRefCount(rc->zipCmdCompress[2]);
-    Tcl_DecrRefCount(rc->zipCmdCompress[3]);
-    Tcl_DecrRefCount(rc->zipCmdCompress[4]);
+    if (rc->zipCmdOffset == 2) {
+        Tcl_DecrRefCount(rc->zipCmdCompress[0]);
+        Tcl_DecrRefCount(rc->zipCmdCompress[1]);
+        Tcl_DecrRefCount(rc->zipCmdDecompress[1]);
+    }  else  {
+        Tcl_DecrRefCount(rc->zipCmdCompress[0]);
+        Tcl_DecrRefCount(rc->zipCmdCompress[1]);
+        Tcl_DecrRefCount(rc->zipCmdCompress[2]);
+        Tcl_DecrRefCount(rc->zipCmdCompress[3]);
+        Tcl_DecrRefCount(rc->zipCmdCompress[4]);
 
-    Tcl_DecrRefCount(rc->zipCmdDecompress[2]);
+        Tcl_DecrRefCount(rc->zipCmdDecompress[2]);
+    }
 #endif
 
     /* clean up compress/decompress commands, if present - for non-aside pages only */
@@ -475,10 +503,10 @@ static Tcl_Obj *CookfsReadPageZlib(Cookfs_Pages *p, int size) {
 	Tcl_DecrRefCount(compressed);
 	return NULL;
     }
-    p->zipCmdDecompress[5] = compressed;
+    p->zipCmdDecompress[p->zipCmdOffset] = compressed;
     prevResult = Tcl_GetObjResult(p->interp);
     Tcl_IncrRefCount(prevResult);
-    if (Tcl_EvalObjv(p->interp, 6, p->zipCmdDecompress, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
+    if (Tcl_EvalObjv(p->interp, p->zipCmdLength, p->zipCmdDecompress, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
 	CookfsLog(printf("Unable to decompress"))
 	Tcl_DecrRefCount(compressed);
 	return NULL;
@@ -557,10 +585,10 @@ static int CookfsWritePageZlib(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
     Tcl_Obj *compressed;
 
     Tcl_IncrRefCount(data);
-    p->zipCmdCompress[5] = data;
+    p->zipCmdCompress[p->zipCmdOffset] = data;
     prevResult = Tcl_GetObjResult(p->interp);
     Tcl_IncrRefCount(prevResult);
-    if (Tcl_EvalObjv(p->interp, 6, p->zipCmdCompress, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
+    if (Tcl_EvalObjv(p->interp, p->zipCmdLength, p->zipCmdCompress, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
 	Tcl_SetObjResult(p->interp, prevResult);
 	CookfsLog(printf("Unable to compress"))
 	Tcl_DecrRefCount(data);

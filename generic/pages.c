@@ -126,6 +126,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     rc->pageHash = COOKFS_HASH_MD5;
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
     rc->zipCmdCrc[0] = Tcl_NewStringObj("::cookfs::getCRC32", -1);
+    Tcl_IncrRefCount(rc->zipCmdCrc[0]);
 #endif
     
     Tcl_IncrRefCount(rc->dataIndex);
@@ -327,6 +328,11 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     /* clean up compression information */
     Cookfs_PagesFiniCompr(p);
     
+#ifdef USE_VFS_COMMANDS_FOR_ZIP
+    /* clean up zipCmdCrc command */
+    Tcl_DecrRefCount(p->zipCmdCrc[0]);
+#endif
+
     /* clean up index */
     CookfsLog(printf("Cleaning up index data"))
     Tcl_DecrRefCount(p->dataIndex);

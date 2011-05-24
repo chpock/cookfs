@@ -24,6 +24,13 @@ proc cookfs::pages {args} {
 	lastop read
 	hash md5
     }
+
+    if {[info commands ::zlib] != ""} {
+        set c(_usezlib) 1
+    }  else  {
+        set c(_usezlib) 0
+    }
+
     while {[llength $args] > 1} {
 	switch -- [lindex $args 0] {
 	    -endoffset - -compression - -cachesize - -cfsname - -compresscommand - -decompresscommand {
@@ -97,7 +104,11 @@ proc cookfs::pages::compress {name data} {
 	return ""
     }
     if {$c(cid) == 1} {
-	set data "\u0001[vfs::zip -mode compress -nowrap 1 $data]"
+	if {$c(_usezlib)} {
+            set data "\u0001[zlib deflate $data]"
+        }  else  {
+            set data "\u0001[vfs::zip -mode compress -nowrap 1 $data]"
+        }
     }  elseif {$c(cid) == 2} {
 	package require Trf
 	set data "\u0002[binary format I [string length $data]][bz2 -mode compress $data]"
@@ -125,7 +136,11 @@ proc cookfs::pages::decompress {name data} {
 	    return $data
 	}
 	1 {
-	    return [vfs::zip -mode decompress -nowrap 1 $data]
+            if {$c(_usezlib)} {
+                return [zlib inflate $data]
+            }  else  {
+                return [vfs::zip -mode decompress -nowrap 1 $data]
+            }
 	}
 	2 {
 	    package require Trf

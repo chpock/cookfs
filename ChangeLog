@@ -1,3 +1,9 @@
+2011-05-23 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* generic/pagesCompr.c: Added support for using [zlib] command for (de)compressing zlib based pages
+	* scripts/pages.tcl:
+	* generic/pages.c:
+	* generic/pages.h:
+	
 2011-05-05 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* generic/pages.c: Added [$pages cachesize] command to allow modifying cache size
 	* generic/pages.h:

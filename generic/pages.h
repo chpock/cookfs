@@ -42,6 +42,8 @@ typedef struct Cookfs_Pages {
     Tcl_Obj *zipCmdCrc[2];
     Tcl_Obj *zipCmdCompress[6];
     Tcl_Obj *zipCmdDecompress[6];
+    int zipCmdOffset;
+    int zipCmdLength;
 #endif /* USE_VFS_COMMANDS_FOR_ZIP */
     /* file */
     Tcl_Mutex pagesLock;
