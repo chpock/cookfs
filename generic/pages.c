@@ -1005,7 +1005,7 @@ int CookfsReadIndex(Cookfs_Pages *p) {
             int size;
             char *bytes;
             bytes = (char *) Tcl_GetByteArrayFromObj(byteObj, &size);
-            for (i = 0 ; i < (size - COOKFS_SIGNATURE_LENGTH) ; i++) {
+            for (i = 0 ; i <= (size - COOKFS_SIGNATURE_LENGTH) ; i++) {
                 if ((bytes[i] == p->fileSignature[0])) {
                     if (memcmp(bytes + i, p->fileSignature, COOKFS_SIGNATURE_LENGTH) == 0) {
                         lastMatch = bytes + i;
