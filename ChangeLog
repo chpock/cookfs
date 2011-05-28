@@ -1,3 +1,8 @@
+2011-05-28 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* scripts/pages.tcl: Added finding endoffset in last 4kB of file -endoffset if not specified
+	* generic/pages.c:
+	* tests/pages.test: Test cases for finding endoffset
+
 2011-05-23 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* generic/pagesCompr.c: Added support for using [zlib] command for (de)compressing zlib based pages
 	* scripts/pages.tcl:

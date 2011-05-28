@@ -75,7 +75,20 @@ proc cookfs::pages {args} {
 	seek $c(fh) $c(endoffset) start
     }  else  {
 	seek $c(fh) 0 end
-	set c(endoffset) [tell $c(fh)]
+        set fileSize [tell $c(fh)]
+        if {$fileSize > 4096} {
+            seek $c(fh) -4096 current
+        }  else  {
+            seek $c(fh) -$fileSize current
+        }
+        set tail [read $c(fh)]
+        set tailOffset [string last $c(cfsname) $tail]
+        if {$tailOffset >= 0} {
+            set c(endoffset) [expr {[tell $c(fh)] - [string length $tail] + $tailOffset + 7}]
+            seek $c(fh) $c(endoffset) start
+        }  else  {
+            set c(endoffset) [tell $c(fh)]
+        }
     }
 
     fconfigure $c(fh) -translation binary

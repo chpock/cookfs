@@ -988,7 +988,43 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     if (p->useFoffset) {
 	seekOffset = Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
     }  else  {
-	p->foffset = Tcl_Seek(p->fileChannel, 0, SEEK_END);
+        /* if endoffset not specified, read last 4k of file and find last occurrence of signature */
+        Tcl_Obj *byteObj = NULL;;
+        char *lastMatch = NULL;
+	seekOffset = Tcl_Seek(p->fileChannel, 0, SEEK_END);
+        if (seekOffset > 4096) {
+            seekOffset -= 4096;
+        }  else  {
+            seekOffset = 0;
+        }
+        CookfsLog(printf("CookfsReadIndex lookup seekOffset = %d", ((int) seekOffset)))
+        Tcl_Seek(p->fileChannel, seekOffset, SEEK_SET);
+	byteObj = Tcl_NewObj();
+	if (Tcl_ReadChars(p->fileChannel, byteObj, 4096, 0) > 0) {
+            int i;
+            int size;
+            char *bytes;
+            bytes = (char *) Tcl_GetByteArrayFromObj(byteObj, &size);
+            for (i = 0 ; i < (size - COOKFS_SIGNATURE_LENGTH) ; i++) {
+                if ((bytes[i] == p->fileSignature[0])) {
+                    if (memcmp(bytes + i, p->fileSignature, COOKFS_SIGNATURE_LENGTH) == 0) {
+                        lastMatch = bytes + i;
+                        CookfsLog(printf("CookfsReadIndex found at offset %d", i))
+                    }
+                }
+            }
+            if (lastMatch != NULL) {
+                seekOffset += (lastMatch - bytes + COOKFS_SIGNATURE_LENGTH);
+                p->foffset = Tcl_Seek(p->fileChannel, seekOffset, SEEK_SET);
+                CookfsLog(printf("CookfsReadIndex lookup done seekOffset = %d", ((int) seekOffset)))
+            }
+        }
+        Tcl_IncrRefCount(byteObj);
+        Tcl_DecrRefCount(byteObj);
+        if (lastMatch == NULL) {
+	    p->foffset = Tcl_Seek(p->fileChannel, 0, SEEK_END);
+            CookfsLog(printf("CookfsReadIndex lookup failed"))
+        }
     }
     seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES, SEEK_CUR);
 
@@ -1029,12 +1065,8 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     /* read files index */
     
     /* seek to beginning of index, depending on if foffset was specified */
-    if (p->useFoffset) {
-	Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
-	seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - indexLength, SEEK_CUR);
-    }  else  {
-	seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - indexLength, SEEK_END);
-    }
+    Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
+    seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - indexLength, SEEK_CUR);
     CookfsLog(printf("IndexOffset Read = %d", (int) seekOffset))
     
     buffer = Cookfs_ReadPage(p, indexLength);
@@ -1049,12 +1081,8 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     Tcl_IncrRefCount(p->dataIndex);
 
     /* seek to beginning of data, depending on if foffset was specified */
-    if (p->useFoffset) {
-	Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
-	seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - (pageCount * 20) - indexLength, SEEK_CUR);
-    }  else  {
-	seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - (pageCount * 20) - indexLength, SEEK_END);
-    }
+    Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
+    seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - (pageCount * 20) - indexLength, SEEK_CUR);
 
     /* if seeking fails, we assume no suffix exists */
     if (seekOffset < 0) {
@@ -1085,6 +1113,8 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     bytes = Tcl_GetByteArrayFromObj(buffer, NULL);
     Cookfs_Binary2Int(bytes, p->dataPagesSize, pageCount);
     Tcl_DecrRefCount(buffer);
+
+    CookfsLog(printf("Cookfs ReadIndex first page size=%d", (pageCount > 0) ? p->dataPagesSize[0] : -1))
 
     /* set this to 0 so we can calculate actual size of all pages */
     p->dataInitialOffset = 0;

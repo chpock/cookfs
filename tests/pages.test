@@ -304,13 +304,14 @@ tcltest::test cookfsPages-5.1 "Test specifying -endoffset" -setup {
     set size [file size $file]
     set fh [open $file a]
     fconfigure $fh -translation binary
-    puts -nonewline $fh ".FILE.SUFFIX."
+    # add really long suffix that cookfs won't detect
+    puts -nonewline $fh [string repeat ".FILE.SUFFIX." 65536]
     close $fh
 
     if {![catch {
 	set pg [cookfs::pages -readonly $file]
     }]} {
-	error "Opening a file with data added did not throw an error"
+	error "Opening a file read-only with data added did not throw an error"
     }
 
     if {[catch {
@@ -326,6 +327,50 @@ tcltest::test cookfsPages-5.1 "Test specifying -endoffset" -setup {
     $pg delete
     catch {file delete -force $file}
 } -returnCodes {ok}
+
+tcltest::test cookfsPages-5.2 "Check searching for end of archive if endoffset not specified for small file" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    puts -nonewline $fh ""
+    close $fh
+} -body {
+    set pg [cookfs::pages $file]
+    $pg add "Test"
+    $pg delete
+    set fh [open $file a]
+    fconfigure $fh -translation binary
+    puts -nonewline $fh [string repeat TEST 64]
+    close $fh
+
+    set pg [cookfs::pages -readonly $file]
+    $pg dataoffset
+} -cleanup {
+    $pg delete
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 0
+
+tcltest::test cookfsPages-5.3 "Check searching for end of archive if endoffset not specified for large file" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    puts -nonewline $fh ""
+    close $fh
+} -body {
+    set pg [cookfs::pages -compression none $file]
+    $pg add [string repeat "Test" 16384]
+    $pg delete
+    set fh [open $file a]
+    fconfigure $fh -translation binary
+    puts -nonewline $fh [string repeat TEST 64]
+    close $fh
+
+    set pg [cookfs::pages -readonly $file]
+    $pg dataoffset
+} -cleanup {
+    $pg delete
+    catch {file delete -force $file}
+} -returnCodes {ok} -result 0
 
 tcltest::test cookfsPages-6.1 "Test multiple compression algorithms" -setup {
     set file [tcltest::makeFile {} pages.cfs]
