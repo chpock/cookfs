@@ -1,3 +1,7 @@
+2011-06-02 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* scripts/writer.tcl: Added code to detect duplication of small files, initial version (only entire files duplicated)
+	* tests/vfs.test
+
 2011-05-28 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/pages.tcl: Added finding endoffset in last 4kB of file -endoffset if not specified
 	* generic/pages.c:

@@ -110,6 +110,38 @@ tcltest::test cookfsVfs-1.8 "Mounting as volume" -setup {
     tcltest::removeFile $file
 } -returnCodes {ok} -result 1
 
+tcltest::test cookfsVfs-1.9 "Test storing same files" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+} -body {
+    vfs::cookfs::Mount $file $file -smallfilesize 40960
+    tcltest::makeFile [string repeat "TEST"    64] [file join $file test1a]
+    tcltest::makeFile [string repeat "TEST"  1024] [file join $file test2a]
+    tcltest::makeFile [string repeat "TEST"    64] [file join $file test1b]
+    tcltest::makeFile [string repeat "TEST" 16384] [file join $file test4a]
+    tcltest::makeFile [string repeat "TEST"  4096] [file join $file test3a]
+    tcltest::makeFile [string repeat "TEST"  1024] [file join $file test2b]
+    tcltest::makeFile [string repeat "TEST"  4096] [file join $file test3b]
+    tcltest::makeFile [string repeat "TEST" 16384] [file join $file test4b]
+    vfs::unmount $file
+
+    set h [vfs::cookfs::Mount $file $file -readonly]
+    if {![string equal [[set ${h}(index)] get test4a] [[set ${h}(index)] get test4b]]} {
+        error "Index for test4 differs"
+    }
+    if {![string equal [[set ${h}(index)] get test3a] [[set ${h}(index)] get test3b]]} {
+        error "Index for test3 differs"
+    }
+    if {![string equal [[set ${h}(index)] get test2a] [[set ${h}(index)] get test2b]]} {
+        error "Index for test2 differs"
+    }
+    if {![string equal [[set ${h}(index)] get test1a] [[set ${h}(index)] get test1b]]} {
+        error "Index for test1 differs"
+    }
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok}
+
 tcltest::test cookfsVfs-2.1 "Test compressing entire directory structure" -setup {
     set dir [tcltest::makeDirectory cookfs.vfs]
     set file [tcltest::makeFile {} cookfs.cfs]
@@ -399,3 +431,4 @@ tcltest::test cookfsVfs-6.1 "Test crc32 based VFS and page handling" -constraint
     catch {vfs::unmount $file}
     tcltest::removeFile $file
 } -returnCodes {ok} -result {1}
+

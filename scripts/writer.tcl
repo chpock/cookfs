@@ -18,10 +18,12 @@ proc cookfs::_purgeSmallfilesChunk {} {
     if {[llength $currentchunkPOS] > 0} {
         set idx [$fs(pages) add $currentchunk]
         
-        foreach {path offset size} $currentchunkPOS {
+        foreach {pathlist offset size} $currentchunkPOS {
             incr fs(changeCount)
-            set mtime [$fs(index) getmtime $path]
-            $fs(index) set $path $mtime [list $idx $offset $size]
+            foreach path $pathlist {
+                set mtime [$fs(index) getmtime $path]
+                $fs(index) set $path $mtime [list $idx $offset $size]
+            }
         }
         
         set currentchunk ""
@@ -36,12 +38,18 @@ proc cookfs::purgeSmallfiles {fsid} {
 
     if {$fs(smallfilebufsize) > 0} {
         set plist [list]
+
         # create complete list of files
         foreach {path size clk} $fs(smallfilepaths) buf $fs(smallfilebuf) {
-            lappend plist [list $path [file tail $path]]
             set pbuf($path) $buf
             set psize($path) $size
             set pclk($path) $clk
+            lappend bufmap($buf) $path
+        }
+
+        foreach {buf pathlist} [array get bufmap] {
+            set path [lindex $pathlist 0]
+            lappend plist [list $pathlist [file extension $path]/[file tail $path]]
         }
 
         set currentchunk ""
@@ -49,7 +57,8 @@ proc cookfs::purgeSmallfiles {fsid} {
 
         # iterate over files, based on file's name ([file tail])
         foreach path [lsort -index 1 -dictionary $plist] {
-            set path [lindex $path 0]
+            set pathlist [lindex $path 0]
+            set path [lindex $pathlist 0]
             set size $psize($path)
 
             # if size of page would exceed maximum size,
@@ -60,7 +69,7 @@ proc cookfs::purgeSmallfiles {fsid} {
 
             # append data to current chunk
             set offset [string length $currentchunk]
-            lappend currentchunkPOS $path $offset $size
+            lappend currentchunkPOS $pathlist $offset $size
             append currentchunk $pbuf($path)
         }
 
