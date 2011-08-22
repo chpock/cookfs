@@ -233,8 +233,8 @@ ERROR:
 
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     static char *commands[] = {
-        "add", "aside", "get", "gethead", "getheadmd5", "gettail", "gettailmd5", "hash", "index", "length", "dataoffset", "close", "delete", "cachesize", NULL };
-    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail, cmdGetTailMD5, cmdHash, cmdIndex, cmdLength, cmdDataoffset, cmdClose, cmdDelete, cmdCachesize };
+        "add", "aside", "get", "gethead", "getheadmd5", "gettail", "gettailmd5", "hash", "index", "length", "dataoffset", "close", "delete", "cachesize", "filesize", NULL };
+    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail, cmdGetTailMD5, cmdHash, cmdIndex, cmdLength, cmdDataoffset, cmdClose, cmdDelete, cmdCachesize, cmdFilesize };
     int idx;
     Cookfs_Pages *p = (Cookfs_Pages *) clientData;
     
@@ -445,6 +445,16 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 Cookfs_PagesSetCacheSize(p, csize);
             }
             Tcl_SetObjResult(interp, Tcl_NewIntObj(p->cacheSize));
+            break;
+        }
+        case cmdFilesize:
+        {
+            if (objc != 2) {
+                Tcl_WrongNumArgs(interp, 2, objv, "");
+                return TCL_ERROR;
+            }
+            Tcl_SetObjResult(interp, Tcl_NewWideIntObj(Cookfs_GetFilesize(p)));
+            break;
         }
     }
     return TCL_OK;

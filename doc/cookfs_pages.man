@@ -1,9 +1,9 @@
-[manpage_begin cookfs::pages n 1.2]
+[manpage_begin cookfs::pages n 1.3]
 [copyright {2010-2011 Wojciech Kocjan <wojciech@kocjan.org>}]
 [moddesc   {vfs::cookfs::pages}]
 [titledesc {vfs::cookfs::pages}]
 [require Tcl 8.5]
-[require vfs::cookfs [opt 1.2]]
+[require vfs::cookfs [opt 1.3]]
 
 [description]
 
@@ -63,6 +63,15 @@ Tail is the entire cookfs archive.
 
 [para]
 These commands can be used as helper procedures to read or compare currently open/mounted binaries.
+
+[call [arg pagesHandle] [method cachesize] [opt [arg numPages]]]
+Sets or gets maximum number of pages to store in cache.
+If [arg numPages] is specified, size is modified. If more than [arg numPages] pages are currently buffered, they are removed from cache.
+If 0, no cache is used. Otherwise, up to [arg numPages] are kept in memory
+
+[call [arg pagesHandle] [method filesize]]
+Returns size of file up to last stored page.
+The size only includes page sizes and does not include overhead for index and additional information used by cookfs.
 
 [call [arg pagesHandle] [method hash]]
 Hash function to use for comparing if pages are equal. This is mainly used as pre-check and entire page is still checked for.

@@ -432,3 +432,45 @@ tcltest::test cookfsVfs-6.1 "Test crc32 based VFS and page handling" -constraint
     tcltest::removeFile $file
 } -returnCodes {ok} -result {1}
 
+tcltest::test cookfsVfs-7.1 "Test filesize command" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    puts -nonewline $fh [string repeat "TEST" 1024]
+    close $fh
+} -body {
+    set fsid [vfs::cookfs::Mount -smallfilesize 8192 -compression none $file $file]
+    set fh [open [file join $file testfile1] w]
+    puts -nonewline $fh [string repeat "Test0001" 4096]
+    close $fh
+    set fh [open [file join $file testfile2] w]
+    puts -nonewline $fh [string repeat "Test0002" 4096]
+    close $fh
+    $fsid filesize
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result 69634
+
+tcltest::test cookfsVfs-7.2 "Test filesize command" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    close $fh
+} -body {
+    set fsid [vfs::cookfs::Mount -smallfilesize 8192 -compression none $file $file]
+    set fh [open [file join $file testfile1] w]
+    puts -nonewline $fh [string repeat "Test0001" 4096]
+    close $fh
+    set fh [open [file join $file testfile2] w]
+    puts -nonewline $fh [string repeat "Test0002" 4096]
+    close $fh
+    set fh [open [file join $file testfile3] w]
+    puts -nonewline $fh [string repeat "Test0002" 128]
+    close $fh
+    $fsid smallfilebuffersize
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result 1024
+

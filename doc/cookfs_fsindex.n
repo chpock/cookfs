@@ -238,14 +238,14 @@ Database Class:	\\fB\\$3\\fR
 .de UL
 \\$1\l'|0\(ul'\\$2
 ..
-.TH "cookfs::fsindex" n 1.2 cookfs_fsindex "vfs::cookfs::fsindex"
+.TH "cookfs::fsindex" n 1.3 cookfs_fsindex "vfs::cookfs::fsindex"
 .BS
 .SH NAME
 cookfs::fsindex \- vfs::cookfs::fsindex
 .SH SYNOPSIS
 package require \fBTcl  8.5\fR
 .sp
-package require \fBvfs::cookfs  ?1.2?\fR
+package require \fBvfs::cookfs  ?1.3?\fR
 .sp
 \fB::cookfs::fsindex\fR ?\fIexportedData\fR?
 .sp

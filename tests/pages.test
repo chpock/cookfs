@@ -82,6 +82,37 @@ tcltest::test cookfsPages-1.6 "Check dataoffset command reporting properly for f
     catch {file delete -force $file}
 } -returnCodes {ok} -result 4096
 
+tcltest::test cookfsPages-1.7 "Check filesize command reporting properly for empty archives" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    close $fh
+} -body {
+    set pg [cookfs::pages -compression none $file]
+    $pg add [string repeat "Test" 1024]
+    $pg filesize
+} -cleanup {
+    $pg delete
+    catch {file delete -force $file}
+    # -result is 4097 - 4096+1 byte for page prefix
+} -returnCodes {ok} -result 4097
+
+tcltest::test cookfsPages-1.8 "Check filesize command reporting properly for files with prefix" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    puts -nonewline $fh [string repeat TEST 1024]
+    close $fh
+} -body {
+    set pg [cookfs::pages -compression none $file]
+    $pg add [string repeat "Test" 1024]
+    $pg filesize
+} -cleanup {
+    $pg delete
+    catch {file delete -force $file}
+    # -result is 8193 - 4096+4096+1 byte for page prefix
+} -returnCodes {ok} -result 8193
+
 tcltest::test cookfsPages-2.1 "Test that different pages get different indexes" -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {

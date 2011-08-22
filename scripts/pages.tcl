@@ -383,6 +383,15 @@ proc cookfs::pages::setcachesize {name csize} {
     set c(cachesize) $csize
 }
 
+proc cookfs::pages::getFilesize {name} {
+    upvar #0 $name c
+    set o $c(startoffset)
+    foreach i $c(idx.sizelist) {
+	incr o $i
+    }
+    return $o
+}
+
 proc cookfs::pages::handle {name cmd args} {
     upvar #0 $name c
     switch -- $cmd {
@@ -454,6 +463,11 @@ proc cookfs::pages::handle {name cmd args} {
 	    }
 	    return $c(cachesize)
 	}
+	filesize {
+	    if {[llength $args] == 0} {
+		return [getFilesize $name]
+	    }
+	}
 	default {
 	    error "Not implemented"
 	}
@@ -461,4 +475,4 @@ proc cookfs::pages::handle {name cmd args} {
     error "TODO: help"
 }
 
-package provide vfs::cookfs::tcl::pages 1.2
+package provide vfs::cookfs::tcl::pages 1.3

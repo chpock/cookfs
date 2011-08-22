@@ -1,3 +1,34 @@
+2011-08-22 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* scripts/cookvfs.tcl: Added -nodirectorymtime to support recreating same archive over time
+	* scripts/vfs.tcl:
+
+2011-06-06 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* configure: Change version to 1.3, add support for filesize and smallbuffersize commands to pages and vfs handle
+	* configure.in:
+	* scripts/vfs.tcl:
+	* scripts/pages.tcl:
+	* scripts/fsindex.tcl:
+	* scripts/optimize.tcl:
+	* scripts/memchan.tcl:
+	* scripts/cookvfs.tcl:
+	* scripts/readerchannel.tcl:
+	* scripts/writer.tcl:
+	* pkgconfig.tcl.in:
+	* tests/vfs.test:
+	* tests/pages.test:
+	* doc/cookfs_pages.n:
+	* doc/cookfs_fsindex.n:
+	* doc/cookfs.n:
+	* doc/cookfs_pages.html:
+	* doc/cookfs_fsindex.html:
+	* doc/cookfs.html:
+	* doc/cookfs_pages.man:
+	* doc/cookfs_fsindex.man:
+	* doc/cookfs.man:
+	* generic/pages.c:
+	* generic/pages.h:
+	* generic/pagesCmd.c:
+
 2011-06-02 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/writer.tcl: Added code to detect duplication of small files, initial version (only entire files duplicated)
 	* tests/vfs.test

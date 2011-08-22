@@ -23,8 +23,7 @@ proc cookfs::vfshandler {fsid cmd root relative actualpath args} {
         createdirectory {
             # create directory
             if {[catch {
-                $fs(index) set $relative [clock seconds]
-                incr fs(changeCount)
+                vfshandleCreatedirectory $fsid $root $relative $actualpath
             } error]} {
                 #vfs::log [list cookfs::vfshandler createdirectory $fsid $relative $error]
                 vfs::filesystem posixerror $::cookfs::posix(ENOTDIR)
@@ -69,6 +68,18 @@ proc cookfs::vfshandler {fsid cmd root relative actualpath args} {
         }
     }
     return $rc
+}
+
+proc cookfs::vfshandleCreatedirectory {fsid root relative actualpath} {
+    upvar #0 $fsid fs
+
+    if {$fs(nodirectorymtime)} {
+        set clk 0
+    }  else  {
+        set clk [clock seconds]
+    }
+    $fs(index) set $relative $clk
+    incr fs(changeCount)
 }
 
 # handle file attributes
@@ -281,4 +292,4 @@ proc cookfs::vfshandleOpen {fsid relative mode} {
     }
 }
 
-package provide vfs::cookfs::tcl::vfs 1.2
+package provide vfs::cookfs::tcl::vfs 1.3

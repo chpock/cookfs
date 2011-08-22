@@ -329,4 +329,4 @@ proc cookfs::fsindex::handle {name cmd args} {
     error "TODO: args"
 }
 
-package provide vfs::cookfs::tcl::fsindex 1.2
+package provide vfs::cookfs::tcl::fsindex 1.3

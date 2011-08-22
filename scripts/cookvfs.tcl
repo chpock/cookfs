@@ -101,6 +101,7 @@ proc cookfs::Mount {args} {
         {volume                                         {Mount as volume}}
         {smallfilesize.arg              32768           {Maximum size of small files}}
         {smallfilebuffer.arg            4194304         {Maximum buffer for optimizing small files}}
+        {nodirectorymtime				{Do not initialize mtime for new directories to current date and time}}
     }
     lappend options [list tempfilename.arg "" {Temporary file name to keep index in}]
 
@@ -194,6 +195,7 @@ proc cookfs::Mount {args} {
     set fs(changeCount) 0
     set fs(writetomemory) $opt(writetomemory)
     set fs(readonly) $opt(readonly)
+    set fs(nodirectorymtime) $opt(nodirectorymtime)
 
     # initialize pages
     if {$opt(pagesobject) == ""} {
@@ -360,6 +362,20 @@ proc cookfs::handleVfsCommandAlias {fsid args} {
 	    }
 	    uplevel 1 [linsert $args 0 cookfs::writeFiles $fsid $args]
         }
+	filesize {
+	    if {[llength $args] != 1} {
+                set ei "wrong # args: should be \"$fsid filesize\""
+                error $ei $ei
+	    }
+	    return [$fs(pages) filesize]
+	}
+	smallfilebuffersize {
+	    if {[llength $args] != 1} {
+                set ei "wrong # args: should be \"$fsid smallfilebuffersize\""
+                error $ei $ei
+	    }
+	    return $fs(smallfilebufsize)
+	}
         default {
             set ei "unknown subcommand \"[lindex $args 0]\": must be aside, optimizelist, or writetomemory"
             error $ei $ei
@@ -389,4 +405,4 @@ proc cookfs::writetomemory {fsid} {
 
 cookfs::initialize
 
-package provide vfs::cookfs 1.2
+package provide vfs::cookfs 1.3

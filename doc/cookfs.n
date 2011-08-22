@@ -238,14 +238,14 @@ Database Class:	\\fB\\$3\\fR
 .de UL
 \\$1\l'|0\(ul'\\$2
 ..
-.TH "cookfs" n 1.2 cookfs "vfs::cookfs"
+.TH "cookfs" n 1.3 cookfs "vfs::cookfs"
 .BS
 .SH NAME
 cookfs \- vfs::cookfs
 .SH SYNOPSIS
 package require \fBTcl  8.5\fR
 .sp
-package require \fBvfs::cookfs  ?1.2?\fR
+package require \fBvfs::cookfs  ?1.3?\fR
 .sp
 \fB::cookfs::Mount\fR ?\fIoptions\fR? \fIarchive\fR \fIlocal\fR ?\fIoptions\fR?
 .sp
@@ -264,6 +264,10 @@ package require \fBvfs::cookfs  ?1.2?\fR
 \fIcookfsHandle\fR \fBsetmetadata\fR \fIparameterName\fR \fIvalue\fR
 .sp
 \fIcookfsHandle\fR \fBwriteFiles\fR ?\fIfilename1\fR \fItype1\fR \fIdata1\fR \fIsize1\fR ?\fIfilename2\fR \fItype2\fR \fIdata2\fR \fIsize2\fR ?\fI..\fR???
+.sp
+\fIcookfsHandle\fR \fBfilesize\fR
+.sp
+\fIcookfsHandle\fR \fBsmallfilebuffersize\fR
 .sp
 .BE
 .SH DESCRIPTION
@@ -362,6 +366,13 @@ file is copied directly and does not require staging file in memory, unlike writ
 \fIdata\fR is a valid Tcl channel that should be read by cookfs;
 channel is read from current location until end or until \fIsize\fR bytes have been read
 .RE
+.TP
+\fIcookfsHandle\fR \fBfilesize\fR
+Returns size of file up to last stored page.
+The size only includes page sizes and does not include overhead for index and additional information used by cookfs.
+.TP
+\fIcookfsHandle\fR \fBsmallfilebuffersize\fR
+Returns size of all files that are queued up to be written.
 .PP
 .SH "MOUNT OPTIONS"
 The following options can be specified when mounting a cookfs archive:

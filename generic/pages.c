@@ -828,6 +828,31 @@ void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size) {
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_GetFilesize --
+ *
+ *	Gets file size based on currently written pages
+ *
+ * Results:
+ *	File size as calculated by adding sizes of all pages and
+ *	dataInitialOffset
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Tcl_WideInt Cookfs_GetFilesize(Cookfs_Pages *p) {
+    Tcl_WideInt rc;
+    // rc = p->dataInitialOffset + 
+    rc = CookfsPagesGetPageOffset(p, p->dataNumPages);
+    return rc;
+}
+
+
 /* definitions of static and/or internal functions */
 
 /*
