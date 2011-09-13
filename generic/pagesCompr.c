@@ -3,7 +3,7 @@
  *
  * Provides functions for pages compression
  *
- * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ * (c) 2010-2011 Wojciech Kocjan, Pawel Salawa
  */
 
 #include "cookfs.h"
@@ -25,6 +25,7 @@ static Tcl_Obj *CookfsReadPageBz2(Cookfs_Pages *p, int size);
 static int CookfsWritePageBz2(Cookfs_Pages *p, Tcl_Obj *data, int origSize);
 static Tcl_Obj *CookfsReadPageCustom(Cookfs_Pages *p, int size);
 static int CookfsWritePageCustom(Cookfs_Pages *p, Tcl_Obj *data, int origSize);
+static int CookfsCheckCommandExists(Tcl_Interp *interp, const char *commandName);
 
 /* compression data */
 const char *cookfsCompressionOptions[] = {
@@ -68,10 +69,10 @@ const int cookfsCompressionOptionMap[] = {
 
 void Cookfs_PagesInitCompr(Cookfs_Pages *rc) {
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
-    Tcl_Obj *zlibString;
-    zlibString = Tcl_NewStringObj("::zlib", -1);
-    Tcl_IncrRefCount(zlibString);
-    if (Tcl_GetCommandFromObj(rc->interp, zlibString) != NULL) {
+    if (CookfsCheckCommandExists(rc->interp, "::zlib")) {
+        Tcl_Obj *zlibString;
+        zlibString = Tcl_NewStringObj("::zlib", -1);
+        Tcl_IncrRefCount(zlibString);
         /* use built-in zlib command for (de)compressing */
         rc->zipCmdCompress[0] = zlibString;
         rc->zipCmdCompress[1] = Tcl_NewStringObj("deflate", -1);
@@ -84,8 +85,6 @@ void Cookfs_PagesInitCompr(Cookfs_Pages *rc) {
         rc->zipCmdOffset = 2;
         rc->zipCmdLength = 3;
     }  else  {
-        Tcl_DecrRefCount(zlibString);
-
         /* initialize list for calling vfs::zip command for (de)compressing */
         rc->zipCmdCompress[0] = Tcl_NewStringObj("::vfs::zip", -1);
         rc->zipCmdCompress[1] = Tcl_NewStringObj("-mode", -1);
@@ -851,4 +850,31 @@ static int CookfsWritePageCustom(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
     }
     Tcl_DecrRefCount(compressed);
     return size;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsCheckCommandExists --
+ *
+ *	Checks whether specified command exists, providing Tcl 8.4
+ *	backwards compatibility
+ *
+ * Results:
+ *	non-zero if command exists; 0 otherwise
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int CookfsCheckCommandExists(Tcl_Interp *interp, const char *commandName)
+{
+    int rc;
+    Tcl_CmdInfo info;
+
+    rc = Tcl_GetCommandInfo(interp, commandName, &info);
+
+    return rc;
 }

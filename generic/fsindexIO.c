@@ -95,9 +95,9 @@ Cookfs_Fsindex *Cookfs_FsindexFromObject(Tcl_Obj *o) {
     int objLength;
     int i;
     unsigned char *bytes;
+    Cookfs_Fsindex *result;
     
     CookfsLog(printf("Cookfs_FsindexFromObject - BEGIN"))
-    Cookfs_Fsindex *result;
     
     /* initialize empty fsindex */
     result = Cookfs_FsindexInit();

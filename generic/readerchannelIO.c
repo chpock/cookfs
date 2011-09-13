@@ -70,8 +70,6 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	instData->currentOffset += bytesRead;
     }
     
-    // CookfsLog(printf("Cookfs_Readerchannel_Input: "))
-
     return bytesRead;
 
 error:

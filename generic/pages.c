@@ -847,7 +847,6 @@ void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size) {
 
 Tcl_WideInt Cookfs_GetFilesize(Cookfs_Pages *p) {
     Tcl_WideInt rc;
-    // rc = p->dataInitialOffset + 
     rc = CookfsPagesGetPageOffset(p, p->dataNumPages);
     return rc;
 }
@@ -1014,7 +1013,7 @@ int CookfsReadIndex(Cookfs_Pages *p) {
 	seekOffset = Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
     }  else  {
         /* if endoffset not specified, read last 4k of file and find last occurrence of signature */
-        Tcl_Obj *byteObj = NULL;;
+        Tcl_Obj *byteObj = NULL;
         char *lastMatch = NULL;
 	seekOffset = Tcl_Seek(p->fileChannel, 0, SEEK_END);
         if (seekOffset > 4096) {

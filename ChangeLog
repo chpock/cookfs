@@ -1,3 +1,9 @@
+2011-09-13 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* generic/pages.c: Rework of C code after feedback from Andreas Kupries regarding compiling on various platforms
+	* generic/pagesCompr.c:
+	* generic/readerchannelIO.c:
+	* generic/fsindexIO.c:
+
 2011-08-22 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/cookvfs.tcl: Added -nodirectorymtime to support recreating same archive over time
 	* scripts/vfs.tcl:
