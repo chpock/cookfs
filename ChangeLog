@@ -1,3 +1,9 @@
+2011-09-21 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* generic/readerchannel.c: Fixed issue with [load] command not working properly with C-based readerchannel
+	* generic/readerchannelIO.c:
+	* generic/readerchannelIO.h:
+	* scripts/vfs.tcl:
+
 2011-09-13 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* generic/pages.c: Rework of C code after feedback from Andreas Kupries regarding compiling on various platforms
 	* generic/pagesCompr.c:

@@ -5,6 +5,9 @@
 
 #ifdef COOKFS_USECREADERCHAN
 int Cookfs_Readerchannel_Close(ClientData instanceData, Tcl_Interp *interp);
+int Cookfs_Readerchannel_Close2(ClientData instanceData, Tcl_Interp *interp, int flags);
+
+int Cookfs_Readerchannel_Gethandle(ClientData instanceData, int direction, ClientData *handlePtr);
 
 int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, int *errorCodePtr);
 int Cookfs_Readerchannel_Output(ClientData instanceData, const char *buf, int toWrite, int *errorCodePtr);

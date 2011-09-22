@@ -5,8 +5,25 @@
 
 int Cookfs_Readerchannel_Close(ClientData instanceData, Tcl_Interp *interp) {
     Cookfs_ReaderChannelInstData *instData = (Cookfs_ReaderChannelInstData *) instanceData;
+    CookfsLog(printf("Cookfs_Readerchannel_Close: channel=%s\n", instData->channelName))
     Cookfs_CreateReaderchannelFree(instData);
     return 0;
+}
+
+int Cookfs_Readerchannel_Close2(ClientData instanceData, Tcl_Interp *interp, int flags) {
+    CookfsLog(printf("Cookfs_Readerchannel_Close2: flags=%d", flags))
+    if (flags == 0) {
+        return Cookfs_Readerchannel_Close(instanceData, interp);
+    }  else  {
+        if (interp != NULL) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("Invalid operation", -1));
+            return EINVAL;
+        }
+    }
+}
+
+int Cookfs_Readerchannel_Gethandle(ClientData instanceData, int direction, ClientData *handlePtr) {
+    return TCL_ERROR;
 }
 
 int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, int *errorCodePtr) {
@@ -70,6 +87,7 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	instData->currentOffset += bytesRead;
     }
     
+    CookfsLog(printf("Cookfs_Readerchannel_Input: bytesRead=%d", bytesRead))
     return bytesRead;
 
 error:
@@ -147,8 +165,11 @@ static void CookfsReaderchannelTimerProc(ClientData instanceData)
 
 void Cookfs_Readerchannel_Watch(ClientData instanceData, int mask) {
     Cookfs_ReaderChannelInstData *chan = (Cookfs_ReaderChannelInstData *) instanceData;
+    CookfsLog(printf("Cookfs_Readerchannel_Watch: channel=%s mask=%08x\n", chan->channelName, mask))
     if (mask && TCL_READABLE) {
-	chan->watchTimer = Tcl_CreateTimerHandler(5, CookfsReaderchannelTimerProc, instanceData);
+        if (chan->watchTimer == NULL) {
+    	    chan->watchTimer = Tcl_CreateTimerHandler(5, CookfsReaderchannelTimerProc, instanceData);
+        }
     } else if (chan->watchTimer != NULL) {
 	Tcl_DeleteTimerHandler(chan->watchTimer);
 	chan->watchTimer = NULL;

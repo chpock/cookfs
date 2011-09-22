@@ -54,7 +54,7 @@ proc cookfs::vfshandler {fsid cmd root relative actualpath args} {
         }
         access {
             vfshandleStat $fsid $relative $actualpath
-            return true
+            set rc true
         }
         utime {
             # modify mtime and atime, assuming file exists
