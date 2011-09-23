@@ -245,7 +245,7 @@ cookfs \- vfs::cookfs
 .SH SYNOPSIS
 package require \fBTcl  8.5\fR
 .sp
-package require \fBvfs::cookfs  ?1.3?\fR
+package require \fBvfs::cookfs  ?1.3.1?\fR
 .sp
 \fB::cookfs::Mount\fR ?\fIoptions\fR? \fIarchive\fR \fIlocal\fR ?\fIoptions\fR?
 .sp
@@ -317,21 +317,24 @@ When \fIfilelist\fR contains paths relative to subdirectory of archive root,
 For example if archive contains files
 \fBcontents/dir1/file1\fR and \fBcontents/dir1/subdir/file2\fR, the following code can be used:
 Specifying \fIfilelist\fR relative to a directory and proper \fIbase\fR:
-.nf
+.CS
+
 
 % puts [$fsid optimizelist contents/dir1 {file1 subdir/file2}]
 subdir/file2
 file1
 
-.fi
+.CE
+.IP
 Specifying \fIfilelist\fR relative to root directory:
-.nf
+.CS
+
 
 % puts [$fsid optimizelist "" {contents/dir1/file1 contents/dir1/subdir/file2}]
 contents/dir1/subdir/file2
 contents/dir1/file1
 
-.fi
+.CE
 .TP
 \fIcookfsHandle\fR \fBgetmetadata\fR \fIparameterName\fR ?\fIdefaultValue\fR?
 Gets a parameter from cookfs metadata. If \fIparameterName\fR is currently set in metadata, value for it is returned.
@@ -527,7 +530,8 @@ have to be specified. These commands will be used to compress data and will be c
 with data to be compressed or decompressed as additional argument.
 .PP
 For example the following are sample compress and decompress commands:
-.nf
+.CS
+
 
 # use vfs::zip to (de)compress data and encode it in HEX
 proc testc {d} {
@@ -541,7 +545,7 @@ proc testd {d} {
 
 vfs::cookfs::Mount archive archive -compression custom -compresscommand testc -decompresscommand testd
 
-.fi
+.CE
 .PP
 See \fBCOOKFS STORAGE\fR for more details on how files are stored in cookfs.
 .PP

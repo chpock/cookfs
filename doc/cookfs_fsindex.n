@@ -245,7 +245,7 @@ cookfs::fsindex \- vfs::cookfs::fsindex
 .SH SYNOPSIS
 package require \fBTcl  8.5\fR
 .sp
-package require \fBvfs::cookfs  ?1.3?\fR
+package require \fBvfs::cookfs  ?1.3.1?\fR
 .sp
 \fB::cookfs::fsindex\fR ?\fIexportedData\fR?
 .sp

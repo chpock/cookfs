@@ -475,4 +475,4 @@ proc cookfs::pages::handle {name cmd args} {
     error "TODO: help"
 }
 
-package provide vfs::cookfs::tcl::pages 1.3
+package provide vfs::cookfs::tcl::pages 1.3.1

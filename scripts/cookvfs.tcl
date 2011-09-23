@@ -405,4 +405,4 @@ proc cookfs::writetomemory {fsid} {
 
 cookfs::initialize
 
-package provide vfs::cookfs 1.3
+package provide vfs::cookfs 1.3.1
