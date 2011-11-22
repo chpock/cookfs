@@ -115,15 +115,28 @@ proc cookfs::fsindex::entrySetmtime {name path mtime} {
     }]} {
 	error "Unable to create entry"
     }
+    array set da $d
     if {![info exists da($tail)]} {
 	error "Entry not found"
     }  else  {
 	lset da($tail) 0 $mtime
+        set d [array get da]
     }
-
 }
 
 proc cookfs::fsindex::entryUnset {name path} {
+    if {[catch {
+	upvarPathDir $name $path d tail
+    }]} {
+	error "Unable to unset item"
+    }
+    array set da $d
+    if {[info exists da($tail)]} {
+        unset da($tail)
+        set d [array get da]
+    }  else  {
+	error "Unable to unset item"
+    }
 }
 
 proc cookfs::fsindex::cleanup {name} {
@@ -287,12 +300,16 @@ proc cookfs::fsindex::handle {name cmd args} {
 	    return ""
 	}
 	setmtime {
-	    # TODO: implement
-	    error "Not implemented"
+	    if {[llength $args] == 2} {
+		entrySetmtime $name [lindex $args 0] [lindex $args 1]
+                return ""
+	    }
 	}
 	unset {
-	    # TODO: implement
-	    error "Not implemented"
+	    if {[llength $args] == 1} {
+		entryUnset $name [lindex $args 0]
+                return ""
+	    }
 	}
 	delete {
 	    cleanup $name

@@ -62,9 +62,7 @@ proc cookfs::vfshandler {fsid cmd root relative actualpath args} {
                 vfs::filesystem posixerror $::cookfs::posix(ENOENT)
             }
 
-            lassign $args actime mtime
-
-            $fs(index) setmtime $relative $mtime
+            $fs(index) setmtime $relative [lindex $args 1]
         }
     }
     return $rc
