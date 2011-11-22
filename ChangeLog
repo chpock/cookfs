@@ -1,4 +1,8 @@
 2011-11-22 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* scripts/vfs.tcl: Fix delete operation working properly for pure Tcl and C implementations
+	* tests/vfs.test:
+
+2011-11-22 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/fsindex.tcl: Fix for utime command handling in pure Tcl version
 	* tests/fsindex.test:
 	* scripts/vfs.tcl:

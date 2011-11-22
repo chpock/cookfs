@@ -147,7 +147,7 @@ tcltest::test cookfsVfs-2.1 "Test compressing entire directory structure" -setup
     set file [tcltest::makeFile {} cookfs.cfs]
 } -body {
     foreach d {scripts generic tclconfig configure} {
-	file copy -force [file join [tcltest::testsDirectory] .. $d] [file join $dir $d]
+        file copy -force [file join [tcltest::testsDirectory] .. $d] [file join $dir $d]
     }
     vfs::cookfs::Mount $file $file
     file copy -force $dir [file join $file vfs]
@@ -163,7 +163,7 @@ tcltest::test cookfsVfs-2.2 "Test compressing entire directory structure after r
     set file [tcltest::makeFile {} cookfs.cfs]
 } -body {
     foreach d {scripts generic tclconfig configure} {
-	file copy -force [file join [tcltest::testsDirectory] .. $d] [file join $dir $d]
+        file copy -force [file join [tcltest::testsDirectory] .. $d] [file join $dir $d]
     }
     vfs::cookfs::Mount $file $file
     file copy -force $dir [file join $file vfs]
@@ -473,4 +473,130 @@ tcltest::test cookfsVfs-7.2 "Test filesize command" -setup {
     catch {vfs::unmount $file}
     tcltest::removeFile $file
 } -returnCodes {ok} -result 1024
+
+tcltest::test cookfsVfs-8.1 "Test modifying file mtime" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    close $fh
+} -body {
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    set fh [open [file join $file testfile1] w]
+    puts -nonewline $fh [string repeat "Test0001" 4096]
+    close $fh
+    file mtime [file join $file testfile1] 1
+    catch {vfs::unmount $file}
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    if {[file mtime [file join $file testfile1]] != "1"} {
+        error "Invalid mtime after first pass"
+    }
+    file mtime [file join $file testfile1] 1342177280
+    catch {vfs::unmount $file}
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    file mtime [file join $file testfile1]
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result 1342177280
+
+tcltest::test cookfsVfs-9.1 "Test deleting files" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    close $fh
+} -body {
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    close [open [file join $file testfile1] w]
+    close [open [file join $file testfile2] w]
+    file mkdir [file join $file testdir1]
+    file mkdir [file join $file testdir2]
+    close [open [file join $file testdir2/testfile3] w]
+    close [open [file join $file testdir2/testfile4] w]
+    catch {vfs::unmount $file}
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    file delete -force [file join $file testfile1]
+    catch {vfs::unmount $file}
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    join [lsort [glob -tails -directory $file * */*]] ,
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result {testdir1,testdir2,testdir2/testfile3,testdir2/testfile4,testfile2}
+
+tcltest::test cookfsVfs-9.2 "Test deleting empty directories" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    close $fh
+} -body {
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    close [open [file join $file testfile1] w]
+    close [open [file join $file testfile2] w]
+    file mkdir [file join $file testdir1]
+    file mkdir [file join $file testdir2]
+    close [open [file join $file testdir2 testfile3] w]
+    close [open [file join $file testdir2 testfile4] w]
+    catch {vfs::unmount $file}
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    file delete -force [file join $file testdir1]
+    catch {vfs::unmount $file}
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    join [lsort [glob -tails -directory $file * */*]] ,
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result {testdir2,testdir2/testfile3,testdir2/testfile4,testfile1,testfile2}
+
+tcltest::test cookfsVfs-9.3 "Test deleting non-empty directories" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    close $fh
+} -body {
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    close [open [file join $file testfile1] w]
+    close [open [file join $file testfile2] w]
+    file mkdir [file join $file testdir1]
+    file mkdir [file join $file testdir2]
+    close [open [file join $file testdir2 estfile3] w]
+    close [open [file join $file testdir2 testfile4] w]
+    catch {vfs::unmount $file}
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    file delete -force [file join $file testdir2]
+    catch {vfs::unmount $file}
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    join [lsort [glob -tails -directory $file * */*]] ,
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result {testdir1,testfile1,testfile2}
+
+tcltest::test cookfsVfs-9.4 "Test deleting non-empty directories with complex structure" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    close $fh
+} -body {
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    close [open [file join $file testfile1] w]
+    close [open [file join $file testfile2] w]
+    file mkdir [file join $file testdir1]
+    file mkdir [file join $file testdir2]
+    file mkdir [file join $file testdir2 testdir3]
+    file mkdir [file join $file testdir2 testdir3 testdir4]
+    close [open [file join $file testdir2 testfile3] w]
+    close [open [file join $file testdir2 testfile4] w]
+    close [open [file join $file testdir2 testdir3 testfile5] w]
+    close [open [file join $file testdir2 testdir3 testfile6] w]
+    catch {vfs::unmount $file}
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    file delete -force [file join $file testdir2]
+    catch {vfs::unmount $file}
+    set fsid [vfs::cookfs::Mount -compression none $file $file]
+    join [lsort [glob -tails -directory $file * */*]] ,
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok} -result {testdir1,testfile1,testfile2}
+
 

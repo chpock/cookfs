@@ -57,6 +57,8 @@ proc cookfs::vfshandler {fsid cmd root relative actualpath args} {
             set rc true
         }
         utime {
+            incr fs(changeCount)
+
             # modify mtime and atime, assuming file exists
             if {[catch {vfshandleStat $fsid $relative $actualpath} rc]} {
                 vfs::filesystem posixerror $::cookfs::posix(ENOENT)
@@ -216,6 +218,21 @@ proc cookfs::vfshandleDelete {fsid root relative actualpath type recursive} {
             vfs::filesystem posixerror $::cookfs::posix(EISDIR)
         }  else  {
             vfs::filesystem posixerror $::cookfs::posix(ENOTDIR)
+        }
+    }  elseif {$type == "directory" && $recursive} {
+        if {[catch {
+            foreach ch [$fs(index) list $relative] {
+                # check type and delete appropriately
+                set g [$fs(index) get [file join $relative $ch]]
+                if {[llength $g] == 1} {
+                    vfshandleDelete $fsid $root [file join $relative $ch] [file join $actualpath $ch] "directory" 1
+                }  else  {
+                    vfshandleDelete $fsid $root [file join $relative $ch] [file join $actualpath $ch] "file" 0
+                }
+            }
+        } err]} {
+            #vfs::log [list cookfs::vfshandleDelete $fsid $relative $type $recursive error $err]
+            vfs::filesystem posixerror $::cookfs::posix(ENOENT)
         }
     }
 
