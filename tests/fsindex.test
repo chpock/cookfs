@@ -182,3 +182,67 @@ tcltest::test cookfsFsindex-5.2 "Test metadata setting across export/import" -co
     $fsidx delete
 } -returnCodes {ok} -result t1,t2
 
+tcltest::test cookfsFsindex-6.1 "Test setmtime" -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set testdir 1
+    $fsidx setmtime testdir 3
+    join [$fsidx get testdir] \n
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok} -result 3
+
+tcltest::test cookfsFsindex-6.1 "Test unset for empty directory" -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set testdir1 1
+    $fsidx set testdir2 1
+    $fsidx set testdir3 1
+    $fsidx unset testdir2
+    join [lsort [$fsidx list {}]] ,
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok} -result testdir1,testdir3
+
+tcltest::test cookfsFsindex-6.2 "Test unset for empty directory after export and import" -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set testdir1 1
+    $fsidx set testdir2 1
+    $fsidx set testdir3 1
+    $fsidx unset testdir2
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    join [lsort [$fsidx list {}]] ,
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok} -result testdir1,testdir3
+
+tcltest::test cookfsFsindex-6.3 "Test unset for file" -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set testdir1 1
+    $fsidx set testfile2 1 {0 1 2 3 4 5}
+    $fsidx set testdir3 1
+    $fsidx unset testfile2
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    join [lsort [$fsidx list {}]] ,
+} -cleanup {
+    $fsidx delete
+} -returnCodes {ok} -result testdir1,testdir3
+
+tcltest::test cookfsFsindex-6.4 "Test unset for non-empty directory" -setup {
+} -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set testdir1 1
+    $fsidx set testdir2 1
+    $fsidx set testdir2/testdir4 1
+    $fsidx set testdir3 1
+    $fsidx unset testdir2
+} -cleanup {
+    $fsidx delete
+} -returnCodes {error} -result {Unable to unset item}
+

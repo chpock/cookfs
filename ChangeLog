@@ -1,5 +1,6 @@
 2011-11-22 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/fsindex.tcl: Fix for utime command handling in pure Tcl version
+	* tests/fsindex.test:
 	* scripts/vfs.tcl:
 
 Release 1.3.1
