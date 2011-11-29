@@ -71,6 +71,8 @@ proc cookfs::pages {args} {
 	error "Unable to create Cookfs object"
     }
 
+    fconfigure $c(fh) -translation binary
+
     if {$c(endoffset) != ""} {
 	seek $c(fh) $c(endoffset) start
     }  else  {
@@ -90,8 +92,6 @@ proc cookfs::pages {args} {
             set c(endoffset) [tell $c(fh)]
         }
     }
-
-    fconfigure $c(fh) -translation binary
 
     if {[pages::readIndex $name]} {
 	set c(haschanged) 0

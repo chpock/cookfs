@@ -1,3 +1,6 @@
+2011-11-29 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* scripts/pages.tcl: Fix for bug in pure Tcl and Tcl 8.4 on Windows
+
 2011-11-22 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/vfs.tcl: Fix delete operation working properly for pure Tcl and C implementations
 	* tests/vfs.test:
