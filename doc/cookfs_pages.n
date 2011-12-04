@@ -238,14 +238,14 @@ Database Class:	\\fB\\$3\\fR
 .de UL
 \\$1\l'|0\(ul'\\$2
 ..
-.TH "cookfs::pages" n 1.3 cookfs_pages "vfs::cookfs::pages"
+.TH "cookfs::pages" n 1.3.2 cookfs_pages "vfs::cookfs::pages"
 .BS
 .SH NAME
 cookfs::pages \- vfs::cookfs::pages
 .SH SYNOPSIS
 package require \fBTcl  8.5\fR
 .sp
-package require \fBvfs::cookfs  ?1.3.1?\fR
+package require \fBvfs::cookfs  ?1.3.2?\fR
 .sp
 \fB::cookfs::pages\fR ?\fIoptions\fR? \fIarchive\fR
 .sp
