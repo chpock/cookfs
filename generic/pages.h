@@ -74,7 +74,8 @@ typedef struct Cookfs_Pages {
     int dataPagesIsAside;
     struct Cookfs_Pages *dataAsidePages;
     
-    /* custom compression */
+    /* compression information */
+    int alwaysCompress;
     int compressCommandLen;
     Tcl_Obj **compressCommandPtr;
     int decompressCommandLen;
@@ -100,6 +101,8 @@ Tcl_Obj *Cookfs_PageGetHeadMD5(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetTailMD5(Cookfs_Pages *p);
 void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size);
+int Cookfs_PagesGetAlwaysCompress(Cookfs_Pages *p);
+void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress);
 
 int CookfsReadIndex(Cookfs_Pages *p);
 

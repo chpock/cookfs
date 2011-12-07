@@ -1,3 +1,11 @@
+2011-12-07 Wojciech Kocjan <zoro2@users.sourceforge.net>
+        * generic/pages.c: Added support for -alwayscompress flag
+        * generic/pagesCompr.c:
+        * generic/pages.h:
+        * generic/pagesCmd.c:
+        * scripts/pages.tcl:
+	* tests/pages.test:
+
 2011-12-04 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* configure: Bumped version to 1.3.2
 	* configure.in:

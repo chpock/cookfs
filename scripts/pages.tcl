@@ -23,6 +23,7 @@ proc cookfs::pages {args} {
 	cfsname "CFS0002"
 	lastop read
 	hash md5
+	alwayscompress 0
     }
 
     if {[info commands ::zlib] != ""} {
@@ -43,6 +44,10 @@ proc cookfs::pages {args} {
 	    }
 	    -readwrite {
 		set c(readonly) 0
+		set args [lrange $args 1 end]
+	    }
+	    -alwayscompress {
+		set c([string range [lindex $args 0] 1 end]) 1
 		set args [lrange $args 1 end]
 	    }
 
@@ -111,28 +116,31 @@ proc cookfs::pages {args} {
     return $name
 }
 
-proc cookfs::pages::compress {name data} {
+proc cookfs::pages::compress {name origdata} {
     upvar #0 $name c
-    if {[string length $data] == 0} {
+    if {[string length $origdata] == 0} {
 	return ""
     }
     if {$c(cid) == 1} {
 	if {$c(_usezlib)} {
-            set data "\u0001[zlib deflate $data]"
+            set data "\u0001[zlib deflate $origdata]"
         }  else  {
-            set data "\u0001[vfs::zip -mode compress -nowrap 1 $data]"
+            set data "\u0001[vfs::zip -mode compress -nowrap 1 $origdata]"
         }
     }  elseif {$c(cid) == 2} {
 	package require Trf
-	set data "\u0002[binary format I [string length $data]][bz2 -mode compress $data]"
+	set data "\u0002[binary format I [string length $origdata]][bz2 -mode compress $origdata]"
     }  elseif {$c(cid) == 255} {
 	if {$c(compresscommand) == ""} {
 	    error "No compresscommand specified"
 	}
-	set data "\u00ff[uplevel #0 [concat $c(compresscommand) [list $data]]]"
-    }  else  {
-	set data "\u0000$data"
+	set data "\u00ff[uplevel #0 [concat $c(compresscommand) [list $origdata]]]"
     } 
+    # if compression algorithm was not matched or
+    #   we should not always compress and compressed data is not smaller, revert to uncompressed data
+    if {(![info exists data]) || ((!$c(alwayscompress)) && ([string length $data] > [string length $origdata]))} {
+	set data "\u0000$origdata"
+    }
     return $data
 }
 

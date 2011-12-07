@@ -76,8 +76,8 @@ int Cookfs_InitPagesCmd(Tcl_Interp *interp) {
  */
 
 static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    static char *options[] = { "-readonly", "-readwrite", "-compression", "-cachesize", "-endoffset", "-compresscommand", "-decompresscommand", NULL };
-    enum { optReadonly = 0, optReadwrite, optCompression, optCachesize, optEndoffset, optCompressCommand, optDecompressCommand };
+    static char *options[] = { "-readonly", "-readwrite", "-compression", "-cachesize", "-endoffset", "-compresscommand", "-decompresscommand", "-alwayscompress", NULL };
+    enum { optReadonly = 0, optReadwrite, optCompression, optCachesize, optEndoffset, optCompressCommand, optDecompressCommand, optAlwaysCompress };
     char buf[128];
     Cookfs_Pages *pages;
     int cmdidx = ++deprecatedCounter;
@@ -87,6 +87,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     int tobjc = objc;
     int oCachesize = -1;
     int useFoffset = 0;
+    int alwaysCompress = 0;
     Tcl_WideInt foffset = 0;
     Tcl_Obj **tobjv = (Tcl_Obj **) objv;
     Tcl_Obj *compressCmd = NULL;
@@ -177,6 +178,9 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 oCachesize = csize;
                 break;
             }
+            case optAlwaysCompress:
+                alwaysCompress = 1;
+                break;
         }
         tobjc--;
         tobjv++;
@@ -193,6 +197,9 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create Cookfs object", -1));
         return TCL_ERROR;
     }
+
+    /* set whether compression should always be enabled */
+    Cookfs_PagesSetAlwaysCompress(pages, alwaysCompress);
 
     /* set up cache size */
     Cookfs_PagesSetCacheSize(pages, oCachesize);

@@ -503,6 +503,58 @@ tcltest::test cookfsPages-7.3 "Test custom compression algorithm - no decompress
     catch {file delete -force $file}
 } -returnCodes {error} -result {Unable to add page}
 
+tcltest::test cookfsPages-7.4 "Test custom compression algorithm not used when size would not be smaller" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
+    set data {QWERTYUIOPASDFGHJKLZXCVBNM0123456789}
+    set i0 [$pg add $data]
+    $pg delete
+
+    set fh [open $file r]
+    fconfigure $fh -translation binary
+    set fc [read $fh]
+    close $fh
+
+    if {[string match *HEXTEST* $fc]} {
+	error "Used testcompress command"
+    }
+    set pg [cookfs::pages -readonly -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
+    if {![string equal $data [$pg get $i0]]} {
+	$pg delete
+	error "Page contents differs"
+    }
+    $pg delete
+} -cleanup {
+    catch {file delete -force $file}
+} -returnCodes {ok}
+
+tcltest::test cookfsPages-7.5 "Test custom compression algorithm not used when size would not be smaller with -alwayscompress" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress -alwayscompress $file]
+    set data {QWERTYUIOPASDFGHJKLZXCVBNM0123456789}
+    set i0 [$pg add $data]
+    $pg delete
+
+    set fh [open $file r]
+    fconfigure $fh -translation binary
+    set fc [read $fh]
+    close $fh
+
+    if {![string match *HEXTEST* $fc]} {
+	error "Not used testcompress command"
+    }
+    set pg [cookfs::pages -readonly -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
+    if {![string equal $data [$pg get $i0]]} {
+	$pg delete
+	error "Page contents differs"
+    }
+    $pg delete
+} -cleanup {
+    catch {file delete -force $file}
+} -returnCodes {ok}
+
 tcltest::test cookfsPages-8.1 "Test returning offset to end of file during close without changes" -setup {
     set file [tcltest::makeFile {TESTTEST} pages.cfs]
 } -body {

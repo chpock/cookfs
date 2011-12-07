@@ -14,7 +14,7 @@
 #define COOKFS_SUFFIX_BYTES 16
 
 /* let's gain at least 16 bytes and/or 5% to compress it */
-#define SHOULD_COMPRESS(origSize, size) ((size < (origSize - 16)) && ((size * 100) <= (origSize * 95)))
+#define SHOULD_COMPRESS(p, origSize, size) ((p->alwaysCompress) || ((size < (origSize - 16)) && ((size * 100) <= (origSize * 95))))
 
 /* declarations of static and/or internal functions */
 static Tcl_Obj **CookfsCreateCopressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd, int *lenPtr);
@@ -570,7 +570,7 @@ static int CookfsWritePageZlib(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
     Tcl_IncrRefCount(cobj);
     Tcl_GetByteArrayFromObj(cobj, &size);
 
-    if (SHOULD_COMPRESS(origSize, size)) {
+    if (SHOULD_COMPRESS(p, origSize, size)) {
 	CookfsWriteCompression(p, COOKFS_COMPRESSION_ZLIB);
 	Tcl_WriteObj(p->fileChannel, cobj);
     }  else  {
@@ -600,7 +600,7 @@ static int CookfsWritePageZlib(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
     Tcl_DecrRefCount(prevResult);
     Tcl_GetByteArrayFromObj(compressed, &size);
 
-    if (SHOULD_COMPRESS(origSize, size)) {
+    if (SHOULD_COMPRESS(p, origSize, size)) {
 	CookfsWriteCompression(p, COOKFS_COMPRESSION_ZLIB);
 	Tcl_WriteObj(p->fileChannel, compressed);
     }  else  {
@@ -723,7 +723,7 @@ static int CookfsWritePageBz2(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
     Tcl_SetByteArrayLength(destObj, size);
 
     Tcl_IncrRefCount(destObj);
-    if (SHOULD_COMPRESS(origSize, size)) {
+    if (SHOULD_COMPRESS(p, origSize, size)) {
 	CookfsWriteCompression(p, COOKFS_COMPRESSION_BZ2);
 	Tcl_WriteObj(p->fileChannel, destObj);
     }  else  {
@@ -842,7 +842,7 @@ static int CookfsWritePageCustom(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
     Tcl_DecrRefCount(prevResult);
     Tcl_GetByteArrayFromObj(compressed, &size);
 
-    if (SHOULD_COMPRESS(origSize, size)) {
+    if (SHOULD_COMPRESS(p, origSize, size)) {
 	CookfsWriteCompression(p, COOKFS_COMPRESSION_CUSTOM);
 	Tcl_WriteObj(p->fileChannel, compressed);
     }  else  {

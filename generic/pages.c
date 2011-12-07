@@ -104,6 +104,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     rc->foffset = foffset;
     rc->fileReadOnly = fileReadOnly;
     rc->fileCompression = fileCompression;
+    rc->alwaysCompress = 0;
     if (fileSignature != NULL)
 	memcpy(rc->fileSignature, fileSignature, 7);
     else
@@ -342,6 +343,7 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     Tcl_Free((void *) p->dataPagesSize);
     Tcl_Free((void *) p->dataPagesMD5);
 
+    CookfsLog(printf("Cleaning up pages"))
     /* clean up storage */
     Tcl_Free((void *) p);
 }
@@ -852,6 +854,50 @@ Tcl_WideInt Cookfs_GetFilesize(Cookfs_Pages *p) {
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PagesGetAlwaysCompress --
+ *
+ *	Gets whether pages are always compressed or only compressed
+ *	when their compressed size is smaller than uncompressed size
+ *
+ * Results:
+ *	Whether pages should always be compressed
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+int Cookfs_PagesGetAlwaysCompress(Cookfs_Pages *p) {
+    return p->alwaysCompress;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PagesSetAlwaysCompress --
+ *
+ *	Set whether pages are always compressed or only compressed
+ *	when their compressed size is smaller than uncompressed size
+ *
+ * Results:
+ *	None
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress) {
+    p->alwaysCompress = alwaysCompress;
+}
+
+
 /* definitions of static and/or internal functions */
 
 /*
@@ -1254,4 +1300,5 @@ static void CookfsTruncateFileIfNeeded(Cookfs_Pages *p, Tcl_WideInt targetOffset
     }
 #endif
 }
+
 
