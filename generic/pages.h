@@ -103,6 +103,7 @@ Tcl_Obj *Cookfs_PageGetTailMD5(Cookfs_Pages *p);
 void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size);
 int Cookfs_PagesGetAlwaysCompress(Cookfs_Pages *p);
 void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress);
+void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression);
 
 int CookfsReadIndex(Cookfs_Pages *p);
 

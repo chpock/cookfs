@@ -749,3 +749,39 @@ tcltest::test cookfsPages-11.2 "Test decreasing page cache" -setup {
     catch {file delete -force $file}
 } -returnCodes {ok} -result 20
 
+tcltest::test cookfsPages-12.1 "Test changing page compression" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression zlib $file]
+    for {set i 0} {$i < 20} {incr i} {
+        lappend il $i [$pg add [string repeat "TEST" 1024][string repeat "TEST" $i]"]
+    }
+
+    $pg compression none
+
+    $pg index [string repeat "INDX" 1024]
+    $pg delete
+
+    set fh [open $file r]
+    fconfigure $fh -translation binary
+    set fc [read $fh]
+    close $fh
+
+    if {[string first [string repeat "TEST" 1024] $fc] >= 0} {
+        error "Pages not compressed properly"
+    }
+
+    if {[string first [string repeat "INDX" 1024] $fc] < 0} {
+        error "Index compressed incorrectly"
+    }
+
+    set pg [cookfs::pages $file]
+
+    if {![string equal [$pg index] [string repeat "INDX" 1024]]} {
+        error "Invalid index after compression change"
+    }
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {ok}
+

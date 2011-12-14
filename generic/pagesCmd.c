@@ -240,8 +240,8 @@ ERROR:
 
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     static char *commands[] = {
-        "add", "aside", "get", "gethead", "getheadmd5", "gettail", "gettailmd5", "hash", "index", "length", "dataoffset", "close", "delete", "cachesize", "filesize", NULL };
-    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail, cmdGetTailMD5, cmdHash, cmdIndex, cmdLength, cmdDataoffset, cmdClose, cmdDelete, cmdCachesize, cmdFilesize };
+        "add", "aside", "get", "gethead", "getheadmd5", "gettail", "gettailmd5", "hash", "index", "length", "dataoffset", "close", "delete", "cachesize", "filesize", "compression", NULL };
+    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail, cmdGetTailMD5, cmdHash, cmdIndex, cmdLength, cmdDataoffset, cmdClose, cmdDelete, cmdCachesize, cmdFilesize, cmdCompression };
     int idx;
     Cookfs_Pages *p = (Cookfs_Pages *) clientData;
     
@@ -461,6 +461,22 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             }
             Tcl_SetObjResult(interp, Tcl_NewWideIntObj(Cookfs_GetFilesize(p)));
+            break;
+        }
+        case cmdCompression:
+        {
+            int oCompression;
+            /* TODO: handle getting */
+            if ((objc != 3)) {
+                Tcl_WrongNumArgs(interp, 2, objv, "compression");
+                return TCL_ERROR;
+            }
+            if (Tcl_GetIndexFromObj(interp, objv[2], (const char **) cookfsCompressionOptions, "compression", 0, &oCompression) != TCL_OK) {
+                return TCL_ERROR;
+            }
+            /* map compression from cookfsCompressionOptionMap */
+            oCompression = cookfsCompressionOptionMap[oCompression];
+            Cookfs_PagesSetCompression(p, oCompression);
             break;
         }
     }

@@ -898,6 +898,27 @@ void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress) {
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PagesSetCompression --
+ *
+ *	Set file compression for subsequent compressions
+ *
+ * Results:
+ *	None
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_PagesSetCompression(Cookfs_Pages *p, int compression) {
+    p->fileCompression = compression;
+}
+
+
 /* definitions of static and/or internal functions */
 
 /*

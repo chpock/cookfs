@@ -1,3 +1,10 @@
+2011-12-14 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* generic/pages.c: Added option to change compression on the fly
+	* generic/pages.h:
+	* generic/pagesCmd.c:
+	* scripts/pages.tcl:
+	* tests/pages.test:
+
 2011-12-07 Wojciech Kocjan <zoro2@users.sourceforge.net>
         * generic/pages.c: Added support for -alwayscompress flag
         * generic/pagesCompr.c:
