@@ -21,48 +21,48 @@ proc cookfs::initialize {} {
     variable pkginitialized
 
     if {![info exists pkginitialized]} {
-	package require vfs::cookfs::pkgconfig
+        package require vfs::cookfs::pkgconfig
 
-	# load Tcl versions of packages for now
-	package require vfs::cookfs::tcl::vfs [pkgconfig get package-version]
-	package require vfs::cookfs::tcl::memchan [pkgconfig get package-version]
-	package require vfs::cookfs::tcl::writer [pkgconfig get package-version]
-	package require vfs::cookfs::tcl::optimize [pkgconfig get package-version]
-	
-	# in case loading C version fails, fall back to Tcl version
-	if {[pkgconfig get c-pages]} {
-	    if {[catch {
-		package require vfs::cookfs::c [pkgconfig get package-version]
-	    }]} {
-		pkgconfig set c-pages 0
-		package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
-	    }
-	}  else  {
-	    package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
-	}
+        # load Tcl versions of packages for now
+        package require vfs::cookfs::tcl::vfs [pkgconfig get package-version]
+        package require vfs::cookfs::tcl::memchan [pkgconfig get package-version]
+        package require vfs::cookfs::tcl::writer [pkgconfig get package-version]
+        package require vfs::cookfs::tcl::optimize [pkgconfig get package-version]
+        
+        # in case loading C version fails, fall back to Tcl version
+        if {[pkgconfig get c-pages]} {
+            if {[catch {
+                package require vfs::cookfs::c [pkgconfig get package-version]
+            }]} {
+                pkgconfig set c-pages 0
+                package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
+            }
+        }  else  {
+            package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
+        }
 
-	if {[pkgconfig get c-fsindex]} {
-	    if {[catch {
-		package require vfs::cookfs::c [pkgconfig get package-version]
-	    }]} {
-		pkgconfig set c-fsindex 0
-		package require vfs::cookfs::tcl::fsindex [pkgconfig get package-version]
-	    }
-	}  else  {
-	    package require vfs::cookfs::tcl::fsindex [pkgconfig get package-version]
-	}
+        if {[pkgconfig get c-fsindex]} {
+            if {[catch {
+                package require vfs::cookfs::c [pkgconfig get package-version]
+            }]} {
+                pkgconfig set c-fsindex 0
+                package require vfs::cookfs::tcl::fsindex [pkgconfig get package-version]
+            }
+        }  else  {
+            package require vfs::cookfs::tcl::fsindex [pkgconfig get package-version]
+        }
 
-	package require vfs::cookfs::tcl::readerchannel [pkgconfig get package-version]
-	# unlike fsindex and pages, readerchannel 
-	if {[pkgconfig get c-readerchannel]} {
-	    if {[catch {
-		package require vfs::cookfs::c [pkgconfig get package-version]
-	    }]} {
-		pkgconfig set c-readerchannel 0
-	    }
-	}
+        package require vfs::cookfs::tcl::readerchannel [pkgconfig get package-version]
+        # unlike fsindex and pages, readerchannel 
+        if {[pkgconfig get c-readerchannel]} {
+            if {[catch {
+                package require vfs::cookfs::c [pkgconfig get package-version]
+            }]} {
+                pkgconfig set c-readerchannel 0
+            }
+        }
 
-	set pkginitialized 1
+        set pkginitialized 1
     }
 
     # decide on crc32 implementation based on if zlib command is present
@@ -87,6 +87,7 @@ proc cookfs::Mount {args} {
         {nocommand                                      {Do not create command for managing cookfs archive}}
         {bootstrap.arg                  ""              {Bootstrap code to add in the beginning}}
         {compression.arg                "zlib"          {Compression type to use}}
+        {alwayscompress                                 {Always compress}}
         {compresscommand.arg            ""              {Command to use for custom compression}}
         {decompresscommand.arg          ""              {Command to use for custom decompression}}
         {endoffset.arg                  ""              {Force reading VFS ending at specific offset instead of end of file}}
@@ -101,7 +102,7 @@ proc cookfs::Mount {args} {
         {volume                                         {Mount as volume}}
         {smallfilesize.arg              32768           {Maximum size of small files}}
         {smallfilebuffer.arg            4194304         {Maximum buffer for optimizing small files}}
-        {nodirectorymtime				{Do not initialize mtime for new directories to current date and time}}
+        {nodirectorymtime                                {Do not initialize mtime for new directories to current date and time}}
     }
     lappend options [list tempfilename.arg "" {Temporary file name to keep index in}]
 
@@ -112,44 +113,44 @@ proc cookfs::Mount {args} {
     set newargs {}
     set help "Usage: vfs::cookfs::Mount ?options? archive local ?options?\nOptions are:"
     foreach o [lsort -index 0 $options] {
-	set name [lindex $o 0]
-	if {[regexp "^(.*)\\.arg\$" $name - name]} {
-	    set opt($name) [lindex $o 1]
-	    set optarg(-$name) 1
-	    set vhelp " (default: [lindex $o 1])"
-	}  else  {
-	    set opt($name) 0
-	    set optarg(-$name) 0
-	    set vhelp " (flag)"
-	}
-	append help [format "\n %-20s %s%s" "-$name" [lindex $o end] $vhelp]
+        set name [lindex $o 0]
+        if {[regexp "^(.*)\\.arg\$" $name - name]} {
+            set opt($name) [lindex $o 1]
+            set optarg(-$name) 1
+            set vhelp " (default: [lindex $o 1])"
+        }  else  {
+            set opt($name) 0
+            set optarg(-$name) 0
+            set vhelp " (flag)"
+        }
+        append help [format "\n %-20s %s%s" "-$name" [lindex $o end] $vhelp]
     }
 
     set setopt {}
     foreach arg $args {
-	if {$setopt != ""} {
-	    set opt($setopt) $arg
-	    set setopt ""
-	}  elseif {[info exists optarg($arg)]} {
-	    if {$optarg($arg)} {
-		set setopt [string range $arg 1 end]
-	    }  else  {
-		set opt([string range $arg 1 end]) 1
-	    }
-	}  elseif {$arg == "-help"} {
-	    set showhelp 1
-	    break
-	}  else  {
-	    lappend newargs $arg
-	}
+        if {$setopt != ""} {
+            set opt($setopt) $arg
+            set setopt ""
+        }  elseif {[info exists optarg($arg)]} {
+            if {$optarg($arg)} {
+                set setopt [string range $arg 1 end]
+            }  else  {
+                set opt([string range $arg 1 end]) 1
+            }
+        }  elseif {$arg == "-help"} {
+            set showhelp 1
+            break
+        }  else  {
+            lappend newargs $arg
+        }
     }
     if {($setopt != "") || ([llength $newargs] != 2)} {
-	set showhelp 1
+        set showhelp 1
     }
     unset optarg
 
     if {$showhelp} {
-	error $help
+        error $help
     }
 
     # extract paths from remaining arguments
@@ -200,10 +201,14 @@ proc cookfs::Mount {args} {
     # initialize pages
     if {$opt(pagesobject) == ""} {
         set pagesoptions [list -cachesize $opt(pagecachesize) \
-	    -compression $opt(compression) -compresscommand $opt(compresscommand) -decompresscommand $opt(decompresscommand)]
+            -compression $opt(compression) -compresscommand $opt(compresscommand) -decompresscommand $opt(decompresscommand)]
 
         if {$opt(readonly)} {
             lappend pagesoptions -readonly
+        }
+
+        if {$opt(alwayscompress)} {
+            lappend pagesoptions -alwayscompress
         }
 
         if {$opt(endoffset) != ""} {
@@ -231,17 +236,17 @@ proc cookfs::Mount {args} {
 
     # additional initialization if no pages currently exist
     if {[$fs(pages) length] == 0} {
-	# add bootstrap if specified
-	if {[string length $opt(bootstrap)] > 0} {
-	    $fs(pages) add $opt(bootstrap)
-	}
+        # add bootstrap if specified
+        if {[string length $opt(bootstrap)] > 0} {
+            $fs(pages) add $opt(bootstrap)
+        }
 
-	$fs(pages) hash $opt(pagehash)
+        $fs(pages) hash $opt(pagehash)
 
-	$fs(index) setmetadata cookfs.pagehash $opt(pagehash)
+        $fs(index) setmetadata cookfs.pagehash $opt(pagehash)
     }  else  {
-	# by default, md5 was the page hashing algorithm used
-	$fs(pages) hash [$fs(index) getmetadata cookfs.pagehash "md5"]
+        # by default, md5 was the page hashing algorithm used
+        $fs(pages) hash [$fs(index) getmetadata cookfs.pagehash "md5"]
     }
 
     foreach {paramname paramvalue} $opt(setmetadata) {
@@ -310,74 +315,99 @@ proc cookfs::handleVfsCommandAlias {fsid args} {
 
     switch -- [lindex $args 0] {
         aside {
-	    if {[llength $args] != 2} {
+            if {[llength $args] != 2} {
                 set ei "wrong # args: should be \"$fsid aside filename\""
                 error $ei $ei
-	    }
+            }
             return [::cookfs::aside $fsid [lindex $args 1]]
         }
         optimizelist {
-	    if {[llength $args] != 3} {
+            if {[llength $args] != 3} {
                 set ei "wrong # args: should be \"$fsid optimizelist base filelist\""
                 error $ei $ei
-	    }
+            }
             return [::cookfs::optimizelist $fsid [lindex $args 1] [lindex $args 2]]
         }
-	writetomemory {
-	    if {[llength $args] != 1} {
+        writetomemory {
+            if {[llength $args] != 1} {
                 set ei "wrong # args: should be \"$fsid writetomemory\""
                 error $ei $ei
-	    }
+            }
             return [::cookfs::writetomemory $fsid]
-	}
+        }
         getmetadata {
             if {![pkgconfig get feature-metadata]} { set ei "metadata not supported" ; error $ei $ei }
-	    if {[llength $args] == 2} {
+            if {[llength $args] == 2} {
                 return [$fs(index) getmetadata [lindex $args 1]]
-	    }  elseif {[llength $args] == 3} {
+            }  elseif {[llength $args] == 3} {
                 return [$fs(index) getmetadata [lindex $args 1] [lindex $args 2]]
             }  else  {
-                set ei "wrong # args: should be \"$fsid getmetadata property ?defaultValue?"
+                set ei "wrong # args: should be \"$fsid getmetadata property ?defaultValue?\""
                 error $ei $ei
-	    }
+            }
         }
         setmetadata {
             if {![pkgconfig get feature-metadata]} { set ei "metadata not supported" ; error $ei $ei }
-	    if {[llength $args] == 3} {
-	        if {$fs(readonly)} {
+            if {[llength $args] == 3} {
+                if {$fs(readonly)} {
                     set ei "Archive is read-only"
                     error $ei $ei
                 }
-		incr fs(changeCount)
+                incr fs(changeCount)
                 return [$fs(index) setmetadata [lindex $args 1] [lindex $args 2]]
             }  else  {
-                set ei "wrong # args: should be \"$fsid setmetadata property value"
+                set ei "wrong # args: should be \"$fsid setmetadata property value\""
                 error $ei $ei
-	    }
+            }
         }
         writeFiles {
-	    if {([llength $args] % 4) != 0} {
-		set ei "wrong # args: should be \"$fsid writeFiles ?filename1 type1 data1 size1 ?filename2 type2 data2 size2? ?..??"
+            if {([llength $args] % 4) != 0} {
+                set ei "wrong # args: should be \"$fsid writeFiles ?filename1 type1 data1 size1 ?filename2 type2 data2 size2? ?..??"
                 error $ei $ei
-	    }
-	    uplevel 1 [linsert $args 0 cookfs::writeFiles $fsid $args]
+            }
+            uplevel 1 [linsert $args 0 cookfs::writeFiles $fsid $args]
         }
-	filesize {
-	    if {[llength $args] != 1} {
+        filesize {
+            if {[llength $args] != 1} {
                 set ei "wrong # args: should be \"$fsid filesize\""
                 error $ei $ei
-	    }
-	    return [$fs(pages) filesize]
-	}
-	smallfilebuffersize {
-	    if {[llength $args] != 1} {
+            }
+            return [$fs(pages) filesize]
+        }
+        smallfilebuffersize {
+            if {[llength $args] != 1} {
                 set ei "wrong # args: should be \"$fsid smallfilebuffersize\""
                 error $ei $ei
-	    }
-	    return $fs(smallfilebufsize)
-	}
+            }
+            return $fs(smallfilebufsize)
+        }
+        flush {
+            if {[llength $args] != 1} {
+                set ei "wrong # args: should be \"$fsid flush\""
+                error $ei $ei
+            }
+            cookfs::purgeSmallfiles $fsid
+        }
+        compression {
+            if {[llength $args] != 2} {
+                set ei "wrong # args: should be \"$fsid compression type\""
+                error $ei $ei
+            }
+            # always purge small files cache when compression changes
+            cookfs::purgeSmallfiles $fsid
+            $fs(pages) compression [lindex $args 1]
+        }
+        compression {
+            if {[llength $args] != 2} {
+                set ei "wrong # args: should be \"$fsid compression type\""
+                error $ei $ei
+            }
+            # always purge small files cache when compression changes
+            cookfs::purgeSmallfiles $fsid
+            $fs(pages) compression [lindex $args 1]
+        }
         default {
-            set ei "unknown subcommand \"[lindex $args 0]\": must be aside, optimizelist, or writetomemory"
+            set ei "unknown subcommand \"[lindex $args 0]\": must be one of aside, compression, filesize, flush, getmetadata, optimizelist, setmetadata, smallfilebuffersize, writeFiles or writetomemory."
             error $ei $ei
         }
     }

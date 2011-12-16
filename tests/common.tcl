@@ -46,6 +46,7 @@ proc testIfEqual {a b} {
 
 set testcompresscount 0
 set testdecompresscount 0
+
 proc testcompress {d} {
     incr ::testcompresscount
     binary scan [vfs::zip -mode compress $d] H* rc
@@ -54,6 +55,20 @@ proc testcompress {d} {
 proc testdecompress {d} {
     incr ::testdecompresscount
     set rc [vfs::zip -mode decompress [binary format H* [string range $d 8 end]]]
+    return $rc
+}
+
+set testcompresscountraw 0
+set testdecompresscountraw 0
+
+proc testcompressraw {d} {
+    incr ::testcompresscountraw
+    binary scan $d H* rc
+    return "RAWTEST-$rc"
+}
+proc testdecompressraw {d} {
+    incr ::testdecompresscountraw
+    set rc [binary format H* [string range $d 8 end]]
     return $rc
 }
 

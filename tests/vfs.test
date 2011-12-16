@@ -599,4 +599,51 @@ tcltest::test cookfsVfs-9.4 "Test deleting non-empty directories with complex st
     tcltest::removeFile $file
 } -returnCodes {ok} -result {testdir1,testfile1,testfile2}
 
+tcltest::test cookfsVfs-10.1 "Test changing compression without remounting" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    close $fh
+} -body {
+    set fsid [vfs::cookfs::Mount $file $file -compression zlib -smallfilesize 32768 \
+	-compresscommand testcompressraw -decompresscommand testdecompressraw -alwayscompress]
+    set fh [open [file join $file testfile1] w]
+    puts -nonewline $fh [string repeat "TEST" 256]
+    close $fh
+
+    $fsid compression none
+
+    set fh [open [file join $file testfile2] w]
+    puts -nonewline $fh [string repeat "test" 256]
+    close $fh
+
+    $fsid compression custom
+    vfs::unmount $file
+
+    set fsid [vfs::cookfs::Mount $file $file -readonly \
+	-compresscommand testcompressraw -decompresscommand testdecompressraw -alwayscompress]
+    set idx [[set ${fsid}(pages)] index]
+    vfs::unmount $file
+
+    set fh [open $file r]
+    fconfigure $fh -translation binary
+    set fc [read $fh]
+    close $fh
+
+    if {[string first [string repeat "TEST" 256] $fc] >= 0} {
+        error "File testfile1 should be compressed"
+    }
+
+    if {[string first [string repeat "test" 256] $fc] < 0} {
+        error "File testfile2 should not be compressed"
+    }
+
+    if {[string first [testcompressraw $idx] $fc] < 0} {
+        error "Index not found"
+    }
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -returnCodes {ok}
+
 
