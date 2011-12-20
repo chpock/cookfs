@@ -8,6 +8,7 @@
 #ifdef COOKFS_USECPAGES
 
 extern const char *cookfsCompressionOptions[];
+extern const char *cookfsCompressionNames[];
 extern const int cookfsCompressionOptionMap[];
 
 #define COOKFS_COMPRESSION_NONE      0

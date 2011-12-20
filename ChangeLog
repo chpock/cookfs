@@ -1,3 +1,14 @@
+2011-12-20 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* generic/pages.c: Added support for getting currently set compression using pages and mount command
+	* generic/pagesCompr.c:
+	* generic/pages.h:
+	* generic/pagesCompr.h:
+	* generic/pagesCmd.c:
+	* scripts/pages.tcl:
+	* scripts/cookvfs.tcl:
+	* tests/vfs.test:
+	* tests/pages.test:
+
 2011-12-15 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/cookvfs.tcl: Added support for changing compression on the fly in VFS layer
 	* scripts/pages.tcl:

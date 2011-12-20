@@ -785,3 +785,25 @@ tcltest::test cookfsPages-12.1 "Test changing page compression" -setup {
     catch {file delete -force $file}
 } -returnCodes {ok}
 
+tcltest::test cookfsPages-12.2 "Test getting current page compression" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression zlib $file]
+    if {[$pg compression] != "zlib"} {
+	error "Getting initial compression as zlib failed"
+    }
+    $pg compression none
+    if {[$pg compression] != "none"} {
+	error "Getting compression as none failed - [$pg compression] returned"
+    }
+
+    $pg compression custom
+    if {[$pg compression] != "custom"} {
+	error "Getting compression as custom failed - [$pg compression] returned"
+    }
+
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {ok}
+

@@ -607,17 +607,27 @@ tcltest::test cookfsVfs-10.1 "Test changing compression without remounting" -set
 } -body {
     set fsid [vfs::cookfs::Mount $file $file -compression zlib -smallfilesize 32768 \
 	-compresscommand testcompressraw -decompresscommand testdecompressraw -alwayscompress]
+    if {[$fsid compression] != "zlib"} {
+	error "Getting compression does not return \"zlib\""
+    }
+
     set fh [open [file join $file testfile1] w]
     puts -nonewline $fh [string repeat "TEST" 256]
     close $fh
 
     $fsid compression none
+    if {[$fsid compression] != "none"} {
+	error "Getting compression does not return \"none\""
+    }
 
     set fh [open [file join $file testfile2] w]
     puts -nonewline $fh [string repeat "test" 256]
     close $fh
 
     $fsid compression custom
+    if {[$fsid compression] != "custom"} {
+	error "Getting compression does not return \"custom\""
+    }
     vfs::unmount $file
 
     set fsid [vfs::cookfs::Mount $file $file -readonly \

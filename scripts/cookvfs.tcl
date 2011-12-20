@@ -389,22 +389,16 @@ proc cookfs::handleVfsCommandAlias {fsid args} {
             cookfs::purgeSmallfiles $fsid
         }
         compression {
-            if {[llength $args] != 2} {
-                set ei "wrong # args: should be \"$fsid compression type\""
+            if {[llength $args] == 1} {
+                return [$fs(pages) compression]
+            }  elseif {[llength $args] == 2} {
+                # always purge small files cache when compression changes
+                cookfs::purgeSmallfiles $fsid
+                $fs(pages) compression [lindex $args 1]
+            }  else  {
+                set ei "wrong # args: should be \"$fsid compression ?type?\""
                 error $ei $ei
             }
-            # always purge small files cache when compression changes
-            cookfs::purgeSmallfiles $fsid
-            $fs(pages) compression [lindex $args 1]
-        }
-        compression {
-            if {[llength $args] != 2} {
-                set ei "wrong # args: should be \"$fsid compression type\""
-                error $ei $ei
-            }
-            # always purge small files cache when compression changes
-            cookfs::purgeSmallfiles $fsid
-            $fs(pages) compression [lindex $args 1]
         }
         default {
             set ei "unknown subcommand \"[lindex $args 0]\": must be one of aside, compression, filesize, flush, getmetadata, optimizelist, setmetadata, smallfilebuffersize, writeFiles or writetomemory."

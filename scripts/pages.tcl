@@ -400,6 +400,11 @@ proc cookfs::pages::getFilesize {name} {
     return $o
 }
 
+proc cookfs::pages::getCompression {name} {
+    upvar #0 $name c
+    return $c(compression)
+}
+
 proc cookfs::pages::setCompression {name compression} {
     upvar #0 $name c
     if {[catch {
@@ -487,7 +492,9 @@ proc cookfs::pages::handle {name cmd args} {
             }
         }
         compression {
-            if {[llength $args] == 1} {
+            if {[llength $args] == 0} {
+                return [getCompression $name]
+            }  elseif {[llength $args] == 1} {
                 return [setCompression $name [lindex $args 0]]
             }
         }

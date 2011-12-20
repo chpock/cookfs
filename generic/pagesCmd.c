@@ -467,16 +467,20 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
         {
             int oCompression;
             /* TODO: handle getting */
-            if ((objc != 3)) {
-                Tcl_WrongNumArgs(interp, 2, objv, "compression");
+            if (objc == 2) {
+                oCompression = Cookfs_PagesGetCompression(p);
+                Tcl_SetObjResult(interp, Tcl_NewStringObj(cookfsCompressionNames[oCompression], -1));
+            }  else if (objc == 3) {
+                if (Tcl_GetIndexFromObj(interp, objv[2], (const char **) cookfsCompressionOptions, "compression", 0, &oCompression) != TCL_OK) {
+                    return TCL_ERROR;
+                }
+                /* map compression from cookfsCompressionOptionMap */
+                oCompression = cookfsCompressionOptionMap[oCompression];
+                Cookfs_PagesSetCompression(p, oCompression);
+            }  else  {
+                Tcl_WrongNumArgs(interp, 2, objv, "?type?");
                 return TCL_ERROR;
             }
-            if (Tcl_GetIndexFromObj(interp, objv[2], (const char **) cookfsCompressionOptions, "compression", 0, &oCompression) != TCL_OK) {
-                return TCL_ERROR;
-            }
-            /* map compression from cookfsCompressionOptionMap */
-            oCompression = cookfsCompressionOptionMap[oCompression];
-            Cookfs_PagesSetCompression(p, oCompression);
             break;
         }
     }

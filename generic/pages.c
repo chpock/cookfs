@@ -901,6 +901,27 @@ void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress) {
 /*
  *----------------------------------------------------------------------
  *
+ * Cookfs_PagesGetCompression --
+ *
+ *	Get file compression for subsequent compressions
+ *
+ * Results:
+ *	Current compression identifier
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+int Cookfs_PagesGetCompression(Cookfs_Pages *p) {
+    return p->fileCompression;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Cookfs_PagesSetCompression --
  *
  *	Set file compression for subsequent compressions
