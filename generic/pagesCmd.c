@@ -194,7 +194,6 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     pages = Cookfs_PagesInit(interp, tobjv[1], oReadOnly, oCompression, NULL, useFoffset, foffset, 0, compressCmd, decompressCmd);
 
     if (pages == NULL) {
-        Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create Cookfs object", -1));
         return TCL_ERROR;
     }
 

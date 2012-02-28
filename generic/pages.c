@@ -10,9 +10,12 @@
 
 #define COOKFS_SUFFIX_BYTES 16
 
+#define COOKFS_PAGES_ERRORMSG "Unable to create Cookfs object"
+
 /* declarations of static and/or internal functions */
 static Tcl_Obj *CookfsPagesPageGetInt(Cookfs_Pages *p, int index);
 static void CookfsPagesPageCacheMoveToTop(Cookfs_Pages *p, int index);
+static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p);
 static void CookfsPagesPageExtendIfNeeded(Cookfs_Pages *p, int count);
 static Tcl_WideInt CookfsPagesGetPageOffset(Cookfs_Pages *p, int idx);
 static void CookfsTruncateFileIfNeeded(Cookfs_Pages *p, Tcl_WideInt targetOffset);
@@ -95,6 +98,9 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     Cookfs_PagesInitCompr(rc);
 
     if (Cookfs_SetCompressCommands(rc, compressCommand, decompressCommand) != TCL_OK) {
+	if (interp != NULL) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to initialize compression", -1));
+	}
 	Tcl_Free((void *) rc);
 	return NULL;
     }
@@ -143,10 +149,31 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
 
     /* open file for reading / writing */
     CookfsLog(printf("Cookfs_PagesInit - Tcl_FSOpenFileChannel"))
-    rc->fileChannel = Tcl_FSOpenFileChannel(NULL, fileName,
+
+    /* clean up interpreter result prior to calling Tcl_FSOpenFileChannel() */
+    if (interp != NULL) {   
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("", 0));
+    }
+
+    rc->fileChannel = Tcl_FSOpenFileChannel(interp, fileName,
 	(rc->fileReadOnly ? "r" : "RDWR CREAT"), 0666);
     
     if (rc->fileChannel == NULL) {
+	/* convert error message from previous error */
+	if (interp != NULL) {
+	    char errorBuffer[4096];
+	    const char *errorMessage;
+	    errorMessage = Tcl_GetStringResult(interp);
+	    if (errorMessage == NULL) {
+		/* default error if none is provided */
+		errorMessage = "unable to open file";
+	    }  else if (strlen(errorMessage) > 4000) {
+		/* make sure not to overflow the buffer */
+		errorMessage = "unable to open file";
+	    }
+	    sprintf(errorBuffer, COOKFS_PAGES_ERRORMSG ": %s", errorMessage);
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(errorBuffer, -1));
+	}
         CookfsLog(printf("Cookfs_PagesInit - cleaning up"))
 	Cookfs_PagesFini(rc);
 	return NULL;
@@ -156,16 +183,22 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     if (Tcl_SetChannelOption(NULL, rc->fileChannel, "-encoding", "binary") != TCL_OK) {
 	CookfsLog(printf("Unable to set -encoding option"))
 	Cookfs_PagesFini(rc);
+	if (interp != NULL) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to initialize channel encoding", -1));
+	}
 	return NULL;
     }
     if (Tcl_SetChannelOption(NULL, rc->fileChannel, "-translation", "binary") != TCL_OK) {
 	CookfsLog(printf("Unable to set -translation option"))
 	Cookfs_PagesFini(rc);
+	if (interp != NULL) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to initialize channel translation", -1));
+	}
 	return NULL;
     }
 
     /* read index or fail */
-    if (!CookfsReadIndex(rc)) {
+    if (!CookfsReadIndex(interp, rc)) {
 	if (rc->fileReadOnly) {
 	    rc->pagesUptodate = 1;
 	    rc->indexChanged = 0;
@@ -1083,7 +1116,7 @@ static void CookfsPagesPageCacheMoveToTop(Cookfs_Pages *p, int index) {
  *----------------------------------------------------------------------
  */
 
-int CookfsReadIndex(Cookfs_Pages *p) {
+static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p) {
     unsigned char *bytes = NULL;
     int count = 0;
     int i;
@@ -1143,6 +1176,9 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     /* if seeking fails, we assume no index exists */
     if (seekOffset < 0) {
 	CookfsLog(printf("Unable to seek for index suffix"))
+	if (interp != NULL) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": index not found", -1));
+	}
 	return 0;
     }
     fileSize = seekOffset + COOKFS_SUFFIX_BYTES;
@@ -1155,12 +1191,18 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     if (count != COOKFS_SUFFIX_BYTES) {
 	Tcl_DecrRefCount(buffer);
 	CookfsLog(printf("Failed to read entire index tail: %d / %d", count, COOKFS_SUFFIX_BYTES))
+	if (interp != NULL) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to read index suffix", -1));
+	}
 	return 0;
     }
     bytes = Tcl_GetByteArrayFromObj(buffer, NULL);
     if (memcmp(bytes + 9, p->fileSignature, COOKFS_SIGNATURE_LENGTH) != 0) {
 	Tcl_DecrRefCount(buffer);
 	CookfsLog(printf("Invalid file signature found"))
+	if (interp != NULL) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": invalid file signature", -1));
+	}
 	return 0;
     }
     
@@ -1185,6 +1227,9 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     
     if (buffer == NULL) {
 	CookfsLog(printf("Unable to read index"))
+	if (interp != NULL) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to read index", -1));
+	}
 	return 0;
     }
 
@@ -1199,6 +1244,9 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     /* if seeking fails, we assume no suffix exists */
     if (seekOffset < 0) {
 	CookfsLog(printf("Unable to seek for reading page sizes"))
+	if (interp != NULL) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": page sizes not found", -1));
+	}
 	return 0;
     }
     
@@ -1220,6 +1268,9 @@ int CookfsReadIndex(Cookfs_Pages *p) {
     if (count != (4 * pageCount)) {
 	Tcl_DecrRefCount(buffer);
 	CookfsLog(printf("Failed to read page buffer"))
+	if (interp != NULL) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to read page sizes", -1));
+	}
 	return 0;
     }
     bytes = Tcl_GetByteArrayFromObj(buffer, NULL);

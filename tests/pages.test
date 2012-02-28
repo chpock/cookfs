@@ -44,7 +44,7 @@ tcltest::test cookfsPages-1.4 "Create empty pages as read-only" -setup {
     set pg [cookfs::pages -readonly $file]
 } -cleanup {
     catch {file delete -force $file}
-} -returnCodes {error} -match glob -result {Unable to create Cookfs object}
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object*}
 
 tcltest::test cookfsPages-1.5 "Check dataoffset command reporting properly for empty files" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -807,3 +807,102 @@ tcltest::test cookfsPages-12.2 "Test getting current page compression" -setup {
     catch {file delete -force $file}
 } -returnCodes {ok}
 
+tcltest::test cookfsPages-13.1 "Error message when index not found" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -readonly $file]
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object: index not found}
+
+tcltest::test cookfsPages-13.2 "Error message when invalid signature found" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set pg [cookfs::pages -compression none $file]
+    $pg add [string repeat TEST 32]
+    $pg delete
+
+    set fh [open $file r]
+    fconfigure $fh -translation binary
+    set fc [read $fh]
+    close $fh
+    
+    set fh [open $file w]
+    fconfigure $fh -translation binary
+    puts -nonewline $fh [string map [list CFS0002 CFSTEST] $fc]
+    close $fh
+} -body {
+    set pg [cookfs::pages -readonly $file]
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object: invalid file signature}
+
+tcltest::test cookfsPages-13.3 "Error message when unable to seek to pages" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set pg [cookfs::pages -compression none $file]
+    $pg add 1
+    $pg add 2
+    $pg add 3
+    set size [file size $file]
+    $pg delete
+
+    set fh [open $file r]
+    fconfigure $fh -translation binary
+    set fc [read $fh]
+    close $fh
+    
+    set fh [open $file w]
+    fconfigure $fh -translation binary
+    puts -nonewline $fh [string range $fc [expr {$size + 16}] end]
+    close $fh
+} -body {
+    set pg [cookfs::pages -readonly $file]
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object: page sizes not found}
+
+tcltest::test cookfsPages-13.4 "Error message when specifying invalid -endoffset" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set pg [cookfs::pages -compression none $file]
+    $pg add 1
+    $pg add 2
+    $pg add 3
+    set size [file size $file]
+    $pg delete
+} -body {
+    set pg [cookfs::pages -readonly -endoffset -1 $file]
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object: index not found}
+
+# TODO: this test should generate same results in Tcl and C version of the library
+tcltest::test cookfsPages-13.5 "Error message when specifying directory" -setup {
+    set file [tcltest::makeDirectory pages.cfs]
+} -body {
+    set pg [cookfs::pages -readonly $file]
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object: *}
+
+tcltest::test cookfsPages-13.6 "Error message when specifying directory and -endoffset" -setup {
+    set file [tcltest::makeDirectory pages.cfs]
+} -body {
+    set pg [cookfs::pages -endoffset 1 -readonly $file]
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object: index not found}
+
+tcltest::test cookfsPages-13.7 "Error message when specifying non-existing file" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    catch {file delete -force $file}
+} -body {
+    set pg [cookfs::pages -readonly $file]
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object: couldn't open "*": no such file or directory}

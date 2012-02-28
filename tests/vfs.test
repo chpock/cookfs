@@ -2,7 +2,7 @@ tcltest::test cookfsVfs-1.1 "Mount empty filename" -setup {
 } -body {
     vfs::cookfs::Mount "" ""
 } -cleanup {
-} -returnCodes {error} -result {Unable to create Cookfs object}
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object: couldn't open "*": illegal operation on a directory}
 
 tcltest::test cookfsVfs-1.2 "Mount non-existant file as read-write" -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
@@ -22,7 +22,7 @@ tcltest::test cookfsVfs-1.3 "Mount non-existant file as read-only" -setup {
 } -cleanup {
     catch {vfs::unmount $file}
     tcltest::removeFile $file
-} -returnCodes {error} -result {Unable to create Cookfs object}
+} -returnCodes {error} -result {Unable to create Cookfs object: index not found}
 
 tcltest::test cookfsVfs-1.4 "Remounting archive" -setup {
     set file [tcltest::makeFile {} cookfs.cfs]

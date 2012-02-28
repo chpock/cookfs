@@ -1,3 +1,11 @@
+2012-02-28 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* generic/pages.c: Added more verbose error information to cookfs
+	* generic/pages.h:
+	* generic/pagesCmd.c:
+	* scripts/pages.tcl:
+	* tests/vfs.test:
+	* tests/pages.test:
+
 2011-12-20 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* generic/pages.c: Added support for getting currently set compression using pages and mount command
 	* generic/pagesCompr.c:

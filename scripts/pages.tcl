@@ -7,6 +7,8 @@ package require md5 2
 namespace eval cookfs {}
 namespace eval cookfs::pages {}
 
+set ::cookfs::pages::errorMessage "Unable to create Cookfs object"
+
 set ::cookfs::pageshandleIdx 0
 proc cookfs::pages {args} {
     set name ::cookfs::pageshandle[incr ::cookfs::pageshandleIdx]
@@ -72,23 +74,34 @@ proc cookfs::pages {args} {
         }  else  {
             set c(fh) [open [lindex $args 0] {RDWR CREAT}]
         }
-    }]} {
-        error "Unable to create Cookfs object"
+        fconfigure $c(fh) -translation binary
+    } err]} {
+        catch {close $c(fh)}
+        set msg "$::cookfs::pages::errorMessage: $err"
+        error $msg $msg
     }
 
-    fconfigure $c(fh) -translation binary
-
     if {$c(endoffset) != ""} {
-        seek $c(fh) $c(endoffset) start
-    }  else  {
-        seek $c(fh) 0 end
-        set fileSize [tell $c(fh)]
-        if {$fileSize > 4096} {
-            seek $c(fh) -4096 current
-        }  else  {
-            seek $c(fh) -$fileSize current
+        if {[catch {
+            seek $c(fh) $c(endoffset) start
+        }]} {
+            set msg "$::cookfs::pages::errorMessage: index not found"
+            error $msg $msg
         }
-        set tail [read $c(fh)]
+    }  else  {
+        if {[catch {
+            seek $c(fh) 0 end
+            set fileSize [tell $c(fh)]
+            if {$fileSize > 4096} {
+                seek $c(fh) -4096 current
+            }  else  {
+                seek $c(fh) -$fileSize current
+            }
+            set tail [read $c(fh)]
+        }]} {
+            set msg "$::cookfs::pages::errorMessage: index not found"
+            error $msg $msg
+        }
         set tailOffset [string last $c(cfsname) $tail]
         if {$tailOffset >= 0} {
             set c(endoffset) [expr {[tell $c(fh)] - [string length $tail] + $tailOffset + 7}]
@@ -98,12 +111,13 @@ proc cookfs::pages {args} {
         }
     }
 
-    if {[pages::readIndex $name]} {
+    if {[pages::readIndex $name msg]} {
         set c(haschanged) 0
         set c(indexChanged) 0
     }  else  {
         if {$c(readonly)} {
-            error "Unable to create Cookfs object"
+            catch {close $c(fh)}
+            error $msg $msg
         }
         set c(startoffset) $c(endoffset)
         set c(haschanged) 1
@@ -218,18 +232,22 @@ proc cookfs::pages::cid2compression {name} {
     }
 }
 
-proc cookfs::pages::readIndex {name} {
+proc cookfs::pages::readIndex {name msgVariable} {
     upvar #0 $name c
+    upvar 1 $msgVariable msg
     if {[catch {
         seek $c(fh) [expr {$c(endoffset) - 16}] start
         set fc [read $c(fh) 16]
     }]} {
+        set msg "$::cookfs::pages::errorMessage: index not found"
         return 0
     }
     if {[string length $fc] != 16} {
+        set msg "$::cookfs::pages::errorMessage: unable to read index suffix"
         return 0
     }
     if {[string range $fc 9 15] != "$c(cfsname)"} {
+        set msg "$::cookfs::pages::errorMessage: invalid file signature"
         return 0
     }
     binary scan [string range $fc 0 7] II idxsize numpages
@@ -237,6 +255,11 @@ proc cookfs::pages::readIndex {name} {
     set idxoffset [expr {$c(endoffset) - (16 + $idxsize + ($numpages * 20))}]
     set c(indexoffset) $idxoffset
 
+    if {$idxoffset < 0} {
+        set msg "$::cookfs::pages::errorMessage: page sizes not found"
+        return 0
+    }
+    
     seek $c(fh) $idxoffset start
     set md5data [read $c(fh) [expr {$numpages * 16}]]
     set sizedata [read $c(fh) [expr {$numpages * 4}]]

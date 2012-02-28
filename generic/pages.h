@@ -106,8 +106,6 @@ void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress);
 int Cookfs_PagesGetCompression(Cookfs_Pages *p);
 void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression);
 
-int CookfsReadIndex(Cookfs_Pages *p);
-
 void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside);
 
 void Cookfs_PagesSetIndex(Cookfs_Pages *p, Tcl_Obj *dataIndex);
