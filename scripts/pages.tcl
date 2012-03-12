@@ -358,6 +358,14 @@ proc cookfs::pages::cleanup {name} {
     return $c(endoffset)
 }
 
+proc cookfs::pages::pageGetOffset {name idx} {
+    upvar #0 $name c
+    set o $c(startoffset)
+    for {set i 0} {$i < $idx} {incr i} {
+        incr o [lindex $c(idx.sizelist) $i]
+    }
+    return $o
+}
 proc cookfs::pages::pageGet {name idx} {
     upvar #0 $name c
     set o $c(startoffset)
@@ -497,6 +505,9 @@ proc cookfs::pages::handle {name cmd args} {
             }
         }
         dataoffset {
+            if {[llength $args] == 1} {
+		return [pageGetOffset $name [lindex $args 0]]
+	    }
             return $c(startoffset)
         }
         aside - gethead - getheadmd5 - gettail - gettailmd5 {

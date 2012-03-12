@@ -401,11 +401,23 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
         }
         case cmdDataoffset:
         {
-            if (objc != 2) {
-                Tcl_WrongNumArgs(interp, 2, objv, "");
+            if ((objc < 2) || (objc > 3)) {
+                Tcl_WrongNumArgs(interp, 2, objv, "?index?");
                 return TCL_ERROR;
             }
-            Tcl_SetObjResult(interp, Tcl_NewWideIntObj(p->dataInitialOffset));
+	    if (objc == 3) {
+		int idx;
+                if (Tcl_GetIntFromObj(interp, objv[2], &idx) != TCL_OK) {
+                    return TCL_ERROR;
+                }
+		if (idx > p->dataNumPages) {
+		    Tcl_SetObjResult(interp, Tcl_NewStringObj("Invalid page index", -1));
+		    return TCL_ERROR;
+		}
+		Tcl_SetObjResult(interp, Tcl_NewWideIntObj(Cookfs_PagesGetPageOffset(p, idx)));
+	    }  else  {
+		Tcl_SetObjResult(interp, Tcl_NewWideIntObj(p->dataInitialOffset));
+	    }
             break;
         }
         case cmdAside:

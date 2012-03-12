@@ -17,7 +17,6 @@ static Tcl_Obj *CookfsPagesPageGetInt(Cookfs_Pages *p, int index);
 static void CookfsPagesPageCacheMoveToTop(Cookfs_Pages *p, int index);
 static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p);
 static void CookfsPagesPageExtendIfNeeded(Cookfs_Pages *p, int count);
-static Tcl_WideInt CookfsPagesGetPageOffset(Cookfs_Pages *p, int idx);
 static void CookfsTruncateFileIfNeeded(Cookfs_Pages *p, Tcl_WideInt targetOffset);
 
 
@@ -263,7 +262,7 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
 	    Tcl_WideInt offset;
 
 	    CookfsLog(printf("Cookfs_PagesClose - Writing index"))
-	    offset = CookfsPagesGetPageOffset(p, p->dataNumPages);
+	    offset = Cookfs_PagesGetPageOffset(p, p->dataNumPages);
  
 	    Tcl_Seek(p->fileChannel, offset, SEEK_SET);
 
@@ -504,7 +503,7 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
 
     /* reallocate list of page offsets if exceeded */
     CookfsPagesPageExtendIfNeeded(p, p->dataNumPages);
-    offset = CookfsPagesGetPageOffset(p, idx);
+    offset = Cookfs_PagesGetPageOffset(p, idx);
 
     /* if last operation was not write, we need to seek
      * to make sure we're at location where we should be writing */
@@ -882,7 +881,7 @@ void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size) {
 
 Tcl_WideInt Cookfs_GetFilesize(Cookfs_Pages *p) {
     Tcl_WideInt rc;
-    rc = CookfsPagesGetPageOffset(p, p->dataNumPages);
+    rc = Cookfs_PagesGetPageOffset(p, p->dataNumPages);
     return rc;
 }
 
@@ -973,6 +972,34 @@ void Cookfs_PagesSetCompression(Cookfs_Pages *p, int compression) {
 }
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PagesGetPageOffset --
+ *
+ *	Calculate offset of a page from start of file
+ *	(not start of cookfs archive)
+ *
+ * Results:
+ *	File offset to beginning of a page
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Tcl_WideInt Cookfs_PagesGetPageOffset(Cookfs_Pages *p, int idx) {
+    /* TODO: optimize by cache'ing each N-th entry and start from there */
+    int i;
+    Tcl_WideInt rc = p->dataInitialOffset;
+    for (i = 0; i < idx; i++) {
+	rc += p->dataPagesSize[i];
+    }
+    return rc;
+}
+
+
 /* definitions of static and/or internal functions */
 
 /*
@@ -1027,7 +1054,7 @@ static Tcl_Obj *CookfsPagesPageGetInt(Cookfs_Pages *p, int index) {
     }
     
     /* get offset and size */
-    offset = CookfsPagesGetPageOffset(p, index);
+    offset = Cookfs_PagesGetPageOffset(p, index);
     size = p->dataPagesSize[index];
     
     CookfsLog(printf("PageGet offset=%d size=%d", (int) offset, size))
@@ -1284,7 +1311,7 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p) {
     p->dataNumPages = pageCount;
 
     /* calculate size of all pages by requesting offset for page after the last existing page */
-    p->dataAllPagesSize = CookfsPagesGetPageOffset(p, pageCount);
+    p->dataAllPagesSize = Cookfs_PagesGetPageOffset(p, pageCount);
     
     /* calculate offset from data - offset to end of archive
      * deducted by all index elements size and size of all pages */
@@ -1293,7 +1320,7 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p) {
 
     CookfsLog(printf("Pages size=%d offset=%d", (int) p->dataAllPagesSize, (int) p->dataInitialOffset))
     for (i = 0; i < pageCount; i++) {
-	CookfsLog(printf("Offset %d is %d", i, (int) CookfsPagesGetPageOffset(p, i)))
+	CookfsLog(printf("Offset %d is %d", i, (int) Cookfs_PagesGetPageOffset(p, i)))
     }
     return 1;
 }
@@ -1335,34 +1362,6 @@ static void CookfsPagesPageExtendIfNeeded(Cookfs_Pages *p, int count) {
 	p->dataPagesMD5 = (unsigned char *) Tcl_Realloc((void *) p->dataPagesMD5,
 	    p->dataPagesDataSize * 16);
     }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CookfsPagesGetPageOffset --
- *
- *	Calculate offset of a page from start of file
- *	(not start of cookfs archive)
- *
- * Results:
- *	File offset to beginning of a page
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-static Tcl_WideInt CookfsPagesGetPageOffset(Cookfs_Pages *p, int idx) {
-    /* TODO: optimize by cache'ing each N-th entry and start from there */
-    int i;
-    Tcl_WideInt rc = p->dataInitialOffset;
-    for (i = 0; i < idx; i++) {
-	rc += p->dataPagesSize[i];
-    }
-    return rc;
 }
 
 
