@@ -47,10 +47,13 @@ proc cookfs::purgeSmallfiles {fsid} {
             lappend bufmap($buf) $path
         }
 
-        foreach {buf pathlist} [array get bufmap] {
+        set search [array startsearch bufmap]
+        while {[array anymore bufmap $search]} {
+	    set pathlist $bufmap([array next bufmap $search])
             set path [lindex $pathlist 0]
             lappend plist [list $pathlist [file extension $path]/[file tail $path]]
         }
+	array donesearch bufmap $search
 
         set currentchunk ""
         set currentchunkPOS [list]

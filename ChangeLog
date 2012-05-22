@@ -1,3 +1,6 @@
+2012-05-22 Wojciech Kocjan <zoro2@users.sourceforge.net>
+	* scripts/writer.tcl: Use [array startsearch]/[array next]/[array anymore] instead of [array get] to package small files - reduces memory usage
+
 2012-03-12 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* generic/pages.c: Added support for dataoffset command to return offset to specific pages
 	* generic/pages.h:
