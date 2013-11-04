@@ -34,6 +34,7 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
     int blockLeft;
     int blockRead;
     char *pageBuf;
+    int pageBufSize;
 
     CookfsLog(printf("Cookfs_Readerchannel_Input: read %d", bufSize))
 
@@ -74,9 +75,13 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	CookfsLog(printf("Cookfs_Readerchannel_Input: before incr"))
 	Tcl_IncrRefCount(pageObj);
 	CookfsLog(printf("Cookfs_Readerchannel_Input: after incr"))
-	pageBuf = (char *) Tcl_GetByteArrayFromObj(pageObj, NULL);
+	pageBuf = (char *) Tcl_GetByteArrayFromObj(pageObj, &pageBufSize);
 
 	CookfsLog(printf("Cookfs_Readerchannel_Input: copying %d+%d", instData->buf[instData->currentBlock + 1], instData->currentBlockOffset))
+	// validate enough data is available in the buffer
+	if (pageBufSize < (instData->buf[instData->currentBlock + 1] + instData->currentBlockOffset + blockRead)) {
+	    goto error;
+	}
 	memcpy(buf + bytesRead, pageBuf + instData->buf[instData->currentBlock + 1] + instData->currentBlockOffset, blockRead);
 	CookfsLog(printf("Cookfs_Readerchannel_Input: before decr"))
 	Tcl_DecrRefCount(pageObj);
