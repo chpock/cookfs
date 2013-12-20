@@ -22,7 +22,7 @@ typedef struct Cookfs_ReaderChannelInstData {
 
 int Cookfs_InitReaderchannelCmd(Tcl_Interp *interp);
 
-Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Tcl_Obj *pagesList, Tcl_Interp *interp);
+Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Tcl_Obj *listObj, Tcl_Interp *interp, char **channelNamePtr);
 
 Cookfs_ReaderChannelInstData *Cookfs_CreateReaderchannelAlloc(Cookfs_Pages *pages, int bufSize);
 int Cookfs_CreateReaderchannelCreate(Cookfs_ReaderChannelInstData *instData, Tcl_Interp *interp);
