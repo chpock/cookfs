@@ -24,14 +24,6 @@ proc cookfs::createReadableChannel {fsid path} {
 
     foreach {mtime size chunklist} $fileinfo break
 
-    set id [incr fs(channelId)]
-    set chid "$fsid.ch$id"
-    upvar #0 $chid ch
-
-    array set ch {
-        offset 0
-    }
-
     # if this is a small file, currently pending write, pass it to memchan
     if {([llength $chunklist] == 3) && ([lindex $chunklist 0] < 0)} {
         #vfs::log [list cookfs::createReadableChannel $fsid $path smallfile]
@@ -45,6 +37,13 @@ proc cookfs::createReadableChannel {fsid path} {
 	return $chan
     }
 
+    set id [incr fs(channelId)]
+    set chid "$fsid.ch$id"
+    upvar #0 $chid ch
+
+    array set ch {
+        offset 0
+    }
 
     # initialize internal information with chunk list
     set ch(chunkinfo) [list]
