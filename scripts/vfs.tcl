@@ -1,6 +1,7 @@
 # Handling for Tcl VFS functionality.
 #
 # (c) 2010 Wojciech Kocjan, Pawel Salawa
+# (c) 2011-2014 Wojciech Kocjan
 
 namespace eval cookfs {}
 
@@ -307,4 +308,4 @@ proc cookfs::vfshandleOpen {fsid relative mode} {
     }
 }
 
-package provide vfs::cookfs::tcl::vfs 1.3.2
+package provide vfs::cookfs::tcl::vfs 1.4

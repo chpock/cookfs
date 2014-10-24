@@ -10,7 +10,7 @@ dnl	to configure the system for the local environment.
 # so you can encode the package version directly into the source files.
 #-----------------------------------------------------------------------
 
-AC_INIT([cookfs], [1.3.2])
+AC_INIT([cookfs], [1.4])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -58,7 +58,7 @@ TEA_ADD_INCLUDES([])
 TEA_ADD_LIBS([])
 TEA_ADD_CFLAGS([])
 TEA_ADD_STUB_SOURCES([])
-TEA_ADD_TCL_SOURCES([scripts/cookvfs.tcl scripts/memchan.tcl scripts/vfs.tcl scripts/optimize.tcl])
+TEA_ADD_TCL_SOURCES([scripts/cookvfs.tcl scripts/memchan.tcl scripts/vfs.tcl scripts/optimize.tcl scripts/asyncworker.tcl])
 TEA_ADD_TCL_SOURCES([scripts/readerchannel.tcl])
 TEA_ADD_TCL_SOURCES([scripts/writer.tcl])
 
@@ -118,6 +118,10 @@ if test ${INTERNALDEBUG} = yes; then
     AC_DEFINE(COOKFS_INTERNAL_DEBUG)
 fi
 
+TEA_ADD_TCL_SOURCES([scripts/pages.tcl])
+TEA_ADD_TCL_SOURCES([scripts/readerchannel.tcl])
+TEA_ADD_TCL_SOURCES([scripts/fsindex.tcl])
+
 if test ${USECPAGES} = yes; then
     AC_DEFINE(COOKFS_USECPAGES)
     COOKFS_PKGCONFIG_USECPAGES=1
@@ -129,17 +133,8 @@ if test ${USECPAGES} = yes; then
 	AC_DEFINE(COOKFS_USECREADERCHAN)
 	COOKFS_PKGCONFIG_USECREADERCHAN=1
 	TEA_ADD_SOURCES([readerchannel.c readerchannelIO.c])
-	if test ${USEFALLBACK} = yes; then
-	    TEA_ADD_TCL_SOURCES([scripts/readerchannel.tcl])
-	fi
     else
 	COOKFS_PKGCONFIG_USECREADERCHAN=0
-	TEA_ADD_TCL_SOURCES([scripts/readerchannel.tcl])
-    fi
-
-    # if fallback option was enabled, exit?
-    if test ${USEFALLBACK} = yes; then
-	TEA_ADD_TCL_SOURCES([scripts/pages.tcl])
     fi
 
     # enable bz2 files only if pages are handled using C
@@ -154,11 +149,9 @@ if test ${USECPAGES} = yes; then
 else
     COOKFS_PKGCONFIG_USECPAGES=0
     COOKFS_PKGCONFIG_FEATURE_ASIDE=0
-    TEA_ADD_TCL_SOURCES([scripts/pages.tcl])
 
     # if not using c-pages, use Tcl only readerchannel
     COOKFS_PKGCONFIG_USECREADERCHAN=0
-    TEA_ADD_TCL_SOURCES([scripts/readerchannel.tcl])
     
     # Tcl implementation offers bzip2 compression assuming Trf package is present
     COOKFS_PKGCONFIG_USEBZ2=1
@@ -174,16 +167,12 @@ if test ${USECFSINDEX} = yes; then
     COOKFS_PKGCONFIG_USECFSINDEX=1
     COOKFS_PKGCONFIG_FEATURE_METADATA=1
     TEA_ADD_SOURCES([fsindex.c fsindexIO.c fsindexCmd.c])
-    if test ${USEFALLBACK} = yes; then
-	TEA_ADD_TCL_SOURCES([scripts/fsindex.tcl])
-    fi
 else
     COOKFS_PKGCONFIG_USECFSINDEX=0
     
     # TODO: move this outside conditions since
     # metadata is supported in pure Tcl version as well
     COOKFS_PKGCONFIG_FEATURE_METADATA=1
-    TEA_ADD_TCL_SOURCES([scripts/fsindex.tcl])
 fi
 AC_SUBST(COOKFS_PKGCONFIG_USECFSINDEX)
 AC_SUBST(COOKFS_PKGCONFIG_FEATURE_METADATA)

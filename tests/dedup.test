@@ -1,0 +1,42 @@
+tcltest::test cookfsDedup-1.1 "Large file deduplication" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set datas [randomDatas 4 8192]
+    set c [vfs::cookfs::Mount $file $file -compression none \
+        -pagesize 4096 -smallfilesize 1024]
+    set i 0
+    foreach d [concat $datas $datas [lrange $datas 2 14] [lrange $datas 7 15]] {
+        set fh [open $file/d[incr i] w]
+        fconfigure $fh -translation binary
+        puts -nonewline $fh $d
+        close $fh
+    }
+    vfs::unmount $file
+    set fs [file size $file]
+    expr {($fs > (2048 * 16)) && ($fs < (24 * 2048))}
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -result 1
+
+tcltest::test cookfsDedup-1.2 "Small file deduplication for same resulting pages" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set datas [randomDatas 16 2048]
+    set c [vfs::cookfs::Mount $file $file -compression none \
+        -pagesize 16384 -smallfilesize 16384 -smallfilebuffer 16384]
+    set i 0
+    foreach d [concat $datas $datas $datas $datas] {
+        set fh [open $file/d[incr i] w]
+        fconfigure $fh -translation binary
+        puts -nonewline $fh $d
+        close $fh
+    }
+    vfs::unmount $file
+    set fs [file size $file]
+    expr {($fs > (2048 * 16)) && ($fs < (24 * 2048))}
+} -cleanup {
+    catch {vfs::unmount $file}
+    tcltest::removeFile $file
+} -result 1
+

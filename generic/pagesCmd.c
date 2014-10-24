@@ -36,7 +36,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
  */
 
 int Cookfs_InitPagesCmd(Tcl_Interp *interp) {
-    Tcl_CreateObjCommand(interp, "::cookfs::pages", CookfsRegisterPagesObjectCmd,
+    Tcl_CreateObjCommand(interp, "::cookfs::c::pages", CookfsRegisterPagesObjectCmd,
         (ClientData) NULL, NULL);
 
     return TCL_OK;
@@ -76,8 +76,8 @@ int Cookfs_InitPagesCmd(Tcl_Interp *interp) {
  */
 
 static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    static char *options[] = { "-readonly", "-readwrite", "-compression", "-cachesize", "-endoffset", "-compresscommand", "-decompresscommand", "-alwayscompress", NULL };
-    enum { optReadonly = 0, optReadwrite, optCompression, optCachesize, optEndoffset, optCompressCommand, optDecompressCommand, optAlwaysCompress };
+    static char *options[] = { "-readonly", "-readwrite", "-compression", "-cachesize", "-endoffset", "-compresscommand", "-decompresscommand", "-asynccompresscommand", "-alwayscompress", NULL };
+    enum { optReadonly = 0, optReadwrite, optCompression, optCachesize, optEndoffset, optCompressCommand, optDecompressCommand, optAsyncCompressCommand, optAlwaysCompress };
     char buf[128];
     Cookfs_Pages *pages;
     int cmdidx = ++deprecatedCounter;
@@ -91,6 +91,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     Tcl_WideInt foffset = 0;
     Tcl_Obj **tobjv = (Tcl_Obj **) objv;
     Tcl_Obj *compressCmd = NULL;
+    Tcl_Obj *asyncCompressCmd = NULL;
     Tcl_Obj *decompressCmd = NULL;
 
     while (tobjc > 1) {
@@ -136,6 +137,16 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 tobjv++;
 
                 decompressCmd = tobjv[1];
+                break;
+            }
+            case optAsyncCompressCommand: {
+                if (tobjc < 2) {
+                    goto ERROR;
+                }
+                tobjc--;
+                tobjv++;
+
+                asyncCompressCmd = tobjv[1];
                 break;
             }
             case optEndoffset: {
@@ -205,7 +216,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     CookfsLog(printf("Cookfs Page Cmd: %08x -> %d\n", pages, pages->cacheSize))
 
     /* create Tcl command and return its name */
-    sprintf(buf, "::cookfs::pageshandle%d", cmdidx);
+    sprintf(buf, "::cookfs::c::pageshandle%d", cmdidx);
     Tcl_CreateObjCommand(interp, buf, CookfsPagesCmd, (ClientData) pages, CookfsPagesDeleteProc);
 
     CookfsLog(printf("Cookfs Page Cmd: %s", buf))

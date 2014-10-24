@@ -3,7 +3,7 @@ tcltest::test cookfsFsindex-1.1 "Create empty fsindex" -setup {
     set fsidx [cookfs::fsindex]
 } -cleanup {
     $fsidx delete
-} -returnCodes {ok} -match glob -result {::cookfs::fsindexhandle*}
+} -returnCodes {ok} -match glob -result {::cookfs::*::fsindexhandle*}
 
 tcltest::test cookfsFsindex-1.2 "Create empty fsindex and create file" -setup {
 } -body {

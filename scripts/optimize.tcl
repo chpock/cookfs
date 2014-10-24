@@ -3,6 +3,7 @@
 # Optimize file list for minimal reading operations
 #
 # (c) 2010 Wojciech Kocjan, Pawel Salawa
+# (c) 2011-2014 Wojciech Kocjan
 
 namespace eval cookfs {}
 
@@ -29,4 +30,4 @@ proc cookfs::optimizelist {fsid base filelist} {
     return [concat $smallfiles $largefiles]
 }
 
-package provide vfs::cookfs::tcl::optimize 1.3.2
+package provide vfs::cookfs::tcl::optimize 1.4

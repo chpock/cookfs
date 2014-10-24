@@ -204,4 +204,4 @@ proc cookfs::writeFiles {fsid args} {
     }
 }
 
-package provide vfs::cookfs::tcl::writer 1.3.2
+package provide vfs::cookfs::tcl::writer 1.4

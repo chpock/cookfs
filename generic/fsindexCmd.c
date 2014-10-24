@@ -46,7 +46,7 @@ static int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *inte
  */
 
 int Cookfs_InitFsindexCmd(Tcl_Interp *interp) {
-    Tcl_CreateObjCommand(interp, "::cookfs::fsindex", CookfsRegisterFsindexObjectCmd,
+    Tcl_CreateObjCommand(interp, "::cookfs::c::fsindex", CookfsRegisterFsindexObjectCmd,
         (ClientData) NULL, NULL);
 
     return TCL_OK;
@@ -84,7 +84,7 @@ static int CookfsRegisterFsindexObjectCmd(ClientData clientData, Tcl_Interp *int
     Cookfs_Fsindex *i;
 
     idx = ++deprecatedCounter;
-    sprintf(buf, "::cookfs::fsindexhandle%d", idx);
+    sprintf(buf, "::cookfs::c::fsindexhandle%d", idx);
 
     /* we only accept no or 1 argument - if more specified, return usage information */
     if (objc > 2) {

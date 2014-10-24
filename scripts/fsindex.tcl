@@ -1,13 +1,14 @@
 # Pure Tcl implementation of index handling
 #
-# (c) 2010 Wojciech Kocjan
+# (c) 2010-2014 Wojciech Kocjan
 
 namespace eval cookfs {}
+namespace eval cookfs::tcl {}
 namespace eval cookfs::fsindex {}
 
 set ::cookfs::fsindexhandleIdx 0
-proc cookfs::fsindex {{data ""}} {
-    set name ::cookfs::fsindexhandle[incr ::cookfs::fsindexhandleIdx]
+proc cookfs::tcl::fsindex {{data ""}} {
+    set name ::cookfs::tcl::fsindexhandle[incr ::cookfs::fsindexhandleIdx]
     upvar #0 $name c
     upvar #0 $name.m cm
 
@@ -15,7 +16,7 @@ proc cookfs::fsindex {{data ""}} {
     array set cm {}
 
     if {$data != ""} {
-         fsindex::import $name $data
+         ::cookfs::fsindex::import $name $data
     }  else  {
          array set c {"" {}}
     }
@@ -64,7 +65,6 @@ proc cookfs::fsindex::entryGet {name path} {
     upvar #0 $name c
     upvarPathDir $name $path d tail
     array set da $d
-    #puts "GET $path ([info exists da($tail)])"
     if {![info exists da($tail)]} {
          error "Entry not found"
     }
@@ -283,7 +283,6 @@ proc cookfs::fsindex::unsetMetadata {name paramname} {
 }
 
 proc cookfs::fsindex::handle {name cmd args} {
-    #puts "handle $name $cmd $args"
     switch -- $cmd {
          export {
              return [export $name]
@@ -357,4 +356,4 @@ proc cookfs::fsindex::handle {name cmd args} {
     error "TODO: args"
 }
 
-package provide vfs::cookfs::tcl::fsindex 1.3.2
+package provide vfs::cookfs::tcl::fsindex 1.4

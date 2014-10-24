@@ -5,7 +5,7 @@ tcltest::test cookfsPages-1.1 "Create empty pages as read-write" -setup {
 } -cleanup {
     $pg delete
     catch {file delete -force $file}
-} -returnCodes {ok} -match glob -result {::cookfs::pageshandle*}
+} -returnCodes {ok} -match glob -result {::cookfs::*::pageshandle*}
 
 tcltest::test cookfsPages-1.2 "Create pages as read-write with existing prefix" -setup {
     set file [tcltest::makeFile {} pages.cfs]

@@ -1,6 +1,7 @@
 # Handling of read-only channels.
 #
 # (c) 2010 Wojciech Kocjan, Pawel Salawa
+# (c) 2011-2014 Wojciech Kocjan
 
 namespace eval cookfs {}
 
@@ -30,9 +31,9 @@ proc cookfs::createReadableChannel {fsid path} {
         return [lindex [initMemchan $fsid $path true] 0]
     }
 
-    # create C channel if available
-    if {[pkgconfig get c-readerchannel]} {
-	set chan [cookfs::readerchannel $fs(pages) $chunklist]
+    # create C channel if available and was not disabled
+    if {!$fs(tclreaderchannel) && [pkgconfig get c-readerchannel]} {
+	set chan [cookfs::c::readerchannel $fs(pages) $chunklist]
 	fconfigure $chan -buffersize 65536
 	return $chan
     }
@@ -174,4 +175,4 @@ proc cookfs::readableChannelHandler {fsid chid command args} {
     }
 }
 
-package provide vfs::cookfs::tcl::readerchannel 1.3.2
+package provide vfs::cookfs::tcl::readerchannel 1.4

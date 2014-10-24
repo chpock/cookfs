@@ -3,6 +3,7 @@
 # Memchan handling for both in-memory channels and channels that are writable.
 #
 # (c) 2010 Wojciech Kocjan, Pawel Salawa
+# (c) 2011-2014 Wojciech Kocjan
 
 namespace eval cookfs {}
 
@@ -60,4 +61,4 @@ proc cookfs::onMemchanClose {fsid path chan} {
     writeFiles $fsid $path channel $chan ""
 }
 
-package provide vfs::cookfs::tcl::memchan 1.3.2
+package provide vfs::cookfs::tcl::memchan 1.4

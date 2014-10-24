@@ -163,7 +163,7 @@ static int CookfsCreateReaderchannelCmd(ClientData clientData, Tcl_Interp *inter
 }
 
 int Cookfs_InitReaderchannelCmd(Tcl_Interp *interp) {
-    Tcl_CreateObjCommand(interp, "::cookfs::readerchannel", CookfsCreateReaderchannelCmd,
+    Tcl_CreateObjCommand(interp, "::cookfs::c::readerchannel", CookfsCreateReaderchannelCmd,
         (ClientData) NULL, NULL);
 
     return TCL_OK;

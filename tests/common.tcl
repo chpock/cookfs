@@ -1,3 +1,20 @@
+proc randomData {bytes} {
+    set rc {}
+    for {set i 0} {$i < $bytes} {incr i 4} {
+	append rc [binary format I [expr {wide(rand()*0x100000000)}]]
+    }
+    incr bytes -1
+    return [string range $rc 0 $bytes]
+}
+
+proc randomDatas {count bytes} {
+    set rc {}
+    for {set i 0} {$i < $count} {incr i} {
+	lappend rc [randomData $bytes]
+    }
+    return $rc
+}
+
 proc testIfEqual {a b} {
     if {(![file exists $a]) || (![file exists $b])} {
 	return 0
@@ -46,6 +63,7 @@ proc testIfEqual {a b} {
 
 set testcompresscount 0
 set testdecompresscount 0
+set testasynccompresscount 0
 
 proc testcompress {d} {
     incr ::testcompresscount
@@ -56,6 +74,25 @@ proc testdecompress {d} {
     incr ::testdecompresscount
     set rc [vfs::zip -mode decompress [binary format H* [string range $d 8 end]]]
     return $rc
+}
+
+proc testasynccompress {cmd idx arg} {
+    if {$cmd == "init"} {
+	set ::testasyncqueue {}
+	set ::testasyncqueuesize $idx
+	set ::testasynccompresscount 0
+    } elseif {$cmd == "compress"} {
+	incr ::testasynccompresscount
+	lappend ::testasyncqueue $idx [testcompress $arg]
+    } elseif {$cmd == "wait"} {
+	incr ::testasynccompresscount
+	if {$arg || ([llength $::testasyncqueue] >= $::testasyncqueuesize)} {
+	    set rc [lrange $::testasyncqueue 0 1]
+	    set ::testasyncqueue [lrange $::testasyncqueue 2 end]
+	    return $rc 
+	}
+	return {}
+    }
 }
 
 set testcompresscountraw 0
