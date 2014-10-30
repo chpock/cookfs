@@ -35,6 +35,13 @@ enum {
 #define COOKFS_PAGES_MASK  0x0fffffff
 #define COOKFS_PAGES_ISASIDE(value) (((value) & COOKFS_PAGES_ASIDE) == COOKFS_PAGES_ASIDE)
 
+#define COOKFS_PAGES_MAX_ASYNC          64
+
+typedef struct Cookfs_AsyncPage {
+    int pageIdx;
+    Tcl_Obj *pageContents;
+} Cookfs_AsyncPage;
+
 typedef struct Cookfs_Pages {
     /* main interp */
     Tcl_Interp *interp;
@@ -80,17 +87,24 @@ typedef struct Cookfs_Pages {
     Tcl_Obj **compressCommandPtr;
     int decompressCommandLen;
     Tcl_Obj **decompressCommandPtr;
+    int asyncCompressCommandLen;
+    Tcl_Obj **asyncCompressCommandPtr;
     
     /* cache */
     int cacheSize;
     int cachePageIdx[COOKFS_MAX_CACHE_PAGES];
     Tcl_Obj *cachePageObj[COOKFS_MAX_CACHE_PAGES];
     
+    /* async compress */
+    Tcl_Obj *asyncCommandCompress;
+    Tcl_Obj *asyncCommandWait;
+    int asyncPageSize;
+    Cookfs_AsyncPage asyncPage[COOKFS_PAGES_MAX_ASYNC];
 } Cookfs_Pages;
 
 Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName);
 
-Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand);
+Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand);
 Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p);
 Tcl_WideInt Cookfs_GetFilesize(Cookfs_Pages *p);
 void Cookfs_PagesFini(Cookfs_Pages *p);

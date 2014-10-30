@@ -70,6 +70,9 @@ Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName) {
  *	if compresion is set to COOKFS_COMPRESSION_CUSTOM, compressCommand and
  *	decompressCommand need to be specified and cookfs will invoke these
  *	commands when needed
+ *
+ *	If specified, asyncCompressCommand will be used for custom compression
+ *	to handle the 'async compression' contract
  *	
  *	fileSignature is only meant for advanced users; it allows specifying
  *	custom pages signature, which can be used to create non-standard
@@ -87,7 +90,7 @@ Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName) {
  *
  *----------------------------------------------------------------------
  */
-Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand) {
+Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand) {
     Cookfs_Pages *rc = (Cookfs_Pages *) Tcl_Alloc(sizeof(Cookfs_Pages));
     int i;
 
@@ -96,7 +99,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     rc->isAside = isAside;
     Cookfs_PagesInitCompr(rc);
 
-    if (Cookfs_SetCompressCommands(rc, compressCommand, decompressCommand) != TCL_OK) {
+    if (Cookfs_SetCompressCommands(rc, compressCommand, decompressCommand, asyncCompressCommand) != TCL_OK) {
 	if (interp != NULL) {
 	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to initialize compression", -1));
 	}
@@ -128,6 +131,16 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     rc->dataPagesIsAside = isAside;
     
     rc->dataIndex = Tcl_NewStringObj("", 0);
+    rc->asyncPageSize = 0;
+    if (asyncCompressCommand != NULL) {
+	rc->asyncCommandCompress = Tcl_NewStringObj("compress", -1);
+	rc->asyncCommandWait = Tcl_NewStringObj("wait", -1);
+	Tcl_IncrRefCount(rc->asyncCommandCompress);
+	Tcl_IncrRefCount(rc->asyncCommandWait);
+    }  else  {
+	rc->asyncCommandCompress = NULL;
+	rc->asyncCommandWait = NULL;
+    }
 
     rc->pageHash = COOKFS_HASH_MD5;
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
@@ -259,12 +272,12 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
 	    int indexSize;
 	    unsigned char buf[COOKFS_SUFFIX_BYTES];
 	    unsigned char *bufSizes;
-	    Tcl_WideInt offset;
 
-	    CookfsLog(printf("Cookfs_PagesClose - Writing index"))
-	    offset = Cookfs_PagesGetPageOffset(p, p->dataNumPages);
- 
-	    Tcl_Seek(p->fileChannel, offset, SEEK_SET);
+	    /* ensure all async pages are written */
+	    while(Cookfs_AsyncPagesWait(p, 1)) {};
+	    
+	    /* seek to proper position */
+	    Cookfs_SeekToPage(p, p->dataNumPages);
 
 	    if (p->dataNumPages > 0) {
 		/* add MD5 information */
@@ -284,7 +297,7 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
 	    }
 
 	    /* write index */
-	    indexSize = Cookfs_WritePage(p, p->dataIndex);
+	    indexSize = Cookfs_WritePage(p, -1, p->dataIndex, NULL);
 	    if (indexSize < 0) {
 		/* TODO: handle index writing issues better */
 		Tcl_Panic("Unable to compress index");
@@ -358,6 +371,13 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
 	}
     }
     
+    if (p->asyncCommandCompress != NULL) {
+	Tcl_DecrRefCount(p->asyncCommandCompress);
+    }
+    if (p->asyncCommandWait != NULL) {
+	Tcl_DecrRefCount(p->asyncCommandWait);
+    }
+    
     /* clean up compression information */
     Cookfs_PagesFiniCompr(p);
     
@@ -401,7 +421,6 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
 int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
     int idx;
     int dataSize;
-    Tcl_WideInt offset;
     unsigned char md5sum[16];
     unsigned char *bytes;
     int objLength;
@@ -503,30 +522,24 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
 
     /* reallocate list of page offsets if exceeded */
     CookfsPagesPageExtendIfNeeded(p, p->dataNumPages);
-    offset = Cookfs_PagesGetPageOffset(p, idx);
-
-    /* if last operation was not write, we need to seek
-     * to make sure we're at location where we should be writing */
-    if (p->fileLastOp != COOKFS_LASTOP_WRITE) {
-	/* TODO: optimize by checking if last operation was a write */
-	Tcl_Seek(p->fileChannel, offset, SEEK_SET);
-	CookfsLog(printf("Seeking to EOF -> %d",(int) offset))
-    }
 
     memcpy(p->dataPagesMD5 + (idx * 16), md5sum, 16);
 
     CookfsLog(printf("MD5sum is %08x%08x%08x%08x\n", ((int *) md5sum)[0], ((int *) md5sum)[1], ((int *) md5sum)[2], ((int *) md5sum)[3]))
-
-    dataSize = Cookfs_WritePage(p, dataObj);
-    if (dataSize < 0) {
-	/* TODO: if writing failed, we can't be certain of archive state - need to handle this at vfs layer somehow */
-	CookfsLog(printf("Unable to compress page"))
-	return -1;
-    }
-    p->fileLastOp = COOKFS_LASTOP_WRITE;
-    p->pagesUptodate = 0;
     
-    p->dataPagesSize[idx] = dataSize;
+    if (Cookfs_AsyncPagesAdd(p, idx, dataObj)) {
+	p->pagesUptodate = 0;
+	p->dataPagesSize[idx] = -1;
+    }  else  {
+	dataSize = Cookfs_WritePage(p, idx, dataObj, NULL);
+	if (dataSize < 0) {
+	    /* TODO: if writing failed, we can't be certain of archive state - need to handle this at vfs layer somehow */
+	    CookfsLog(printf("Unable to compress page"))
+	    return -1;
+	}
+	p->pagesUptodate = 0;
+	p->dataPagesSize[idx] = dataSize;
+    }
 
     if (p->dataPagesIsAside) {
 	idx |= COOKFS_PAGES_ASIDE;
@@ -968,6 +981,10 @@ int Cookfs_PagesGetCompression(Cookfs_Pages *p) {
  */
 
 void Cookfs_PagesSetCompression(Cookfs_Pages *p, int compression) {
+    if (p->fileCompression != compression) {
+	// ensure all async pages are written
+	while(Cookfs_AsyncPagesWait(p, 1)) {};
+    }
     p->fileCompression = compression;
 }
 
@@ -1027,7 +1044,7 @@ static Tcl_Obj *CookfsPagesPageGetInt(Cookfs_Pages *p, int index) {
     Tcl_WideInt offset;
     int size;
     p->fileLastOp = COOKFS_LASTOP_READ;
-
+    
     /* if specified index is an aside-index */
     if (COOKFS_PAGES_ISASIDE(index)) {
 	CookfsLog(printf("Detected get request for add-aside pages - %08x", index))
@@ -1051,6 +1068,11 @@ static Tcl_Obj *CookfsPagesPageGetInt(Cookfs_Pages *p, int index) {
     if (index >= p->dataNumPages) {
 	CookfsLog(printf("GetInt failed: %d >= %d", index, p->dataNumPages))
 	return NULL;
+    }
+    
+    buffer = Cookfs_AsyncPagesGet(p, index);
+    if (buffer != NULL) {
+	return buffer;
     }
     
     /* get offset and size */

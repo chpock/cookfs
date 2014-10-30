@@ -1,4 +1,10 @@
-/* (c) 2010 Wojciech Kocjan */
+/*
+ * readerchannel.c
+ *
+ * Provides implementation for reader channel
+ *
+ * (c) 2010-2014 Wojciech Kocjan
+ */
 
 #include "cookfs.h"
 #include <errno.h>

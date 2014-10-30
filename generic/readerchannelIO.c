@@ -1,4 +1,10 @@
-/* (c) 2010 Wojciech Kocjan */
+/*
+ * readerchannelIO.c
+ *
+ * Provides API implementation for reader channel
+ *
+ * (c) 2010-2014 Wojciech Kocjan
+ */
 
 #include "cookfs.h"
 #include <errno.h>
@@ -17,8 +23,8 @@ int Cookfs_Readerchannel_Close2(ClientData instanceData, Tcl_Interp *interp, int
     }  else  {
         if (interp != NULL) {
             Tcl_SetObjResult(interp, Tcl_NewStringObj("Invalid operation", -1));
-            return EINVAL;
         }
+	return EINVAL;
     }
 }
 

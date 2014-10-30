@@ -202,7 +202,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     }
 
     /* Create cookfs instance */
-    pages = Cookfs_PagesInit(interp, tobjv[1], oReadOnly, oCompression, NULL, useFoffset, foffset, 0, compressCmd, decompressCmd);
+    pages = Cookfs_PagesInit(interp, tobjv[1], oReadOnly, oCompression, NULL, useFoffset, foffset, 0, compressCmd, decompressCmd, asyncCompressCmd);
 
     if (pages == NULL) {
         return TCL_ERROR;
@@ -443,7 +443,7 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             Tcl_GetStringFromObj(objv[2], &fileNameSize);
             if (fileNameSize > 0) {
                 /* TODO: copy compression objects from original pages object in aside operations */
-                asidePages = Cookfs_PagesInit(p->interp, objv[2], 0, p->fileCompression, NULL, 0, 0, 1, NULL, NULL);
+                asidePages = Cookfs_PagesInit(p->interp, objv[2], 0, p->fileCompression, NULL, 0, 0, 1, NULL, NULL, NULL);
                 if (asidePages == NULL) {
                     CookfsLog(printf("Failed to create add-aside pages object"))
                     Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create Cookfs object", -1));

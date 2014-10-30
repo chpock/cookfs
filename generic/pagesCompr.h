@@ -1,4 +1,4 @@
-/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
+/* (c) 2010-2014 Wojciech Kocjan, Pawel Salawa */
 
 #ifndef COOKFS_PAGESCOMPR_H
 #define COOKFS_PAGESCOMPR_H 1
@@ -29,10 +29,14 @@ enum {
 void Cookfs_PagesInitCompr(Cookfs_Pages *rc);
 void Cookfs_PagesFiniCompr(Cookfs_Pages *rc);
 
-int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand);
+int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand);
 
-int Cookfs_WritePage(Cookfs_Pages *p, Tcl_Obj *data);
+void Cookfs_SeekToPage(Cookfs_Pages *p, int idx);
+int Cookfs_WritePage(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compressedData);
 Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size);
+Tcl_Obj *Cookfs_AsyncPagesGet(Cookfs_Pages *p, int idx);
+int Cookfs_AsyncPagesAdd(Cookfs_Pages *p, int idx, Tcl_Obj *data);
+int Cookfs_AsyncPagesWait(Cookfs_Pages *p, int require);
 
 #endif /* COOKFS_USECPAGES */
 

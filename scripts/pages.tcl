@@ -437,27 +437,37 @@ proc cookfs::pages::pageGet {name idx} {
 proc cookfs::pages::asyncCompress {name idx contents} {
     upvar #0 $name c
     set c(asyncwrites,$idx) $contents
-    lappend c(asyncwrites) $idx
     while {[asyncWait $name false]} {}
+    lappend c(asyncwrites) $idx
     uplevel #0 [concat $c(asynccompresscommand) [list compress $idx $contents]]
 }
 
 proc cookfs::pages::asyncWait {name require} {
     upvar #0 $name c
-    if {[string length $c(asynccompresscommand)] != 0} {
-        set rc [uplevel #0 [concat $c(asynccompresscommand) [list wait [lindex $c(asyncwrites) 0] $require]]]
+    if {([string length $c(asynccompresscommand)] != 0) && ($require || ([llength $c(asyncwrites)] > 0))} {
+        if {[llength $c(asyncwrites)] > 0} {
+            set widx [lindex $c(asyncwrites) 0]
+        }  else  {
+            set widx -1
+        }
+        set rc [uplevel #0 [concat $c(asynccompresscommand) [list wait $widx $require]]]
         if {[llength $rc] > 0} {
             set idx [lindex $rc 0]
             set contents [lindex $rc 1]
             if {$idx != [lindex $c(asyncwrites) 0]} {
                 error "asyncWait returned $idx, expecting [lindex $c(asyncwrites) 0]"
             }
-            set contents [binary format c $c(cid)]$contents
+            set origContents $c(asyncwrites,$idx)
+            if {((!$c(alwayscompress)) && ([string length $contents] > [string length $origContents]))} {
+                set contents \u0000${origContents}
+            }  else  {
+                set contents [binary format c $c(cid)]$contents
+            }
             lset c(idx.sizelist) $idx [string length $contents]
             pagewrite $name $contents
             unset c(asyncwrites,$idx)
             set c(asyncwrites) [lrange $c(asyncwrites) 1 end]
-            return true
+            return [expr {[llength $c(asyncwrites)] > 0}]
         }  elseif {[llength $c(asyncwrites)] > 0} {
             return $require
         }  else  {

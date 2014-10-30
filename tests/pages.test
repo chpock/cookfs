@@ -155,6 +155,7 @@ tcltest::test cookfsPages-2.3 "Test that different pages with same MD5 checksum 
 
 tcltest::test cookfsPages-3.1 "Test correctness of pages after write" -setup {
     set file [tcltest::makeFile {} pages.cfs]
+    set idxlist {}
 } -body {
     set pg [cookfs::pages -compression zlib $file]
     set pages {
@@ -195,9 +196,9 @@ tcltest::test cookfsPages-3.2 "Test read-only error for adding a page" -setup {
 
 tcltest::test cookfsPages-3.3 "Test correctness of pages after write - large number of pages" -setup {
     set file [tcltest::makeFile {} pages.cfs]
-} -body {
     set idxlist {}
     set conlist {}
+} -body {
     set pg [cookfs::pages -compression zlib $file]
     for {set i 0} {$i < 64} {incr i} {
 	set contents [string repeat [format PAGE%04d $i] 1024]
@@ -218,6 +219,35 @@ tcltest::test cookfsPages-3.3 "Test correctness of pages after write - large num
     $pg delete
 } -cleanup {
     catch {file delete -force $file}
+} -returnCodes {ok}
+
+tcltest::test cookfsPages-3.4 "Test correctness of pages writing with same pages" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set idxlist {}
+} -body {
+    set pg [cookfs::pages -compression zlib $file]
+    set pages {
+        {string repeat TEST 1}
+        {string repeat TEST 1024}
+        {string repeat TEST 16383}
+        {string repeat TEST 1024}
+        {string repeat TEST 16385}
+        {string repeat TEST 16385}
+    }
+    foreach p $pages {
+        lappend idxlist [$pg add [eval $p]]
+    }
+    $pg delete
+
+    set pg [cookfs::pages -readonly $file]
+    foreach p $pages idx $idxlist {
+        if {![string equal [$pg get $idx] [eval $p]]} {
+            error "Page $idx contains invalid data"
+        }
+    }
+    $pg delete
+} -cleanup {
+    #catch {file delete -force $file}
 } -returnCodes {ok}
 
 tcltest::test cookfsPages-4.1 "Test appended file handling" -constraints cookfsAside -setup {
@@ -906,3 +936,4 @@ tcltest::test cookfsPages-13.7 "Error message when specifying non-existing file"
     catch {$pg delete}
     catch {file delete -force $file}
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object: couldn't open "*": no such file or directory}
+
