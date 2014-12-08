@@ -30,6 +30,7 @@ enum {
 #define COOKFS_SIGNATURE_LENGTH 7
 #define COOKFS_MAX_CACHE_PAGES 256
 #define COOKFS_DEFAULT_CACHE_PAGES 4
+#define COOKFS_MAX_PRELOAD_PAGES 8
 
 #define COOKFS_PAGES_ASIDE 0x10000000
 #define COOKFS_PAGES_MASK  0x0fffffff
@@ -89,6 +90,8 @@ typedef struct Cookfs_Pages {
     Tcl_Obj **decompressCommandPtr;
     int asyncCompressCommandLen;
     Tcl_Obj **asyncCompressCommandPtr;
+    int asyncDecompressCommandLen;
+    Tcl_Obj **asyncDecompressCommandPtr;
     
     /* cache */
     int cacheSize;
@@ -96,20 +99,28 @@ typedef struct Cookfs_Pages {
     Tcl_Obj *cachePageObj[COOKFS_MAX_CACHE_PAGES];
     
     /* async compress */
-    Tcl_Obj *asyncCommandCompress;
+    Tcl_Obj *asyncCommandProcess;
     Tcl_Obj *asyncCommandWait;
+    Tcl_Obj *asyncCommandFinalize;
     int asyncPageSize;
     Cookfs_AsyncPage asyncPage[COOKFS_PAGES_MAX_ASYNC];
+    
+    /* async decompress */
+    int asyncDecompressQueue;
+    int asyncDecompressQueueSize;
+    int asyncDecompressIdx[COOKFS_MAX_PRELOAD_PAGES];
 } Cookfs_Pages;
 
 Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName);
 
-Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand);
+Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, int asyncDecompressQueueSize, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand, Tcl_Obj *asyncDecompressCommand);
 Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p);
 Tcl_WideInt Cookfs_GetFilesize(Cookfs_Pages *p);
 void Cookfs_PagesFini(Cookfs_Pages *p);
 int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj);
 Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index);
+Tcl_Obj *Cookfs_PageCacheGet(Cookfs_Pages *p, int idx);
+void Cookfs_PageCacheSet(Cookfs_Pages *p, int idx, Tcl_Obj *obj);
 Tcl_Obj *Cookfs_PageGetHead(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetHeadMD5(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p);

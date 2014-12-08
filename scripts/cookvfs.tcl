@@ -13,6 +13,9 @@ if {![info exists cookfs::mountId]} {
     set cookfs::mountId 0
 }
 
+# by default ignore call to cookfs::debug
+proc cookfs::debug {args} {}
+
 proc cookfs::pages {args} {
     if {[pkgconfig get c-pages]} {
 	return [uplevel #0 [concat [list ::cookfs::c::pages] $args]]
@@ -104,6 +107,8 @@ proc cookfs::Mount {args} {
 	{alwayscompress				 {Always compress}}
 	{compresscommand.arg	    ""	      {Command to use for custom compression}}
 	{asynccompresscommand.arg       ""	      {Command to use for custom, async compression}}
+	{asyncdecompresscommand.arg       ""	      {Command to use for custom, async decompression}}
+	{asyncdecompressqueuesize.arg     2           {Number of items to decompress in parallel at once}}
 	{decompresscommand.arg	  ""	      {Command to use for custom decompression}}
 	{endoffset.arg		  ""	      {Force reading VFS ending at specific offset instead of end of file}}
 	{pagesobject.arg		""	      {Reuse existing pages object}}
@@ -222,7 +227,13 @@ proc cookfs::Mount {args} {
     # initialize pages
     if {$opt(pagesobject) == ""} {
 	set pagesoptions [list -cachesize $opt(pagecachesize) \
-	    -compression $opt(compression) -asynccompresscommand $opt(asynccompresscommand) -compresscommand $opt(compresscommand) -decompresscommand $opt(decompresscommand)]
+	    -compression $opt(compression) \
+	    -asynccompresscommand $opt(asynccompresscommand) \
+	    -asyncdecompresscommand $opt(asyncdecompresscommand) \
+	    -compresscommand $opt(compresscommand) \
+	    -decompresscommand $opt(decompresscommand) \
+	    -asyncdecompressqueuesize $opt(asyncdecompressqueuesize) \
+	    ]
 
 	if {$opt(readonly)} {
 	    lappend pagesoptions -readonly

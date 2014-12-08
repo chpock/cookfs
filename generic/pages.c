@@ -90,7 +90,7 @@ Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName) {
  *
  *----------------------------------------------------------------------
  */
-Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand) {
+Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, int asyncDecompressQueueSize, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand, Tcl_Obj *asyncDecompressCommand) {
     Cookfs_Pages *rc = (Cookfs_Pages *) Tcl_Alloc(sizeof(Cookfs_Pages));
     int i;
 
@@ -99,7 +99,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     rc->isAside = isAside;
     Cookfs_PagesInitCompr(rc);
 
-    if (Cookfs_SetCompressCommands(rc, compressCommand, decompressCommand, asyncCompressCommand) != TCL_OK) {
+    if (Cookfs_SetCompressCommands(rc, compressCommand, decompressCommand, asyncCompressCommand, asyncDecompressCommand) != TCL_OK) {
 	if (interp != NULL) {
 	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to initialize compression", -1));
 	}
@@ -132,14 +132,21 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     
     rc->dataIndex = Tcl_NewStringObj("", 0);
     rc->asyncPageSize = 0;
-    if (asyncCompressCommand != NULL) {
-	rc->asyncCommandCompress = Tcl_NewStringObj("compress", -1);
+    rc->asyncDecompressQueue = 0;
+    // TODO: un-hardcode!
+    rc->asyncDecompressQueueSize = asyncDecompressQueueSize;
+
+    if ((asyncCompressCommand != NULL) || (asyncDecompressCommand != NULL)) {
+	rc->asyncCommandProcess = Tcl_NewStringObj("process", -1);
 	rc->asyncCommandWait = Tcl_NewStringObj("wait", -1);
-	Tcl_IncrRefCount(rc->asyncCommandCompress);
+	rc->asyncCommandFinalize = Tcl_NewStringObj("finalize", -1);
+	Tcl_IncrRefCount(rc->asyncCommandProcess);
 	Tcl_IncrRefCount(rc->asyncCommandWait);
+	Tcl_IncrRefCount(rc->asyncCommandFinalize);
     }  else  {
-	rc->asyncCommandCompress = NULL;
+	rc->asyncCommandProcess = NULL;
 	rc->asyncCommandWait = NULL;
+	rc->asyncCommandFinalize = NULL;
     }
 
     rc->pageHash = COOKFS_HASH_MD5;
@@ -225,6 +232,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
 	    rc->indexChanged = 1;
 	    rc->shouldTruncate = 1;
 	}
+    
 	CookfsLog(printf("Index not read!"))
     }  else  {
 	rc->pagesUptodate = 1;
@@ -274,7 +282,10 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
 	    unsigned char *bufSizes;
 
 	    /* ensure all async pages are written */
-	    while(Cookfs_AsyncPagesWait(p, 1)) {};
+	    while(Cookfs_AsyncCompressWait(p, 1)) {};
+	    while(Cookfs_AsyncDecompressWait(p, -1, 1)) {};
+	    Cookfs_AsyncCompressFinalize(p);
+	    Cookfs_AsyncDecompressFinalize(p);
 	    
 	    /* seek to proper position */
 	    Cookfs_SeekToPage(p, p->dataNumPages);
@@ -371,11 +382,14 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
 	}
     }
     
-    if (p->asyncCommandCompress != NULL) {
-	Tcl_DecrRefCount(p->asyncCommandCompress);
+    if (p->asyncCommandProcess != NULL) {
+	Tcl_DecrRefCount(p->asyncCommandProcess);
     }
     if (p->asyncCommandWait != NULL) {
 	Tcl_DecrRefCount(p->asyncCommandWait);
+    }
+    if (p->asyncCommandFinalize != NULL) {
+	Tcl_DecrRefCount(p->asyncCommandFinalize);
     }
     
     /* clean up compression information */
@@ -527,7 +541,7 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
 
     CookfsLog(printf("MD5sum is %08x%08x%08x%08x\n", ((int *) md5sum)[0], ((int *) md5sum)[1], ((int *) md5sum)[2], ((int *) md5sum)[3]))
     
-    if (Cookfs_AsyncPagesAdd(p, idx, dataObj)) {
+    if (Cookfs_AsyncPageAdd(p, idx, dataObj)) {
 	p->pagesUptodate = 0;
 	p->dataPagesSize[idx] = -1;
     }  else  {
@@ -572,8 +586,13 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
 
 Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
     Tcl_Obj *rc;
-    int newIdx;
-    int i;
+    int preloadIndex = index + 1;
+    
+    for (; preloadIndex < p->dataNumPages ; preloadIndex++) {
+	if (!Cookfs_AsyncPagePreload(p, preloadIndex)) {
+	    break;
+	}
+    }
 
     /* TODO: cleanup refcount for cached vs non-cached entries */
 
@@ -582,6 +601,60 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
 	rc = CookfsPagesPageGetInt(p, index);
 	CookfsLog(printf("Returning directly [%s]", rc == NULL ? "NULL" : "SET"))
 	return rc;
+    }
+    
+    Cookfs_AsyncDecompressWaitIfLoading(p, index);
+    
+    for (; preloadIndex < p->dataNumPages ; preloadIndex++) {
+	if (!Cookfs_AsyncPagePreload(p, preloadIndex)) {
+	    break;
+	}
+    }
+
+    rc = Cookfs_PageCacheGet(p, index);
+    if (rc != NULL) {
+	return rc;
+    }
+
+    /* get page and store it in cache */
+    rc = CookfsPagesPageGetInt(p, index);
+    CookfsLog(printf("Returning and caching [%s]", rc == NULL ? "NULL" : "SET"))
+    if (rc == NULL) {
+	return NULL;
+    }
+    
+    Cookfs_PageCacheSet(p, index, rc);
+
+    return rc;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PageCacheGet --
+ *
+ *	Gets contents of a page at specified index if cached
+ *
+ * Results:
+ *	Tcl_Obj with page data as bytearray object
+ *	NULL if not cached
+ *
+ * Side effects:
+ *	May remove other pages from pages cache; if reference counter is
+ *	not properly managed, objects for other pages might be invalidated
+ *	while they are used by caller of this API
+ *
+ *----------------------------------------------------------------------
+ */
+
+Tcl_Obj *Cookfs_PageCacheGet(Cookfs_Pages *p, int index) {
+    Tcl_Obj *rc;
+    int i;
+    
+    /* if page is disabled, immediately get page */
+    if (p->cacheSize <= 0) {
+	return NULL;
     }
     
     /* iterate through pages cache and check if it already is in memory */
@@ -597,24 +670,48 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
 	}
     }
 
-    /* get page and store it in cache */
-    rc = CookfsPagesPageGetInt(p, index);
-    CookfsLog(printf("Returning and caching [%s]", rc == NULL ? "NULL" : "SET"))
-    if (rc == NULL) {
-	return NULL;
-    }
+    return NULL;
+}
+
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PageCacheSet --
+ *
+ *	Add a page to cache
+ *
+ * Results:
+ *	None
+ *
+ * Side effects:
+ *	May remove older items from cache
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_PageCacheSet(Cookfs_Pages *p, int idx, Tcl_Obj *obj) {
     /* replace page not used the most with new page and move it to top */
-    newIdx = p->cacheSize - 1;
+    int newIdx = p->cacheSize - 1;
+    int i;
+    
+    if (p->cacheSize <= 0) {
+	return;
+    }
+    
+    for (i = 0 ; i < p->cacheSize ; i++) {
+	if (p->cachePageIdx[i] == idx) {
+	    CookfsPagesPageCacheMoveToTop(p, i);
+	    return;
+	}
+    }
 
     if (p->cachePageObj[newIdx] != NULL) {
 	Tcl_DecrRefCount(p->cachePageObj[newIdx]);
     }
-    p->cachePageIdx[newIdx] = index;
-    p->cachePageObj[newIdx] = rc;
+    p->cachePageIdx[newIdx] = idx;
+    p->cachePageObj[newIdx] = obj;
     CookfsPagesPageCacheMoveToTop(p, newIdx);
-
-    return rc;
 }
 
 
@@ -983,7 +1080,7 @@ int Cookfs_PagesGetCompression(Cookfs_Pages *p) {
 void Cookfs_PagesSetCompression(Cookfs_Pages *p, int compression) {
     if (p->fileCompression != compression) {
 	// ensure all async pages are written
-	while(Cookfs_AsyncPagesWait(p, 1)) {};
+	while(Cookfs_AsyncCompressWait(p, 1)) {};
     }
     p->fileCompression = compression;
 }
@@ -1041,9 +1138,6 @@ Tcl_WideInt Cookfs_PagesGetPageOffset(Cookfs_Pages *p, int idx) {
 
 static Tcl_Obj *CookfsPagesPageGetInt(Cookfs_Pages *p, int index) {
     Tcl_Obj *buffer;
-    Tcl_WideInt offset;
-    int size;
-    p->fileLastOp = COOKFS_LASTOP_READ;
     
     /* if specified index is an aside-index */
     if (COOKFS_PAGES_ISASIDE(index)) {
@@ -1070,22 +1164,12 @@ static Tcl_Obj *CookfsPagesPageGetInt(Cookfs_Pages *p, int index) {
 	return NULL;
     }
     
-    buffer = Cookfs_AsyncPagesGet(p, index);
+    buffer = Cookfs_AsyncPageGet(p, index);
     if (buffer != NULL) {
 	return buffer;
     }
-    
-    /* get offset and size */
-    offset = Cookfs_PagesGetPageOffset(p, index);
-    size = p->dataPagesSize[index];
-    
-    CookfsLog(printf("PageGet offset=%d size=%d", (int) offset, size))
 
-    /* seek to specified place and read page */
-    /* TODO: optimize by checking if last operation was a read of previous block */
-    Tcl_Seek(p->fileChannel, offset, SEEK_SET);
-
-    buffer = Cookfs_ReadPage(p, size);
+    buffer = Cookfs_ReadPage(p, index, -1, 1, COOKFS_COMPRESSION_ANY);
     if (buffer == NULL) {
 	CookfsLog(printf("Unable to read page"))
 	return NULL;
@@ -1272,7 +1356,7 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p) {
     seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - indexLength, SEEK_CUR);
     CookfsLog(printf("IndexOffset Read = %d", (int) seekOffset))
     
-    buffer = Cookfs_ReadPage(p, indexLength);
+    buffer = Cookfs_ReadPage(p, -1, indexLength, 1, COOKFS_COMPRESSION_ANY);
     
     if (buffer == NULL) {
 	CookfsLog(printf("Unable to read index"))

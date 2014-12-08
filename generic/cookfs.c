@@ -59,6 +59,10 @@ Cookfs_Init(Tcl_Interp *interp)
     }
 #endif
 
+    if (Cookfs_InitBinaryDataCmd(interp) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
     return TCL_OK;
 }
 

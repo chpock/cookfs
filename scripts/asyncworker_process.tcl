@@ -6,12 +6,13 @@ package require md5 2
 
 namespace eval cookfs {}
 namespace eval cookfs::asyncworker {}
+namespace eval cookfs::asyncworker::process {}
 
-set cookfs::asyncworker::handleIdx 0
+set cookfs::asyncworker::process::handleIdx 0
 
 # TODO: after first call to cleanup, it is no longer possible to do any compression
-proc cookfs::asyncworker {args} {
-    set name ::cookfs::asyncworker[incr ::cookfs::asyncworker::handleIdx]
+proc cookfs::asyncworker::process {args} {
+    set name ::cookfs::asyncworker::process[incr ::cookfs::asyncworker::process::handleIdx]
     array set o {
 	buffersize 5242880
         count 1
@@ -43,7 +44,7 @@ proc cookfs::asyncworker {args} {
     }
 
     if {($o(commandline) == {}) || ($o(count) < 0)} {
-        error "Invalid options for cookfs::asyncworker"
+        error "Invalid options for cookfs::asyncworker::process"
     }
 
     if {![string is integer -strict $o(maxqueued)] || ($o(maxqueued) <= 0)} {
@@ -54,24 +55,67 @@ proc cookfs::asyncworker {args} {
     array set aw [array get o]
     array set $name.available {}
 
-    for {set i 0} {$i < $aw(count)} {incr i} {
-        set fh [open "|$o(commandline)" r+]
-        fconfigure $fh -translation binary -buffering none -blocking 1 -buffersize $aw(buffersize)
-        puts -nonewline $fh [binary format I $aw(buffersize)]
-        ::cookfs::asyncworker::writeData $fh $aw(data)
-        lappend aw(channelsIdle) $fh
+    if {[catch {
+	# initialize all child processes
+	for {set i 0} {$i < $aw(count)} {incr i} {
+	    set fh [open "|$o(commandline)" r+]
+	    set helloMessage [format %08x%08x [pid] [pid $fh]]
+	    lappend aw(channelsIdle) $fh
+	    fconfigure $fh -translation binary -buffering none -blocking 0 -buffersize $aw(buffersize)
+	    puts -nonewline $fh $helloMessage
+	    puts -nonewline $fh [binary format I $aw(buffersize)]
+	    ::cookfs::asyncworker::process::writeData $fh $aw(data)
+	    flush $fh
+	}
+	# wait for hello response and ensure communication
+	# with compression process works properly to avoid errors with
+	# output from child process keeping compression hanging
+	set timeout 10
+	set i 0
+	foreach fh $aw(channelsIdle) {
+	    set helloMessage [format %08x%08x [pid] [pid $fh]]
+	    set out {}
+	    while {[string length $out] != 16} {
+		if {$timeout < 0} {error "Unable to initialize child process(es)"}
+		if {[string length $out] != 16} {
+		    after 1000
+		    incr timeout -1
+		}
+		append out [read $fh]
+	    }
+	    if {$out != $helloMessage} {
+		error "Unable to initialize child process(es)"
+	    }
+	    fconfigure $fh -blocking 1
+	}
+    } err]} {
+	set ei $::errorInfo
+	set ec $::errorCode
+	foreach ch $aw(channelsIdle) {
+	    catch {close $ch}
+	}
+	error "Unable to create child process: $err" $ei $ec
     }
 
-    return [list ::cookfs::asyncworker::handle $name]
+    return [list ::cookfs::asyncworker::process::handle $name]
 }
 
-proc ::cookfs::asyncworker::handle {name cmd idx arg} {
+proc ::cookfs::asyncworker::process::finalize {name} {
+    upvar #0 $name aw $name.available av
+    foreach chan $aw(channelsIdle) {
+	catch {close $chan}
+    }
+    unset $name
+    unset $name.available
+}
+
+proc ::cookfs::asyncworker::process::handle {name cmd idx arg} {
     upvar #0 $name aw $name.available av
     # detect already closed handles
     if {![info exists aw(open)]} {
         return
     }
-    if {$cmd == "compress"} {
+    if {$cmd == "process"} {
         set chan [lindex $aw(channelsIdle) 0]
         set aw(channelsIdle) [lrange $aw(channelsIdle) 1 end]
         lappend aw(channelsBusy) $idx $chan
@@ -98,6 +142,9 @@ proc ::cookfs::asyncworker::handle {name cmd idx arg} {
             after 50
         }
 
+        if {$idx == -1} {
+            set idx [lindex [array names av] 0]
+        }
         if {[info exists av($idx)]} {
             set contents $av($idx)
             unset av($idx)
@@ -105,25 +152,28 @@ proc ::cookfs::asyncworker::handle {name cmd idx arg} {
         }  else  {
             set rc {}
         }
-        if {$arg && ([llength $aw(channelsBusy)] == 0) && ([llength [array names av]] == 0)} {
-            foreach chan $aw(channelsIdle) {
-                catch {close $chan}
-            }
-            unset $name
-            unset $name.available
-        }
         return $rc
+    }  elseif {$cmd == "finalize"} {
+	finalize $name
+	return true
     }
 }
 
-proc cookfs::asyncworker::worker {callback} {
+proc cookfs::asyncworker::process::worker {callback} {
     fconfigure stdin -translation binary -buffering none -blocking 1
     fconfigure stdout -translation binary -buffering none -blocking 1
-    binary scan [read stdin 4] I buffersize
+
+    puts -nonewline stdout [read stdin 16]
+    flush stdout
+
+    if {![binary scan [read stdin 4] I buffersize]} {
+	exit 1
+    }
     fconfigure stdin -buffersize $buffersize
     fconfigure stdout -buffersize $buffersize
 
     readDataBlocking stdin data
+
     while {![eof stdin]} {
         if {[readDataBlocking stdin contents]} {
             set contents [uplevel #0 [concat $callback [list $data $contents]]]
@@ -133,7 +183,7 @@ proc cookfs::asyncworker::worker {callback} {
     exit 0
 }
 
-proc cookfs::asyncworker::readDataNonBlocking {chan var} {
+proc cookfs::asyncworker::process::readDataNonBlocking {chan var} {
     upvar $var v
     set v {}
     fconfigure $chan -blocking 0
@@ -149,7 +199,7 @@ proc cookfs::asyncworker::readDataNonBlocking {chan var} {
     }
 }
 
-proc cookfs::asyncworker::readDataBlocking {chan var} {
+proc cookfs::asyncworker::process::readDataBlocking {chan var} {
     upvar $var v
     set v {}
     set len -1
@@ -162,9 +212,9 @@ proc cookfs::asyncworker::readDataBlocking {chan var} {
     return true
 }
 
-proc cookfs::asyncworker::writeData {chan data} {
+proc cookfs::asyncworker::process::writeData {chan data} {
     puts -nonewline $chan [binary format I [string length $data]]$data
     flush $chan
 }
 
-package provide vfs::cookfs::asyncworker 1.4
+package provide vfs::cookfs::asyncworker::process 1.4

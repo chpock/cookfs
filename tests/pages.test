@@ -733,6 +733,7 @@ tcltest::test cookfsPages-10.4 "Test crc32 with large chunks" -setup {
 
 tcltest::test cookfsPages-11.1 "Test increasing page cache" -setup {
     set file [tcltest::makeFile {} pages.cfs]
+    set il {}
 } -body {
     set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
     for {set i 0} {$i < 20} {incr i} {
@@ -754,6 +755,7 @@ tcltest::test cookfsPages-11.1 "Test increasing page cache" -setup {
 
 tcltest::test cookfsPages-11.2 "Test decreasing page cache" -setup {
     set file [tcltest::makeFile {} pages.cfs]
+    set il {}
 } -body {
     set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
     for {set i 0} {$i < 20} {incr i} {

@@ -52,13 +52,13 @@ TEA_PREFIX
 
 TEA_SETUP_COMPILER
 
-TEA_ADD_SOURCES([cookfs.c common.c md5.h])
+TEA_ADD_SOURCES([cookfs.c common.c md5.h bindata.c])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([])
 TEA_ADD_LIBS([])
 TEA_ADD_CFLAGS([])
 TEA_ADD_STUB_SOURCES([])
-TEA_ADD_TCL_SOURCES([scripts/cookvfs.tcl scripts/memchan.tcl scripts/vfs.tcl scripts/optimize.tcl scripts/asyncworker.tcl])
+TEA_ADD_TCL_SOURCES([scripts/cookvfs.tcl scripts/memchan.tcl scripts/vfs.tcl scripts/optimize.tcl scripts/asyncworker_process.tcl scripts/asyncworker_thread.tcl])
 TEA_ADD_TCL_SOURCES([scripts/readerchannel.tcl])
 TEA_ADD_TCL_SOURCES([scripts/writer.tcl])
 

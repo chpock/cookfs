@@ -1,0 +1,201 @@
+# Helper commands for pags and async pages handling
+#
+# (c) 2014 Wojciech Kocjan
+
+package require md5 2
+
+namespace eval cookfs {}
+namespace eval cookfs::asyncworker::thread {}
+
+set cookfs::asyncworker::thread::handleIdx 0
+
+# TODO: after first call to cleanup, it is no longer possible to do any compression
+proc cookfs::asyncworker::thread {args} {
+    package require Thread
+
+    set name ::cookfs::asyncworker::thread[incr ::cookfs::asyncworker::thread::handleIdx]
+    array set o {
+        count 1
+        maxqueued {}
+        callback {}
+        initscript {}
+        threadsIdle {}
+        threadsBusy {}
+        open true
+    }
+    foreach {n v} $args {
+        switch -- $n {
+            -count - -c {
+                set o(count) $v
+            }
+            -callback {
+                set o(callback) $v
+            }
+            -initscript {
+                set o(initscript) $v
+            }
+            default {
+                error "Unknown option $n"
+            }
+        }
+    }
+
+    if {($o(count) < 0)} {
+        error "Invalid options for cookfs::asyncworker::thread"
+    }
+
+    if {![string is integer -strict $o(maxqueued)] || ($o(maxqueued) <= 0)} {
+        set o(maxqueued) [expr {$o(count) * 2}]
+    }
+
+    upvar #0 $name aw
+    array set aw [array get o]
+    array set $name.available {}
+    set aw(mutex) [thread::mutex create]
+    set aw(cond) [thread::cond create]
+    
+    set script $o(initscript)
+    append script {
+        namespace eval ::cookfs::asyncworker::thread {}
+        proc ::cookfs::asyncworker::thread::process {idx data} {
+            variable name
+            variable cond
+            variable mutex
+            variable callback
+
+            set data [cookfs::binarydata retrieve $data]
+            if {[catch {
+                set rc [uplevel #0 [linsert $callback end $data]]
+                set rc [cookfs::binarydata create $rc]
+                set ok 1
+            } err]} {
+                set rc $err
+                set ok 0
+            }
+            thread::eval -lock $mutex {
+                tsv::set $name $idx [list $ok $rc]
+                thread::cond notify $cond
+            }
+        }
+    }
+    append script [list set ::cookfs::asyncworker::thread::name $name] \n
+    append script [list set ::cookfs::asyncworker::thread::mutex $aw(mutex)] \n
+    append script [list set ::cookfs::asyncworker::thread::cond $aw(cond)] \n
+    append script [list set ::cookfs::asyncworker::thread::callback [lrange $o(callback) 0 end]] \n
+    set aw(script) $script
+    set aw(initialized) 0
+
+    return [list ::cookfs::asyncworker::thread::handle $name]
+}
+
+proc ::cookfs::asyncworker::thread::init {name} {
+    upvar #0 $name aw
+    if {!$aw(initialized)} {
+        set aw(threadsIdle) {}
+        for {set i 0} {$i < $aw(count)} {incr i} {
+            set tid [thread::create -joinable]
+            thread::send -async $tid "$aw(script)\n[list set ::cookfs::asyncworker::thread::tid $tid]\n"
+            lappend aw(threadsIdle) $tid
+        }
+        set aw(initialized) 1
+    }
+}
+
+proc ::cookfs::asyncworker::thread::free {name} {
+    upvar #0 $name aw
+    if {$aw(initialized)} {
+        foreach tid $aw(threadsIdle) {
+            thread::send -async $tid {thread::exit}
+            thread::join $tid
+        }
+        set aw(threadsIdle) {}
+        set aw(initialized) 0
+    }
+}
+
+proc ::cookfs::asyncworker::thread::finalize {name} {
+    upvar #0 $name aw $name.available av
+    thread::mutex destroy $aw(mutex)
+    thread::cond destroy $aw(cond)
+    tsv::unset $name
+    unset $name
+    unset $name.available
+}
+
+proc ::cookfs::asyncworker::thread::handle {name cmd idx arg} {
+    upvar #0 $name aw $name.available av
+    
+    # detect already closed handles
+    if {![info exists aw(open)]} {
+        return
+    }
+    if {$cmd == "process"} {
+        init $name
+        set tid [lindex $aw(threadsIdle) 0]
+        set aw(threadsIdle) [lrange $aw(threadsIdle) 1 end]
+        lappend aw(threadsBusy) $idx $tid
+        set arg [cookfs::binarydata create $arg]
+        thread::send -async $tid [list ::cookfs::asyncworker::thread::process $idx $arg]
+    }  elseif {$cmd == "wait"} {
+        init $name
+        while {[llength $aw(threadsBusy)] > 0} {
+            set busy {}
+            thread::eval -lock $aw(mutex) {
+                foreach {i tid} $aw(threadsBusy) {
+                    if {[tsv::exists $name $i]} {
+                        set rc [tsv::get $name $i]
+                        tsv::unset $name $i
+
+                        set ok [lindex $rc 0]
+                        set rc [cookfs::binarydata retrieve [lindex $rc 1]]
+
+                        if {$ok} {
+                            set av($i) $rc
+                            lappend aw(threadsIdle) $tid
+                        }  else  {
+                            error "Unable to retrieve chunk"
+                        }
+                    }  else  {
+                        lappend busy $i $tid
+                    }
+                }
+                set aw(threadsBusy) $busy
+                # if this is the end, exit if all channels are freed
+                if {($arg || ([llength [array names av]] >= $aw(maxqueued))) && ([llength $aw(threadsBusy)] == 0)} {
+                    set wait 0
+                }  elseif {($idx < 0 || [info exists av($idx)]) && ([llength $aw(threadsIdle)] > 0)} {
+                    set wait 0
+                }  else  {
+                    set wait 1
+                }
+
+                # if we should wait, sleep up to 0.1s or when a thread notifies us
+                if {$wait} {
+                    thread::cond wait $aw(cond) $aw(mutex) 100
+                }  else  {
+                    break
+                }
+            }
+        }
+
+        if {$idx == -1} {
+            set idx [lindex [array names av] 0]
+        }
+        if {[info exists av($idx)]} {
+            set contents $av($idx)
+            unset av($idx)
+            set rc [list $idx $contents]
+        }  else  {
+            set rc {}
+        }
+        return $rc
+    }  elseif {$cmd == "free"} {
+        free $name
+        return true
+    }  elseif {$cmd == "finalize"} {
+        finalize $name
+        return true
+    }
+}
+
+package provide vfs::cookfs::asyncworker::thread 1.4

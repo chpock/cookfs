@@ -1,5 +1,5 @@
 /*
- * pagesCompre.c
+ * pagesCompr.c
  *
  * Provides functions for pages compression
  *
@@ -28,6 +28,7 @@ static Tcl_Obj *CookfsReadPageCustom(Cookfs_Pages *p, int size);
 static int CookfsWritePageCustom(Cookfs_Pages *p, Tcl_Obj *data, int origSize);
 static int CookfsCheckCommandExists(Tcl_Interp *interp, const char *commandName);
 static Tcl_Obj *CookfsRunAsyncCompressCommand(Cookfs_Pages *p, Tcl_Obj *cmd, int idx, Tcl_Obj *arg);
+static Tcl_Obj *CookfsRunAsyncDecompressCommand(Cookfs_Pages *p, Tcl_Obj *cmd, int idx, Tcl_Obj *arg);
 
 /* compression data */
 const char *cookfsCompressionOptions[] = {
@@ -224,13 +225,15 @@ void Cookfs_PagesFiniCompr(Cookfs_Pages *rc) {
  *----------------------------------------------------------------------
  */
 
-int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand) {
+int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand, Tcl_Obj *asyncDecompressCommand) {
     Tcl_Obj **compressPtr = NULL;
     Tcl_Obj **decompressPtr = NULL;
     Tcl_Obj **asyncCompressPtr = NULL;
+    Tcl_Obj **asyncDecompressPtr = NULL;
     int compressLen = 0;
     int decompressLen = 0;
     int asyncCompressLen = 0;
+    int asyncDecompressLen = 0;
 
     /* copy compress command */
     if (compressCommand != NULL) {
@@ -256,6 +259,14 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
 	}
     }
 
+    /* copy async decompress command */
+    if (asyncDecompressCommand != NULL) {
+	asyncDecompressPtr = CookfsCreateCompressionCommand(NULL, asyncDecompressCommand, &asyncDecompressLen, 3);
+	if (asyncDecompressPtr == NULL) {
+	    return TCL_ERROR;
+	}
+    }
+    
     /* store copied list and number of items in lists */
     p->compressCommandPtr = compressPtr;
     p->compressCommandLen = compressLen;
@@ -263,6 +274,8 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
     p->decompressCommandLen = decompressLen;
     p->asyncCompressCommandPtr = asyncCompressPtr;
     p->asyncCompressCommandLen = asyncCompressLen;
+    p->asyncDecompressCommandPtr = asyncDecompressPtr;
+    p->asyncDecompressCommandLen = asyncDecompressLen;
     
     return TCL_OK;
 }
@@ -273,10 +286,10 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
  *
  * Cookfs_ReadPage --
  *
- *	Read page and invoke proper decompression function, if needed
+ *	Read page and invoke proper decompression function, if requested
  *
  * Results:
- *	Decompressed page as
+ *	Page; decompressed if decompress was specified
  *	NOTE: Reference counter for the page is already incremented
  *
  * Side effects:
@@ -285,12 +298,17 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
  *----------------------------------------------------------------------
  */
 
-Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size) {
+Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompress, int compressionType) {
     int count;
     int compression = p->fileCompression;
     
+    if (idx >= p->dataNumPages) {
+	return NULL;
+    }
 
-    CookfsLog(printf("Cookfs_ReadPage S=%d C=%d", size, p->fileCompression))
+    p->fileLastOp = COOKFS_LASTOP_READ;
+
+    CookfsLog(printf("Cookfs_ReadPage I=%d S=%d C=%d", idx, size, p->fileCompression))
     if (size == 0) {
 	/* if page was empty, no need to read anything */
 	Tcl_Obj *obj = Tcl_NewByteArrayObj((unsigned char *) "", 0);
@@ -300,6 +318,13 @@ Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size) {
 	/* read compression algorithm first */
 	Tcl_Obj *byteObj;
 	byteObj = Tcl_NewObj();
+	if (idx >= 0) {
+	    Tcl_WideInt offset = Cookfs_PagesGetPageOffset(p, idx);
+	    Tcl_Seek(p->fileChannel, offset, SEEK_SET);
+	    if (size == -1) {
+		size = p->dataPagesSize[idx];
+	    }
+	}
 	if (Tcl_ReadChars(p->fileChannel, byteObj, 1, 0) != 1) {
 	    CookfsLog(printf("Unable to read compression mark"))
 	    Tcl_IncrRefCount(byteObj);
@@ -312,6 +337,17 @@ Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size) {
 
 	/* need to decrease size by 1 byte we just read */
 	size = size - 1;
+	
+	/* if specific compression was required, exit if did not match */
+	if ((compressionType != COOKFS_COMPRESSION_ANY) && (compressionType != compression)) {
+	    return NULL;
+	}
+	
+	if (!decompress) {
+	    compression = COOKFS_COMPRESSION_NONE;
+	}
+	
+	CookfsLog(printf("Cookfs_ReadPage I=%d S=%d C=%d", idx, size, compression))
 
 	/* handle reading based on compression algorithm */
         switch (compression) {
@@ -327,6 +363,9 @@ Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int size) {
                     return NULL;
                 }
 
+		if (!decompress) {
+		    CookfsLog(printf("Cookfs_ReadPage retrieved chunk %d", idx));
+		}
                 Tcl_IncrRefCount(data);
                 return data;
             }
@@ -386,7 +425,6 @@ void Cookfs_SeekToPage(Cookfs_Pages *p, int idx) {
  */
 
 int Cookfs_WritePage(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compressedData) {
-    Tcl_WideInt offset;
     int origSize;
     int size = -1;
 
@@ -452,10 +490,10 @@ int Cookfs_WritePage(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compresse
 /*
  *----------------------------------------------------------------------
  *
- * Cookfs_AsyncPagesGet --
+ * Cookfs_AsyncPageGet --
  *
  *	Check if page is currently processed as async compression page
- *	and return it if it is.
+ *	or is pending async decompression and return it if it is.
  *
  * Results:
  *	Page contents if found; NULL if not found;
@@ -467,13 +505,24 @@ int Cookfs_WritePage(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compresse
  *----------------------------------------------------------------------
  */
 
-Tcl_Obj *Cookfs_AsyncPagesGet(Cookfs_Pages *p, int idx) {
+Tcl_Obj *Cookfs_AsyncPageGet(Cookfs_Pages *p, int idx) {
     if ((p->fileCompression == COOKFS_COMPRESSION_CUSTOM) && (p->asyncCompressCommandPtr != NULL) && (p->asyncCompressCommandLen > 3)) {
 	int i;
 	for (i = 0 ; i < p->asyncPageSize ; i++) {
 	    if (p->asyncPage[i].pageIdx == idx) {
 		Tcl_IncrRefCount(p->asyncPage[i].pageContents);
 		return p->asyncPage[i].pageContents;
+	    }
+	}
+    }
+    if ((p->asyncDecompressQueueSize > 0) && (p->asyncDecompressCommandPtr != NULL) && (p->asyncDecompressCommandLen > 3)) {
+	int i;
+	for (i = 0 ; i < p->asyncDecompressQueue ; i++) {
+	    if (p->asyncDecompressIdx[i] == idx) {
+		while (p->asyncDecompressIdx[i] == idx) {
+		    Cookfs_AsyncDecompressWait(p, idx, 1);
+		}
+		return Cookfs_PageCacheGet(p, idx);
 	    }
 	}
     }
@@ -484,7 +533,7 @@ Tcl_Obj *Cookfs_AsyncPagesGet(Cookfs_Pages *p, int idx) {
 /*
  *----------------------------------------------------------------------
  *
- * Cookfs_AsyncPagesAdd --
+ * Cookfs_AsyncPageAdd --
  *
  *	Add page to be asynchronously processed if enabled.
  *
@@ -498,19 +547,19 @@ Tcl_Obj *Cookfs_AsyncPagesGet(Cookfs_Pages *p, int idx) {
  *----------------------------------------------------------------------
  */
 
-int Cookfs_AsyncPagesAdd(Cookfs_Pages *p, int idx, Tcl_Obj *data) {
+int Cookfs_AsyncPageAdd(Cookfs_Pages *p, int idx, Tcl_Obj *data) {
     if ((p->fileCompression == COOKFS_COMPRESSION_CUSTOM) && (p->asyncCompressCommandPtr != NULL) && (p->asyncCompressCommandLen > 3)) {
 	int asyncIdx;
 	// retrieve any already processed queues
-	while (Cookfs_AsyncPagesWait(p, 0)) {}
+	while (Cookfs_AsyncCompressWait(p, 0)) {}
 	while (p->asyncPageSize >= COOKFS_PAGES_MAX_ASYNC) {
-	    Cookfs_AsyncPagesWait(p, 0);
+	    Cookfs_AsyncCompressWait(p, 0);
 	}
 	asyncIdx = p->asyncPageSize++;
 	Tcl_IncrRefCount(data);
 	p->asyncPage[asyncIdx].pageIdx = idx;
 	p->asyncPage[asyncIdx].pageContents = data;
-	CookfsRunAsyncCompressCommand(p, p->asyncCommandCompress, idx, data);
+	CookfsRunAsyncCompressCommand(p, p->asyncCommandProcess, idx, data);
 	return 1;
     } else {
 	return 0;
@@ -521,7 +570,7 @@ int Cookfs_AsyncPagesAdd(Cookfs_Pages *p, int idx, Tcl_Obj *data) {
 /*
  *----------------------------------------------------------------------
  *
- * Cookfs_AsyncPagesWait --
+ * Cookfs_AsyncCompressWait --
  *
  *	Wait / check whether an asynchronous page has already been
  *	processed; if require is set, this indicates cookfs is
@@ -536,7 +585,7 @@ int Cookfs_AsyncPagesAdd(Cookfs_Pages *p, int idx, Tcl_Obj *data) {
  *----------------------------------------------------------------------
  */
 
-int Cookfs_AsyncPagesWait(Cookfs_Pages *p, int require) {
+int Cookfs_AsyncCompressWait(Cookfs_Pages *p, int require) {
     // TODO: properly throw errors here?
     if ((p->fileCompression == COOKFS_COMPRESSION_CUSTOM) && (p->asyncCompressCommandPtr != NULL) && (p->asyncCompressCommandLen > 3)) {
 	Tcl_Obj *result, *resObj;
@@ -601,6 +650,168 @@ int Cookfs_AsyncPagesWait(Cookfs_Pages *p, int require) {
 	return 0;
     }
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_AsyncCompressFinalize --
+ *
+ *	Call code to finalize async compression
+ *
+ * Results:
+ *	None
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+
+void Cookfs_AsyncCompressFinalize(Cookfs_Pages *p) {
+    if ((p->fileCompression == COOKFS_COMPRESSION_CUSTOM) && (p->asyncCompressCommandPtr != NULL) && (p->asyncCompressCommandLen > 3)) {
+	CookfsRunAsyncCompressCommand(p, p->asyncCommandFinalize, -1, Tcl_NewIntObj(1));
+    }
+}
+
+
+// TODO: document
+int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
+    if ((p->asyncDecompressQueueSize > 0) && (p->asyncDecompressCommandPtr != NULL) && (p->asyncDecompressCommandLen > 3)) {
+	Tcl_Obj *dataObj;
+	int i;
+
+	for (i = 0 ; i < p->asyncDecompressQueue ; i++) {
+	    if (p->asyncDecompressIdx[i] == idx) {
+		CookfsLog(printf("Page %d already in async decompress queue", i))
+		return 1;
+	    }
+	}
+	
+	if (Cookfs_PageCacheGet(p, idx) != NULL) {
+	    // page already in cache and we just moved it to top; do nothing
+	    return 1;
+	}
+	
+	// if queue is full, do not preload
+	if (p->asyncDecompressQueue >= p->asyncDecompressQueueSize) {
+	    return 0;
+	}
+
+	CookfsLog(printf("Reading page %d for async decompress", idx))
+	dataObj = Cookfs_ReadPage(p, idx, -1, 0, COOKFS_COMPRESSION_CUSTOM);
+	
+	if (dataObj != NULL) {
+	    p->asyncDecompressIdx[p->asyncDecompressQueue] = idx;
+	    p->asyncDecompressQueue++;
+	    CookfsLog(printf("Adding page %d for async decompress", idx))
+	    CookfsRunAsyncDecompressCommand(p, p->asyncCommandProcess, idx, dataObj);
+	    Tcl_DecrRefCount(dataObj);
+	}
+
+	return 1;
+    }
+    return 0;
+}
+
+
+// TODO: document
+void Cookfs_AsyncDecompressWaitIfLoading(Cookfs_Pages *p, int idx) {
+    if ((p->asyncDecompressQueueSize > 0) && (p->asyncDecompressCommandPtr != NULL) && (p->asyncDecompressCommandLen > 3)) {
+	Tcl_Obj *dataObj;
+	int i;
+	int w0 = p->asyncDecompressQueue;
+
+	for (i = 0 ; i < p->asyncDecompressQueue ; i++) {
+	    if (p->asyncDecompressIdx[i] == idx) {
+		Cookfs_AsyncDecompressWait(p, idx, 1);
+		break;
+	    }
+	}
+    }
+}
+
+
+// TODO: document
+int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require) {
+    if ((p->asyncDecompressQueueSize > 0) && (p->asyncDecompressCommandPtr != NULL) && (p->asyncDecompressCommandLen > 3)) {
+	Tcl_Obj *result, *resObj;
+	int resultLength;
+	int i = 0;
+	
+	if (p->asyncDecompressQueue == 0) {
+	    if (!require) {
+		return 0;
+	    }
+	}
+	
+	CookfsLog(printf("Cookfs_AsyncDecompressWait: calling callback"))
+	
+	result = CookfsRunAsyncDecompressCommand(p, p->asyncCommandWait, idx, Tcl_NewIntObj(require));
+	if ((result == NULL) || (Tcl_ListObjLength(NULL, result, &resultLength) != TCL_OK)) {
+	    resultLength = 0;
+	}
+
+	if (resultLength >= 2) {
+	    int j, k;
+	    if (Tcl_ListObjIndex(NULL, result, 0, &resObj) != TCL_OK) {
+		return 0;
+	    }
+	    
+	    if (Tcl_GetIntFromObj(NULL, resObj, &i) != TCL_OK) {
+		return 0;
+	    }
+
+	    if (Tcl_ListObjIndex(NULL, result, 1, &resObj) != TCL_OK) {
+		return 0;
+	    }
+	    
+	    CookfsLog(printf("Cookfs_AsyncDecompressWait: callback returned data for %d", i))
+	    Tcl_IncrRefCount(resObj);
+	    Cookfs_PageCacheSet(p, i, resObj);
+	    
+	    Tcl_DecrRefCount(result);
+
+	    CookfsLog(printf("Cookfs_AsyncDecompressWait: cleaning up decompression queue"))
+	    for (j = 0 ; j < p->asyncDecompressQueue ; j++) {
+		if (p->asyncDecompressIdx[j] == i) {
+		    for (k = j ; k < (p->asyncDecompressQueue - 1) ; k++) {
+			p->asyncDecompressIdx[k] = p->asyncDecompressIdx[k + 1];
+		    }
+		    (p->asyncDecompressQueue)--;
+		    // needed to properly detect it in Cookfs_AsyncPageGet
+		    p->asyncDecompressIdx[p->asyncDecompressQueue] = -1;
+		    break;
+		}
+	    }
+	    
+	    CookfsLog(printf("Cookfs_AsyncDecompressWait: cleaning up decompression queue done"))
+
+	    return (p->asyncDecompressQueue > 0);
+	}  else  {
+	    if (result != NULL) {
+		Tcl_DecrRefCount(result);
+	    }
+	    if (p->asyncDecompressQueue > 0) {
+		return require;
+	    }  else  {
+		return 0;
+	    }
+	}
+    }  else  {
+	return 0;
+    }
+}
+
+
+// TODO: document
+void Cookfs_AsyncDecompressFinalize(Cookfs_Pages *p) {
+    if ((p->asyncDecompressQueueSize > 0) && (p->asyncDecompressCommandPtr != NULL) && (p->asyncDecompressCommandLen > 3)) {
+	CookfsRunAsyncDecompressCommand(p, p->asyncCommandFinalize, -1, Tcl_NewIntObj(1));
+    }
+}
+
 
 /* definitions of static and/or internal functions */
 
@@ -1131,7 +1342,6 @@ static int CookfsCheckCommandExists(Tcl_Interp *interp, const char *commandName)
 }
 
 
-
 /*
  *----------------------------------------------------------------------
  *
@@ -1140,7 +1350,8 @@ static int CookfsCheckCommandExists(Tcl_Interp *interp, const char *commandName)
  *	Helper to run the async compress command with specified
  *	arguments in interp from Cookfs_Pages object
  *
- *	Reverts Tcl interpreter's 
+ *	Reverts Tcl interpreter's result to one before
+ *	this function was called.
  *
  * Results:
  *	result from command invocation or NULL in case of failure
@@ -1177,3 +1388,49 @@ static Tcl_Obj *CookfsRunAsyncCompressCommand(Cookfs_Pages *p, Tcl_Obj *cmd, int
     return data;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsRunAsyncDecompressCommand --
+ *
+ *	Helper to run the async decompress command with specified
+ *	arguments in interp from Cookfs_Pages object
+ *
+ *	Reverts Tcl interpreter's result to one before
+ *	this function was called.
+ *
+ * Results:
+ *	result from command invocation or NULL in case of failure
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Tcl_Obj *CookfsRunAsyncDecompressCommand(Cookfs_Pages *p, Tcl_Obj *cmd, int idx, Tcl_Obj *arg) {
+    Tcl_Obj *prevResult, *data;
+    prevResult = Tcl_GetObjResult(p->interp);
+    Tcl_IncrRefCount(prevResult);
+    p->asyncDecompressCommandPtr[p->asyncDecompressCommandLen - 3] = cmd;
+    p->asyncDecompressCommandPtr[p->asyncDecompressCommandLen - 2] = Tcl_NewIntObj(idx);
+    p->asyncDecompressCommandPtr[p->asyncDecompressCommandLen - 1] = arg;
+    Tcl_IncrRefCount(p->asyncDecompressCommandPtr[p->asyncDecompressCommandLen - 2]);
+    Tcl_IncrRefCount(p->asyncDecompressCommandPtr[p->asyncDecompressCommandLen - 1]);
+    if (Tcl_EvalObjv(p->interp, p->asyncDecompressCommandLen, p->asyncDecompressCommandPtr, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
+	Tcl_DecrRefCount(p->asyncDecompressCommandPtr[p->asyncDecompressCommandLen - 2]);
+	Tcl_DecrRefCount(p->asyncDecompressCommandPtr[p->asyncDecompressCommandLen - 1]);
+	return NULL;
+    }
+    Tcl_DecrRefCount(p->asyncDecompressCommandPtr[p->asyncDecompressCommandLen - 2]);
+    Tcl_DecrRefCount(p->asyncDecompressCommandPtr[p->asyncDecompressCommandLen - 1]);
+    p->asyncDecompressCommandPtr[p->asyncDecompressCommandLen - 3] = NULL;
+    p->asyncDecompressCommandPtr[p->asyncDecompressCommandLen - 2] = NULL;
+    p->asyncDecompressCommandPtr[p->asyncDecompressCommandLen - 1] = NULL;
+    data = Tcl_GetObjResult(p->interp);
+    Tcl_IncrRefCount(data);
+    Tcl_SetObjResult(p->interp, prevResult);
+    Tcl_DecrRefCount(prevResult);
+    return data;
+}

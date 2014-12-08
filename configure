@@ -4769,7 +4769,7 @@ done
 
 
 
-    vars="cookfs.c common.c md5.h"
+    vars="cookfs.c common.c md5.h bindata.c"
     for i in $vars; do
 	case $i in
 	    \$*)
@@ -4859,7 +4859,7 @@ done
 
 
 
-    vars="scripts/cookvfs.tcl scripts/memchan.tcl scripts/vfs.tcl scripts/optimize.tcl scripts/asyncworker.tcl"
+    vars="scripts/cookvfs.tcl scripts/memchan.tcl scripts/vfs.tcl scripts/optimize.tcl scripts/asyncworker_process.tcl scripts/asyncworker_thread.tcl"
     for i in $vars; do
 	# check for existence, be strict because it is installed
 	if test ! -f "${srcdir}/$i" ; then

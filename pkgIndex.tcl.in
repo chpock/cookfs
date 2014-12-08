@@ -6,7 +6,8 @@ package ifneeded vfs::@PACKAGE_NAME@::tcl::writer @PACKAGE_VERSION@ [list source
 package ifneeded vfs::@PACKAGE_NAME@::tcl::pages @PACKAGE_VERSION@ [list source [file join $dir pages.tcl]]
 package ifneeded vfs::@PACKAGE_NAME@::tcl::fsindex @PACKAGE_VERSION@ [list source [file join $dir fsindex.tcl]]
 package ifneeded vfs::@PACKAGE_NAME@::tcl::optimize @PACKAGE_VERSION@ [list source [file join $dir optimize.tcl]]
-package ifneeded vfs::@PACKAGE_NAME@::asyncworker @PACKAGE_VERSION@ [list source [file join $dir asyncworker.tcl]]
+package ifneeded vfs::@PACKAGE_NAME@::asyncworker::process @PACKAGE_VERSION@ [list source [file join $dir asyncworker_process.tcl]]
+package ifneeded vfs::@PACKAGE_NAME@::asyncworker::thread @PACKAGE_VERSION@ [list source [file join $dir asyncworker_thread.tcl]]
 package ifneeded vfs::@PACKAGE_NAME@::pkgconfig @PACKAGE_VERSION@ [list source [file join $dir pkgconfig.tcl]]
 
 package ifneeded vfs::@PACKAGE_NAME@::c @PACKAGE_VERSION@ [list load [file join $dir @PKG_LIB_FILE@] @PACKAGE_NAME@]

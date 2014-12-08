@@ -20,6 +20,7 @@ proc cookfs::tcl::pages {args} {
         compression zlib
         compresscommand ""
         asynccompresscommand ""
+        asyncdecompresscommand ""
         decompresscommand ""
         cachesize 8
         indexdata ""
@@ -29,6 +30,7 @@ proc cookfs::tcl::pages {args} {
         hash md5
         alwayscompress 0
         asyncwrites {}
+        asyncpreloadBusy {}
     }
 
     if {[info commands ::zlib] != ""} {
@@ -40,7 +42,7 @@ proc cookfs::tcl::pages {args} {
     while {[llength $args] > 1} {
         switch -- [lindex $args 0] {
             -endoffset - -compression - -cachesize - -cfsname - 
-            -asynccompresscommand -
+            -asynccompresscommand - -asyncdecompresscommand -
             -compresscommand - -decompresscommand {
                 set c([string range [lindex $args 0] 1 end]) [lindex $args 1]
                 set args [lrange $args 2 end]
@@ -72,7 +74,7 @@ proc cookfs::tcl::pages {args} {
     if {[llength $args] != 1} {
         error "No filename provided"
     }
-
+    
     if {[catch {
         if {$c(readonly)} {
             set c(fh) [open [lindex $args 0] r]
@@ -132,6 +134,11 @@ proc cookfs::tcl::pages {args} {
     }
 
     interp alias {} $name {} ::cookfs::pages::handle $name
+
+    if {([string length $c(asyncdecompresscommand)] != 0)} {
+        set c(asyncpreloadCount) 2
+    }
+
     return $name
 }
 
@@ -340,7 +347,7 @@ proc cookfs::pages::pageAdd {name contents} {
         asyncCompress $name $idx $contents
     }  else  {
 	# ensure no writes are in progress
-	while {[asyncWait $name true]} {}
+	while {[asyncCompressWait $name true]} {}
         set contents [compress $name $contents]
         lappend c(idx.sizelist) [string length $contents]
         pagewrite $name $contents
@@ -351,8 +358,10 @@ proc cookfs::pages::pageAdd {name contents} {
 
 proc cookfs::pages::cleanup {name} {
     upvar #0 $name c
-
-    while {[asyncWait $name true]} {}
+    while {[asyncCompressWait $name true]} {}
+    while {[asyncDecompressWait $name -1 true]} {}
+    asyncCompressFinalize $name
+    asyncDecompressFinalize $name
 
     if {$c(haschanged) || $c(indexChanged)} {
         set offset $c(startoffset)
@@ -392,22 +401,10 @@ proc cookfs::pages::pageGetOffset {name idx} {
     }
     return $o
 }
-proc cookfs::pages::pageGet {name idx} {
+
+proc cookfs::pages::pageGetData {name idx} {
     upvar #0 $name c
     set o $c(startoffset)
-
-    # pending writes
-    if {[info exists c(asyncwrites,$idx)]} {
-        return $c(asyncwrites,$idx)
-    }
-
-    set cidx [lsearch -exact $c(cachelist) $idx]
-    if {$cidx >= 0} {
-        if {$cidx > 0} {
-            set c(cachelist) [linsert [lreplace $c(cachelist) $cidx $cidx] 0 $idx]
-        }
-        return $c(cache,$idx)
-    }
 
     if {$idx >= [llength $c(idx.sizelist)]} {
         error "Out of range"
@@ -419,16 +416,66 @@ proc cookfs::pages::pageGet {name idx} {
     set fc [read $c(fh) [lindex $c(idx.sizelist) $idx]]
     set c(lastop) read
 
-    set fc [decompress $name $fc]
+    return $fc
+}
+
+proc cookfs::pages::pageGetStored {name idx variableName {clean true}} {
+    upvar $variableName fc
+    upvar #0 $name c
+
+    # pending writes
+    if {[info exists c(asyncwrites,$idx)]} {
+        set fc $c(asyncwrites,$idx)
+        return true
+    }
+    
+    if {[cacheGet $name $idx fc]} {
+        return true
+    }
+
+    return [asyncGet $name $idx fc $clean]
+}
+
+proc cookfs::pages::cacheGet {name idx variableName} {
+    upvar $variableName fc
+    upvar #0 $name c
+
+    set cidx [lsearch -exact $c(cachelist) $idx]
+    if {$cidx >= 0} {
+        if {$cidx > 0} {
+            set c(cachelist) [linsert [lreplace $c(cachelist) $cidx $cidx] 0 $idx]
+        }
+        set fc $c(cache,$idx)
+        return true
+    }
+
+    return false
+}
+
+proc cookfs::pages::cacheAdd {name idx fc} {
+    upvar #0 $name c
 
     if {$c(cachesize) > 0} {
-        if {[llength $c(cachelist)] >= $c(cachesize)} {
-            set remidx [lindex $c(cachelist) [expr {$c(cachesize) - 1}]]
-            unset c(cache,$remidx)
-            set c(cachelist) [lrange $c(cachelist) 0 [expr {$c(cachesize) - 2}]]
+        set cidx [lsearch -exact $c(cachelist) $idx]
+        if {$cidx < 0} {
+            if {[llength $c(cachelist)] >= $c(cachesize)} {
+                set remidx [lindex $c(cachelist) [expr {$c(cachesize) - 1}]]
+                unset c(cache,$remidx)
+                set c(cachelist) [lrange $c(cachelist) 0 [expr {$c(cachesize) - 2}]]
+            }
+            set c(cachelist) [linsert $c(cachelist) 0 $idx]
+            set c(cache,$idx) $fc
         }
-        set c(cachelist) [linsert $c(cachelist) 0 $idx]
-        set c(cache,$idx) $fc
+    }
+}
+
+proc cookfs::pages::pageGet {name idx} {
+    asyncPreload $name [expr {$idx + 1}]
+
+    if {![pageGetStored $name $idx fc]} {
+        set fc [pageGetData $name $idx]
+        set fc [decompress $name $fc]
+        cacheAdd $name $idx $fc
     }
 
     return $fc
@@ -437,12 +484,12 @@ proc cookfs::pages::pageGet {name idx} {
 proc cookfs::pages::asyncCompress {name idx contents} {
     upvar #0 $name c
     set c(asyncwrites,$idx) $contents
-    while {[asyncWait $name false]} {}
+    while {[asyncCompressWait $name false]} {}
     lappend c(asyncwrites) $idx
-    uplevel #0 [concat $c(asynccompresscommand) [list compress $idx $contents]]
+    uplevel #0 [concat $c(asynccompresscommand) [list process $idx $contents]]
 }
 
-proc cookfs::pages::asyncWait {name require} {
+proc cookfs::pages::asyncCompressWait {name require} {
     upvar #0 $name c
     if {([string length $c(asynccompresscommand)] != 0) && ($require || ([llength $c(asyncwrites)] > 0))} {
         if {[llength $c(asyncwrites)] > 0} {
@@ -455,7 +502,7 @@ proc cookfs::pages::asyncWait {name require} {
             set idx [lindex $rc 0]
             set contents [lindex $rc 1]
             if {$idx != [lindex $c(asyncwrites) 0]} {
-                error "asyncWait returned $idx, expecting [lindex $c(asyncwrites) 0]"
+                error "asyncCompressWait returned $idx, expecting [lindex $c(asyncwrites) 0]"
             }
             set origContents $c(asyncwrites,$idx)
             if {((!$c(alwayscompress)) && ([string length $contents] > [string length $origContents]))} {
@@ -475,6 +522,87 @@ proc cookfs::pages::asyncWait {name require} {
         }
     }  else  {
         return false
+    }
+}
+
+proc cookfs::pages::asyncCompressFinalize {name} {
+    upvar #0 $name c
+    if {([string length $c(asynccompresscommand)] != 0)} {
+        uplevel #0 [concat $c(asynccompresscommand) [list finalize {} {}]]
+    }
+}
+
+proc cookfs::pages::asyncPreload {name idx} {
+    upvar #0 $name c
+    # TODO: clean old cache/buffers
+    if {([string length $c(asyncdecompresscommand)] != 0)} {
+        set maxIdx [expr {$idx + $c(asyncpreloadCount)}]
+        if {$maxIdx >= [llength $c(idx.sizelist)]} {
+            set maxIdx [llength $c(idx.sizelist)]
+        }
+        #puts "PRELOAD $idx -> $maxIdx -> $c(asyncpreloadBusy)"
+        for {set i $idx} {$i < $maxIdx} {incr i} {
+            if {![pageGetStored $name $i - false] && ([lsearch $c(asyncpreloadBusy) $i] < 0)} {
+                set fc [pageGetData $name $i]
+                # validate compression type and remove it before passing for processing
+                if {[string index $fc 0] == "\u00ff"} {
+                    #puts "PRELOAD  $i"
+                    while {[asyncDecompressWait $name -1 false]} {}
+                    set fc [string range $fc 1 end]
+                    uplevel #0 [concat $c(asyncdecompresscommand) [list process $i $fc]]
+                    lappend c(asyncpreloadBusy) $i
+                }
+            }
+        }
+        return true
+    } else {
+        return false
+    }
+}
+    
+proc cookfs::pages::asyncGet {name idx variableName {clean true}} {
+    upvar #0 $name c
+    upvar 1 $variableName fc
+    # check if page is currently being processed
+    if {$clean} {
+        while {[lsearch -exact $c(asyncpreloadBusy) $idx] >= 0} {
+            if {![asyncDecompressWait $name $idx false]} {
+                # TODO: improve
+                after 50
+            }
+        }
+    }
+
+    return [cacheGet $name $idx fc]
+}
+
+proc cookfs::pages::asyncDecompressWait {name widx require} {
+    upvar #0 $name c
+    if {([string length $c(asyncdecompresscommand)] != 0) && ($require || [llength $c(asyncpreloadBusy)] > 0)} {
+	set rc [uplevel #0 [concat $c(asyncdecompresscommand) [list wait $widx $require]]]
+	if {[llength $rc] > 0} {
+	    set rcidx [lindex $rc 0]
+	    #set c(asyncpreload,$rcidx) [lindex $rc 1]
+            cacheAdd $name $rcidx [lindex $rc 1]
+            #puts "WAIT GOT $rcidx"
+	    if {[set lidx [lsearch -exact $c(asyncpreloadBusy) $rcidx]] >= 0} {
+		set c(asyncpreloadBusy) [lreplace $c(asyncpreloadBusy) $lidx $lidx]
+	    }
+	    return [expr {[llength $c(asyncpreloadBusy)] > 0}]
+	}  elseif {[llength $c(asyncpreloadBusy)] > 0} {
+	    return $require
+	}  else  {
+	    return false
+	}
+    }  else  {
+	return false
+    }
+}
+
+proc cookfs::pages::asyncDecompressFinalize {name} {
+    upvar #0 $name c
+    if {([string length $c(asyncdecompresscommand)] != 0)} {
+        uplevel #0 [concat $c(asyncdecompresscommand) [list finalize -1 1]]
     }
 }
 
@@ -519,7 +647,7 @@ proc cookfs::pages::setCompression {name compression} {
         error $err $err
     }
     if {$cid != $c(cid)} {
-	while {[asyncWait $name true]} {}
+	while {[asyncCompressWait $name true]} {}
 	set c(cid) [::cookfs::pages::compression2cid $compression]
 	set c(compression) $compression
     }
@@ -533,10 +661,18 @@ proc cookfs::pages::handle {name cmd args} {
                 if {[catch {
                     pageGet $name [lindex $args 0]
                 } rc]} {
-                    # TODO: log error
+		    ::cookfs::debug {pageGet error: $::errorInfo}
                     error "Unable to retrieve chunk"
                 }
                 return $rc
+            }
+        }
+        preload {
+            if {[llength $args] == 1} {
+                if {![asyncPreload $name [lindex $args 0]]} {
+                    error "Unable to preload page"
+                }
+                return {}
             }
         }
         add {
@@ -544,7 +680,7 @@ proc cookfs::pages::handle {name cmd args} {
                 if {[catch {
                     pageAdd $name [lindex $args 0]
                 } rc]} {
-                    # TODO: log error
+		    ::cookfs::debug {pageAdd error: $::errorInfo}
                     error "Unable to add page"
                 }
                 return $rc
