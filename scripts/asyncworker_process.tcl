@@ -47,54 +47,77 @@ proc cookfs::asyncworker::process {args} {
         error "Invalid options for cookfs::asyncworker::process"
     }
 
-    if {![string is integer -strict $o(maxqueued)] || ($o(maxqueued) <= 0)} {
-        set o(maxqueued) [expr {$o(count) * 2}]
-    }
-
     upvar #0 $name aw
     array set aw [array get o]
     array set $name.available {}
 
+    set channels {}
     if {[catch {
 	# initialize all child processes
 	for {set i 0} {$i < $aw(count)} {incr i} {
-	    set fh [open "|$o(commandline)" r+]
+	    if {[catch {
+		set fh [open "|$o(commandline)" r+]
+	    }]} {
+		# TODO: debug
+		continue
+	    }
 	    set helloMessage [format %08x%08x [pid] [pid $fh]]
-	    lappend aw(channelsIdle) $fh
+	    lappend channels $fh
 	    fconfigure $fh -translation binary -buffering none -blocking 0 -buffersize $aw(buffersize)
 	    puts -nonewline $fh $helloMessage
 	    puts -nonewline $fh [binary format I $aw(buffersize)]
 	    ::cookfs::asyncworker::process::writeData $fh $aw(data)
 	    flush $fh
+	    set out($fh) {}
+	}
+	if {[llength $channels)] == 0} {
+	    error "Unable to start any child process"
 	}
 	# wait for hello response and ensure communication
 	# with compression process works properly to avoid errors with
 	# output from child process keeping compression hanging
-	set timeout 10
-	set i 0
-	foreach fh $aw(channelsIdle) {
-	    set helloMessage [format %08x%08x [pid] [pid $fh]]
-	    set out {}
-	    while {[string length $out] != 16} {
-		if {$timeout < 0} {error "Unable to initialize child process(es)"}
-		if {[string length $out] != 16} {
-		    after 1000
-		    incr timeout -1
+	set timeout [expr {10 + [llength $channels]}]
+	for {set i 0} {$i < $timeout} {incr i} {
+	    foreach fh $channels {
+		set idx [lsearch -exact $channels $fh]
+		set helloMessage [format %08x%08x [pid] [pid $fh]]
+		append out($fh) [read $fh]
+		if {$out($fh) == $helloMessage} {
+		    set channels [lreplace $channels $idx $idx]
+		    lappend aw(channelsIdle) $fh
+		    fconfigure $fh -blocking 1
+		}  elseif  {[eof $fh]} {
+		    set channels [lreplace $channels $idx $idx]
+		    catch {close $fh}
 		}
-		append out [read $fh]
 	    }
-	    if {$out != $helloMessage} {
-		error "Unable to initialize child process(es)"
+	    if {[llength $channels] > 0} {
+		after 1000
+	    }  else  {
+		break
 	    }
-	    fconfigure $fh -blocking 1
+	}
+	# close channels for all processes that have not started yet,
+	# which will make them exit
+	foreach fh $channels {
+	    catch {close $fh}
+	}
+	if {[llength $aw(channelsIdle)] == 0} {
+	    error "Unable to initialize any child process"
 	}
     } err]} {
 	set ei $::errorInfo
 	set ec $::errorCode
-	foreach ch $aw(channelsIdle) {
+	foreach ch $channels {
 	    catch {close $ch}
 	}
 	error "Unable to create child process: $err" $ei $ec
+    }
+
+    set aw(count) [llength $aw(channelsIdle)]
+
+    if {![string is integer -strict $aw(maxqueued)] || ($aw(maxqueued) <= 0)} {
+        set aw(maxqueued) [expr {$aw(count) * 2}]
     }
 
     return [list ::cookfs::asyncworker::process::handle $name]
