@@ -549,6 +549,9 @@ Tcl_Obj *Cookfs_AsyncPageGet(Cookfs_Pages *p, int idx) {
 
 int Cookfs_AsyncPageAdd(Cookfs_Pages *p, int idx, Tcl_Obj *data) {
     if ((p->fileCompression == COOKFS_COMPRESSION_CUSTOM) && (p->asyncCompressCommandPtr != NULL) && (p->asyncCompressCommandLen > 3)) {
+	Tcl_Obj *newObjObj;
+	int newObjSize;
+	unsigned char *newObjData;
 	int asyncIdx;
 	// retrieve any already processed queues
 	while (Cookfs_AsyncCompressWait(p, 0)) {}
@@ -556,9 +559,14 @@ int Cookfs_AsyncPageAdd(Cookfs_Pages *p, int idx, Tcl_Obj *data) {
 	    Cookfs_AsyncCompressWait(p, 0);
 	}
 	asyncIdx = p->asyncPageSize++;
+	newObjData = Tcl_GetByteArrayFromObj(data, &newObjSize);
+	newObjObj = Tcl_NewByteArrayObj(newObjData, newObjSize);
+	// copy the object to avoid increased memory usage
+	Tcl_IncrRefCount(newObjObj);
 	Tcl_IncrRefCount(data);
+	Tcl_DecrRefCount(data);
 	p->asyncPage[asyncIdx].pageIdx = idx;
-	p->asyncPage[asyncIdx].pageContents = data;
+	p->asyncPage[asyncIdx].pageContents = newObjObj;
 	CookfsRunAsyncCompressCommand(p, p->asyncCommandProcess, idx, data);
 	return 1;
     } else {
@@ -719,9 +727,7 @@ int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
 // TODO: document
 void Cookfs_AsyncDecompressWaitIfLoading(Cookfs_Pages *p, int idx) {
     if ((p->asyncDecompressQueueSize > 0) && (p->asyncDecompressCommandPtr != NULL) && (p->asyncDecompressCommandLen > 3)) {
-	Tcl_Obj *dataObj;
 	int i;
-	int w0 = p->asyncDecompressQueue;
 
 	for (i = 0 ; i < p->asyncDecompressQueue ; i++) {
 	    if (p->asyncDecompressIdx[i] == idx) {
