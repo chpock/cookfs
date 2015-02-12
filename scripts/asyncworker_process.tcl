@@ -158,7 +158,9 @@ proc ::cookfs::asyncworker::process::handle {name cmd idx arg} {
             # if this is the end, exit if all channels are freed
             if {($arg || ([llength [array names av]] >= $aw(maxqueued))) && ([llength $aw(channelsBusy)] == 0)} {
                 break
-            }  elseif {([llength $aw(channelsIdle)] > 0)} {
+            }  elseif {(!$arg) && ([llength $aw(channelsIdle)] > 0)} {
+                break
+            }  elseif {[llength $aw(channelsBusy)] == 0} {
                 break
             }
             # TODO: move to events?

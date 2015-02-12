@@ -678,7 +678,7 @@ int Cookfs_AsyncCompressWait(Cookfs_Pages *p, int require) {
 
 
 void Cookfs_AsyncCompressFinalize(Cookfs_Pages *p) {
-    if ((p->fileCompression == COOKFS_COMPRESSION_CUSTOM) && (p->asyncCompressCommandPtr != NULL) && (p->asyncCompressCommandLen > 3)) {
+    if ((p->asyncCompressCommandPtr != NULL) && (p->asyncCompressCommandLen > 3)) {
 	CookfsRunAsyncCompressCommand(p, p->asyncCommandFinalize, -1, Tcl_NewIntObj(1));
     }
 }
