@@ -66,6 +66,7 @@ static int CookfsBinaryDataCommand(ClientData clientData, Tcl_Interp *interp, in
         {
             Tcl_Obj *address;
             if (CookfsBinaryDataParseAddress(interp, objv[2], (void **) &address) != TCL_OK) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve binary data", -1));
                 return TCL_ERROR;
             }
             Tcl_SetObjResult(interp, address);
