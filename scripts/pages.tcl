@@ -55,6 +55,10 @@ proc cookfs::tcl::pages {args} {
                 set c(readonly) 0
                 set args [lrange $args 1 end]
             }
+            -asyncdecompressqueuesize {
+                set args [lrange $args 2 end]
+                # ignored in Tcl version
+            }
             -alwayscompress {
                 set c([string range [lindex $args 0] 1 end]) 1
                 set args [lrange $args 1 end]
