@@ -76,13 +76,14 @@ proc cookfs::asyncworker::process {args} {
 	# wait for hello response and ensure communication
 	# with compression process works properly to avoid errors with
 	# output from child process keeping compression hanging
+        set helloOffset end-[expr {[string length $helloMessage]-1}]
 	set timeout [expr {10 + [llength $channels]}]
 	for {set i 0} {$i < $timeout} {incr i} {
 	    foreach fh $channels {
 		set idx [lsearch -exact $channels $fh]
 		set helloMessage [format %08x%08x [pid] [pid $fh]]
 		append out($fh) [read $fh]
-		if {$out($fh) == $helloMessage} {
+		if {[string range $out($fh) $helloOffset end] == $helloMessage} {
 		    set channels [lreplace $channels $idx $idx]
 		    lappend aw(channelsIdle) $fh
 		    fconfigure $fh -blocking 1
