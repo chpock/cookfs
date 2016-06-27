@@ -21,6 +21,7 @@ proc cookfs::asyncworker::process {args} {
         data {}
         channelsIdle {}
         channelsBusy {}
+        timeout {}
         open true
     }
     foreach {n v} $args {
@@ -36,6 +37,9 @@ proc cookfs::asyncworker::process {args} {
             }
             -data - -d {
                 set o(data) $v
+            }
+            -timeout - -t {
+                set o(timeout) $v
             }
             default {
                 error "Unknown option $n"
@@ -77,7 +81,11 @@ proc cookfs::asyncworker::process {args} {
 	# with compression process works properly to avoid errors with
 	# output from child process keeping compression hanging
         set helloOffset end-[expr {[string length $helloMessage]-1}]
-	set timeout [expr {10 + [llength $channels]}]
+	if {$o(timeout) != ""} {
+            set timeout $o(timeout)
+	}  else  {
+	    set timeout [expr {10 + [llength $channels]}]
+	}
 	for {set i 0} {$i < $timeout} {incr i} {
 	    foreach fh $channels {
 		set idx [lsearch -exact $channels $fh]
