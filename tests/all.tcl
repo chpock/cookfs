@@ -2,7 +2,7 @@ package require tcltest
 
 #lappend auto_path [pwd]
 
-set tmpdir [file join [file dirname [info script]] _tmp]
+set tmpdir [file join [tcltest::workingDirectory] _tmp]
 catch {file delete -force $tmpdir}
 file mkdir $tmpdir
 tcltest::temporaryDirectory $tmpdir

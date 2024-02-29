@@ -1,8 +1,14 @@
-tcltest::test cookfsVfs-1.1 "Mount empty filename" -setup {
+tcltest::test cookfsVfs-1.1.1 "Mount empty filename (unix)" -constraints unix -setup {
 } -body {
     vfs::cookfs::Mount "" ""
 } -cleanup {
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object: couldn't open "*": illegal operation on a directory}
+
+tcltest::test cookfsVfs-1.1.2 "Mount empty filename (windows)" -constraints win -setup {
+} -body {
+    vfs::cookfs::Mount "" ""
+} -cleanup {
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object: couldn't open "*": permission denied}
 
 tcltest::test cookfsVfs-1.2 "Mount non-existant file as read-write" -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
@@ -425,7 +431,7 @@ tcltest::test cookfsVfs-6.1 "Test crc32 based VFS and page handling" -constraint
     set fh [open $file/test2 w]
     puts $fh "TEST TEST"
     close $fh
-    
+
     [set ${h}(pages)] length
 } -cleanup {
     catch {vfs::unmount $file}
