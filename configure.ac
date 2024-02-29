@@ -10,7 +10,7 @@ dnl	to configure the system for the local environment.
 # so you can encode the package version directly into the source files.
 #-----------------------------------------------------------------------
 
-AC_INIT([cookfs], [1.4])
+AC_INIT([cookfs],[1.4])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -54,7 +54,7 @@ TEA_SETUP_COMPILER
 
 TEA_ADD_SOURCES([cookfs.c common.c md5.h bindata.c])
 TEA_ADD_HEADERS([])
-TEA_ADD_INCLUDES([])
+TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/generic`\"])
 TEA_ADD_LIBS([])
 TEA_ADD_CFLAGS([])
 TEA_ADD_STUB_SOURCES([])
@@ -152,7 +152,7 @@ else
 
     # if not using c-pages, use Tcl only readerchannel
     COOKFS_PKGCONFIG_USECREADERCHAN=0
-    
+
     # Tcl implementation offers bzip2 compression assuming Trf package is present
     COOKFS_PKGCONFIG_USEBZ2=1
 fi
@@ -169,7 +169,7 @@ if test ${USECFSINDEX} = yes; then
     TEA_ADD_SOURCES([fsindex.c fsindexIO.c fsindexCmd.c])
 else
     COOKFS_PKGCONFIG_USECFSINDEX=0
-    
+
     # TODO: move this outside conditions since
     # metadata is supported in pure Tcl version as well
     COOKFS_PKGCONFIG_FEATURE_METADATA=1
@@ -203,4 +203,5 @@ TEA_PROG_TCLSH
 # which require substituting th AC variables in.  Include these here.
 #--------------------------------------------------------------------
 
-AC_OUTPUT([Makefile pkgIndex.tcl pkgconfig.tcl])
+AC_CONFIG_FILES([Makefile pkgIndex.tcl pkgconfig.tcl])
+AC_OUTPUT
