@@ -48,7 +48,7 @@ proc cookfs::initialize {} {
 	package require vfs::cookfs::tcl::memchan [pkgconfig get package-version]
 	package require vfs::cookfs::tcl::writer [pkgconfig get package-version]
 	package require vfs::cookfs::tcl::optimize [pkgconfig get package-version]
-	
+
 	package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
 	# load C version of Pages if available
 	if {[pkgconfig get c-pages]} {
@@ -259,7 +259,7 @@ proc cookfs::Mount {args} {
 	set fs(pages) $opt(pagesobject)
 	$fs(pages) cachesize $opt(pagecachesize)
     }
-    
+
     # initialize directory listing
     if {$opt(fsindexobject) == ""} {
 	set idx [$fs(pages) index]
@@ -404,11 +404,12 @@ proc cookfs::handleVfsCommandAlias {fsid args} {
 	    }
 	}
 	writeFiles {
+	    set args [lrange $args 1 end]
 	    if {([llength $args] % 4) != 0} {
 		set ei "wrong # args: should be \"$fsid writeFiles ?filename1 type1 data1 size1 ?filename2 type2 data2 size2? ?..??"
 		error $ei $ei
 	    }
-	    uplevel 1 [linsert $args 0 cookfs::writeFiles $fsid $args]
+	    uplevel 1 [linsert $args 0 cookfs::writeFiles $fsid]
 	}
 	filesize {
 	    if {[llength $args] != 1} {
