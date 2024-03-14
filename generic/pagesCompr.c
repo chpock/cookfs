@@ -1430,6 +1430,8 @@ static Tcl_Obj *CookfsReadPageBz2(Cookfs_Pages *p, int size) {
 
     return destObj;
 #else
+    UNUSED(p);
+    UNUSED(size);
     return NULL;
 #endif
 }
@@ -1490,6 +1492,9 @@ static int CookfsWritePageBz2(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
 
     return size;
 #else
+    UNUSED(p);
+    UNUSED(data);
+    UNUSED(origSize);
     return -1;
 #endif
 }

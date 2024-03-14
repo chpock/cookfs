@@ -8,7 +8,7 @@
 
 #include "cookfs.h"
 
-
+
 /*
  *----------------------------------------------------------------------
  *
@@ -41,7 +41,7 @@ unsigned char *Cookfs_Binary2Int(unsigned char *input, int *output, int count) {
     }
     return input;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -74,7 +74,7 @@ unsigned char *Cookfs_Int2Binary(int *input, unsigned char *output, int count) {
     }
     return output;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -113,7 +113,7 @@ unsigned char *Cookfs_Binary2WideInt(unsigned char *input, Tcl_WideInt *output, 
     }
     return input;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -152,4 +152,4 @@ unsigned char *Cookfs_WideInt2Binary(Tcl_WideInt *input, unsigned char *output, 
     }
     return output;
 }
-
+

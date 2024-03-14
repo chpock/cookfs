@@ -5506,7 +5506,7 @@ printf "%s\n" "#define AC_APPLE_UNIVERSAL_BUILD 1" >>confdefs.h
 
 
 
-    PKG_CFLAGS="$PKG_CFLAGS "
+    PKG_CFLAGS="$PKG_CFLAGS -Wall -Wextra -pedantic"
 
 
 
@@ -5582,10 +5582,8 @@ printf "%s\n" "#define AC_APPLE_UNIVERSAL_BUILD 1" >>confdefs.h
 # and change Makefile.in to move it from CONFIG_CLEAN_FILES to BINARIES var.
 #CLEANFILES="pkgIndex.tcl"
 if test "${TEA_PLATFORM}" = "windows" ; then
-
-printf "%s\n" "#define BUILD_cookfs 1" >>confdefs.h
-
-    CLEANFILES="$CLEANFILES *.lib *.dll *.exp *.ilk *.pdb vc*.pch"
+    # Ensure no empty else clauses
+    :
     #TEA_ADD_SOURCES([win/winFile.c])
     #TEA_ADD_INCLUDES([-I\"$(${CYGPATH} ${srcdir}/win)\"])
 else

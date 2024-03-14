@@ -34,7 +34,7 @@ static int CookfsFsindexImportMetadata(Cookfs_Fsindex *fsIndex, unsigned char *b
  *  subdirectories are inlined completely and recursively
  */
 
-
+
 /*
  *----------------------------------------------------------------------
  *
@@ -72,7 +72,7 @@ Tcl_Obj *Cookfs_FsindexToObject(Cookfs_Fsindex *fsIndex) {
 
     return result;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -96,12 +96,12 @@ Cookfs_Fsindex *Cookfs_FsindexFromObject(Tcl_Obj *o) {
     int i;
     unsigned char *bytes;
     Cookfs_Fsindex *result;
-    
+
     CookfsLog(printf("Cookfs_FsindexFromObject - BEGIN"))
-    
+
     /* initialize empty fsindex */
     result = Cookfs_FsindexInit();
-    
+
     if (result == NULL) {
         CookfsLog(printf("Cookfs_FsindexFromObject - unable to initialize Fsindex object"))
         return NULL;
@@ -121,7 +121,7 @@ Cookfs_Fsindex *Cookfs_FsindexFromObject(Tcl_Obj *o) {
 
     /* import root entry; import of subdirectories happens recursively */
     i = CookfsFsindexImportDirectory(result, result->rootItem, bytes, objLength, 8);
-    
+
     CookfsLog(printf("Cookfs_FsindexFromObject - Import directory done - %d vs %d", i, objLength))
     if (i < objLength) {
         i = CookfsFsindexImportMetadata(result, bytes, objLength, i);
@@ -134,7 +134,7 @@ Cookfs_Fsindex *Cookfs_FsindexFromObject(Tcl_Obj *o) {
     /* return imported fsindex */
     return result;
 }
-
+
 /* definitions of static and/or internal functions */
 
 /*
@@ -217,7 +217,7 @@ static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
 		    objLength += COOKFS_FSINDEX_BUFFERINCREASE;
 		    bytes = Tcl_SetByteArrayLength(result, objLength);
 		}
-		
+
 		/* add block-offset-size triplets and increase offset*/
 		Cookfs_Int2Binary(itemNode->data.fileInfo.fileBlockOffsetSize, bytes + objOffset, itemNode->fileBlocks * 3);
 		objOffset += itemNode->fileBlocks * 12;
@@ -268,7 +268,7 @@ static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
 			objLength += COOKFS_FSINDEX_BUFFERINCREASE;
 			bytes = Tcl_SetByteArrayLength(result, objLength);
 		    }
-		    
+
 		    /* add block-offset-size triplets and increase offset*/
 		    Cookfs_Int2Binary(itemNode->data.fileInfo.fileBlockOffsetSize, bytes + objOffset, itemNode->fileBlocks * 3);
 		    objOffset += itemNode->fileBlocks * 12;
@@ -277,10 +277,10 @@ static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
 	    }
 	}
     }
-    
+
     return objOffset;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -339,13 +339,13 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
         CookfsLog(printf("CookfsFsindexImportDirectory importing %s (%d blocks)", fileName, fileBlocks))
 
 	/* create fsindex entry and set its modification time */
-	itemNode = Cookfs_FsindexSetInDirectory(fsIndex, entry, fileName, fileNameLength, fileBlocks);
+	itemNode = Cookfs_FsindexSetInDirectory(entry, fileName, fileNameLength, fileBlocks);
 	itemNode->fileTime = fileTime;
 
         if (fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
 	    /* for directory, import child recursively and get offset to continue import from */
             objOffset = CookfsFsindexImportDirectory(fsIndex, itemNode, bytes, objLength, objOffset);
-	    
+
 	    /* if child import failed, pass the error to caller */
             if (objOffset < 0) {
                 CookfsLog(printf("CookfsFsindexImportDirectory - failure - rolling back"))
@@ -358,7 +358,7 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
             objOffset += fileBlocks * 12;
             for (i = 0, fileSize = 0; i < fileBlocks; i++) {
                 fileSize += itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 2];
-		CookfsLog(printf("CookfsFsindexImportDirectory - %d/%d/%d", 
+		CookfsLog(printf("CookfsFsindexImportDirectory - %d/%d/%d",
 		    itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 0],
 		    itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 1],
 		    itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 2]))
@@ -367,12 +367,12 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
             itemNode->data.fileInfo.fileSize = fileSize;
         }
     }
-    
+
     /* return current offset to caller */
     CookfsLog(printf("CookfsFsindexImportDirectory - IMPORT END"))
     return objOffset;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -398,25 +398,28 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
 static int CookfsFsindexExportMetadata(Cookfs_Fsindex *fsIndex, Tcl_Obj *result, int objOffset) {
     Tcl_HashEntry *hashEntry;
     Tcl_HashSearch hashSearch;
-    int objSize = objOffset;
+    int objSize;
     int objInitialOffset = objOffset;
     int objSizeChanged;
     const char *paramName;
     Tcl_Obj *valueObj;
     unsigned char *valueData;
     unsigned char *resultData;
-    int keySize;
+    unsigned int keySize;
     int valueSize;
     int size;
     int count = 0;
-    
-    resultData = Tcl_GetByteArrayFromObj(result, NULL);
 
-    if (objSize < (objOffset + 4)) {
+    resultData = Tcl_GetByteArrayFromObj(result, &objSize);
+
+    objSizeChanged = 0;
+    while (objSize < (objOffset + 4)) {
         objSize += COOKFS_FSINDEX_BUFFERINCREASE;
-        Tcl_SetByteArrayLength(result, objSize);
-        resultData = Tcl_GetByteArrayFromObj(result, NULL);
+        objSizeChanged = 1;
     }
+    if (objSizeChanged)
+        resultData = Tcl_SetByteArrayLength(result, objSize);
+
     objInitialOffset = objOffset;
     objOffset += 4;
 
@@ -448,7 +451,7 @@ static int CookfsFsindexExportMetadata(Cookfs_Fsindex *fsIndex, Tcl_Obj *result,
         /* export parameter name */
         memcpy(resultData + objOffset, paramName, keySize + 1);
         objOffset += keySize + 1;
-        
+
         /* export value */
         memcpy(resultData + objOffset, valueData, valueSize);
         objOffset += valueSize;
@@ -458,7 +461,7 @@ static int CookfsFsindexExportMetadata(Cookfs_Fsindex *fsIndex, Tcl_Obj *result,
 
     return objOffset;
 }
-
+
 
 /*
  *----------------------------------------------------------------------

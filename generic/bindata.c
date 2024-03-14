@@ -13,7 +13,7 @@ static int CookfsBinaryDataCommand(ClientData clientData, Tcl_Interp *interp, in
 static int CookfsBinaryDataParseAddress(Tcl_Interp *interp, Tcl_Obj *address, void **addressPtr);
 static Tcl_Obj *CookfsBinaryDataCreateAddress(void *address);
 
-
+
 /*
  *----------------------------------------------------------------------
  *
@@ -38,10 +38,11 @@ int Cookfs_InitBinaryDataCmd(Tcl_Interp *interp) {
     return TCL_OK;
 }
 
-
+
 /* definitions of static and/or internal functions */
 
 static int CookfsBinaryDataCommand(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+    UNUSED(clientData);
     static char *commands[] = { "create", "retrieve", NULL };
     enum { cmdCreate, cmdRetrieve };
     int cmd;
@@ -54,7 +55,7 @@ static int CookfsBinaryDataCommand(ClientData clientData, Tcl_Interp *interp, in
     if (Tcl_GetIndexFromObj(interp, objv[1], (const char **) commands, "command", 0, &cmd) != TCL_OK) {
         return TCL_ERROR;
     }
-    
+
     switch (cmd) {
         case cmdCreate:
         {
@@ -74,13 +75,14 @@ static int CookfsBinaryDataCommand(ClientData clientData, Tcl_Interp *interp, in
             return TCL_OK;
         }
     }
-    
+
     // fallback
     return TCL_ERROR;
 }
 
-  
+
 static int CookfsBinaryDataParseAddress(Tcl_Interp *interp, Tcl_Obj *address, void **addressPtr) {
+    UNUSED(interp);
     if (sscanf(Tcl_GetStringFromObj(address, NULL), "%p", addressPtr) == 1) {
         return TCL_OK;
     } else {
@@ -89,7 +91,7 @@ static int CookfsBinaryDataParseAddress(Tcl_Interp *interp, Tcl_Obj *address, vo
     }
 }
 
-
+
 static Tcl_Obj *CookfsBinaryDataCreateAddress(void *address) {
     char buf[128];
     sprintf(buf, "%p", address);

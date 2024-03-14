@@ -10,6 +10,7 @@
 #include <errno.h>
 
 int Cookfs_Readerchannel_Close(ClientData instanceData, Tcl_Interp *interp) {
+    UNUSED(interp);
     Cookfs_ReaderChannelInstData *instData = (Cookfs_ReaderChannelInstData *) instanceData;
     CookfsLog(printf("Cookfs_Readerchannel_Close: channel=%s\n", instData->channelName))
     Cookfs_CreateReaderchannelFree(instData);
@@ -26,10 +27,6 @@ int Cookfs_Readerchannel_Close2(ClientData instanceData, Tcl_Interp *interp, int
         }
 	return EINVAL;
     }
-}
-
-int Cookfs_Readerchannel_Gethandle(ClientData instanceData, int direction, ClientData *handlePtr) {
-    return TCL_ERROR;
 }
 
 int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, int *errorCodePtr) {
@@ -62,7 +59,7 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	    }
 	    instData->currentBlockOffset = 0;
 	}
-	
+
 	/* read as many bytes as left in chunk, or as many as requested */
 	if (bytesLeft > blockLeft) {
 	    blockRead = blockLeft;
@@ -73,7 +70,7 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	CookfsLog(printf("Cookfs_Readerchannel_Input: reading page %d", instData->buf[instData->currentBlock + 0]))
 	pageObj = Cookfs_PageGet(instData->pages, instData->buf[instData->currentBlock + 0]);
 	CookfsLog(printf("Cookfs_Readerchannel_Input: result %s", (pageObj ? "SET" : "NULL")))
-	
+
 	if (pageObj == NULL) {
 	    goto error;
 	}
@@ -97,7 +94,7 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	bytesRead += blockRead;
 	instData->currentOffset += bytesRead;
     }
-    
+
     CookfsLog(printf("Cookfs_Readerchannel_Input: bytesRead=%d", bytesRead))
     return bytesRead;
 
@@ -107,6 +104,10 @@ error:
 }
 
 int Cookfs_Readerchannel_Output(ClientData instanceData, const char *buf, int toWrite, int *errorCodePtr) {
+    UNUSED(instanceData);
+    UNUSED(buf);
+    UNUSED(toWrite);
+    *errorCodePtr = ENODEV;
     return -1;
 }
 
@@ -134,7 +135,7 @@ Tcl_WideInt Cookfs_Readerchannel_WideSeek(ClientData instanceData, Tcl_WideInt o
 	instData->currentOffset = 0;
 	instData->currentBlock = 0;
 	instData->currentBlockOffset = 0;
-	
+
 	while (bytesLeft > 0) {
 	    /* either block is larger than left bytes or not */
 	    CookfsLog(printf("Cookfs_Readerchannel_WideSeek: compare %d < %d", instData->buf[instData->currentBlock + 2], (int) bytesLeft))
@@ -142,7 +143,7 @@ Tcl_WideInt Cookfs_Readerchannel_WideSeek(ClientData instanceData, Tcl_WideInt o
 		/* move to next block */
 		bytesLeft -= instData->buf[instData->currentBlock + 2];
 		instData->currentBlock += 3;
-		
+
 		if (instData->currentBlock >= instData->bufSize) {
 		    break;
 		}
@@ -156,6 +157,7 @@ Tcl_WideInt Cookfs_Readerchannel_WideSeek(ClientData instanceData, Tcl_WideInt o
 
 	CookfsLog(printf("Cookfs_Readerchannel_WideSeek: end offset: block=%d blockoffset=%d offset=%d", instData->currentBlock, instData->currentBlockOffset, ((int) instData->currentOffset)))
     }
+    *errorCodePtr = 0;
     return instData->currentOffset;
 }
 
@@ -177,7 +179,7 @@ static void CookfsReaderchannelTimerProc(ClientData instanceData)
 void Cookfs_Readerchannel_Watch(ClientData instanceData, int mask) {
     Cookfs_ReaderChannelInstData *chan = (Cookfs_ReaderChannelInstData *) instanceData;
     CookfsLog(printf("Cookfs_Readerchannel_Watch: channel=%s mask=%08x\n", chan->channelName, mask))
-    if (mask && TCL_READABLE) {
+    if (mask & TCL_READABLE) {
         if (chan->watchTimer == NULL) {
     	    chan->watchTimer = Tcl_CreateTimerHandler(5, CookfsReaderchannelTimerProc, instanceData);
         }

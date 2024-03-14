@@ -1,4 +1,9 @@
 2024-03-14 Konstantin Kushnir <chpock@gmail.com>
+	* Bumped minimum Tcl version to 8.5.0
+	* Enable compiler warnings
+	* Fix minor issues from compiler warnings
+
+2024-03-14 Konstantin Kushnir <chpock@gmail.com>
 	* Add support for xz compression and use it by default
 
 2012-05-22 Wojciech Kocjan <zoro2@users.sourceforge.net>

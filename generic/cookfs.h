@@ -23,7 +23,10 @@
 #define CookfsLog(a) {}
 #endif
 
+#define UNUSED(expr) do { (void)(expr); } while (0)
+
 #include "common.h"
+#include "bindata.h"
 
 #ifdef COOKFS_USECPAGES
 #include "pages.h"

@@ -56,7 +56,7 @@ TEA_ADD_SOURCES([cookfs.c common.c md5.h bindata.c])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/generic`\"])
 TEA_ADD_LIBS([])
-TEA_ADD_CFLAGS([])
+TEA_ADD_CFLAGS([-Wall -Wextra -pedantic])
 TEA_ADD_STUB_SOURCES([])
 TEA_ADD_TCL_SOURCES([scripts/cookvfs.tcl scripts/memchan.tcl scripts/vfs.tcl scripts/optimize.tcl scripts/asyncworker_process.tcl scripts/asyncworker_thread.tcl])
 TEA_ADD_TCL_SOURCES([scripts/readerchannel.tcl])
@@ -77,8 +77,8 @@ TEA_ADD_TCL_SOURCES([scripts/writer.tcl])
 # and change Makefile.in to move it from CONFIG_CLEAN_FILES to BINARIES var.
 #CLEANFILES="pkgIndex.tcl"
 if test "${TEA_PLATFORM}" = "windows" ; then
-    AC_DEFINE(BUILD_cookfs, 1, [Build windows export dll])
-    CLEANFILES="$CLEANFILES *.lib *.dll *.exp *.ilk *.pdb vc*.pch"
+    # Ensure no empty else clauses
+    :
     #TEA_ADD_SOURCES([win/winFile.c])
     #TEA_ADD_INCLUDES([-I\"$(${CYGPATH} ${srcdir}/win)\"])
 else

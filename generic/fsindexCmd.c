@@ -27,7 +27,7 @@ static int CookfsFsindexCmdSetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *inte
 static int CookfsFsindexCmdUnsetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
-
+
 /*
  *----------------------------------------------------------------------
  *
@@ -51,7 +51,7 @@ int Cookfs_InitFsindexCmd(Tcl_Interp *interp) {
 
     return TCL_OK;
 }
-
+
 /* definitions of static and/or internal functions */
 
 /*
@@ -79,6 +79,7 @@ int Cookfs_InitFsindexCmd(Tcl_Interp *interp) {
 
 /* command for creating new objects that deal with pages */
 static int CookfsRegisterFsindexObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+    UNUSED(clientData);
     char buf[64];
     int idx;
     Cookfs_Fsindex *i;
@@ -107,14 +108,14 @@ static int CookfsRegisterFsindexObjectCmd(ClientData clientData, Tcl_Interp *int
     /* create new Tcl command to manage newly created fsindex and return its name */
     Tcl_CreateObjCommand(interp, buf, CookfsFsindexCmd, (ClientData) i, CookfsFsindexDeleteProc);
 
-    Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));   
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
     return TCL_OK;
 
 ERROR:
     Tcl_WrongNumArgs(interp, 1, objv, "?binaryData?");
     return TCL_ERROR;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -137,7 +138,7 @@ static void CookfsFsindexDeleteProc(ClientData clientData) {
     Cookfs_FsindexFini((Cookfs_Fsindex *) clientData);
     CookfsLog(printf("DELETED FSINDEX COMMAND"))
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -159,9 +160,9 @@ static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc,
     static char *commands[] = { "export", "list", "get", "getmtime", "set", "setmtime", "unset", "delete", "setmetadata", "getmetadata", "unsetmetadata", NULL };
     enum { cmdExport, cmdList, cmdGet, cmdGetmtime, cmdSet, cmdSetmtime, cmdUnset, cmdDelete, cmdSetMetadata, cmdGetMetadata, cmdUnsetMetadata };
     int idx;
-    
+
     Cookfs_Fsindex *fsIndex = (Cookfs_Fsindex *) clientData;
-    
+
     if (objc < 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "option ?args?");
         return TCL_ERROR;
@@ -201,7 +202,7 @@ static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc,
 
     return TCL_OK;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -242,7 +243,7 @@ static int CookfsFsindexCmdExport(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, i
 	return TCL_OK;
     }
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -282,7 +283,7 @@ static int CookfsFsindexCmdGetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
     /* get entry and free splitPath */
     entry = Cookfs_FsindexGet(fsIndex, splitPath);
     Tcl_DecrRefCount(splitPath);
-    
+
     /* check if entry was returned */
     if (entry == NULL) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("Entry not found", -1));
@@ -293,7 +294,7 @@ static int CookfsFsindexCmdGetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
     Tcl_SetObjResult(interp, Tcl_NewWideIntObj(entry->fileTime));
     return TCL_OK;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -338,7 +339,7 @@ static int CookfsFsindexCmdSetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
     /* get entry and free splitPath */
     entry = Cookfs_FsindexGet(fsIndex, splitPath);
     Tcl_DecrRefCount(splitPath);
-    
+
     /* check if entry was returned */
     if (entry == NULL) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("Entry not found", -1));
@@ -350,7 +351,7 @@ static int CookfsFsindexCmdSetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
 
     return TCL_OK;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -431,7 +432,7 @@ static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
 	    return TCL_ERROR;
 	}
 	entry->data.fileInfo.fileSize = 0;
-	
+
 	/* copy all integers from filedata into newly created entry */
 	for (i = 0; i < numBlocks * 3; i++) {
 	    if (Tcl_GetIntFromObj(interp, listElements[i], &fileBlockData) != TCL_OK) {
@@ -456,11 +457,11 @@ static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
     entry->fileTime = fileTime;
 
     /* free splitPath and return */
-    
+
     Tcl_DecrRefCount(splitPath);
     return TCL_OK;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -499,7 +500,7 @@ static int CookfsFsindexCmdUnset(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, in
     /* unset using fsindex API */
     result = Cookfs_FsindexUnset(fsIndex, splitPath);
     Tcl_DecrRefCount(splitPath);
-    
+
     /* provide error message if operation failed */
     if (!result) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to unset item", -1));
@@ -508,7 +509,7 @@ static int CookfsFsindexCmdUnset(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, in
 
     return TCL_OK;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -520,7 +521,7 @@ static int CookfsFsindexCmdUnset(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, in
  * Results:
  *	Returns TCL_OK on success; TCL_ERROR on error
  *	In case of success result is set with a list describing entry
- *	
+ *
  *	For directories, result is a 1 element list containing file
  *	modification time
  *
@@ -556,7 +557,7 @@ static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
     /* get entry and free splitPath */
     entry = Cookfs_FsindexGet(fsIndex, splitPath);
     Tcl_DecrRefCount(splitPath);
-    
+
     /* check if entry was returned */
     if (entry == NULL) {
 	CookfsLog(printf("cmdGet - entry==NULL"))
@@ -585,7 +586,7 @@ static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
     }
     return TCL_OK;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -628,7 +629,7 @@ static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int
     /* list specified path; return error if path not found */
     results = Cookfs_FsindexList(fsIndex, splitPath, &itemCount);
     Tcl_DecrRefCount(splitPath);
-    
+
     if (results == NULL) {
 	CookfsLog(printf("cmdList - results==NULL"))
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("Entry not found", -1));
@@ -640,16 +641,16 @@ static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int
     for (idx = 0; idx < itemCount; idx++) {
 	resultList[idx] = Tcl_NewStringObj(results[idx]->fileName, -1);
     }
-    
+
     /* the list is now copied, we can free the original memory */
     Cookfs_FsindexListFree(results);
 
     Tcl_SetObjResult(interp, Tcl_NewListObj(itemCount, resultList));
     Tcl_Free((void *) resultList);
-    
+
     return TCL_OK;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -668,7 +669,7 @@ static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int
  */
 
 static int CookfsFsindexCmdDelete(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-
+    UNUSED(fsIndex);
     /* check arguments */
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 2, objv, "");
@@ -677,7 +678,7 @@ static int CookfsFsindexCmdDelete(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, i
     Tcl_DeleteCommand(interp, Tcl_GetStringFromObj(objv[0], NULL));
     return TCL_OK;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -710,7 +711,7 @@ static int CookfsFsindexCmdSetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *inte
 
     return TCL_OK;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -746,7 +747,7 @@ static int CookfsFsindexCmdUnsetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *in
 
     return TCL_OK;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -791,5 +792,5 @@ static int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *inte
 
     return TCL_OK;
 }
-
+
 

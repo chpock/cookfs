@@ -13,7 +13,7 @@ static int cookfsChannelId = 0;
 
 static Tcl_ChannelType cookfsReaderChannel = {
     "cookfsreader",
-    TCL_CHANNEL_VERSION_4,
+    TCL_CHANNEL_VERSION_5,
     Cookfs_Readerchannel_Close,
     Cookfs_Readerchannel_Input,
     Cookfs_Readerchannel_Output,
@@ -21,12 +21,13 @@ static Tcl_ChannelType cookfsReaderChannel = {
     NULL,
     NULL,
     Cookfs_Readerchannel_Watch,
-    Cookfs_Readerchannel_Gethandle,
+    NULL,
     Cookfs_Readerchannel_Close2,
     NULL,
     NULL,
     NULL,
     Cookfs_Readerchannel_WideSeek,
+    NULL,
     NULL,
 };
 
@@ -54,11 +55,11 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Tcl_Obj *listObj, Tc
     }
 
     instData = Cookfs_CreateReaderchannelAlloc(pages, listObjc);
-    
+
     if (instData == NULL) {
 	return NULL;
     }
-    
+
     CookfsLog(printf("Cookfs_CreateReaderchannel: alloc"))
 
     for (i = 0; i < listObjc; i++) {
@@ -69,14 +70,14 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Tcl_Obj *listObj, Tc
 	}
 	CookfsLog(printf("Cookfs_CreateReaderchannel: buf[%d] = %d", i, instData->buf[i]))
     }
-    
+
     for (i = 2; i < listObjc; i += 3) {
 	fileSize = fileSize + ((Tcl_WideInt) instData->buf[i]);
     }
-    
+
     CookfsLog(printf("Cookfs_CreateReaderchannel: fileSize=%d", ((int) fileSize)))
     instData->fileSize = fileSize;
-    
+
     if (Cookfs_CreateReaderchannelCreate(instData, interp) != TCL_OK) {
 	CookfsLog(printf("Cookfs_CreateReaderchannel: Cookfs_CreateReaderchannelCreate failed"))
 	Cookfs_CreateReaderchannelFree(instData);
@@ -87,7 +88,7 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Tcl_Obj *listObj, Tc
     {
 	*channelNamePtr = instData->channelName;
     }
-    
+
     return instData->channel;
 }
 
@@ -95,7 +96,7 @@ int Cookfs_CreateReaderchannelCreate(Cookfs_ReaderChannelInstData *instData, Tcl
     /* TODO: mutex */
     sprintf(instData->channelName, "cookfsreader%d", ++cookfsChannelId);
     instData->channel = Tcl_CreateChannel(&cookfsReaderChannel, instData->channelName, (ClientData) instData, TCL_READABLE);
-    
+
     if (instData->channel == NULL) {
 	CookfsLog(printf("Cookfs_CreateReaderchannelCreate: Unable to create channel"))
 	return TCL_ERROR;
@@ -110,13 +111,13 @@ int Cookfs_CreateReaderchannelCreate(Cookfs_ReaderChannelInstData *instData, Tcl
 
 Cookfs_ReaderChannelInstData *Cookfs_CreateReaderchannelAlloc(Cookfs_Pages *pages, int bufSize) {
     Cookfs_ReaderChannelInstData *result;
-    
+
     result = (Cookfs_ReaderChannelInstData *) Tcl_Alloc(sizeof(Cookfs_ReaderChannelInstData) + bufSize * sizeof(int));
     result->channel = NULL;
     result->watchTimer = NULL;
 
     result->pages = pages;
-    
+
     result->currentOffset = 0;
     result->currentBlock = 0;
     result->currentBlockOffset = 0;
@@ -141,6 +142,7 @@ void Cookfs_CreateReaderchannelFree(Cookfs_ReaderChannelInstData *instData) {
 
 /* command for creating new objects that deal with pages */
 static int CookfsCreateReaderchannelCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+    UNUSED(clientData);
     Cookfs_Pages *pages;
     Tcl_Channel channel;
     char *channelName;
@@ -151,7 +153,7 @@ static int CookfsCreateReaderchannelCmd(ClientData clientData, Tcl_Interp *inter
     }
 
     pages = Cookfs_PagesGetHandle(interp, Tcl_GetStringFromObj(objv[1], NULL));
-    
+
     if (pages == NULL) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to find pages object", -1));
 	return TCL_ERROR;

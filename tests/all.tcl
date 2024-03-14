@@ -10,7 +10,7 @@ tcltest::testsDirectory [file dirname [info script]]
 
 package require vfs::cookfs
 
-if {[info tclversion] == "8.4"} {
+if {[info tclversion] == "8.5"} {
     package require rechan
 }
 

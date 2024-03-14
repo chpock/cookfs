@@ -28,7 +28,7 @@ int
 Cookfs_Init(Tcl_Interp *interp)
 {
     char buf[256];
-    if (Tcl_InitStubs(interp, "8.4", 0) == NULL) {
+    if (Tcl_InitStubs(interp, "8.5", 0) == NULL) {
         return TCL_ERROR;
     }
 

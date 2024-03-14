@@ -50,7 +50,7 @@ void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e);
 
 Cookfs_FsindexEntry *Cookfs_FsindexGet(Cookfs_Fsindex *i, Tcl_Obj *pathList);
 Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Tcl_Obj *pathList, int numBlocks);
-Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_Fsindex *i, Cookfs_FsindexEntry *currentNode, char *pathTailStr, int pathTailLen, int numBlocks);
+Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_FsindexEntry *currentNode, char *pathTailStr, int pathTailLen, int numBlocks);
 int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Tcl_Obj *pathList);
 
 Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Tcl_Obj *pathList, int *itemCountPtr);
