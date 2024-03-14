@@ -424,7 +424,7 @@ See \fBCOOKFS STORAGE\fR for more details on how cookfs stores files, index and 
 \fB-volume\fR
 Register mount point as Tcl volume - useful for creating mount points in locations that do not exist - such as \fIarchive://\fR.
 .TP
-\fB-compression\fR \fInone|zlib|bzip2|custom\fR
+\fB-compression\fR \fInone|zlib|bzip2|xz|custom\fR
 Compression to use for storing new files.
 .sp
 See \fBCOMPRESSSION\fR for more details on compression in cookfs.
@@ -520,6 +520,10 @@ use zlib compression to compress - same as with mk4vfs and zipvfs
 .IP \(bu
 \fBbz2\fR -
 use bzip2 for compression; requires specifying \fB--enable-bz2\fR when building
+cookfs
+.IP \(bu
+\fBxz\fR -
+use xz for compression; requires specifying \fB--enable-xz\fR when building
 cookfs
 .IP \(bu
 \fBcustom\fR -

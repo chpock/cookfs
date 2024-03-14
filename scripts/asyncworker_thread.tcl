@@ -53,7 +53,7 @@ proc cookfs::asyncworker::thread {args} {
     array set $name.available {}
     set aw(mutex) [thread::mutex create]
     set aw(cond) [thread::cond create]
-    
+
     set script {}
     append script {
         # needed for cookfs::binarydata
@@ -147,7 +147,7 @@ proc ::cookfs::asyncworker::thread::finalize {name} {
 
 proc ::cookfs::asyncworker::thread::handle {name cmd idx arg} {
     upvar #0 $name aw $name.available av
-    
+
     # detect already closed handles
     if {![info exists aw(open)]} {
         return
@@ -242,4 +242,4 @@ proc ::cookfs::asyncworker::thread::handle {name cmd idx arg} {
     }
 }
 
-package provide vfs::cookfs::asyncworker::thread 1.4
+package provide vfs::cookfs::asyncworker::thread 1.5.0

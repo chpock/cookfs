@@ -179,7 +179,7 @@ See [sectref {COOKFS STORAGE}] for more details on how cookfs stores files, inde
 
 [def "[option -smallfilebuffer] [arg bytes]"]
 Specifies maximum buffer for small files. Specifying larger value allows
-storing more files in memory before saving them on disk. This can produce 
+storing more files in memory before saving them on disk. This can produce
 better compression ratio.
 
 [para]
@@ -188,7 +188,7 @@ See [sectref {COOKFS STORAGE}] for more details on how cookfs stores files, inde
 [def "[option -volume]"]
 Register mount point as Tcl volume - useful for creating mount points in locations that do not exist - such as [arg archive://].
 
-[def "[option -compression] [arg {none|zlib|bzip2|custom}]"]
+[def "[option -compression] [arg {none|zlib|bzip2|xz|custom}]"]
 
 Compression to use for storing new files.
 
@@ -306,6 +306,10 @@ use zlib compression to compress - same as with mk4vfs and zipvfs
 
 [item] [const bz2] -
 use bzip2 for compression; requires specifying [const {--enable-bz2}] when building
+cookfs
+
+[item] [const xz] -
+use xz for compression; requires specifying [const {--enable-xz}] when building
 cookfs
 
 [item] [const custom] -

@@ -17,7 +17,7 @@ proc cookfs::_purgeSmallfilesChunk {} {
 
     if {[llength $currentchunkPOS] > 0} {
         set idx [$fs(pages) add $currentchunk]
-        
+
         foreach {pathlist offset size} $currentchunkPOS {
             incr fs(changeCount)
             foreach path $pathlist {
@@ -25,7 +25,7 @@ proc cookfs::_purgeSmallfilesChunk {} {
                 $fs(index) set $path $mtime [list $idx $offset $size]
             }
         }
-        
+
         set currentchunk ""
         set currentchunkPOS [list]
     }
@@ -204,4 +204,4 @@ proc cookfs::writeFiles {fsid args} {
     }
 }
 
-package provide vfs::cookfs::tcl::writer 1.4
+package provide vfs::cookfs::tcl::writer 1.5.0

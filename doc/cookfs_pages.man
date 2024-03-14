@@ -111,7 +111,7 @@ Read archive starting at specified offset, instead of reading from end of file.
 This feature is used when cookfs archive is not stored at end of file - for example if it is
 used in tclkit and followed by mk4vfs archive.
 
-[def "[option -compression] [arg {none|zlib|bzip2|custom}]"]
+[def "[option -compression] [arg {none|zlib|bzip2|xz|custom}]"]
 Compression to use for storing new files.
 
 [para]

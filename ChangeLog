@@ -1,3 +1,6 @@
+2024-03-14 Konstantin Kushnir <chpock@gmail.com>
+	* Add support for xz compression and use it by default
+
 2012-05-22 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* scripts/writer.tcl: Use [array startsearch]/[array next]/[array anymore] instead of [array get] to package small files - reduces memory usage
 
@@ -163,7 +166,7 @@ Release 1.3.1
 	* scripts/pages.tcl:
 	* generic/pages.c:
 	* generic/pages.h:
-	
+
 2011-05-05 Wojciech Kocjan <zoro2@users.sourceforge.net>
 	* generic/pages.c: Added [$pages cachesize] command to allow modifying cache size
 	* generic/pages.h:

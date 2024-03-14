@@ -7,10 +7,15 @@
  * (c) 2011-2014 Wojciech Kocjan
  */
 
-#include "cookfs.h"
 #ifdef COOKFS_USEBZ2
 #include "../bzip2/bzlib.h"
 #endif
+#ifdef COOKFS_USEXZ
+#include "7zCrc.h"
+#include "XzCrc64.h"
+#include "Alloc.h"
+#endif
+#include "cookfs.h"
 
 #define COOKFS_SUFFIX_BYTES 16
 
@@ -24,9 +29,13 @@ static Tcl_Obj *CookfsReadPageZlib(Cookfs_Pages *p, int size);
 static int CookfsWritePageZlib(Cookfs_Pages *p, Tcl_Obj *data, int origSize);
 static Tcl_Obj *CookfsReadPageBz2(Cookfs_Pages *p, int size);
 static int CookfsWritePageBz2(Cookfs_Pages *p, Tcl_Obj *data, int origSize);
+static Tcl_Obj *CookfsReadPageXz(Cookfs_Pages *p, int size);
+static int CookfsWritePageXz(Cookfs_Pages *p, Tcl_Obj *data, int origSize);
 static Tcl_Obj *CookfsReadPageCustom(Cookfs_Pages *p, int size);
 static int CookfsWritePageCustom(Cookfs_Pages *p, Tcl_Obj *data, int origSize);
+#ifdef USE_VFS_COMMANDS_FOR_ZIP
 static int CookfsCheckCommandExists(Tcl_Interp *interp, const char *commandName);
+#endif
 static Tcl_Obj *CookfsRunAsyncCompressCommand(Cookfs_Pages *p, Tcl_Obj *cmd, int idx, Tcl_Obj *arg);
 static Tcl_Obj *CookfsRunAsyncDecompressCommand(Cookfs_Pages *p, Tcl_Obj *cmd, int idx, Tcl_Obj *arg);
 
@@ -37,6 +46,9 @@ const char *cookfsCompressionOptions[] = {
 #ifdef COOKFS_USEBZ2
     "bz2",
 #endif
+#ifdef COOKFS_USEXZ
+    "xz",
+#endif
     "custom",
     NULL
 };
@@ -46,7 +58,8 @@ const char *cookfsCompressionNames[256] = {
     "none",
     "zlib",
     "bz2",
-    "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "xz",
+    "", "", "", "", "", "", "", "", "", "", "", "",
     /* 0x10 - 0x1f */
     "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
     "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
@@ -74,10 +87,13 @@ const int cookfsCompressionOptionMap[] = {
 #ifdef COOKFS_USEBZ2
     COOKFS_COMPRESSION_BZ2,
 #endif
+#ifdef COOKFS_USEXZ
+    COOKFS_COMPRESSION_XZ,
+#endif
     COOKFS_COMPRESSION_CUSTOM,
     -1 /* dummy entry */
 };
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -140,8 +156,29 @@ void Cookfs_PagesInitCompr(Cookfs_Pages *rc) {
         rc->zipCmdLength = 6;
     }
 #endif
+#ifdef COOKFS_USEXZ
+    CookfsLog(printf("Cookfs_PagesInitCompr: init xz - crc/crc64"));
+    CrcGenerateTable();
+    Crc64GenerateTable();
+    CookfsLog(printf("Cookfs_PagesInitCompr: init xz encoder/decoder"));
+
+    XzProps_Init(&rc->xzEncoderProps);
+    // don't use XZ checks by crc as we sign all pages
+    rc->xzEncoderProps.checkId = XZ_CHECK_NO;
+
+    rc->xzEncoder = NULL;
+    // TODO: check for an error here, XzEnc_Create may return NULL if there is not enough memory.
+    rc->xzEncoder = XzEnc_Create(&g_Alloc, &g_BigAlloc);
+    XzEnc_SetProps(rc->xzEncoder, &rc->xzEncoderProps);
+
+    XzDecMtProps_Init(&rc->xzDecoderProps);
+    rc->xzDecoder = NULL;
+    rc->xzDecoder = XzDecMt_Create(&g_Alloc, &g_BigAlloc);
+
+    CookfsLog(printf("Cookfs_PagesInitCompr: xz is ready."));
+#endif
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -203,8 +240,16 @@ void Cookfs_PagesFiniCompr(Cookfs_Pages *rc) {
 	    Tcl_Free((void *) rc->asyncCompressCommandPtr);
 	}
     }
+#ifdef COOKFS_USEXZ
+    CookfsLog(printf("Cookfs_PagesFiniCompr: free xz resources"));
+    if (rc->xzEncoder)
+        XzEnc_Destroy(rc->xzEncoder);
+    if (rc->xzDecoder)
+        XzDecMt_Destroy(rc->xzDecoder);
+    CookfsLog(printf("Cookfs_PagesFiniCompr: free xz resources - done."));
+#endif
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -214,7 +259,7 @@ void Cookfs_PagesFiniCompr(Cookfs_Pages *rc) {
  *	Set compress, decompress and async compress commands
  *	for specified pages object
  *
- *	Creates a copy of objects' list elements 
+ *	Creates a copy of objects' list elements
  *
  * Results:
  *	TCL_OK on success; TCL_ERROR otherwise
@@ -266,7 +311,7 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
 	    return TCL_ERROR;
 	}
     }
-    
+
     /* store copied list and number of items in lists */
     p->compressCommandPtr = compressPtr;
     p->compressCommandLen = compressLen;
@@ -276,10 +321,10 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
     p->asyncCompressCommandLen = asyncCompressLen;
     p->asyncDecompressCommandPtr = asyncDecompressPtr;
     p->asyncDecompressCommandLen = asyncDecompressLen;
-    
+
     return TCL_OK;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -301,7 +346,7 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
 Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompress, int compressionType) {
     int count;
     int compression = p->fileCompression;
-    
+
     if (idx >= p->dataNumPages) {
 	return NULL;
     }
@@ -337,16 +382,16 @@ Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompress, int
 
 	/* need to decrease size by 1 byte we just read */
 	size = size - 1;
-	
+
 	/* if specific compression was required, exit if did not match */
 	if ((compressionType != COOKFS_COMPRESSION_ANY) && (compressionType != compression)) {
 	    return NULL;
 	}
-	
+
 	if (!decompress) {
 	    compression = COOKFS_COMPRESSION_NONE;
 	}
-	
+
 	CookfsLog(printf("Cookfs_ReadPage I=%d S=%d C=%d", idx, size, compression))
 
 	/* handle reading based on compression algorithm */
@@ -376,11 +421,13 @@ Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompress, int
 		return CookfsReadPageCustom(p, size);
             case COOKFS_COMPRESSION_BZ2:
 		return CookfsReadPageBz2(p, size);
+            case COOKFS_COMPRESSION_XZ:
+		return CookfsReadPageXz(p, size);
         }
     }
     return NULL;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -403,7 +450,7 @@ void Cookfs_SeekToPage(Cookfs_Pages *p, int idx) {
     Tcl_Seek(p->fileChannel, offset, SEEK_SET);
     CookfsLog(printf("Seeking to EOF -> %d",(int) offset))
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -431,7 +478,7 @@ int Cookfs_WritePage(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compresse
     /* get binary data */
     Tcl_GetByteArrayFromObj(data, &origSize);
     Tcl_IncrRefCount(data);
-    
+
     /* if last operation was not write, we need to seek
      * to make sure we're at location where we should be writing */
     if ((idx >= 0) && (p->fileLastOp != COOKFS_LASTOP_WRITE)) {
@@ -458,16 +505,20 @@ int Cookfs_WritePage(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compresse
 		case COOKFS_COMPRESSION_ZLIB:
 		    size = CookfsWritePageZlib(p, data, origSize);
 		    break;
-    
+
 		case COOKFS_COMPRESSION_CUSTOM:
 		    size = CookfsWritePageCustom(p, data, origSize);
 		    break;
-    
+
 		case COOKFS_COMPRESSION_BZ2:
 		    size = CookfsWritePageBz2(p, data, origSize);
 		    break;
+
+		case COOKFS_COMPRESSION_XZ:
+		    size = CookfsWritePageXz(p, data, origSize);
+		    break;
 	    }
-    
+
 	    /* if compression was not enabled or compressor decided it should
 	     * be written as raw data, write it uncompressed */
 	    if (size == -1) {
@@ -485,7 +536,7 @@ int Cookfs_WritePage(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compresse
     Tcl_DecrRefCount(data);
     return size;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -528,7 +579,7 @@ Tcl_Obj *Cookfs_AsyncPageGet(Cookfs_Pages *p, int idx) {
     }
     return NULL;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -573,7 +624,7 @@ int Cookfs_AsyncPageAdd(Cookfs_Pages *p, int idx, Tcl_Obj *data) {
 	return 0;
     }
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -600,7 +651,7 @@ int Cookfs_AsyncCompressWait(Cookfs_Pages *p, int require) {
 	int resultLength, size;
 	int i = 0;
 	int idx = -1;
-	
+
 	if (p->asyncPageSize == 0) {
 	    if (!require) {
 		return 0;
@@ -608,7 +659,7 @@ int Cookfs_AsyncCompressWait(Cookfs_Pages *p, int require) {
 	}  else  {
 	    idx = p->asyncPage[0].pageIdx;
 	}
-	
+
 	result = CookfsRunAsyncCompressCommand(p, p->asyncCommandWait, idx, Tcl_NewIntObj(require));
 	if ((result == NULL) || (Tcl_ListObjLength(NULL, result, &resultLength) != TCL_OK)) {
 	    resultLength = 0;
@@ -618,7 +669,7 @@ int Cookfs_AsyncCompressWait(Cookfs_Pages *p, int require) {
 	    if (Tcl_ListObjIndex(NULL, result, 0, &resObj) != TCL_OK) {
 		return 0;
 	    }
-	    
+
 	    if (Tcl_GetIntFromObj(NULL, resObj, &i) != TCL_OK) {
 		return 0;
 	    }
@@ -658,7 +709,7 @@ int Cookfs_AsyncCompressWait(Cookfs_Pages *p, int require) {
 	return 0;
     }
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -682,7 +733,7 @@ void Cookfs_AsyncCompressFinalize(Cookfs_Pages *p) {
 	CookfsRunAsyncCompressCommand(p, p->asyncCommandFinalize, -1, Tcl_NewIntObj(1));
     }
 }
-
+
 
 // TODO: document
 int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
@@ -696,12 +747,12 @@ int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
 		return 1;
 	    }
 	}
-	
+
 	if (Cookfs_PageCacheGet(p, idx) != NULL) {
 	    // page already in cache and we just moved it to top; do nothing
 	    return 1;
 	}
-	
+
 	// if queue is full, do not preload
 	if (p->asyncDecompressQueue >= p->asyncDecompressQueueSize) {
 	    return 0;
@@ -709,7 +760,7 @@ int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
 
 	CookfsLog(printf("Reading page %d for async decompress", idx))
 	dataObj = Cookfs_ReadPage(p, idx, -1, 0, COOKFS_COMPRESSION_CUSTOM);
-	
+
 	if (dataObj != NULL) {
 	    p->asyncDecompressIdx[p->asyncDecompressQueue] = idx;
 	    p->asyncDecompressQueue++;
@@ -722,7 +773,7 @@ int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
     }
     return 0;
 }
-
+
 
 // TODO: document
 void Cookfs_AsyncDecompressWaitIfLoading(Cookfs_Pages *p, int idx) {
@@ -737,7 +788,7 @@ void Cookfs_AsyncDecompressWaitIfLoading(Cookfs_Pages *p, int idx) {
 	}
     }
 }
-
+
 
 // TODO: document
 int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require) {
@@ -745,15 +796,15 @@ int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require) {
 	Tcl_Obj *result, *resObj;
 	int resultLength;
 	int i = 0;
-	
+
 	if (p->asyncDecompressQueue == 0) {
 	    if (!require) {
 		return 0;
 	    }
 	}
-	
+
 	CookfsLog(printf("Cookfs_AsyncDecompressWait: calling callback"))
-	
+
 	result = CookfsRunAsyncDecompressCommand(p, p->asyncCommandWait, idx, Tcl_NewIntObj(require));
 	if ((result == NULL) || (Tcl_ListObjLength(NULL, result, &resultLength) != TCL_OK)) {
 	    resultLength = 0;
@@ -764,7 +815,7 @@ int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require) {
 	    if (Tcl_ListObjIndex(NULL, result, 0, &resObj) != TCL_OK) {
 		return 0;
 	    }
-	    
+
 	    if (Tcl_GetIntFromObj(NULL, resObj, &i) != TCL_OK) {
 		return 0;
 	    }
@@ -772,11 +823,11 @@ int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require) {
 	    if (Tcl_ListObjIndex(NULL, result, 1, &resObj) != TCL_OK) {
 		return 0;
 	    }
-	    
+
 	    CookfsLog(printf("Cookfs_AsyncDecompressWait: callback returned data for %d", i))
 	    Tcl_IncrRefCount(resObj);
 	    Cookfs_PageCacheSet(p, i, resObj);
-	    
+
 	    Tcl_DecrRefCount(result);
 
 	    CookfsLog(printf("Cookfs_AsyncDecompressWait: cleaning up decompression queue"))
@@ -791,7 +842,7 @@ int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require) {
 		    break;
 		}
 	    }
-	    
+
 	    CookfsLog(printf("Cookfs_AsyncDecompressWait: cleaning up decompression queue done"))
 
 	    return (p->asyncDecompressQueue > 0);
@@ -809,7 +860,7 @@ int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require) {
 	return 0;
     }
 }
-
+
 
 // TODO: document
 void Cookfs_AsyncDecompressFinalize(Cookfs_Pages *p) {
@@ -817,7 +868,7 @@ void Cookfs_AsyncDecompressFinalize(Cookfs_Pages *p) {
 	CookfsRunAsyncDecompressCommand(p, p->asyncCommandFinalize, -1, Tcl_NewIntObj(1));
     }
 }
-
+
 
 /* definitions of static and/or internal functions */
 
@@ -846,7 +897,7 @@ static void CookfsWriteCompression(Cookfs_Pages *p, int compression) {
     Tcl_WriteObj(p->fileChannel, byteObj);
     Tcl_DecrRefCount(byteObj);
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -885,7 +936,7 @@ static Tcl_Obj **CookfsCreateCompressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd
     *lenPtr = listObjc + additionalElements;
     return rc;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -935,7 +986,7 @@ static Tcl_Obj *CookfsReadPageZlib(Cookfs_Pages *p, int size) {
 	return NULL;
     }
     Tcl_DecrRefCount(data);
-    
+
     CookfsLog(printf("Reading"))
     /* read resulting object */
     cobj = Tcl_NewObj();
@@ -985,7 +1036,7 @@ static Tcl_Obj *CookfsReadPageZlib(Cookfs_Pages *p, int size) {
     return data;
 #endif
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -1077,7 +1128,247 @@ static int CookfsWritePageZlib(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
 #endif
     return size;
 }
-
+
+#ifdef COOKFS_USEXZ
+
+typedef struct {
+    ISeqInStream funcTable;
+    unsigned char *source;
+    Tcl_Channel chan;
+    unsigned int size;
+    unsigned int offset;
+} XzInStream;
+
+static SRes
+XzInStreamRead(const struct ISeqInStream_ *p, void *buf, size_t *size)
+{
+    XzInStream *stream = (XzInStream *)p;
+
+    if (stream->source) {
+
+        CookfsLog(printf("XzInStreamRead: start reading from buffer. Want to read %zu bytes. Have %zu bytes total, current offset is %zu.", *size, stream->size, stream->offset));
+
+        if (*size + stream->offset > stream->size) {
+            *size = stream->size - stream->offset;
+        }
+
+        memcpy(buf, &stream->source[stream->offset], *size);
+
+        stream->offset += *size;
+
+    } else {
+
+        CookfsLog(printf("XzInStreamRead: start reading from channel. Want to read %zu bytes, have %zu bytes.", *size, stream->size));
+
+        if (*size > stream->size)
+            *size = stream->size;
+
+        if (*size == 0)
+            return SZ_OK;
+
+        int res = Tcl_Read(stream->chan, (char *)buf, *size);
+
+        if (res == -1) {
+            // TODO: report error correctly?
+            CookfsLog(printf("XzInStreamRead: failed to read the stream: %d", res));
+            *size = 0;
+            return SZ_ERROR_DATA;
+        }
+
+        *size = res;
+        stream->size -= res;
+
+        CookfsLog(printf("XzInStreamRead: %zu bytes left in channel.", stream->size));
+
+    }
+
+    //printf("XzInStreamRead: return bytes: ");
+    //for ( int cnt = 0; cnt < *size; cnt++ ) {
+    //    printf("%02hhx ", ((char *)buf)[cnt]);
+    //}
+    //printf("\n"); fflush(stdout);
+
+    CookfsLog(printf("XzInStreamRead: return %zu bytes.", *size));
+    return SZ_OK;
+}
+
+typedef struct {
+    ISeqOutStream funcTable;
+    Tcl_Channel chan;
+    unsigned int size;
+    Tcl_Obj *destObj;
+} XzOutStream;
+
+static size_t
+XzOutStreamWrite(const struct ISeqOutStream_ *p, const void *buf, size_t size)
+{
+    size_t res;
+    unsigned char *dest;
+    XzOutStream *stream = (XzOutStream *)p;
+
+    if (stream->destObj) {
+
+        CookfsLog(printf("XzOutStreamWrite: start writing to channel. Want to write %zu bytes.", size));
+
+        dest = Tcl_SetByteArrayLength(stream->destObj, stream->size + size);
+        memcpy(&dest[stream->size], buf, size);
+        stream->size += size;
+
+        CookfsLog(printf("XzOutStreamWrite: stored %zu bytes in buf, total buf size: %zu.", size, stream->size));
+
+        res = size;
+
+    } else {
+
+        CookfsLog(printf("XzOutStreamWrite: start writing to buffer. Want to write %zu bytes.", size));
+
+        res = Tcl_Write(stream->chan, (char *)buf, size);
+
+        stream->size += res;
+
+    }
+
+    //printf("XzOutStreamWrite: written bytes: ");
+    //for ( int cnt = 0; cnt < res; cnt++ ) {
+    //    printf("%02hhx ", ((char *)buf)[cnt]);
+    //}
+    //printf("\n"); fflush(stdout);
+
+    CookfsLog(printf("XzOutStreamWrite: end. Wrote %zu bytes. Total: %zu bytes.", res, stream->size));
+    return res;
+
+}
+
+#endif
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsWritePageXz --
+ *
+ *	Write page using xz compression
+ *
+ * Results:
+ *	Number of bytes written; -1 in case compression failed. This function
+ *      doesn't return -1 compressing was not efficient enough.
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int CookfsWritePageXz(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
+#ifdef COOKFS_USEXZ
+    XzInStream istream;
+    XzOutStream ostream;
+    SRes res;
+
+    // the xz format adds 48 bytes overhead, even if compression is inefficient
+    // and the data is stored in plain format. Thus, return -1 if the page size
+    // is less than 64 bytes and the page is stored uncompressed.
+    if (origSize < 64) {
+        CookfsLog(printf("CookfsWritePageXz: page size (%d) is less than 64 bytes. Return without compression.", origSize));
+        return -1;
+    }
+
+    CookfsLog(printf("CookfsWritePageXz: start. Want to write %d bytes.", origSize));
+
+    istream.source = Tcl_GetByteArrayFromObj(data, NULL);
+    if (istream.source == NULL) {
+        CookfsLog(printf("CookfsWritePageXz: Tcl_GetByteArrayFromObj failed"));
+        return -1;
+    }
+
+    istream.funcTable.Read = XzInStreamRead;
+    istream.size = origSize;
+    istream.offset = 0;
+    ostream.funcTable.Write = XzOutStreamWrite;
+    ostream.chan = p->fileChannel;
+    ostream.size = 0;
+    ostream.destObj = NULL;
+
+    CookfsWriteCompression(p, COOKFS_COMPRESSION_XZ);
+
+    CookfsLog(printf("CookfsWritePageXz: Xz_Encode..."));
+
+    //XzEnc_SetDataSize(p->xzEncoder, origSize);
+    res = XzEnc_Encode(p->xzEncoder, &ostream.funcTable, &istream.funcTable, NULL);
+
+    if (res != SZ_OK) {
+        CookfsLog(printf("CookfsWritePageXz: Xz_Encode failed"));
+        return -1;
+    }
+
+    CookfsLog(printf("CookfsWritePageXz: size=%d (to %d)", origSize, ostream.size));
+
+    return ostream.size;
+#else
+    return -1;
+#endif
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsReadPageXz --
+ *
+ *	Read xz compressed page
+ *
+ * Results:
+ *	Binary data as Tcl_Obj
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Tcl_Obj *CookfsReadPageXz(Cookfs_Pages *p, int size) {
+#ifdef COOKFS_USEXZ
+    CXzStatInfo stats;
+    int isMt;
+    XzInStream istream;
+    XzOutStream ostream;
+    Tcl_Obj *resultObj;
+    SRes res;
+
+    CookfsLog(printf("CookfsReadPageXz: start. Want to read %d bytes.", size));
+
+    resultObj = Tcl_NewByteArrayObj(NULL, 0);
+    Tcl_IncrRefCount(resultObj);
+
+    istream.funcTable.Read = XzInStreamRead;
+    istream.size = size;
+    istream.chan = p->fileChannel;
+    istream.source = NULL;
+    ostream.funcTable.Write = XzOutStreamWrite;
+    ostream.size = 0;
+    ostream.destObj = resultObj;
+
+    CookfsLog(printf("CookfsReadPageXz: call XzDecMt_Decode ..."));
+
+    res = XzDecMt_Decode(p->xzDecoder, &p->xzDecoderProps, NULL, 1,
+        &ostream.funcTable, &istream.funcTable, &stats, &isMt, NULL);
+
+    if (res != SZ_OK) {
+        CookfsLog(printf("CookfsReadPageXz: got not SZ_OK: %d", res));
+        Tcl_DecrRefCount(resultObj);
+        return NULL;
+    }
+
+    //printf("CookfsReadPageXz: decoded bytes: ");
+    //for ( int cnt = 0; cnt < size; cnt++ ) {
+    //    printf("%02hhx ", ((char *)source)[cnt]);
+    //}
+    //printf("\n"); fflush(stdout);
+
+    CookfsLog(printf("CookfsReadPageXz: finish. Got total %zu bytes.", ostream.size));
+    return resultObj;
+#else
+    return NULL;
+#endif
+}
 
 /*
  *----------------------------------------------------------------------
@@ -1142,7 +1433,6 @@ static Tcl_Obj *CookfsReadPageBz2(Cookfs_Pages *p, int size) {
     return NULL;
 #endif
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -1203,7 +1493,7 @@ static int CookfsWritePageBz2(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
     return -1;
 #endif
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -1261,7 +1551,7 @@ static Tcl_Obj *CookfsReadPageCustom(Cookfs_Pages *p, int size) {
     Tcl_DecrRefCount(prevResult);
     return data;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -1308,7 +1598,7 @@ static int CookfsWritePageCustom(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
     Tcl_SetObjResult(p->interp, prevResult);
     Tcl_DecrRefCount(prevResult);
     Tcl_GetByteArrayFromObj(compressed, &size);
-    
+
     if (SHOULD_COMPRESS(p, origSize, size)) {
 	CookfsWriteCompression(p, COOKFS_COMPRESSION_CUSTOM);
 	Tcl_WriteObj(p->fileChannel, compressed);
@@ -1318,7 +1608,8 @@ static int CookfsWritePageCustom(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
     Tcl_DecrRefCount(compressed);
     return size;
 }
-
+
+#ifdef USE_VFS_COMMANDS_FOR_ZIP
 
 /*
  *----------------------------------------------------------------------
@@ -1346,7 +1637,8 @@ static int CookfsCheckCommandExists(Tcl_Interp *interp, const char *commandName)
 
     return rc;
 }
-
+
+#endif
 
 /*
  *----------------------------------------------------------------------
@@ -1393,7 +1685,7 @@ static Tcl_Obj *CookfsRunAsyncCompressCommand(Cookfs_Pages *p, Tcl_Obj *cmd, int
     Tcl_DecrRefCount(prevResult);
     return data;
 }
-
+
 
 /*
  *----------------------------------------------------------------------

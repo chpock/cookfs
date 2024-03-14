@@ -14,7 +14,7 @@ proc cookfs::initMemchan {fsid path read} {
     upvar #0 $fsid fs
     upvar #0 $fsid.dir fsdir
     upvar #0 $fsid.chk fschk
-    
+
     set chan [vfs::memchan]
     set translation [fconfigure $chan -translation]
     # larger buffer size speeds up memchan
@@ -57,8 +57,8 @@ proc cookfs::onMemchanClose {fsid path chan} {
     seek $chan 0 end
     set size [tell $chan]
     seek $chan 0 start
-    
+
     writeFiles $fsid $path channel $chan ""
 }
 
-package provide vfs::cookfs::tcl::memchan 1.4
+package provide vfs::cookfs::tcl::memchan 1.5.0

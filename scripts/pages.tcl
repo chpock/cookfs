@@ -41,7 +41,7 @@ proc cookfs::tcl::pages {args} {
 
     while {[llength $args] > 1} {
         switch -- [lindex $args 0] {
-            -endoffset - -compression - -cachesize - -cfsname - 
+            -endoffset - -compression - -cachesize - -cfsname -
             -asynccompresscommand - -asyncdecompresscommand -
             -compresscommand - -decompresscommand {
                 set c([string range [lindex $args 0] 1 end]) [lindex $args 1]
@@ -78,7 +78,7 @@ proc cookfs::tcl::pages {args} {
     if {[llength $args] != 1} {
         error "No filename provided"
     }
-    
+
     if {[catch {
         if {$c(readonly)} {
             set c(fh) [open [lindex $args 0] r]
@@ -166,8 +166,8 @@ proc cookfs::pages::compress {name origdata} {
         }  else  {
             error "No compresscommand specified"
         }
-        
-    } 
+
+    }
     # if compression algorithm was not matched or
     #   we should not always compress and compressed data is not smaller, revert to uncompressed data
     if {(![info exists data]) || ((!$c(alwayscompress)) && ([string length $data] > [string length $origdata]))} {
@@ -277,7 +277,7 @@ proc cookfs::pages::readIndex {name msgVariable} {
         set msg "$::cookfs::pages::errorMessage: page sizes not found"
         return 0
     }
-    
+
     seek $c(fh) $idxoffset start
     set md5data [read $c(fh) [expr {$numpages * 16}]]
     set sizedata [read $c(fh) [expr {$numpages * 4}]]
@@ -356,7 +356,7 @@ proc cookfs::pages::pageAdd {name contents} {
         lappend c(idx.sizelist) [string length $contents]
         pagewrite $name $contents
     }
-    
+
     return $idx
 }
 
@@ -393,7 +393,7 @@ proc cookfs::pages::cleanup {name} {
         close $c(fh)
         set c(fh) ""
     }
-    
+
     return $c(endoffset)
 }
 
@@ -432,7 +432,7 @@ proc cookfs::pages::pageGetStored {name idx variableName {clean true}} {
         set fc $c(asyncwrites,$idx)
         return true
     }
-    
+
     if {[cacheGet $name $idx fc]} {
         return true
     }
@@ -563,7 +563,7 @@ proc cookfs::pages::asyncPreload {name idx} {
         return false
     }
 }
-    
+
 proc cookfs::pages::asyncGet {name idx variableName {clean true}} {
     upvar #0 $name c
     upvar 1 $variableName fc
@@ -689,13 +689,13 @@ proc cookfs::pages::handle {name cmd args} {
                 }
                 return $rc
             }
-            
+
         }
         length {
             if {[llength $args] == 0} {
                 return [llength $c(idx.sizelist)]
             }
-            
+
         }
         index {
             if {[llength $args] == 1} {
@@ -758,4 +758,4 @@ proc cookfs::pages::handle {name cmd args} {
     error "TODO: help"
 }
 
-package provide vfs::cookfs::tcl::pages 1.4
+package provide vfs::cookfs::tcl::pages 1.5.0

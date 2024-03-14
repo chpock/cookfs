@@ -1,7 +1,7 @@
 #!/bin/bash -norc
-dnl	This file is an input file used by the GNU "autoconf" program to
-dnl	generate the file "configure", which is run during Tcl installation
-dnl	to configure the system for the local environment.
+dnl        This file is an input file used by the GNU "autoconf" program to
+dnl        generate the file "configure", which is run during Tcl installation
+dnl        to configure the system for the local environment.
 #
 
 #-----------------------------------------------------------------------
@@ -10,7 +10,7 @@ dnl	to configure the system for the local environment.
 # so you can encode the package version directly into the source files.
 #-----------------------------------------------------------------------
 
-AC_INIT([cookfs],[1.4])
+AC_INIT([cookfs],[1.5.0])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -109,6 +109,7 @@ fi
 
 AC_ARG_ENABLE(internal-debug,  [  --enable-internal-debug   Enable internal debugging mechanism. Defaults to false],INTERNALDEBUG=${enableval},    INTERNALDEBUG=no)
 AC_ARG_ENABLE(bz2,             [  --enable-bz2              Use bz2 compression. Defaults to false],                USEBZ2=${enableval},           USEBZ2=no)
+AC_ARG_ENABLE(xz,              [  --enable-xz               Use xz compression. Defaults to false],                 USEXZ=${enableval},            USEXZ=no)
 AC_ARG_ENABLE(tcl-fallback,    [  --enable-tcl-fallback     Install Tcl scripts if load fails. Defaults to false],  USEFALLBACK=${enableval},      USEFALLBACK=no)
 AC_ARG_ENABLE(c-pages,         [  --disable-c-pages         Use pages handling written in C. Defaults to true],     USECPAGES=${enableval},        USECPAGES=yes)
 AC_ARG_ENABLE(c-fsindex,       [  --disable-c-fsindex       Use index handling written in C. Defaults to true],     USECFSINDEX=${enableval},      USECFSINDEX=yes)
@@ -130,21 +131,48 @@ if test ${USECPAGES} = yes; then
 
     # reader channel requires support for pages in C
     if test ${USECREADERCHAN} = yes; then
-	AC_DEFINE(COOKFS_USECREADERCHAN)
-	COOKFS_PKGCONFIG_USECREADERCHAN=1
-	TEA_ADD_SOURCES([readerchannel.c readerchannelIO.c])
+        AC_DEFINE(COOKFS_USECREADERCHAN)
+        COOKFS_PKGCONFIG_USECREADERCHAN=1
+        TEA_ADD_SOURCES([readerchannel.c readerchannelIO.c])
     else
-	COOKFS_PKGCONFIG_USECREADERCHAN=0
+        COOKFS_PKGCONFIG_USECREADERCHAN=0
     fi
 
     # enable bz2 files only if pages are handled using C
     if test ${USEBZ2} = yes; then
-	BUILDCCODE=yes
-	TEA_ADD_SOURCES([bzip2/blocksort.c bzip2/huffman.c bzip2/crctable.c bzip2/randtable.c bzip2/compress.c bzip2/decompress.c bzip2/bzlib.c])
-	AC_DEFINE(COOKFS_USEBZ2)
-	COOKFS_PKGCONFIG_USEBZ2=1
+        BUILDCCODE=yes
+        TEA_ADD_SOURCES([bzip2/blocksort.c bzip2/huffman.c bzip2/crctable.c bzip2/randtable.c bzip2/compress.c bzip2/decompress.c bzip2/bzlib.c])
+        AC_DEFINE(COOKFS_USEBZ2)
+        COOKFS_PKGCONFIG_USEBZ2=1
     else
-	COOKFS_PKGCONFIG_USEBZ2=0
+        COOKFS_PKGCONFIG_USEBZ2=0
+    fi
+
+    if test ${USEXZ} = yes; then
+        BUILDCCODE=yes
+        # XZ requires these CPU features: sse4.1 avx avx2
+        AC_MSG_CHECKING(for SSE4.1 instruction set)
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+            #include <smmintrin.h>
+        ]],[])],
+            [AC_MSG_RESULT(yes)],
+            [AC_MSG_RESULT([no, adding -msse4.1]); TEA_ADD_CFLAGS([-msse4.1])]
+        )
+        AC_MSG_CHECKING(for AVX/AVX2 instruction set)
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+            #include <immintrin.h>
+        ]],[[
+            __m256i sub2;
+        ]])],
+          [AC_MSG_RESULT(yes)],
+          [AC_MSG_RESULT([no, adding -mavx -mavx2]); TEA_ADD_CFLAGS([-mavx -mavx2])]
+        )
+        TEA_ADD_SOURCES([7zip/C/XzEnc.c 7zip/C/XzDec.c 7zip/C/LzmaEnc.c 7zip/C/Lzma2Enc.c 7zip/C/Lzma2Dec.c 7zip/C/Xz.c 7zip/C/XzIn.c 7zip/C/XzCrc64.c 7zip/C/XzCrc64Opt.c 7zip/C/LzFind.c 7zip/C/LzFindMt.c 7zip/C/LzFindOpt.c 7zip/C/MtCoder.c 7zip/C/MtDec.c 7zip/C/Sha256.c 7zip/C/Sha256Opt.c 7zip/C/7zCrc.c 7zip/C/7zCrcOpt.c 7zip/C/7zStream.c 7zip/C/Lzma86Enc.c 7zip/C/LzmaDec.c 7zip/C/CpuArch.c 7zip/C/Threads.c 7zip/C/Delta.c 7zip/C/Alloc.c 7zip/C/Bra.c 7zip/C/Bra86.c])
+        TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/7zip/C`\"])
+        AC_DEFINE(COOKFS_USEXZ)
+        COOKFS_PKGCONFIG_USEXZ=1
+    else
+        COOKFS_PKGCONFIG_USEXZ=0
     fi
 else
     COOKFS_PKGCONFIG_USECPAGES=0

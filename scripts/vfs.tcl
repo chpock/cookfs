@@ -277,7 +277,7 @@ proc cookfs::vfshandleOpen {fsid relative mode} {
             #vfs::log [list cookfs::vfshandleOpen $fsid $relative read+]
 
             set rc [cookfs::initMemchan $fsid $relative true]
-            
+
             #vfs::log [list cookfs::vfshandleOpen $fsid $relative result $rc]
             return $rc
         }
@@ -285,7 +285,7 @@ proc cookfs::vfshandleOpen {fsid relative mode} {
             #vfs::log [list cookfs::vfshandleOpen $fsid $relative write]
 
             set rc [cookfs::initMemchan $fsid $relative false]
-            
+
             #vfs::log [list cookfs::vfshandleOpen $fsid $relative result $rc]
             return $rc
         }
@@ -298,7 +298,7 @@ proc cookfs::vfshandleOpen {fsid relative mode} {
             set rc [cookfs::initMemchan $fsid $relative true]
 
             seek [lindex $rc 0] 0 end
-            
+
             #vfs::log [list cookfs::vfshandleOpen $fsid $relative result $rc]
             return $rc
         }
@@ -308,4 +308,4 @@ proc cookfs::vfshandleOpen {fsid relative mode} {
     }
 }
 
-package provide vfs::cookfs::tcl::vfs 1.4
+package provide vfs::cookfs::tcl::vfs 1.5.0

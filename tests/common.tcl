@@ -5,7 +5,7 @@ if {[info exists ::env(DEBUG)]} {
 proc randomData {bytes} {
     set rc {}
     for {set i 0} {$i < $bytes} {incr i 4} {
-	append rc [binary format I [expr {wide(rand()*0x100000000)}]]
+        append rc [binary format I [expr {wide(rand()*0x100000000)}]]
     }
     incr bytes -1
     return [string range $rc 0 $bytes]
@@ -14,55 +14,58 @@ proc randomData {bytes} {
 proc randomDatas {count bytes} {
     set rc {}
     for {set i 0} {$i < $count} {incr i} {
-	lappend rc [randomData $bytes]
+        lappend rc [randomData $bytes]
     }
     return $rc
 }
 
 proc testIfEqual {a b} {
     if {(![file exists $a]) || (![file exists $b])} {
-	return 0
+        return "file exists $a: [file exists $a]\nfile exists $b: [file exists $b]"
     }
 
-    if {[file mtime $a] != [file mtime $b]} {
-	return 0
+    # The 1-10 second difference is possible because 'file copy' doesn't copy
+    # mtime from source to destination. Thus, it is possible that the mtime
+    # in the source test data we just prepared is different from the mtime
+    # at the destination. However, we should catch a time difference of more
+    # than 10 seconds because that means something is wrong with
+    # the destination.
+    if { abs([file mtime $a] - [file mtime $b]) > 10 } {
+        return "file mtime $a: [file mtime $a]\nfile mtime $b: [file mtime $b]"
     }
 
     if {[file type $a] != [file type $b]} {
-	return 0
+        return "file type $a: [file type $a]\nfile type $b: [file type $b]"
     }
 
-    set ok 1
     if {[file type $a] == "file"} {
-	if {[file size $a] != [file size $b]} {
-	    return 0
-	}
-	set afh [open $a r]
-	set bfh [open $b r]
-	while {![eof $afh]} {
-	    set afc [read $afh 65536]
-	    set bfc [read $bfh 65536]
-	    if {![string equal $afc $bfc]} {
-		set ok 0
-		break
-	    }
-	}
-	close $afh
-	close $bfh
+        if {[file size $a] != [file size $b]} {
+            return "file size $a: [file size $a]\nfile size $b: [file size $b]"
+        }
+        set afh [open $a r]
+        set bfh [open $b r]
+        while {![eof $afh]} {
+            set afc [read $afh 65536]
+            set bfc [read $bfh 65536]
+            if {![string equal $afc $bfc]} {
+                return "file contents $a: $afc\nfile contents $b: $bfc"
+            }
+        }
+        close $afh
+        close $bfh
     }  elseif {[file type $a] == "directory"} {
-	set g [concat [glob -nocomplain -directory $a *] [glob -nocomplain -directory $b *]]
-	set g [lsort -unique $g]
-	foreach g $g {
-	    if {![testIfEqual [file join $a $g] [file join $b $g]]} {
-		set ok 0
-		break
-	    }
-	}
+        set g [concat [glob -nocomplain -directory $a *] [glob -nocomplain -directory $b *]]
+        set g [lsort -unique $g]
+        foreach g $g {
+            if {[set ok [testIfEqual [file join $a $g] [file join $b $g]]] ne "1"} {
+                return $ok
+            }
+        }
     }  else  {
-	# TODO: add testing of symbolic links if cookfs ever supports them
+        # TODO: add testing of symbolic links if cookfs ever supports them
     }
 
-    return $ok
+    return "1"
 }
 
 set testcompresscount 0
@@ -83,25 +86,25 @@ proc testdecompress {d {count 1}} {
 proc testasynccompress {cmd idx arg} {
     set rc {}
     if {[catch {
-	if {$cmd == "init"} {
-	    set ::testasynccompressqueue {}
-	    set ::testasynccompressqueuesize $idx
-	    set ::testasynccompresscount 0
-	    set ::testasynccompressfinalized 0
-	} elseif {$cmd == "process"} {
-	    incr ::testasynccompresscount
-	    lappend ::testasynccompressqueue $idx [testcompress $arg 0]
-	} elseif {$cmd == "wait"} {
-	    incr ::testasynccompresscount
-	    if {$arg || ([llength $::testasynccompressqueue] >= $::testasynccompressqueuesize)} {
-		set rc [lrange $::testasynccompressqueue 0 1]
-		set ::testasynccompressqueue [lrange $::testasynccompressqueue 2 end]
-	    }
-	} elseif {$cmd == "finalize"} {
-	    set ::testasynccompressfinalized 1
-	}
+        if {$cmd == "init"} {
+            set ::testasynccompressqueue {}
+            set ::testasynccompressqueuesize $idx
+            set ::testasynccompresscount 0
+            set ::testasynccompressfinalized 0
+        } elseif {$cmd == "process"} {
+            incr ::testasynccompresscount
+            lappend ::testasynccompressqueue $idx [testcompress $arg 0]
+        } elseif {$cmd == "wait"} {
+            incr ::testasynccompresscount
+            if {$arg || ([llength $::testasynccompressqueue] >= $::testasynccompressqueuesize)} {
+                set rc [lrange $::testasynccompressqueue 0 1]
+                set ::testasynccompressqueue [lrange $::testasynccompressqueue 2 end]
+            }
+        } elseif {$cmd == "finalize"} {
+            set ::testasynccompressfinalized 1
+        }
     } err]} {
-	cookfs::debug {Error in testasynccompress: $::errorInfo}
+        cookfs::debug {Error in testasynccompress: $::errorInfo}
     }
     return $rc
 }
@@ -109,25 +112,25 @@ proc testasynccompress {cmd idx arg} {
 proc testasyncdecompress {cmd idx arg} {
     set rc {}
     if {[catch {
-	if {$cmd == "init"} {
-	    set ::testasyncdecompressqueue {}
-	    set ::testasyncdecompressqueuesize $idx
-	    set ::testasynccompresscount 0
-	    set ::testasyncdecompressfinalized 0
-	} elseif {$cmd == "process"} {
-	    incr ::testasynccompresscount
-	    lappend ::testasyncdecompressqueue $idx [testdecompress $arg 0]
-	} elseif {$cmd == "wait"} {
-	    incr ::testasynccompresscount
-	    if {$arg || ([llength $::testasyncdecompressqueue] >= 2)} {
-		set rc [lrange $::testasyncdecompressqueue 0 1]
-		set ::testasyncdecompressqueue [lrange $::testasyncdecompressqueue 2 end]
-	    }
-	} elseif {$cmd == "finalize"} {
-	    set ::testasyncdecompressfinalized 1
-	}
+        if {$cmd == "init"} {
+            set ::testasyncdecompressqueue {}
+            set ::testasyncdecompressqueuesize $idx
+            set ::testasynccompresscount 0
+            set ::testasyncdecompressfinalized 0
+        } elseif {$cmd == "process"} {
+            incr ::testasynccompresscount
+            lappend ::testasyncdecompressqueue $idx [testdecompress $arg 0]
+        } elseif {$cmd == "wait"} {
+            incr ::testasynccompresscount
+            if {$arg || ([llength $::testasyncdecompressqueue] >= 2)} {
+                set rc [lrange $::testasyncdecompressqueue 0 1]
+                set ::testasyncdecompressqueue [lrange $::testasyncdecompressqueue 2 end]
+            }
+        } elseif {$cmd == "finalize"} {
+            set ::testasyncdecompressfinalized 1
+        }
     } err]} {
-	cookfs::debug {Error in testasyncdecompress: $::errorInfo}
+        cookfs::debug {Error in testasyncdecompress: $::errorInfo}
     }
     return $rc
 }
@@ -135,30 +138,30 @@ proc testasyncdecompress {cmd idx arg} {
 proc testasyncdecompressrandom {cmd idx arg} {
     set rc {}
     if {[catch {
-	if {$cmd == "init"} {
-	    set ::testasyncdecompressqueue {}
-	    set ::testasyncdecompressqueuesize $idx
-	    set ::testasyncdecompresscount 0
-	    set ::testasyncdecompressfinalized 0
-	    set ::testasyncdecompressprocesscount 0
-	    set ::testasyncdecompresswaitcount 0
-	} elseif {$cmd == "process"} {
-	    incr ::testasyncdecompresscount
-	    incr ::testasyncdecompressprocesscount
-	    lappend ::testasyncdecompressqueue $idx [testdecompress $arg 0]
-	} elseif {$cmd == "wait"} {
-	    incr ::testasyncdecompresscount
-	    incr ::testasyncdecompresswaitcount
-	    if {$arg || ([llength $::testasyncdecompressqueue] >= 2)} {
-		set i [expr {int(rand() * [llength $::testasyncdecompressqueue] / 2) * 2}]
-		set rc [lrange $::testasyncdecompressqueue $i [expr {$i + 1}]]
-		set ::testasyncdecompressqueue [lreplace $::testasyncdecompressqueue $i [expr {$i + 1}]]
-	    }
-	} elseif {$cmd == "finalize"} {
-	    set ::testasyncdecompressfinalized 1
-	}
+        if {$cmd == "init"} {
+            set ::testasyncdecompressqueue {}
+            set ::testasyncdecompressqueuesize $idx
+            set ::testasyncdecompresscount 0
+            set ::testasyncdecompressfinalized 0
+            set ::testasyncdecompressprocesscount 0
+            set ::testasyncdecompresswaitcount 0
+        } elseif {$cmd == "process"} {
+            incr ::testasyncdecompresscount
+            incr ::testasyncdecompressprocesscount
+            lappend ::testasyncdecompressqueue $idx [testdecompress $arg 0]
+        } elseif {$cmd == "wait"} {
+            incr ::testasyncdecompresscount
+            incr ::testasyncdecompresswaitcount
+            if {$arg || ([llength $::testasyncdecompressqueue] >= 2)} {
+                set i [expr {int(rand() * [llength $::testasyncdecompressqueue] / 2) * 2}]
+                set rc [lrange $::testasyncdecompressqueue $i [expr {$i + 1}]]
+                set ::testasyncdecompressqueue [lreplace $::testasyncdecompressqueue $i [expr {$i + 1}]]
+            }
+        } elseif {$cmd == "finalize"} {
+            set ::testasyncdecompressfinalized 1
+        }
     } err]} {
-	cookfs::debug {Error in testasyncdecompress: $::errorInfo}
+        cookfs::debug {Error in testasyncdecompress: $::errorInfo}
     }
     return $rc
 }

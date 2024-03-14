@@ -15,6 +15,7 @@ proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
 
 	    feature-aside "@COOKFS_PKGCONFIG_FEATURE_ASIDE@"
 	    feature-bzip2 "@COOKFS_PKGCONFIG_USEBZ2@"
+	    feature-xz    "@COOKFS_PKGCONFIG_USEXZ@"
 	    feature-metadata "@COOKFS_PKGCONFIG_FEATURE_METADATA@"
 	}
 	set pkgconfigInitialized 1
@@ -48,5 +49,5 @@ proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
     error "Usage: ::cookfs::pkgconfig list|get paramName"
 }
 
-package provide vfs::cookfs::pkgconfig 1.4
+package provide vfs::cookfs::pkgconfig 1.5.0
 

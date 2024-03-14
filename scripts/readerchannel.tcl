@@ -11,7 +11,7 @@ proc cookfs::createReadableChannel {fsid path} {
     variable dirlistParameters
     upvar #0 $fsid fs
 
-    # try to get information about specified path    
+    # try to get information about specified path
     if {[catch {
         set fileinfo [$fs(index) get $path]
     }]} {
@@ -149,7 +149,7 @@ proc cookfs::readableChannelHandler {fsid chid command args} {
             }
             set ch(offset) $currentoffset
             return $rc
-            
+
         }
         seek {
             # seek within the file
@@ -175,4 +175,4 @@ proc cookfs::readableChannelHandler {fsid chid command args} {
     }
 }
 
-package provide vfs::cookfs::tcl::readerchannel 1.4
+package provide vfs::cookfs::tcl::readerchannel 1.5.0

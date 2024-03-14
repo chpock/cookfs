@@ -247,12 +247,12 @@ and are stored and compressed as multiple files for efficiency.</p>
 <p>See <span class="sectref"><a href="#section4">COOKFS STORAGE</a></span> for more details on how cookfs stores files, index and metadata.</p></dd>
 <dt><b class="option">-smallfilebuffer</b> <i class="arg">bytes</i></dt>
 <dd><p>Specifies maximum buffer for small files. Specifying larger value allows
-storing more files in memory before saving them on disk. This can produce 
+storing more files in memory before saving them on disk. This can produce
 better compression ratio.</p>
 <p>See <span class="sectref"><a href="#section4">COOKFS STORAGE</a></span> for more details on how cookfs stores files, index and metadata.</p></dd>
 <dt><b class="option">-volume</b></dt>
 <dd><p>Register mount point as Tcl volume - useful for creating mount points in locations that do not exist - such as <i class="arg">archive://</i>.</p></dd>
-<dt><b class="option">-compression</b> <i class="arg">none|zlib|bzip2|custom</i></dt>
+<dt><b class="option">-compression</b> <i class="arg">none|zlib|bzip2|xz|custom</i></dt>
 <dd><p>Compression to use for storing new files.</p>
 <p>See <span class="sectref"><a href="#section5">COMPRESSSION</a></span> for more details on compression in cookfs.</p></dd>
 <dt><b class="option">-compresscommand</b> <i class="arg">tcl command</i></dt>
@@ -327,6 +327,9 @@ content should not be packed at all</p></li>
 use zlib compression to compress - same as with mk4vfs and zipvfs</p></li>
 <li><p><b class="const">bz2</b> -
 use bzip2 for compression; requires specifying <b class="const">--enable-bz2</b> when building
+cookfs</p></li>
+<li><p><b class="const">xz</b> -
+use xz for compression; requires specifying <b class="const">--enable-xz</b> when building
 cookfs</p></li>
 <li><p><b class="const">custom</b> -
 use Tcl commands for compressing and decompressing pages</p></li>

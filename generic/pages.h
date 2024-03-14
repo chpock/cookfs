@@ -3,6 +3,10 @@
 #ifndef COOKFS_PAGES_H
 #define COOKFS_PAGES_H 1
 
+#ifdef COOKFS_USEXZ
+#include "XzEnc.h"
+#endif
+
 /* only handle pages code if enabled in configure */
 #ifdef COOKFS_USECPAGES
 
@@ -46,6 +50,12 @@ typedef struct Cookfs_AsyncPage {
 typedef struct Cookfs_Pages {
     /* main interp */
     Tcl_Interp *interp;
+#ifdef COOKFS_USEXZ
+    CXzProps xzEncoderProps;
+    CXzEncHandle xzEncoder;
+    CXzDecMtProps xzDecoderProps;
+    CXzDecMtHandle xzDecoder;
+#endif
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
     Tcl_Obj *zipCmdCrc[2];
     Tcl_Obj *zipCmdCompress[6];
@@ -81,7 +91,7 @@ typedef struct Cookfs_Pages {
     Tcl_Obj *dataIndex;
     int dataPagesIsAside;
     struct Cookfs_Pages *dataAsidePages;
-    
+
     /* compression information */
     int alwaysCompress;
     int compressCommandLen;
@@ -92,19 +102,19 @@ typedef struct Cookfs_Pages {
     Tcl_Obj **asyncCompressCommandPtr;
     int asyncDecompressCommandLen;
     Tcl_Obj **asyncDecompressCommandPtr;
-    
+
     /* cache */
     int cacheSize;
     int cachePageIdx[COOKFS_MAX_CACHE_PAGES];
     Tcl_Obj *cachePageObj[COOKFS_MAX_CACHE_PAGES];
-    
+
     /* async compress */
     Tcl_Obj *asyncCommandProcess;
     Tcl_Obj *asyncCommandWait;
     Tcl_Obj *asyncCommandFinalize;
     int asyncPageSize;
     Cookfs_AsyncPage asyncPage[COOKFS_PAGES_MAX_ASYNC];
-    
+
     /* async decompress */
     int asyncDecompressQueue;
     int asyncDecompressQueueSize;

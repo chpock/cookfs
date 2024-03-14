@@ -1,3 +1,6 @@
 [submodule "tclconfig"]
 	path = tclconfig
 	url = https://github.com/tcltk/tclconfig.git
+[submodule "7zip"]
+	path = 7zip
+	url = https://github.com/ip7z/7zip.git

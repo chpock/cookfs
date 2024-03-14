@@ -17,7 +17,7 @@ static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc,
 static void CookfsPagesDeleteProc(ClientData clientData);
 static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
-
+
 /*
  *----------------------------------------------------------------------
  *
@@ -43,7 +43,7 @@ int Cookfs_InitPagesCmd(Tcl_Interp *interp) {
 }
 
 /* command for creating new objects that deal with pages */
-
+
 /* definitions of static and/or internal functions */
 
 /*
@@ -83,7 +83,11 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     int cmdidx = ++deprecatedCounter;
     int idx;
     int oReadOnly = 0;
+#ifdef COOKFS_USEXZ
+    int oCompression = COOKFS_COMPRESSION_XZ;
+#else
     int oCompression = COOKFS_COMPRESSION_ZLIB;
+#endif
     int tobjc = objc;
     int oCachesize = -1;
     int useFoffset = 0;
@@ -173,7 +177,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                     return TCL_ERROR;
                 }
                 break;
-                
+
             }
             case optCachesize: {
                 int csize;
@@ -247,7 +251,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     Tcl_CreateObjCommand(interp, buf, CookfsPagesCmd, (ClientData) pages, CookfsPagesDeleteProc);
 
     CookfsLog(printf("Cookfs Page Cmd: %s", buf))
-    Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));   
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
     return TCL_OK;
 
 ERROR:
@@ -256,7 +260,7 @@ ERROR:
 }
 
 /* command for creating new objects that deal with pages */
-
+
 /*
  *----------------------------------------------------------------------
  *
@@ -281,7 +285,7 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
     enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail, cmdGetTailMD5, cmdHash, cmdIndex, cmdLength, cmdDataoffset, cmdClose, cmdDelete, cmdCachesize, cmdFilesize, cmdCompression };
     int idx;
     Cookfs_Pages *p = (Cookfs_Pages *) clientData;
-    
+
     if (objc < 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "option ?args?");
         return TCL_ERROR;
@@ -535,8 +539,8 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
     }
     return TCL_OK;
 }
-
- 
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -557,7 +561,7 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
 static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     static char *commands[] = { "md5", "crc32", NULL };
     int idx;
-    
+
     if (objc != 3) {
         Tcl_WrongNumArgs(interp, 2, objv, "hash");
         return TCL_ERROR;
@@ -572,7 +576,7 @@ static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc,
     return TCL_OK;
 }
 
-
+
 /*
  *----------------------------------------------------------------------
  *
