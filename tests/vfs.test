@@ -150,11 +150,9 @@ tcltest::test cookfsVfs-1.9 "Test storing same files" -setup {
 
 tcltest::test cookfsVfs-2.1 "Test compressing entire directory structure" -setup {
     set dir [tcltest::makeDirectory cookfs.vfs]
+    makeSimpleTree $dir
     set file [tcltest::makeFile {} cookfs.cfs]
 } -body {
-    foreach d {scripts generic tclconfig configure} {
-        file copy -force [file join [tcltest::testsDirectory] .. $d] [file join $dir $d]
-    }
     vfs::cookfs::Mount $file $file
     file copy -force $dir [file join $file vfs]
     testIfEqual $dir [file join $file vfs]
@@ -166,11 +164,9 @@ tcltest::test cookfsVfs-2.1 "Test compressing entire directory structure" -setup
 
 tcltest::test cookfsVfs-2.2 "Test compressing entire directory structure after remount" -setup {
     set dir [tcltest::makeDirectory cookfs.vfs]
+    makeSimpleTree $dir
     set file [tcltest::makeFile {} cookfs.cfs]
 } -body {
-    foreach d {scripts generic tclconfig configure} {
-        file copy -force [file join [tcltest::testsDirectory] .. $d] [file join $dir $d]
-    }
     vfs::cookfs::Mount $file $file
     file copy -force $dir [file join $file vfs]
     vfs::unmount $file

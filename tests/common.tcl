@@ -2,6 +2,45 @@ if {[info exists ::env(DEBUG)]} {
     proc cookfs::debug {code} {puts [uplevel 1 [list subst $code]]}
 }
 
+proc makeTree { dir tree } {
+    file mkdir $dir
+    foreach { type name data } $tree {
+        switch -glob -- $type {
+            f* {
+                set fp [open [file join $dir $name] w]
+                puts -nonewline $fp [string repeat "a" $data]
+                close $fp
+            }
+            d* {
+                makeTree [file join $dir $name] $data
+            }
+        }
+    }
+}
+
+proc makeSimpleTree { dir } {
+    makeTree $dir {
+        file rootfile1 10
+        file emptyfile 0
+        file bigfile 0xffffff
+        dir firstsubd {
+            file emptyfile 0
+            file bigfile 0xfff1
+            dir 2ndfir {
+                file "with spaces.txt" 20
+                dir "with spaces" {
+                    file null 0
+                }
+                dir emptydir {
+                }
+            }
+        }
+        dir anotherdir {
+            file foobar 1
+        }
+    }
+}
+
 proc randomData {bytes} {
     set rc {}
     for {set i 0} {$i < $bytes} {incr i 4} {

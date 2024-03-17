@@ -1,3 +1,6 @@
+2024-03-17 Konstantin Kushnir <chpock@gmail.com>
+	* Refactor tests to not depend on source files
+
 2024-03-14 Konstantin Kushnir <chpock@gmail.com>
 	* Bumped minimum Tcl version to 8.5.0
 	* Enable compiler warnings
