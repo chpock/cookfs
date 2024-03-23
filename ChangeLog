@@ -1,3 +1,7 @@
+2024-03-23 Konstantin Kushnir <chpock@gmail.com>
+	* Set compression level 9 for xz
+	* Make test cookfsVfs-1.9 more verbose as it fails randomly
+
 2024-03-17 Konstantin Kushnir <chpock@gmail.com>
 	* Refactor tests to not depend on source files
 

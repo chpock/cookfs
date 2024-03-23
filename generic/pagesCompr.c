@@ -165,6 +165,9 @@ void Cookfs_PagesInitCompr(Cookfs_Pages *rc) {
     XzProps_Init(&rc->xzEncoderProps);
     // don't use XZ checks by crc as we sign all pages
     rc->xzEncoderProps.checkId = XZ_CHECK_NO;
+    // level - compression level: 0 <= level <= 9
+    // The default value for "level" is 5
+    rc->xzEncoderProps.lzma2Props.lzmaProps.level = 9;
 
     rc->xzEncoder = NULL;
     // TODO: check for an error here, XzEnc_Create may return NULL if there is not enough memory.
