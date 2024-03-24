@@ -59,7 +59,14 @@ foreach { cid } { none zlib bz2 xz } {
         set dir  [tcltest::makeDirectory test]
         # 128 bytes of random and high entropy data. Any compression should be inefficient with it.
         set data [binary format H* d131dd02c5e6eec4693d9a0698aff95c2fcab58712467eab4004583eb8fb7f8955ad340609f4b30283e488832571415a085125e8f7cdc99fd91dbdf280373c5bd8823e3156348f5bae6dacd436c919c6dd53e2b487da03fd02396306d248cda0e99f33420f577ee8ce54b67080a80d1ec69821bcb6a8839396f9652b6ff72a70]
-        tcltest::makeFile $data test1 $dir
+        # Do not save data with makeFile because it treats the file as a text file.
+        # We need to store the data in binary form.
+        set file1 [tcltest::makeFile {} test1 $dir]
+        # Store the data
+        set fp [open $file1 w]
+        fconfigure $fp -encoding binary -translation binary
+        puts -nonewline $fp $data
+        close $fp
     } -body {
         vfs::cookfs::Mount -compression $cid $file $file
         file copy -force $dir [file join $file vfs]
@@ -71,11 +78,11 @@ foreach { cid } { none zlib bz2 xz } {
         set pg [cookfs::pages $file]
         lappend ok [$pg length]
         # the page '0' contains the 'test1' file only and it must be uncompressed
-        # i.e. its size should equal to 130 ( 1 (compression method) + 128 (data) + 1 (newline) )
+        # i.e. its size should equal to 129 ( 1 (compression method) + 128 (data) )
         set page_size [expr { [$pg filesize] - [$pg dataoffset 0] }]
         $pg delete
         lappend ok $page_size
-    } -result {1 1 130} -cleanup {
+    } -result {1 1 129} -cleanup {
         catch { vfs::unmount $file }
         catch { $pg delete }
         file delete -force $file $dir
