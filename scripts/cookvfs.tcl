@@ -18,16 +18,28 @@ proc cookfs::debug {args} {}
 
 proc cookfs::pages {args} {
     if {[pkgconfig get c-pages]} {
+	if {![llength [info commands ::cookfs::c::pages]]} {
+	    package require vfs::cookfs::c::pages [pkgconfig get package-version]
+	}
 	return [uplevel #0 [concat [list ::cookfs::c::pages] $args]]
     }  else  {
+	if {![llength [info commands ::cookfs::tcl::pages]]} {
+	    package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
+	}
 	return [uplevel #0 [concat [list ::cookfs::tcl::pages] $args]]
     }
 }
 
 proc cookfs::fsindex {args} {
     if {[pkgconfig get c-fsindex]} {
+	if {![llength [info commands ::cookfs::c::fsindex]]} {
+	    package require vfs::cookfs::c::fsindex [pkgconfig get package-version]
+	}
 	return [uplevel #0 [concat [list ::cookfs::c::fsindex] $args]]
     }  else  {
+	if {![llength [info commands ::cookfs::tcl::fsindex]]} {
+	    package require vfs::cookfs::tcl::fsindex [pkgconfig get package-version]
+	}
 	return [uplevel #0 [concat [list ::cookfs::tcl::fsindex] $args]]
     }
 }
@@ -49,35 +61,25 @@ proc cookfs::initialize {} {
 	package require vfs::cookfs::tcl::writer [pkgconfig get package-version]
 	package require vfs::cookfs::tcl::optimize [pkgconfig get package-version]
 
-	package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
 	# load C version of Pages if available
 	if {[pkgconfig get c-pages]} {
-	    if {[catch {
-		package require vfs::cookfs::c [pkgconfig get package-version]
-	    }]} {
-		pkgconfig set c-pages 0
-	    }
+	    package require vfs::cookfs::c [pkgconfig get package-version]
+    } {
+	    package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
 	}
 
-	package require vfs::cookfs::tcl::fsindex [pkgconfig get package-version]
 	# load C version of Fsindex if available
 	if {[pkgconfig get c-fsindex]} {
-	    if {[catch {
-		package require vfs::cookfs::c [pkgconfig get package-version]
-	    }]} {
-		pkgconfig set c-fsindex 0
-	    }
+	    package require vfs::cookfs::c [pkgconfig get package-version]
+    } {
+	    package require vfs::cookfs::tcl::fsindex [pkgconfig get package-version]
 	}
 
-	package require vfs::cookfs::tcl::readerchannel [pkgconfig get package-version]
+    package require vfs::cookfs::tcl::readerchannel [pkgconfig get package-version]
 	# load C version of Readerchannel if available
 	if {[pkgconfig get c-readerchannel]} {
-	    if {[catch {
-		package require vfs::cookfs::c [pkgconfig get package-version]
-	    }]} {
-		pkgconfig set c-readerchannel 0
-	    }
-	}
+	    package require vfs::cookfs::c [pkgconfig get package-version]
+    }
 
 	set pkginitialized 1
     }

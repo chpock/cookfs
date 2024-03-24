@@ -1,5 +1,6 @@
 2024-03-24 Konstantin Kushnir <chpock@gmail.com>
 	* Fix pkgconfig for xz feature status
+	* Don't load tcl versions of ::pages and ::fsindex by default
 
 2024-03-23 Konstantin Kushnir <chpock@gmail.com>
 	* Set compression level 9 for xz
