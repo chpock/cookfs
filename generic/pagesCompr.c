@@ -1266,6 +1266,7 @@ static int CookfsWritePageXz(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
     XzInStream istream;
     XzOutStream ostream;
     SRes res;
+    Tcl_Obj *bufObj;
 
     // the xz format adds 48 bytes overhead, even if compression is inefficient
     // and the data is stored in plain format. Thus, return -1 if the page size
@@ -1283,15 +1284,15 @@ static int CookfsWritePageXz(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
         return -1;
     }
 
+    bufObj = Tcl_NewByteArrayObj(NULL, 0);
+    Tcl_IncrRefCount(bufObj);
+
     istream.funcTable.Read = XzInStreamRead;
     istream.size = origSize;
     istream.offset = 0;
     ostream.funcTable.Write = XzOutStreamWrite;
-    ostream.chan = p->fileChannel;
     ostream.size = 0;
-    ostream.destObj = NULL;
-
-    CookfsWriteCompression(p, COOKFS_COMPRESSION_XZ);
+    ostream.destObj = bufObj;
 
     CookfsLog(printf("CookfsWritePageXz: Xz_Encode..."));
 
@@ -1300,11 +1301,22 @@ static int CookfsWritePageXz(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
 
     if (res != SZ_OK) {
         CookfsLog(printf("CookfsWritePageXz: Xz_Encode failed"));
+        Tcl_DecrRefCount(bufObj);
         return -1;
     }
 
-    CookfsLog(printf("CookfsWritePageXz: size=%d (to %d)", origSize, ostream.size));
+    CookfsLog(printf("CookfsWritePageXz: encoded from size=%d bytes to %d bytes", origSize, ostream.size));
 
+    if (SHOULD_COMPRESS(p, origSize, ostream.size)) {
+        CookfsLog(printf("CookfsWritePageXz: write the compressed data"));
+        CookfsWriteCompression(p, COOKFS_COMPRESSION_XZ);
+        Tcl_WriteObj(p->fileChannel, bufObj);
+    }  else  {
+        CookfsLog(printf("CookfsWritePageXz: compression is inefficient, return -1"));
+        ostream.size = -1;
+    }
+
+    Tcl_DecrRefCount(bufObj);
     return ostream.size;
 #else
     return -1;

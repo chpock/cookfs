@@ -31,6 +31,11 @@ if {[cookfs::pkgconfig get feature-metadata]} {
     lappend constraints cookfsMetadata
 }
 
+tcltest::testConstraint cookfsCompressionNone 1
+tcltest::testConstraint cookfsCompressionZlib 1
+tcltest::testConstraint cookfsCompressionBz2  [cookfs::pkgconfig get feature-bzip2]
+tcltest::testConstraint cookfsCompressionXz   [cookfs::pkgconfig get feature-xz]
+
 tcltest::configure -constraints $constraints
 
 puts stdout "Tests running in interp:  [info nameofexecutable]"
