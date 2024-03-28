@@ -1,3 +1,7 @@
+2024-03-29 Konstantin Kushnir <chpock@gmail.com>
+	* Add procedures for md5/sha1/sha256 hashes
+	* Fix minor compiler warnings
+
 2024-03-24 Konstantin Kushnir <chpock@gmail.com>
 	* Fix pkgconfig for xz feature status
 	* Don't load tcl versions of ::pages and ::fsindex by default

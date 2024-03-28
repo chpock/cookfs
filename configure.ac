@@ -52,7 +52,7 @@ TEA_PREFIX
 
 TEA_SETUP_COMPILER
 
-TEA_ADD_SOURCES([cookfs.c common.c md5.h bindata.c])
+TEA_ADD_SOURCES([cookfs.c common.c md5.h bindata.c hashes.c])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/generic`\"])
 TEA_ADD_LIBS([])
@@ -168,6 +168,8 @@ if test ${USECPAGES} = yes; then
           [AC_MSG_RESULT([no, adding -mavx -mavx2]); TEA_ADD_CFLAGS([-mavx -mavx2])]
         )
         TEA_ADD_SOURCES([7zip/C/XzEnc.c 7zip/C/XzDec.c 7zip/C/LzmaEnc.c 7zip/C/Lzma2Enc.c 7zip/C/Lzma2Dec.c 7zip/C/Xz.c 7zip/C/XzIn.c 7zip/C/XzCrc64.c 7zip/C/XzCrc64Opt.c 7zip/C/LzFind.c 7zip/C/LzFindMt.c 7zip/C/LzFindOpt.c 7zip/C/MtCoder.c 7zip/C/MtDec.c 7zip/C/Sha256.c 7zip/C/Sha256Opt.c 7zip/C/7zCrc.c 7zip/C/7zCrcOpt.c 7zip/C/7zStream.c 7zip/C/Lzma86Enc.c 7zip/C/LzmaDec.c 7zip/C/CpuArch.c 7zip/C/Threads.c 7zip/C/Delta.c 7zip/C/Alloc.c 7zip/C/Bra.c 7zip/C/Bra86.c])
+        # only for ::cookfs::c::sha1 command
+        TEA_ADD_SOURCES([7zip/C/Sha1.c 7zip/C/Sha1Opt.c])
         TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/7zip/C`\"])
         AC_DEFINE(COOKFS_USEXZ)
         COOKFS_PKGCONFIG_USEXZ=1

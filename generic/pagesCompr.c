@@ -1307,7 +1307,7 @@ static int CookfsWritePageXz(Cookfs_Pages *p, Tcl_Obj *data, int origSize) {
 
     CookfsLog(printf("CookfsWritePageXz: encoded from size=%d bytes to %d bytes", origSize, ostream.size));
 
-    if (SHOULD_COMPRESS(p, origSize, ostream.size)) {
+    if (SHOULD_COMPRESS(p, (unsigned int)origSize, ostream.size)) {
         CookfsLog(printf("CookfsWritePageXz: write the compressed data"));
         CookfsWriteCompression(p, COOKFS_COMPRESSION_XZ);
         Tcl_WriteObj(p->fileChannel, bufObj);

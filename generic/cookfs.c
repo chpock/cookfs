@@ -63,6 +63,10 @@ Cookfs_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
+    if (Cookfs_InitHashesCmd(interp) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
     return TCL_OK;
 }
 

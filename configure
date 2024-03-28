@@ -5352,7 +5352,7 @@ printf "%s\n" "#define AC_APPLE_UNIVERSAL_BUILD 1" >>confdefs.h
 
 
 
-    vars="cookfs.c common.c md5.h bindata.c"
+    vars="cookfs.c common.c md5.h bindata.c hashes.c"
     for i in $vars; do
 	case $i in
 	    \$*)
@@ -8861,6 +8861,42 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 
     vars="7zip/C/XzEnc.c 7zip/C/XzDec.c 7zip/C/LzmaEnc.c 7zip/C/Lzma2Enc.c 7zip/C/Lzma2Dec.c 7zip/C/Xz.c 7zip/C/XzIn.c 7zip/C/XzCrc64.c 7zip/C/XzCrc64Opt.c 7zip/C/LzFind.c 7zip/C/LzFindMt.c 7zip/C/LzFindOpt.c 7zip/C/MtCoder.c 7zip/C/MtDec.c 7zip/C/Sha256.c 7zip/C/Sha256Opt.c 7zip/C/7zCrc.c 7zip/C/7zCrcOpt.c 7zip/C/7zStream.c 7zip/C/Lzma86Enc.c 7zip/C/LzmaDec.c 7zip/C/CpuArch.c 7zip/C/Threads.c 7zip/C/Delta.c 7zip/C/Alloc.c 7zip/C/Bra.c 7zip/C/Bra86.c"
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
+		    ; then
+		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+        # only for ::cookfs::c::sha1 command
+
+    vars="7zip/C/Sha1.c 7zip/C/Sha1Opt.c"
     for i in $vars; do
 	case $i in
 	    \$*)

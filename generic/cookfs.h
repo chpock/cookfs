@@ -27,6 +27,7 @@
 
 #include "common.h"
 #include "bindata.h"
+#include "hashes.h"
 
 #ifdef COOKFS_USECPAGES
 #include "pages.h"
