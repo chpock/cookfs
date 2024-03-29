@@ -16,25 +16,25 @@ if {![info exists cookfs::mountId]} {
 # by default ignore call to cookfs::debug
 proc cookfs::debug {args} {}
 
-proc cookfs::md5 {data} {
+proc cookfs::md5 {args} {
     if { ![llength [info commands ::cookfs::c::md5]] } {
 	return -code error "cookfs::md5 is not supported in this package"
     }
-    tailcall ::cookfs::c::md5 $data
+    tailcall ::cookfs::c::md5 {*}$args
 }
 
-proc cookfs::sha256 {data} {
+proc cookfs::sha256 {args} {
     if { ![llength [info commands ::cookfs::c::sha256]] } {
 	return -code error "cookfs::sha256 is not supported in this package"
     }
-    tailcall ::cookfs::c::sha256 $data
+    tailcall ::cookfs::c::sha256 {*}$args
 }
 
-proc cookfs::sha1 {data} {
+proc cookfs::sha1 {args} {
     if { ![llength [info commands ::cookfs::c::sha1]] } {
 	return -code error "cookfs::sha1 is not supported in this package"
     }
-    tailcall ::cookfs::c::sha1 $data
+    tailcall ::cookfs::c::sha1 {*}$args
 }
 
 proc cookfs::pages {args} {

@@ -1,9 +1,13 @@
 
 # MD5 tests
 
-tcltest::test cookfsHashesMD5-1 {empty data} -body {
+tcltest::test cookfsHashesMD5-1.1 {empty data} -body {
     ::cookfs::md5 ""
 } -result D41D8CD98F00B204E9800998ECF8427E
+
+tcltest::test cookfsHashesMD5-1.2 {-bin, empty data} -body {
+    binary encode hex [::cookfs::md5 -bin ""]
+} -result d41d8cd98f00b204e9800998ecf8427e
 
 tcltest::test cookfsHashesMD5-2 {1 byte data} -body {
     ::cookfs::md5 "a"
@@ -19,25 +23,33 @@ tcltest::test cookfsHashesMD5-4 {1kb+1 byte data} -body {
 
 tcltest::test cookfsHashesMD5-5.1 {no args} -body {
     ::cookfs::md5
-} -returnCodes error -result {wrong # args: should be "::cookfs::md5 data"}
+} -returnCodes error -result {wrong # args: should be "::cookfs::c::md5 ?-bin? data"}
 
 tcltest::test cookfsHashesMD5-5.2 {no args} -body {
     ::cookfs::c::md5
-} -returnCodes error -result {wrong # args: should be "::cookfs::c::md5 data"}
+} -returnCodes error -result {wrong # args: should be "::cookfs::c::md5 ?-bin? data"}
 
-tcltest::test cookfsHashesMD5-6.1 {wrong # args} -body {
+tcltest::test cookfsHashesMD5-5.3 {too many args} -body {
+    ::cookfs::c::md5 1 2 3
+} -returnCodes error -result {wrong # args: should be "::cookfs::c::md5 ?-bin? data"}
+
+tcltest::test cookfsHashesMD5-6.1 {wrong args} -body {
     ::cookfs::md5 1 2
-} -returnCodes error -result {wrong # args: should be "::cookfs::md5 data"}
+} -returnCodes error -result {bad option "1": must be -bin}
 
-tcltest::test cookfsHashesMD5-6.2 {wrong # args} -body {
+tcltest::test cookfsHashesMD5-6.2 {wrong args} -body {
     ::cookfs::c::md5 1 2
-} -returnCodes error -result {wrong # args: should be "::cookfs::c::md5 data"}
+} -returnCodes error -result {bad option "1": must be -bin}
 
 # SHA256 tests
 
-tcltest::test cookfsHashesSHA256-1 {empty data} -constraints cookfsCompressionXz -body {
+tcltest::test cookfsHashesSHA256-1.1 {empty data} -constraints cookfsCompressionXz -body {
     ::cookfs::sha256 ""
 } -result E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855
+
+tcltest::test cookfsHashesSHA256-1.2 {-bin, empty data} -body {
+    binary encode hex [::cookfs::sha256 -bin ""]
+} -result e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 
 tcltest::test cookfsHashesSHA256-2 {1 byte data} -constraints cookfsCompressionXz -body {
     ::cookfs::sha256 "a"
@@ -53,25 +65,33 @@ tcltest::test cookfsHashesSHA256-4 {1kb+1 byte data} -constraints cookfsCompress
 
 tcltest::test cookfsHashesSHA256-5.1 {no args} -constraints cookfsCompressionXz -body {
     ::cookfs::sha256
-} -returnCodes error -result {wrong # args: should be "::cookfs::sha256 data"}
+} -returnCodes error -result {wrong # args: should be "::cookfs::c::sha256 ?-bin? data"}
 
 tcltest::test cookfsHashesSHA256-5.2 {no args} -constraints cookfsCompressionXz -body {
     ::cookfs::c::sha256
-} -returnCodes error -result {wrong # args: should be "::cookfs::c::sha256 data"}
+} -returnCodes error -result {wrong # args: should be "::cookfs::c::sha256 ?-bin? data"}
 
-tcltest::test cookfsHashesSHA256-6.1 {wrong # args} -constraints cookfsCompressionXz -body {
+tcltest::test cookfsHashesSHA256-5.3 {too many args} -constraints cookfsCompressionXz -body {
+    ::cookfs::c::sha256 1 2 3
+} -returnCodes error -result {wrong # args: should be "::cookfs::c::sha256 ?-bin? data"}
+
+tcltest::test cookfsHashesSHA256-6.1 {wrong args} -constraints cookfsCompressionXz -body {
     ::cookfs::sha256 1 2
-} -returnCodes error -result {wrong # args: should be "::cookfs::sha256 data"}
+} -returnCodes error -result {bad option "1": must be -bin}
 
-tcltest::test cookfsHashesSHA256-6.2 {wrong # args} -constraints cookfsCompressionXz -body {
+tcltest::test cookfsHashesSHA256-6.2 {wrong args} -constraints cookfsCompressionXz -body {
     ::cookfs::c::sha256 1 2
-} -returnCodes error -result {wrong # args: should be "::cookfs::c::sha256 data"}
+} -returnCodes error -result {bad option "1": must be -bin}
 
 # SHA1 tests
 
-tcltest::test cookfsHashesSHA1-1 {empty data} -constraints cookfsCompressionXz -body {
+tcltest::test cookfsHashesSHA1-1.1 {empty data} -constraints cookfsCompressionXz -body {
     ::cookfs::sha1 ""
 } -result DA39A3EE5E6B4B0D3255BFEF95601890AFD80709
+
+tcltest::test cookfsHashesSHA1-1.2 {-bin, empty data} -constraints cookfsCompressionXz -body {
+    binary encode hex [::cookfs::sha1 -bin ""]
+} -result da39a3ee5e6b4b0d3255bfef95601890afd80709
 
 tcltest::test cookfsHashesSHA1-2 {1 byte data} -constraints cookfsCompressionXz -body {
     ::cookfs::sha1 "a"
@@ -87,16 +107,20 @@ tcltest::test cookfsHashesSHA1-4 {1kb+1 byte data} -constraints cookfsCompressio
 
 tcltest::test cookfsHashesSHA1-5.1 {no args} -constraints cookfsCompressionXz -body {
     ::cookfs::sha1
-} -returnCodes error -result {wrong # args: should be "::cookfs::sha1 data"}
+} -returnCodes error -result {wrong # args: should be "::cookfs::c::sha1 ?-bin? data"}
 
 tcltest::test cookfsHashesSHA1-5.2 {no args} -constraints cookfsCompressionXz -body {
     ::cookfs::c::sha1
-} -returnCodes error -result {wrong # args: should be "::cookfs::c::sha1 data"}
+} -returnCodes error -result {wrong # args: should be "::cookfs::c::sha1 ?-bin? data"}
 
-tcltest::test cookfsHashesSHA1-6.1 {wrong # args} -constraints cookfsCompressionXz -body {
+tcltest::test cookfsHashesSHA256-5.3 {too many args} -constraints cookfsCompressionXz -body {
+    ::cookfs::c::sha1 1 2 3
+} -returnCodes error -result {wrong # args: should be "::cookfs::c::sha1 ?-bin? data"}
+
+tcltest::test cookfsHashesSHA1-6.1 {wrong args} -constraints cookfsCompressionXz -body {
     ::cookfs::sha1 1 2
-} -returnCodes error -result {wrong # args: should be "::cookfs::sha1 data"}
+} -returnCodes error -result {bad option "1": must be -bin}
 
-tcltest::test cookfsHashesSHA1-6.2 {wrong # args} -constraints cookfsCompressionXz -body {
+tcltest::test cookfsHashesSHA1-6.2 {wrong args} -constraints cookfsCompressionXz -body {
     ::cookfs::c::sha1 1 2
-} -returnCodes error -result {wrong # args: should be "::cookfs::c::sha1 data"}
+} -returnCodes error -result {bad option "1": must be -bin}
