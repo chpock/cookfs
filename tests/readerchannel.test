@@ -1,0 +1,157 @@
+
+tcltest::test cookfsReaderChannel-1 {read from multiple pages} -setup {
+    set vfs  [tcltest::makeFile {} cookfs.cfs]
+    # page size is 899 bytes
+    vfs::cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
+    set data "[string repeat "TEST" 1000]\n"
+    # 4x1000+<newline> = 4001 bytes
+    set file [tcltest::makeFile $data test $vfs]
+    vfs::unmount $vfs
+} -body {
+    set pg [cookfs::pages $vfs]
+    set fs [cookfs::fsindex [$pg index]]
+    set result [list]
+    # we expect 4001/900 = 4.4 = 5 pages
+    lappend result [$pg length]
+    # file size: 4001
+    lappend result [lindex [$fs get test] 1]
+    # page records = 5*3 = 15
+    lappend result [llength [lindex [$fs get test] 2]]
+    vfs::cookfs::Mount -readonly $vfs $vfs -pagesobject $pg -fsindexobject $fs
+    set fp [open $file r]
+    fconfigure $fp -translation binary -encoding binary
+    # read the first 1000 bytes
+    lappend result [expr { [read $fp 1000] eq [string range $data 0 999] }]
+    # read the last 1000 bytes
+    seek $fp -1000 end
+    lappend result [expr { [read $fp 1000] eq [string range $data end-999 end] }]
+    close $fp
+    vfs::unmount $vfs
+    set result
+} -result {5 4001 15 1 1} -cleanup {
+    catch { vfs::unmount $vfs }
+    file delete -force $vfs
+    unset vfs file
+    unset -nocomplain pg fs fp
+}
+
+tcltest::test cookfsReaderChannel-2 {full read with multiple pages} -setup {
+    set vfs  [tcltest::makeFile {} cookfs.cfs]
+    # page size is 899 bytes
+    vfs::cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
+    set data "[string repeat "TEST" 1000]\n"
+    # 4x1000+<newline> = 4001 bytes
+    set file [tcltest::makeFile $data test $vfs]
+    vfs::unmount $vfs
+} -body {
+    vfs::cookfs::Mount -readonly $vfs $vfs
+    set result ""
+    set fp [open $file r]
+    fconfigure $fp -translation binary -encoding binary
+    while { ![eof $fp] } {
+        append result [read $fp 11]
+    }
+    close $fp
+    vfs::unmount $vfs
+    list [string length $result] [expr { $result eq $data }]
+} -result {4001 1} -cleanup {
+    catch { vfs::unmount $vfs }
+    file delete -force $vfs
+    unset vfs file
+    unset -nocomplain result fp
+}
+
+tcltest::test cookfsReaderChannel-3 {position when reading a file sequentially over several pages} -setup {
+    set vfs  [tcltest::makeFile {} cookfs.cfs]
+    # page size is 899 bytes
+    vfs::cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
+    set data "[string repeat "TEST" 1000]\n"
+    # 4x1000+<newline> = 4001 bytes
+    set file [tcltest::makeFile $data test $vfs]
+    vfs::unmount $vfs
+} -body {
+    vfs::cookfs::Mount -readonly $vfs $vfs
+    set result [list]
+    set expected 0
+    set fp [open $file r]
+    fconfigure $fp -translation binary -encoding binary
+    while { ![eof $fp] } {
+        read $fp 800
+        if { [incr expected 800] > 4001 } { set expected 4001 }
+        lappend result "[tell $fp] $expected"
+    }
+    close $fp
+    vfs::unmount $vfs
+    join $result \n
+} -result {800 800
+1600 1600
+2400 2400
+3200 3200
+4000 4000
+4001 4001} -cleanup {
+    catch { vfs::unmount $vfs }
+    file delete -force $vfs
+    unset vfs file
+    unset -nocomplain result expected fp
+}
+
+tcltest::test cookfsReaderChannel-4 {position when reading a file randomly over several pages} -setup {
+    set vfs  [tcltest::makeFile {} cookfs.cfs]
+    # page size is 899 bytes
+    vfs::cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
+    set data "[string repeat "TEST" 1000]\n"
+    # 4x1000+<newline> = 4001 bytes
+    set file [tcltest::makeFile $data test $vfs]
+    vfs::unmount $vfs
+} -body {
+    vfs::cookfs::Mount -readonly $vfs $vfs
+    set result [list]
+    set fp [open $file r]
+    fconfigure $fp -translation binary -encoding binary
+    foreach { offset size } {
+        0    1
+        0    10
+        0    1500
+        10   1
+        10   10
+        10   1500
+        888  1
+        888  10
+        888  1500
+        899  1
+        899  10
+        899  1500
+        4000 1
+        4000 10
+        4000 1500
+    } {
+        seek $fp $offset
+        set expected [expr { $offset + $size }]
+        if { $expected > 4001 } { set expected 4001 }
+        set x [read $fp $size]
+        lappend result [list $offset $size [expr { $x eq [string range $data $offset [expr { $offset+$size }]-1] }] [tell $fp] $expected]
+    }
+    close $fp
+    vfs::unmount $vfs
+    join $result \n
+} -result {0 1 1 1 1
+0 10 1 10 10
+0 1500 1 1500 1500
+10 1 1 11 11
+10 10 1 20 20
+10 1500 1 1510 1510
+888 1 1 889 889
+888 10 1 898 898
+888 1500 1 2388 2388
+899 1 1 900 900
+899 10 1 909 909
+899 1500 1 2399 2399
+4000 1 1 4001 4001
+4000 10 1 4001 4001
+4000 1500 1 4001 4001} -cleanup {
+    catch { vfs::unmount $vfs }
+    file delete -force $vfs
+    unset vfs file
+    unset -nocomplain result expected fp
+    unset -nocomplain offset size
+}

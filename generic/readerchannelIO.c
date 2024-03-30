@@ -39,7 +39,7 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
     char *pageBuf;
     int pageBufSize;
 
-    CookfsLog(printf("Cookfs_Readerchannel_Input: read %d", bufSize))
+    CookfsLog(printf("Cookfs_Readerchannel_Input: read %d, current offset: %d", bufSize, instData->currentOffset))
 
     if (instData->currentBlock >= instData->bufSize) {
 	CookfsLog(printf("Cookfs_Readerchannel_Input: EOF reached"))
@@ -92,7 +92,8 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 
 	instData->currentBlockOffset += blockRead;
 	bytesRead += blockRead;
-	instData->currentOffset += bytesRead;
+	instData->currentOffset += blockRead;
+	CookfsLog(printf("Cookfs_Readerchannel_Input: currentOffset: %d", instData->currentOffset))
     }
 
     CookfsLog(printf("Cookfs_Readerchannel_Input: bytesRead=%d", bytesRead))
@@ -142,6 +143,7 @@ Tcl_WideInt Cookfs_Readerchannel_WideSeek(ClientData instanceData, Tcl_WideInt o
 	    if (instData->buf[instData->currentBlock + 2] < bytesLeft) {
 		/* move to next block */
 		bytesLeft -= instData->buf[instData->currentBlock + 2];
+		instData->currentOffset += instData->buf[instData->currentBlock + 2];
 		instData->currentBlock += 3;
 
 		if (instData->currentBlock >= instData->bufSize) {

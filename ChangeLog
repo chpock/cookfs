@@ -1,3 +1,6 @@
+2024-03-30 Konstantin Kushnir <chpock@gmail.com>
+	* Fix positioning bug in readerchannel
+
 2024-03-29 Konstantin Kushnir <chpock@gmail.com>
 	* Add procedures for md5/sha1/sha256 hashes
 	* Fix minor compiler warnings
