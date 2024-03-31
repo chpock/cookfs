@@ -103,8 +103,8 @@ proc cookfs::tcl::pages {args} {
         if {[catch {
             seek $c(fh) 0 end
             set fileSize [tell $c(fh)]
-            if {$fileSize > 4096} {
-                seek $c(fh) -4096 current
+            if {$fileSize > 65536} {
+                seek $c(fh) -65536 current
             }  else  {
                 seek $c(fh) -$fileSize current
             }

@@ -389,7 +389,7 @@ tcltest::test cookfsPages-5.1 "Test specifying -endoffset" -setup {
     file delete -force $file
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-5.2 "Check searching for end of archive if endoffset not specified for small file" -setup {
+tcltest::test cookfsPages-5.2.1 "Check searching for end of archive if endoffset not specified for small file, 256 bytes of garbage at the end of the file" -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]
@@ -411,7 +411,29 @@ tcltest::test cookfsPages-5.2 "Check searching for end of archive if endoffset n
     file delete -force $file
 } -returnCodes {ok} -result 0
 
-tcltest::test cookfsPages-5.3 "Check searching for end of archive if endoffset not specified for large file" -setup {
+tcltest::test cookfsPages-5.2.2 "Check searching for end of archive if endoffset not specified for small file, 65500 bytes of garbage at the end of the file" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    puts -nonewline $fh ""
+    close $fh
+} -body {
+    set pg [cookfs::pages $file]
+    $pg add "Test"
+    $pg delete
+    set fh [open $file a]
+    fconfigure $fh -translation binary
+    puts -nonewline $fh [string repeat x 65500]
+    close $fh
+
+    set pg [cookfs::pages -readonly $file]
+    $pg dataoffset
+} -cleanup {
+    $pg delete
+    file delete -force $file
+} -returnCodes {ok} -result 0
+
+tcltest::test cookfsPages-5.3.1 "Check searching for end of archive if endoffset not specified for large file, 256 bytes of garbage at the end of the file" -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]
@@ -424,6 +446,28 @@ tcltest::test cookfsPages-5.3 "Check searching for end of archive if endoffset n
     set fh [open $file a]
     fconfigure $fh -translation binary
     puts -nonewline $fh [string repeat TEST 64]
+    close $fh
+
+    set pg [cookfs::pages -readonly $file]
+    $pg dataoffset
+} -cleanup {
+    $pg delete
+    file delete -force $file
+} -returnCodes {ok} -result 0
+
+tcltest::test cookfsPages-5.3.2 "Check searching for end of archive if endoffset not specified for large file, 65500 bytes of garbage at the end of the file" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # make sure no additional data is written to file
+    set fh [open $file w]
+    puts -nonewline $fh ""
+    close $fh
+} -body {
+    set pg [cookfs::pages -compression none $file]
+    $pg add [string repeat "Test" 16384]
+    $pg delete
+    set fh [open $file a]
+    fconfigure $fh -translation binary
+    puts -nonewline $fh [string repeat x 65500]
     close $fh
 
     set pg [cookfs::pages -readonly $file]

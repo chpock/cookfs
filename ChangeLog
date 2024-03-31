@@ -1,3 +1,6 @@
+2024-03-31 Konstantin Kushnir <chpock@gmail.com>
+	* Search for cookfs index in the last 64k bytes of a file.
+
 2024-03-30 Konstantin Kushnir <chpock@gmail.com>
 	* Fix positioning bug in readerchannel
 

@@ -1266,19 +1266,19 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p) {
     if (p->useFoffset) {
 	seekOffset = Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
     }  else  {
-        /* if endoffset not specified, read last 4k of file and find last occurrence of signature */
+        /* if endoffset not specified, read last 64k of file and find last occurrence of signature */
         Tcl_Obj *byteObj = NULL;
         char *lastMatch = NULL;
 	seekOffset = Tcl_Seek(p->fileChannel, 0, SEEK_END);
-        if (seekOffset > 4096) {
-            seekOffset -= 4096;
+        if (seekOffset > 65536) {
+            seekOffset -= 65536;
         }  else  {
             seekOffset = 0;
         }
         CookfsLog(printf("CookfsReadIndex lookup seekOffset = %d", ((int) seekOffset)))
         Tcl_Seek(p->fileChannel, seekOffset, SEEK_SET);
 	byteObj = Tcl_NewObj();
-	if (Tcl_ReadChars(p->fileChannel, byteObj, 4096, 0) > 0) {
+	if (Tcl_ReadChars(p->fileChannel, byteObj, 65536, 0) > 0) {
             int i;
             int size;
             char *bytes;
