@@ -5,7 +5,9 @@
 
 #ifdef COOKFS_USECREADERCHAN
 typedef struct Cookfs_ReaderChannelInstData {
-    char channelName[20];
+    // "cookfsreader%d"+\0 where "%d" is between 1 and 11 bytes.
+    // The buffer should be 12+11+1=24 bytes.
+    char channelName[24];
     Tcl_Channel channel;
     Tcl_TimerToken watchTimer;
 
