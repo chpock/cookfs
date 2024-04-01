@@ -60,6 +60,8 @@ static int CookfsMd5Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
     return TCL_OK;
 }
 
+#ifdef COOKFS_USEXZ
+
 static int CookfsSha256Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     UNUSED(clientData);
     Tcl_Obj *obj;
@@ -157,6 +159,8 @@ static int CookfsSha1Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tc
 
     return TCL_OK;
 }
+
+#endif
 
 int Cookfs_InitHashesCmd(Tcl_Interp *interp) {
 
