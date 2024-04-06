@@ -11,9 +11,13 @@ proc cookfs::tcl::fsindex {{data ""}} {
     set name ::cookfs::tcl::fsindexhandle[incr ::cookfs::fsindexhandleIdx]
     upvar #0 $name c
     upvar #0 $name.m cm
+    upvar #0 $name.b cb
 
     # initialize metadata array
     array set cm {}
+
+    # initialize block index array
+    array set cb {}
 
     if {$data != ""} {
          ::cookfs::fsindex::import $name $data
@@ -50,6 +54,12 @@ proc cookfs::fsindex::upvarPathDir {name path varName tailVarName} {
          error "Not found"
     }
     uplevel 1 [list upvar #0 ${name}($dpath) $varName]
+}
+
+proc cookfs::fsindex::incrBlockUsage {name block {count 1}} {
+    if { $block < 0 } return
+    upvar #0 $name.b cb
+    incr cb($block) $count
 }
 
 proc cookfs::fsindex::entriesList {name path} {
@@ -92,7 +102,6 @@ proc cookfs::fsindex::entrySet {name path data} {
          }
          set data [list [lindex $data 0] $size [lindex $data 1]]
     }
-
     if {![info exists da($tail)]} {
          lappend d $tail $data
          if {[llength $data] == 1} {
@@ -104,8 +113,14 @@ proc cookfs::fsindex::entrySet {name path data} {
          if {[llength $da($tail)] != [llength $data]} {
              error "Type mismatch"
          }
+         foreach {block - -} [lindex $da($tail) 2] {
+             incrBlockUsage $name $block -1
+         }
          set da($tail) $data
          set d [array get da]
+    }
+    foreach {block - -} [lindex $data 2] {
+        incrBlockUsage $name $block
     }
 }
 
@@ -142,6 +157,9 @@ proc cookfs::fsindex::entryUnset {name path} {
             if {[llength $dl] > 0} {
                 error "Unable to unset item"
             }
+        }
+        foreach { block - - } [lindex $da($tail) 2] {
+            incrBlockUsage $name $block -1
         }
         unset da($tail)
         set d [array get da]
@@ -190,8 +208,9 @@ proc cookfs::fsindex::importPath {name path varname} {
                   error "Unable to create index object"
              }
              set size 0
-             foreach {- - cs} $bosdata {
+             foreach {chunk - cs} $bosdata {
                   incr size $cs
+                  incrBlockUsage $name $chunk
              }
              lappend c($path) $filename [list $time $size $bosdata]
          }
@@ -282,6 +301,11 @@ proc cookfs::fsindex::unsetMetadata {name paramname} {
     unset -nocomplain cm($paramname)
 }
 
+proc cookfs::fsindex::getblockusage {name block} {
+    upvar #0 $name.b cb
+    return [expr { $block >= 0 && [info exists cb($block)] ? $cb($block) : 0 }]
+}
+
 proc cookfs::fsindex::handle {name cmd args} {
     switch -- $cmd {
          export {
@@ -351,6 +375,16 @@ proc cookfs::fsindex::handle {name cmd args} {
                   unsetMetadata $name [lindex $args 0]
                   return ""
              }
+         }
+         getblockusage {
+             if {[llength $args] != 1} {
+                 return -code error "wrong # args: should be \"$name $cmd block\""
+             }
+             set block [lindex $args 0]
+             if {![string is integer -strict $block]} {
+                 return -code error "could not get integer from block arg"
+             }
+             return [getblockusage $name $block]
          }
     }
     error "TODO: args"

@@ -740,28 +740,31 @@ void Cookfs_AsyncCompressFinalize(Cookfs_Pages *p) {
 
 // TODO: document
 int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
+    CookfsLog(printf("Cookfs_AsyncPagePreload: index [%d]", idx))
     if ((p->asyncDecompressQueueSize > 0) && (p->asyncDecompressCommandPtr != NULL) && (p->asyncDecompressCommandLen > 3)) {
 	Tcl_Obj *dataObj;
 	int i;
 
 	for (i = 0 ; i < p->asyncDecompressQueue ; i++) {
 	    if (p->asyncDecompressIdx[i] == idx) {
-		CookfsLog(printf("Page %d already in async decompress queue", i))
+		CookfsLog(printf("Cookfs_AsyncPagePreload: return 1 - Page %d already in async decompress queue", i))
 		return 1;
 	    }
 	}
 
 	if (Cookfs_PageCacheGet(p, idx) != NULL) {
 	    // page already in cache and we just moved it to top; do nothing
+	    CookfsLog(printf("Cookfs_AsyncPagePreload: return 1 - Page already in cache and we just moved it to top"))
 	    return 1;
 	}
 
 	// if queue is full, do not preload
 	if (p->asyncDecompressQueue >= p->asyncDecompressQueueSize) {
+	    CookfsLog(printf("Cookfs_AsyncPagePreload: return 0 - Queue is full, do not preload"))
 	    return 0;
 	}
 
-	CookfsLog(printf("Reading page %d for async decompress", idx))
+	CookfsLog(printf("Cookfs_AsyncPagePreload: Reading page %d for async decompress", idx))
 	dataObj = Cookfs_ReadPage(p, idx, -1, 0, COOKFS_COMPRESSION_CUSTOM);
 
 	if (dataObj != NULL) {
@@ -772,8 +775,10 @@ int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
 	    Tcl_DecrRefCount(dataObj);
 	}
 
+	CookfsLog(printf("Cookfs_AsyncPagePreload: return 1"))
 	return 1;
     }
+    CookfsLog(printf("Cookfs_AsyncPagePreload: return 0"))
     return 0;
 }
 

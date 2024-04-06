@@ -18,6 +18,75 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
 static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *currentNode, char *pathTailStr, int command, Cookfs_FsindexEntry *newFileNode);
 static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e);
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexGetBlockUsage --
+ *
+ *      Returns the number of files in the specified block.
+ *
+ * Results:
+ *      The number of files in the specified block.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+int Cookfs_FsindexGetBlockUsage(Cookfs_Fsindex *i, int idx) {
+    if (idx < 0 || i->blockIndexSize <= idx)
+        return 0;
+    return i->blockIndex[idx];
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexModifyBlockUsage --
+ *
+ *      Add or substract the number of files in the specified block.
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      Expands the buffer for block indexes if the specified block index
+ *      extends beyond the currently known blocks.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_FsindexModifyBlockUsage(Cookfs_Fsindex *i, int idx, int count) {
+
+    // if blockIndexSize is not zero and blockIndex is NULL then we are
+    // in terminate mode so we just return
+    if (i->blockIndexSize && !i->blockIndex)
+        return;
+
+    // if the index < 0, then the file has not used any blocks yet so
+    // we just return
+    if (idx < 0)
+        return;
+
+    CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: increase block index [%d] value with [%d]", idx, count));
+    // check if we have enough space in the block index
+    if (i->blockIndexSize <= idx) {
+        CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: expand block index buffer from [%d] to [%d]", i->blockIndexSize, idx));
+        // expand our block index
+        i->blockIndex = (int *)ckrealloc(i->blockIndex, sizeof(int) * (idx + 1));
+        // initialize newly allocated block indexes with zeros
+        for (; i->blockIndexSize <= idx; i->blockIndexSize++) {
+            i->blockIndex[i->blockIndexSize] = 0;
+        }
+    } else {
+        CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: current value is [%d]", i->blockIndex[idx]));
+    }
+
+    i->blockIndex[idx] += count;
+    CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: new value is [%d]", i->blockIndex[idx]));
+
+}
 
 /*
  *----------------------------------------------------------------------
@@ -70,6 +139,8 @@ Cookfs_Fsindex *Cookfs_FsindexInit() {
     rc = (Cookfs_Fsindex *) Tcl_Alloc(sizeof(Cookfs_Fsindex));
     rc->rootItem = Cookfs_FsindexEntryAlloc(0, COOKFS_NUMBLOCKS_DIRECTORY, COOKFS_USEHASH_DEFAULT);
     rc->rootItem->fileName = ".";
+    rc->blockIndexSize = 0;
+    rc->blockIndex = NULL;
     Tcl_InitHashTable(&rc->metadataHash, TCL_STRING_KEYS);
     return rc;
 }
@@ -94,6 +165,13 @@ Cookfs_Fsindex *Cookfs_FsindexInit() {
 void Cookfs_FsindexFini(Cookfs_Fsindex *i) {
     Tcl_HashEntry *hashEntry;
     Tcl_HashSearch hashSearch;
+
+    /* free up block index, set it to NULL to avoid modifications when
+       unsetting individual entries */
+    if (i->blockIndex != NULL) {
+        ckfree(i->blockIndex);
+        i->blockIndex = NULL;
+    }
 
     /* free up root entry and memory for storing fsindex */
     Cookfs_FsindexEntryFree(i->rootItem);
@@ -440,6 +518,7 @@ Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks,
     e->fileName = ((char *) e) + size0;
     e->fileBlocks = numBlocks;
     e->fileNameLen = fileNameLength;
+    e->isFileBlocksInitialized = NULL;
     if (numBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
 	/* create directory structure - either a hash table or static child array */
         CookfsLog(printf("Cookfs_FsindexEntryAlloc - directory, useHash=%d", useHash))
@@ -458,6 +537,7 @@ Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks,
 	/* for files, block information is filled by caller */
     }
 
+    //CookfsLog(printf("Cookfs_FsindexEntryAlloc: allocated entry %p", e));
     return e;
 }
 
@@ -479,6 +559,7 @@ Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks,
  */
 
 void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
+    //CookfsLog(printf("Cookfs_FsindexEntryFree: %p with fileBlocks [%d]", e, e->fileBlocks));
     if (e->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
 	/* for directory, recursively free all children */
         Cookfs_FsindexEntry *itemNode;
@@ -504,6 +585,11 @@ void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
 		    Cookfs_FsindexEntryFree(e->data.dirInfo.dirData.childTable[i]);
 		}
 	    }
+	}
+    } else if (e->isFileBlocksInitialized != NULL && e->fileBlocks > 0) {
+	for (e->fileBlocks--; e->fileBlocks >= 0; e->fileBlocks--) {
+	    //CookfsLog(printf("Cookfs_FsindexEntryFree: modify block#%d", e->fileBlocks));
+	    Cookfs_FsindexModifyBlockUsage(e->isFileBlocksInitialized, e->data.fileInfo.fileBlockOffsetSize[e->fileBlocks * 3 + 0], -1);
 	}
     }
 

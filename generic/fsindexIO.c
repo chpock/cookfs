@@ -358,6 +358,7 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
             objOffset += fileBlocks * 12;
             for (i = 0, fileSize = 0; i < fileBlocks; i++) {
                 fileSize += itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 2];
+		Cookfs_FsindexModifyBlockUsage(fsIndex, itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 0], 1);
 		CookfsLog(printf("CookfsFsindexImportDirectory - %d/%d/%d",
 		    itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 0],
 		    itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 1],
@@ -365,6 +366,7 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
             }
 	    /* calculate and store file size */
             itemNode->data.fileInfo.fileSize = fileSize;
+            itemNode->isFileBlocksInitialized = fsIndex;
         }
     }
 

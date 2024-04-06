@@ -442,6 +442,8 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
 
     bytes = Tcl_GetByteArrayFromObj(dataObj, &objLength);
 
+    CookfsLog(printf("Cookfs_PageAdd: new page with [%d] bytes", objLength))
+
     if (p->pageHash == COOKFS_HASH_CRC32) {
 	int b[4] = { 0, 0, objLength, 0 };
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
@@ -588,6 +590,8 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
     Tcl_Obj *rc;
     int preloadIndex = index + 1;
 
+    CookfsLog(printf("Cookfs_PageGet: index [%d]", index))
+
     for (; preloadIndex < p->dataNumPages ; preloadIndex++) {
 	if (!Cookfs_AsyncPagePreload(p, preloadIndex)) {
 	    break;
@@ -657,6 +661,7 @@ Tcl_Obj *Cookfs_PageCacheGet(Cookfs_Pages *p, int index) {
 	return NULL;
     }
 
+    CookfsLog(printf("Cookfs_PageCacheGet: index [%d]", index))
     /* iterate through pages cache and check if it already is in memory */
     for (i = 0; i < p->cacheSize; i++) {
 	if (p->cachePageIdx[i] == index) {
@@ -670,6 +675,7 @@ Tcl_Obj *Cookfs_PageCacheGet(Cookfs_Pages *p, int index) {
 	}
     }
 
+    CookfsLog(printf("Cookfs_PageCacheGet: return NULL"))
     return NULL;
 }
 
@@ -699,6 +705,7 @@ void Cookfs_PageCacheSet(Cookfs_Pages *p, int idx, Tcl_Obj *obj) {
 	return;
     }
 
+    CookfsLog(printf("Cookfs_PageCacheSet: index [%d]", idx))
     for (i = 0 ; i < p->cacheSize ; i++) {
 	if (p->cachePageIdx[i] == idx) {
 	    CookfsPagesPageCacheMoveToTop(p, i);
@@ -1139,6 +1146,7 @@ Tcl_WideInt Cookfs_PagesGetPageOffset(Cookfs_Pages *p, int idx) {
 static Tcl_Obj *CookfsPagesPageGetInt(Cookfs_Pages *p, int index) {
     Tcl_Obj *buffer;
 
+    CookfsLog(printf("Cookfs_PageGetInt: index [%d]", index))
     /* if specified index is an aside-index */
     if (COOKFS_PAGES_ISASIDE(index)) {
 	CookfsLog(printf("Detected get request for add-aside pages - %08x", index))

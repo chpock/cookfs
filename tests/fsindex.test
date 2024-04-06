@@ -246,3 +246,119 @@ tcltest::test cookfsFsindex-6.4 "Test unset for non-empty directory" -setup {
     $fsidx delete
 } -returnCodes {error} -result {Unable to unset item}
 
+tcltest::test cookfsFsindex-7.1 "Test getblockusage, without arguments" -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx getblockusage
+} -cleanup {
+    $fsidx delete
+} -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::fsindexhandle* getblockusage block"}
+
+tcltest::test cookfsFsindex-7.2 "Test getblockusage, wrong block number" -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx getblockusage 0
+} -cleanup {
+    $fsidx delete
+} -result 0
+
+tcltest::test cookfsFsindex-7.3 "Test getblockusage, after set" -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set test1 1
+    $fsidx set test2 1 {0 1 2 3 4 5}
+    list \
+        [$fsidx getblockusage 0] \
+        [$fsidx getblockusage 1] \
+        [$fsidx getblockusage 2] \
+        [$fsidx getblockusage 3]
+} -cleanup {
+    $fsidx delete
+} -result [list 1 0 0 1]
+
+tcltest::test cookfsFsindex-7.4 "Test getblockusage, after set and unset" -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set test1 1
+    $fsidx set test2 1 {0 1 2 3 4 5}
+    $fsidx unset test2
+    list \
+        [$fsidx getblockusage 0] \
+        [$fsidx getblockusage 1] \
+        [$fsidx getblockusage 2] \
+        [$fsidx getblockusage 3]
+} -cleanup {
+    $fsidx delete
+} -result [list 0 0 0 0]
+
+tcltest::test cookfsFsindex-7.5 "Test getblockusage, after set, wrong block number" -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set test 1 {0 1 2 3 4 5}
+    $fsidx getblockusage 4
+} -cleanup {
+    $fsidx delete
+} -result 0
+
+tcltest::test cookfsFsindex-7.6 "Test getblockusage, after import" -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set testfile2 1 {0 1 2 3 4 5}
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    list \
+        [$fsidx getblockusage 0] \
+        [$fsidx getblockusage 1] \
+        [$fsidx getblockusage 2] \
+        [$fsidx getblockusage 3]
+} -cleanup {
+    $fsidx delete
+} -result [list 1 0 0 1]
+
+tcltest::test cookfsFsindex-7.7 "Test getblockusage, multiple set" -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set test1 1 {0 1 2 3 4 5}
+    $fsidx set test2 1
+    $fsidx set test2/foo 1
+    $fsidx set test2/foo/bar 1 {3 4 5}
+    $fsidx set test3 1 {2 0 0 3 4 5}
+    $fsidx set test4 1 {}
+    list \
+        [$fsidx getblockusage 0] \
+        [$fsidx getblockusage 1] \
+        [$fsidx getblockusage 2] \
+        [$fsidx getblockusage 3]
+} -cleanup {
+    $fsidx delete
+} -result [list 1 0 1 3]
+
+tcltest::test cookfsFsindex-7.8 "Test getblockusage, multiple set/unset" -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set test1 1 {0 1 2 3 4 5}
+    $fsidx set test2 1 {3 4 5}
+    $fsidx set test3 1
+    $fsidx set test3/foo 1 {2 0 0 3 4 5}
+    $fsidx set test4 1 {}
+    $fsidx set test5 1 {4 0 0}
+    $fsidx unset test3/foo
+    $fsidx unset test3
+    $fsidx set test6 1 {2 0 0}
+    list \
+        [$fsidx getblockusage 0] \
+        [$fsidx getblockusage 1] \
+        [$fsidx getblockusage 2] \
+        [$fsidx getblockusage 3] \
+        [$fsidx getblockusage 4]
+} -cleanup {
+    $fsidx delete
+} -result [list 1 0 1 2 1]
+
+tcltest::test cookfsFsindex-7.9 "Test getblockusage, set with override" -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx set test1 1 {0 1 2 3 4 5}
+    $fsidx set test2 1 {3 4 5}
+    $fsidx set test1 1 {4 5 6}
+    list \
+        [$fsidx getblockusage 0] \
+        [$fsidx getblockusage 1] \
+        [$fsidx getblockusage 2] \
+        [$fsidx getblockusage 3] \
+        [$fsidx getblockusage 4]
+} -cleanup {
+    $fsidx delete
+} -result [list 0 0 0 1 1]

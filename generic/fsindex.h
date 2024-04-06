@@ -11,12 +11,15 @@
 /* only handle Fsindex code if enabled in configure */
 #ifdef COOKFS_USECFSINDEX
 
+typedef struct Cookfs_Fsindex Cookfs_Fsindex;
+
 /* all filenames are stored in UTF-8 */
 typedef struct Cookfs_FsindexEntry {
     char *fileName;
     unsigned char fileNameLen;
     Tcl_WideInt fileTime;
     int fileBlocks;
+    Cookfs_Fsindex *isFileBlocksInitialized;
     union {
         struct {
             Tcl_WideInt fileSize;
@@ -37,6 +40,8 @@ typedef struct Cookfs_FsindexEntry {
 typedef struct Cookfs_Fsindex {
     Cookfs_FsindexEntry *rootItem;
     Tcl_HashTable metadataHash;
+    int *blockIndex;
+    int blockIndexSize;
 } Cookfs_Fsindex;
 
 Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName);
@@ -59,6 +64,8 @@ void Cookfs_FsindexListFree(Cookfs_FsindexEntry **items);
 Tcl_Obj *Cookfs_FsindexGetMetadata(Cookfs_Fsindex *i, const char *paramName);
 void Cookfs_FsindexSetMetadata(Cookfs_Fsindex *i, const char *paramName, Tcl_Obj *data);
 int Cookfs_FsindexUnsetMetadata(Cookfs_Fsindex *i, const char *paramName);
+int Cookfs_FsindexGetBlockUsage(Cookfs_Fsindex *i, int idx);
+void Cookfs_FsindexModifyBlockUsage(Cookfs_Fsindex *i, int idx, int count);
 
 #endif /* COOKFS_USECFSINDEX */
 

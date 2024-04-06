@@ -87,6 +87,10 @@ Overwrites previous value if it existed.
 [call [arg fsindexHandle] [method unsetmetadata] [arg name]]
 Removes metadata with specified name from index.
 
+[call [arg fsindexHandle] [method getblockusage] [arg block]]
+Returns the number of files using the specified block (index of cookfs page).
+Returns zero if the specified block is not used by any file.
+
 [list_end]
 
 [section {BLOCK-OFFSET-SIZE INFORMATION}]

@@ -26,6 +26,7 @@ static int CookfsFsindexCmdDelete(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, i
 static int CookfsFsindexCmdSetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdUnsetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+static int CookfsFsindexCmdGetBlockUsage(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
 
 /*
@@ -157,8 +158,8 @@ static void CookfsFsindexDeleteProc(ClientData clientData) {
  */
 
 static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    static char *commands[] = { "export", "list", "get", "getmtime", "set", "setmtime", "unset", "delete", "setmetadata", "getmetadata", "unsetmetadata", NULL };
-    enum { cmdExport, cmdList, cmdGet, cmdGetmtime, cmdSet, cmdSetmtime, cmdUnset, cmdDelete, cmdSetMetadata, cmdGetMetadata, cmdUnsetMetadata };
+    static char *commands[] = { "export", "list", "get", "getmtime", "set", "setmtime", "unset", "delete", "setmetadata", "getmetadata", "unsetmetadata", "getblockusage", NULL };
+    enum { cmdExport, cmdList, cmdGet, cmdGetmtime, cmdSet, cmdSetmtime, cmdUnset, cmdDelete, cmdSetMetadata, cmdGetMetadata, cmdUnsetMetadata, cmdGetBlockUsage };
     int idx;
 
     Cookfs_Fsindex *fsIndex = (Cookfs_Fsindex *) clientData;
@@ -196,10 +197,50 @@ static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc,
 	    return CookfsFsindexCmdUnsetMetadata(fsIndex, interp, objc, objv);
         case cmdGetMetadata:
 	     return CookfsFsindexCmdGetMetadata(fsIndex, interp, objc, objv);
+        case cmdGetBlockUsage:
+	     return CookfsFsindexCmdGetBlockUsage(fsIndex, interp, objc, objv);
         default:
             return TCL_ERROR;
     }
 
+    return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsFsindexCmdGetBlockUsage --
+ *
+ *      Returns the number of files in the specified block.
+ *
+ * Results:
+ *      Returns TCL_OK on success; TCL_ERROR on error
+ *      On success interp result is set to the number of files.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int CookfsFsindexCmdGetBlockUsage(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+    int num;
+    int idx;
+
+    /* check arguments */
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 2, objv, "block");
+        return TCL_ERROR;
+    }
+
+    if (Tcl_GetIntFromObj(interp, objv[2], &idx) != TCL_OK) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("could not get integer from block arg", -1));
+        return TCL_ERROR;
+    }
+
+    num = Cookfs_FsindexGetBlockUsage(fsIndex, idx);
+
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(num));
     return TCL_OK;
 }
 
@@ -449,7 +490,9 @@ static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
 	/* calculate file size by iterating over each block and adding its size */
 	for (i = 0; i < numBlocks; i++) {
 	    entry->data.fileInfo.fileSize += entry->data.fileInfo.fileBlockOffsetSize[i * 3 + 2];
+	    Cookfs_FsindexModifyBlockUsage(fsIndex, entry->data.fileInfo.fileBlockOffsetSize[i * 3 + 0], 1);
 	}
+	entry->isFileBlocksInitialized = fsIndex;
 	CookfsLog(printf("Size: %d", (int) entry->data.fileInfo.fileSize))
     }
 

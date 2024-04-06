@@ -1,12 +1,13 @@
 2024-04-06 Konstantin Kushnir <chpock@gmail.com>
 	* Add basic benchmarks
+	* Add a function to fsindex to find out how many files are using a particular block
 
 2024-04-01 Konstantin Kushnir <chpock@gmail.com>
 	* Fix the build when xz is not enabled
 	* Fix potential buffer overflow
 
 2024-03-31 Konstantin Kushnir <chpock@gmail.com>
-	* Search for cookfs index in the last 64k bytes of a file.
+	* Search for cookfs index in the last 64k bytes of a file
 
 2024-03-30 Konstantin Kushnir <chpock@gmail.com>
 	* Fix positioning bug in readerchannel
