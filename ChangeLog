@@ -1,3 +1,6 @@
+2024-04-06 Konstantin Kushnir <chpock@gmail.com>
+	* Add basic benchmarks
+
 2024-04-01 Konstantin Kushnir <chpock@gmail.com>
 	* Fix the build when xz is not enabled
 	* Fix potential buffer overflow

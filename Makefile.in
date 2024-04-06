@@ -167,6 +167,9 @@ AR		= @AR@
 CFLAGS		= @CFLAGS@
 COMPILE		= $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 
+WSLENV = TCL_LIBRARY/p:TCLLIBPATH/p
+export WSLENV
+
 #========================================================================
 # Start of user-definable TARGETS section
 #========================================================================
@@ -230,11 +233,14 @@ install-doc: doc
 	    $(INSTALL_DATA) $$i $(DESTDIR)$(mandir)/mann ; \
 	done
 
-test: binaries libraries
+test: binaries libraries install
 	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
 
-shell: binaries libraries
+shell: binaries libraries install
 	@$(TCLSH) $(SCRIPT)
+
+bench-%: install
+	$(TCLSH) `@CYGPATH@ $(srcdir)/benchmark/$*.tcl`
 
 gdb:
 	$(TCLSH_ENV) gdb $(TCLSH_PROG) $(SCRIPT)
