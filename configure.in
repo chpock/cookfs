@@ -109,7 +109,7 @@ fi
 
 AC_ARG_ENABLE(internal-debug,  [  --enable-internal-debug   Enable internal debugging mechanism. Defaults to false],INTERNALDEBUG=${enableval},    INTERNALDEBUG=no)
 AC_ARG_ENABLE(bz2,             [  --enable-bz2              Use bz2 compression. Defaults to false],                USEBZ2=${enableval},           USEBZ2=no)
-AC_ARG_ENABLE(xz,              [  --enable-xz               Use xz compression. Defaults to false],                 USEXZ=${enableval},            USEXZ=no)
+AC_ARG_ENABLE(xz,              [  --enable-xz               Use xz compression. Defaults to true],                  USEXZ=${enableval},            USEXZ=yes)
 AC_ARG_ENABLE(tcl-fallback,    [  --enable-tcl-fallback     Install Tcl scripts if load fails. Defaults to false],  USEFALLBACK=${enableval},      USEFALLBACK=no)
 AC_ARG_ENABLE(c-pages,         [  --disable-c-pages         Use pages handling written in C. Defaults to true],     USECPAGES=${enableval},        USECPAGES=yes)
 AC_ARG_ENABLE(c-fsindex,       [  --disable-c-fsindex       Use index handling written in C. Defaults to true],     USECFSINDEX=${enableval},      USECFSINDEX=yes)

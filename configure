@@ -1425,7 +1425,7 @@ Optional Features:
   --enable-symbols        build with debugging symbols (default: off)
   --enable-internal-debug   Enable internal debugging mechanism. Defaults to false
   --enable-bz2              Use bz2 compression. Defaults to false
-  --enable-xz               Use xz compression. Defaults to false
+  --enable-xz               Use xz compression. Defaults to true
   --enable-tcl-fallback     Install Tcl scripts if load fails. Defaults to false
   --disable-c-pages         Use pages handling written in C. Defaults to true
   --disable-c-fsindex       Use index handling written in C. Defaults to true
@@ -8593,7 +8593,7 @@ if test ${enable_xz+y}
 then :
   enableval=$enable_xz; USEXZ=${enableval}
 else $as_nop
-  USEXZ=no
+  USEXZ=yes
 fi
 
 # Check whether --enable-tcl-fallback was given.

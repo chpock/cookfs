@@ -5,6 +5,7 @@
 	* Make tests fail with an error on unsuccessful run
 	* Detect tclsh correctly on Windows platform
 	* Add Github workflow
+	* Enable xz feature by default
 
 2024-04-06 Konstantin Kushnir <chpock@gmail.com>
 	* Add basic benchmarks
