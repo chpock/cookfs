@@ -4,6 +4,7 @@
 	* Add the make recipe 'package'
 	* Make tests fail with an error on unsuccessful run
 	* Detect tclsh correctly on Windows platform
+	* Add Github workflow
 
 2024-04-06 Konstantin Kushnir <chpock@gmail.com>
 	* Add basic benchmarks
