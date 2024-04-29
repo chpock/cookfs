@@ -1,3 +1,10 @@
+2024-04-29 Konstantin Kushnir <chpock@gmail.com>
+	* Don't install binaries before test/shell/gdb make recipes
+	* Fix the make recipes test/shell/gdb
+	* Add the make recipe 'package'
+	* Make tests fail with an error on unsuccessful run
+	* Detect tclsh correctly on Windows platform
+
 2024-04-06 Konstantin Kushnir <chpock@gmail.com>
 	* Add basic benchmarks
 	* Add a function to fsindex to find out how many files are using a particular block

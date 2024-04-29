@@ -233,16 +233,16 @@ install-doc: doc
 	    $(INSTALL_DATA) $$i $(DESTDIR)$(mandir)/mann ; \
 	done
 
-test: binaries libraries install
+test: binaries libraries $(notdir $(PKG_TCL_SOURCES))
 	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
 
-shell: binaries libraries install
+shell: binaries libraries $(notdir $(PKG_TCL_SOURCES))
 	@$(TCLSH) $(SCRIPT)
 
 bench-%: install
 	$(TCLSH) `@CYGPATH@ $(srcdir)/benchmark/$*.tcl`
 
-gdb:
+gdb: $(notdir $(PKG_TCL_SOURCES))
 	$(TCLSH_ENV) gdb $(TCLSH_PROG) $(SCRIPT)
 
 depend:
@@ -286,6 +286,20 @@ VPATH = $(srcdir):$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win:$(srcdir)/bzip2
 
 .c.@OBJEXT@:
 	$(COMPILE) -c `@CYGPATH@ $<` -o $@
+
+%.tcl: $(srcdir)/scripts/%.tcl
+	cp -f "$<" "$@"
+
+ifeq ($(CFLAGS_DEFAULT),-g)
+    PACKAGE_ARCHIVE = $(PACKAGE_NAME)-debug-$(PACKAGE_VERSION)
+else
+    PACKAGE_ARCHIVE = $(PACKAGE_NAME)-$(PACKAGE_VERSION)
+endif
+
+.PHONY: package
+package:
+	$(MAKE) install exec_prefix=./$(PACKAGE_ARCHIVE) prefix=./$(PACKAGE_ARCHIVE)
+	tar zcvf $(PACKAGE_ARCHIVE).tar.gz $(PACKAGE_ARCHIVE)
 
 #========================================================================
 # Distribution creation

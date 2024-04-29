@@ -9332,6 +9332,42 @@ printf "%s\n" "${TCLSH_PROG}" >&6; }
 
 #TEA_PROG_WISH
 
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for correct tclsh" >&5
+printf %s "checking for correct tclsh... " >&6; }
+
+    if ! test -f "${TCLSH_PROG}" && ! command -v "${TCLSH_PROG}" >/dev/null 2>&1; then
+        if test "${TEA_PLATFORM}" = "windows"; then
+            base_name="tclsh${TCL_MAJOR_VERSION}${TCL_MINOR_VERSION}"
+            name_list="${base_name}${EXEEXT} \
+                ${base_name}s${EXEEXT} \
+                ${base_name}t${EXEEXT} \
+                ${base_name}st${EXEEXT} \
+                ${base_name}g${EXEEXT} \
+                ${base_name}gs${EXEEXT} \
+                ${base_name}gt${EXEEXT} \
+                ${base_name}gst${EXEEXT}"
+            for i in $name_list; do
+                if test -f "${TCL_BIN_DIR}/../bin/$i"; then
+                    TCLSH_PROG="`cd "${TCL_BIN_DIR}/../bin"; pwd`/$i"
+                    break
+                fi
+            done
+        fi
+        if test -f "${TCLSH_PROG}"; then
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: ${TCLSH_PROG}" >&5
+printf "%s\n" "${TCLSH_PROG}" >&6; }
+
+        else
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: fail" >&5
+printf "%s\n" "fail" >&6; }
+            as_fn_error $? "ERROR: could not find tclsh binary" "$LINENO" 5
+        fi
+    else
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: ok" >&5
+printf "%s\n" "ok" >&6; }
+    fi
+
+
 #--------------------------------------------------------------------
 # Finally, substitute all of the various values into the Makefile.
 # You may alternatively have a special pkgIndex.tcl.in or other files
