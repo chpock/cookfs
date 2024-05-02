@@ -782,7 +782,7 @@ tcltest::test cookfsPages-11.1 "Test increasing page cache" -setup {
 } -body {
     set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
     for {set i 0} {$i < 20} {incr i} {
-        lappend il $i [$pg add [string repeat "TEST" 1024][string repeat "TEST" $i]"]
+        lappend il $i [$pg add "[string repeat "TEST" 1024][string repeat "TEST" $i]"]
     }
     $pg delete
 
@@ -804,7 +804,7 @@ tcltest::test cookfsPages-11.2 "Test decreasing page cache" -setup {
 } -body {
     set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
     for {set i 0} {$i < 20} {incr i} {
-        lappend il $i [$pg add [string repeat "TEST" 1024][string repeat "TEST" $i]"]
+        lappend il $i [$pg add "[string repeat "TEST" 1024][string repeat "TEST" $i]"]
     }
     $pg delete
 
@@ -831,7 +831,7 @@ tcltest::test cookfsPages-12.1 "Test changing page compression" -setup {
 } -body {
     set pg [cookfs::pages -compression zlib $file]
     for {set i 0} {$i < 20} {incr i} {
-        lappend il $i [$pg add [string repeat "TEST" 1024][string repeat "TEST" $i]"]
+        lappend il $i [$pg add "[string repeat "TEST" 1024][string repeat "TEST" $i]"]
     }
 
     $pg compression none
