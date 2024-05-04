@@ -29,6 +29,7 @@ There are packages for the following platforms:
 ## Copyrights
 
 Copyright (c) 2010-2011 Wojciech Kocjan, Pawel Salawa
+
 Copyright (C) 2024 Konstantin Kushnir <chpock@gmail.com>
 
 ## License
