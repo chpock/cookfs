@@ -2,8 +2,6 @@
 #
 # (c) 2010-2014 Wojciech Kocjan
 
-package require md5 2
-
 namespace eval cookfs {}
 namespace eval cookfs::tcl {}
 namespace eval cookfs::pages {}
@@ -27,7 +25,7 @@ proc cookfs::tcl::pages {args} {
         endoffset ""
         cfsname "CFS0002"
         lastop read
-        hash md5
+        hash crc32
         alwayscompress 0
         asyncwrites {}
         asyncpreloadBusy {}
@@ -37,6 +35,10 @@ proc cookfs::tcl::pages {args} {
         set c(_usezlib) 1
     }  else  {
         set c(_usezlib) 0
+    }
+
+    if {![catch { package require md5 2 }]} {
+        set c(hash) md5
     }
 
     while {[llength $args] > 1} {
