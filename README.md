@@ -2,6 +2,8 @@
 
 ## About
 
+This repository is an attempt to revive this amazing project. Original source repository is at [sourceforge.net](https://sourceforge.net/projects/cookit/files/cookfs/) and its homepage is at [http://www.endorser.org/en/blog/tcl/cookfs](http://www.endorser.org/en/blog/tcl/cookfs). As for now, the homepage is unmaintained and is only available via [WebArchive](http://web.archive.org/web/20150619084055/http://www.endorser.org/en/blog/tcl/cookfs).
+
 Cookfs is a Tcl virtual filesystem using a compressed archive format to allow embedding multiple files in an archive that Tcl scripts can access directly.
 
 It is optimized for storing Tcl packages (allowing around 10%-20% smaller sizes ratio than mk4vfs while still using zlib compression), small, fast and integrated with Tcl.
