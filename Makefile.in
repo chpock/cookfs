@@ -195,7 +195,7 @@ export WSLENV
 # for the BINARIES that you specified above have already been done.
 #========================================================================
 
-all: binaries libraries doc
+all: binaries libraries
 
 #========================================================================
 # The binaries target builds executable programs, Windows .dll's, unix
@@ -214,7 +214,9 @@ libraries:
 # end user machine when building from source.
 #========================================================================
 
-doc:
+DOCS = cookfs cookfs_fsindex cookfs_pages
+
+doc: $(patsubst %,$(srcdir)/doc/%.html,$(DOCS)) $(patsubst %,$(srcdir)/doc/%.n,$(DOCS))
 #	@echo "If you have documentation to create, place the commands to"
 #	@echo "build the docs in the 'doc:' target.  For example:"
 #	@echo "        xml2nroff sample.xml > sample.n"
@@ -242,7 +244,7 @@ install-libraries: libraries
 # directory.
 #========================================================================
 
-install-doc: doc
+install-doc:
 	@$(INSTALL_DATA_DIR) "$(DESTDIR)$(mandir)/mann"
 	@echo "Installing documentation in $(DESTDIR)$(mandir)"
 	@list='$(srcdir)/doc/*.n'; for i in $$list; do \
@@ -319,6 +321,14 @@ VPATH = $(srcdir):$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win:$(srcdir)/bzip2
 
 %.tcl: $(srcdir)/scripts/%.tcl
 	cp -f "$<" "$@"
+
+$(srcdir)/doc/%.html: $(srcdir)/doc/%.man
+	cd "$(dir $@)" && echo 'package require dtplite; dtplite::do [list -o $(notdir $@) html $(notdir $<)]' | \
+	    $(TCLSH)
+
+$(srcdir)/doc/%.n: $(srcdir)/doc/%.man
+	cd "$(dir $@)" && echo 'package require dtplite; dtplite::do [list -o $(notdir $@) nroff $(notdir $<)]' | \
+	    $(TCLSH)
 
 ifeq ($(CFLAGS_DEFAULT),-g)
     PACKAGE_ARCHIVE = $(PACKAGE_NAME)-debug-$(PACKAGE_VERSION)

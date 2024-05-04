@@ -4,6 +4,7 @@
 	* Fix random test errors for cookfsVfs-1.9 because the file time is set to the current time and it will differ by a few seconds when the file is created
 	* Optimize compiler/linker flags
 	* Fix locked files during tests
+	* Add a makefile recipe for generating documentation
 
 2024-05-03 Konstantin Kushnir <chpock@gmail.com>
 	* Fix missed quotes in pages.test
