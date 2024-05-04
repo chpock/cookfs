@@ -1,11 +1,18 @@
-NOTE:
+NOTES:
+
 This package contains bzip2 source code, which is copyright Julian R Seward.
 License for bzip2 is contained in file "bzip2/LICENSE" and applies to all
 files under bzip2/ subdirectory.
 
+This package contains LZMA SDK, which is under the public domain.
+License for LZMA SDK is contained in file "7zip/DOC/License.txt" and applies to all
+files under 7zip/ subdirectory.
+
 --------------------------------------------------------------------------
 
-This software is copyrighted by Pawel Salawa.
+This software is copyrighted by:
+    (c) 2010-2011 Wojciech Kocjan, Pawel Salawa
+    (C) 2024 Konstantin Kushnir <chpock@gmail.com>
 
 The following terms apply to all files associated with the
 software unless explicitly disclaimed in individual files.
@@ -35,7 +42,7 @@ MODIFICATIONS.
 
 GOVERNMENT USE: If you are acquiring this software on behalf of the
 U.S. government, the Government shall have only "Restricted Rights"
-in the software and related documentation as defined in the Federal 
+in the software and related documentation as defined in the Federal
 Acquisition Regulations (FARs) in Clause 52.227.19 (c) (2).  If you
 are acquiring the software on behalf of the Department of Defense, the
 software shall be classified as "Commercial Computer Software" and the
@@ -43,4 +50,4 @@ Government shall have only "Restricted Rights" as defined in Clause
 252.227-7013 (c) (1) of DFARs.  Notwithstanding the foregoing, the
 authors grant the U.S. Government and others acting in its behalf
 permission to use and distribute the software in accordance with the
-terms specified in this license. 
+terms specified in this license.
