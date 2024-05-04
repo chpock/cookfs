@@ -179,6 +179,7 @@ if test ${USECPAGES} = yes; then
 else
     COOKFS_PKGCONFIG_USECPAGES=0
     COOKFS_PKGCONFIG_FEATURE_ASIDE=0
+    COOKFS_PKGCONFIG_USEXZ=0
 
     # if not using c-pages, use Tcl only readerchannel
     COOKFS_PKGCONFIG_USECREADERCHAN=0

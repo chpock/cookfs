@@ -1,3 +1,6 @@
+2024-05-04 Konstantin Kushnir <chpock@gmail.com>
+	* Fix build error when c-pages is disabled
+
 2024-05-03 Konstantin Kushnir <chpock@gmail.com>
 	* Fix missed quotes in pages.test
 
