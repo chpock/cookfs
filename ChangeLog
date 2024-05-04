@@ -1,3 +1,6 @@
+2024-05-05 Konstantin Kushnir <chpock@gmail.com>
+	* RELEASE TAG 1.5.0
+
 2024-05-04 Konstantin Kushnir <chpock@gmail.com>
 	* Fix build error when c-pages is disabled
 	* Use crc32 hash in tcl-pages by default. This removes the mandatory md5 package requirement.
