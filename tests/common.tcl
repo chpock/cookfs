@@ -2,6 +2,15 @@ if {[info exists ::env(DEBUG)]} {
     proc cookfs::debug {code} {puts [uplevel 1 [list subst $code]]}
 }
 
+proc fsindexEqual { a b } {
+    if { [lrange $a 1 end] eq [lrange $b 1 end] } {
+        if { abs([lindex $a 0] - [lindex $b 0]) < 5 } {
+            return 1
+        }
+    }
+    return 0
+}
+
 proc makeTree { dir tree } {
     file mkdir $dir
     foreach { type name data } $tree {

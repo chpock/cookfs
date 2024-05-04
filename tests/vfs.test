@@ -131,16 +131,16 @@ tcltest::test cookfsVfs-1.9 "Test storing same files" -setup {
     vfs::unmount $file
 
     set h [vfs::cookfs::Mount $file $file -readonly]
-    if {![string equal [[set ${h}(index)] get test4a] [[set ${h}(index)] get test4b]]} {
+    if {![fsindexEqual [[set ${h}(index)] get test4a] [[set ${h}(index)] get test4b]]} {
         error "Index for test4 differs: [[set ${h}(index)] get test4a] != [[set ${h}(index)] get test4b]"
     }
-    if {![string equal [[set ${h}(index)] get test3a] [[set ${h}(index)] get test3b]]} {
+    if {![fsindexEqual [[set ${h}(index)] get test3a] [[set ${h}(index)] get test3b]]} {
         error "Index for test3 differs: [[set ${h}(index)] get test3a] != [[set ${h}(index)] get test3b]"
     }
-    if {![string equal [[set ${h}(index)] get test2a] [[set ${h}(index)] get test2b]]} {
+    if {![fsindexEqual [[set ${h}(index)] get test2a] [[set ${h}(index)] get test2b]]} {
         error "Index for test2 differs: [[set ${h}(index)] get test2a] != [[set ${h}(index)] get test2b]"
     }
-    if {![string equal [[set ${h}(index)] get test1a] [[set ${h}(index)] get test1b]]} {
+    if {![fsindexEqual [[set ${h}(index)] get test1a] [[set ${h}(index)] get test1b]]} {
         error "Index for test1 differs: [[set ${h}(index)] get test1a] != [[set ${h}(index)] get test1b]"
     }
 } -cleanup {
