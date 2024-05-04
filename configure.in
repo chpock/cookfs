@@ -56,7 +56,7 @@ TEA_ADD_SOURCES([cookfs.c common.c md5.h bindata.c hashes.c])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/generic`\"])
 TEA_ADD_LIBS([])
-TEA_ADD_CFLAGS([-Wall -Wextra -pedantic])
+TEA_ADD_CFLAGS([-Wall -Wextra -pedantic -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections -fvisibility=hidden])
 TEA_ADD_STUB_SOURCES([])
 TEA_ADD_TCL_SOURCES([scripts/cookvfs.tcl scripts/memchan.tcl scripts/vfs.tcl scripts/optimize.tcl scripts/asyncworker_process.tcl scripts/asyncworker_thread.tcl])
 TEA_ADD_TCL_SOURCES([scripts/readerchannel.tcl])
@@ -184,8 +184,8 @@ else
     # if not using c-pages, use Tcl only readerchannel
     COOKFS_PKGCONFIG_USECREADERCHAN=0
 
-    # Tcl implementation offers bzip2 compression assuming Trf package is present
-    COOKFS_PKGCONFIG_USEBZ2=1
+    # Tcl implementation offers bzip2 compression only with Trf package
+    COOKFS_PKGCONFIG_USEBZ2=0
 fi
 
 AC_SUBST(COOKFS_PKGCONFIG_FEATURE_ASIDE)
@@ -217,6 +217,8 @@ AC_SUBST(COOKFS_PKGCONFIG_FEATURE_METADATA)
 #--------------------------------------------------------------------
 
 TEA_MAKE_LIB
+
+COOKFS_SET_LDFLAGS
 
 #--------------------------------------------------------------------
 # Determine the name of the tclsh and/or wish executables in the

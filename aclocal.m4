@@ -40,3 +40,70 @@ AC_DEFUN([COOKFS_PROG_TCLSH], [
         AC_MSG_RESULT([ok])
     fi
 ])
+
+AC_DEFUN([COOKFS_SET_LDFLAGS], [
+
+    _LDFLAGS="$LDFLAGS"
+    _CFLAGS="$CFLAGS"
+    LDFLAGS="-Wl,-Map=conftest.map"
+    CFLAGS=
+    AC_MSG_CHECKING([whether LD supports -Wl,-Map=])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([])],[
+        AC_MSG_RESULT([yes])
+        LDFLAGS="$_LDFLAGS -Wl,-Map=\[$]@.map"
+    ],[
+        AC_MSG_RESULT([no])
+        LDFLAGS="$_LDFLAGS"
+    ])
+    CFLAGS="$_CFLAGS"
+
+    _LDFLAGS="$LDFLAGS"
+    _CFLAGS="$CFLAGS"
+    LDFLAGS="-Wl,--gc-sections"
+    CFLAGS=
+    AC_MSG_CHECKING([whether LD supports -Wl,--gc-sections])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([])],[
+        AC_MSG_RESULT([yes])
+        LDFLAGS="$_LDFLAGS -Wl,--gc-sections -Wl,--as-needed"
+    ],[
+        AC_MSG_RESULT([no])
+        LDFLAGS="$_LDFLAGS"
+    ])
+    CFLAGS="$_CFLAGS"
+
+    if test "${CFLAGS_DEFAULT}" != "${CFLAGS_DEBUG}"; then
+
+        # Test this only on MacOS as GNU ld interprets -dead_strip
+        # as '-de'+'ad_strip'
+        if test "$SHLIB_SUFFIX" = ".dylib"; then
+            _LDFLAGS="$LDFLAGS"
+            _CFLAGS="$CFLAGS"
+            LDFLAGS="-Wl,-dead_strip"
+            CFLAGS=
+            AC_MSG_CHECKING([whether LD supports -Wl,-dead_strip])
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([])],[
+                AC_MSG_RESULT([yes])
+                LDFLAGS="$_LDFLAGS -Wl,-dead_strip"
+            ],[
+                AC_MSG_RESULT([no])
+                LDFLAGS="$_LDFLAGS"
+            ])
+            CFLAGS="$_CFLAGS"
+        fi
+
+        _LDFLAGS="$LDFLAGS"
+        _CFLAGS="$CFLAGS"
+        LDFLAGS="-s"
+        CFLAGS=
+        AC_MSG_CHECKING([whether LD supports -s])
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([])],[
+            AC_MSG_RESULT([yes])
+            LDFLAGS="$_LDFLAGS -s"
+        ],[
+            AC_MSG_RESULT([no])
+            LDFLAGS="$_LDFLAGS"
+        ])
+        CFLAGS="$_CFLAGS"
+    fi
+
+])

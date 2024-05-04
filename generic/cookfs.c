@@ -24,7 +24,7 @@
  *----------------------------------------------------------------------
  */
 
-int
+DLLEXPORT int
 Cookfs_Init(Tcl_Interp *interp)
 {
     char buf[256];
