@@ -1,6 +1,4 @@
 
-puts "cfsCache: chan names: [chan names]"
-
 tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
     vfs::cookfs::Mount $file $file -smallfilesize 50 -smallfilebuffer 5 -pagesize 150
@@ -153,12 +151,7 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -se
     join $result \n
 } -cleanup {
     catch { close $fd }
-    if { [catch { vfs::unmount $file } err] } {
-        puts "ERR: $err"
-    } {
-        puts "no erro"
-    }
-    puts "chan names: [chan names]"
+    catch { vfs::unmount $file }
     file delete -force $file
 } -result {
 {0 0 101} {1 0 4} {1 4 4} {2 0 101} {3 0 4} {3 4 4} {4 0 150 5 0 51} {6 0 4} {6 4 4}
