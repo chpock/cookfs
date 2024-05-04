@@ -1,4 +1,6 @@
-<html><head>
+<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>cookfs - vfs::cookfs</title>
 <style type="text/css"><!--
     HTML {
@@ -24,7 +26,7 @@
 	background: 	transparent;
 	text-align:		left;
     }
-    H1.title {
+    H1.doctools_title {
 	text-align: center;
     }
     UL,OL {
@@ -41,11 +43,11 @@
     DT {
 	padding-top: 	1ex;
     }
-    UL.toc,UL.toc UL, UL.toc UL UL {
+    UL.doctools_toc,UL.doctools_toc UL, UL.doctools_toc UL UL {
 	font:		normal 12pt/14pt sans-serif;
 	list-style:	none;
     }
-    LI.section, LI.subsection {
+    LI.doctools_section, LI.doctools_subsection {
 	list-style: 	none;
 	margin-left: 	0em;
 	text-indent:	0em;
@@ -62,18 +64,18 @@
 	padding-right:	1ex;
 	width:		100%;
     }
-    PRE.example {
+    PRE.doctools_example {
 	color: 		black;
 	background: 	#f5dcb3;
 	border:		1px solid black;
     }
-    UL.requirements LI, UL.syntax LI {
+    UL.doctools_requirements LI, UL.doctools_syntax LI {
 	list-style: 	none;
 	margin-left: 	0em;
 	text-indent:	0em;
 	padding:	0em;
     }
-    DIV.synopsis {
+    DIV.doctools_synopsis {
 	color: 		black;
 	background: 	#80ffff;
 	border:		1px solid black;
@@ -81,50 +83,51 @@
 	margin-top: 	1em;
 	margin-bottom: 	1em;
     }
-    UL.syntax {
+    UL.doctools_syntax {
 	margin-top: 	1em;
 	border-top:	1px solid black;
     }
-    UL.requirements {
+    UL.doctools_requirements {
 	margin-bottom: 	1em;
 	border-bottom:	1px solid black;
     }
 --></style>
 </head>
-<! -- Generated from file 'cookfs.man' by tcllib/doctools with format 'html'
+<!-- Generated from file 'cookfs.man' by tcllib/doctools with format 'html'
    -->
-<! -- Copyright &copy; 2010-2011 Wojciech Kocjan &lt;wojciech@kocjan.org&gt;
+<!-- Copyright &amp;copy; 2010-2011 Wojciech Kocjan &amp;lt;wojciech@kocjan.org&amp;gt;   -- Copyright &amp;copy; 2024 Konstantin Kushnir &amp;lt;chpock@gmail.com&amp;gt;
    -->
-<! -- CVS: $Id$ cookfs.n
+<!-- cookfs.n
    -->
 <body><div class="doctools">
-<h1 class="title">cookfs(n) 1.3.2 cookfs &quot;vfs::cookfs&quot;</h1>
-<div id="name" class="section"><h2><a name="name">Name</a></h2>
+<h1 class="doctools_title">cookfs(n) 1.5.0 cookfs &quot;vfs::cookfs&quot;</h1>
+<div id="name" class="doctools_section"><h2><a name="name">Name</a></h2>
 <p>cookfs - vfs::cookfs</p>
 </div>
-<div id="toc" class="section"><h2><a name="toc">Table Of Contents</a></h2>
-<ul class="toc">
-<li class="section"><a href="#toc">Table Of Contents</a></li>
-<li class="section"><a href="#synopsis">Synopsis</a></li>
-<li class="section"><a href="#section1">Description</a></li>
-<li class="section"><a href="#section2">COMMANDS</a></li>
-<li class="section"><a href="#section3">MOUNT OPTIONS</a></li>
-<li class="section"><a href="#section4">COOKFS STORAGE</a></li>
-<li class="section"><a href="#section5">COMPRESSSION</a></li>
-<li class="section"><a href="#section6">COOKFS METADATA</a></li>
-<li class="section"><a href="#section7">ASIDE AND WRITE TO MEMORY</a></li>
-<li class="section"><a href="#see-also">See Also</a></li>
-<li class="section"><a href="#keywords">Keywords</a></li>
-<li class="section"><a href="#copyright">Copyright</a></li>
+<div id="toc" class="doctools_section"><h2><a name="toc">Table Of Contents</a></h2>
+<ul class="doctools_toc">
+<li class="doctools_section"><a href="#toc">Table Of Contents</a></li>
+<li class="doctools_section"><a href="#synopsis">Synopsis</a></li>
+<li class="doctools_section"><a href="#section1">Description</a></li>
+<li class="doctools_section"><a href="#section2">COMMANDS</a></li>
+<li class="doctools_section"><a href="#section3">MOUNT OPTIONS</a></li>
+<li class="doctools_section"><a href="#section4">COOKFS STORAGE</a></li>
+<li class="doctools_section"><a href="#section5">COMPRESSSION</a></li>
+<li class="doctools_section"><a href="#section6">COOKFS METADATA</a></li>
+<li class="doctools_section"><a href="#section7">ASIDE AND WRITE TO MEMORY</a></li>
+<li class="doctools_section"><a href="#section8">CACHING</a></li>
+<li class="doctools_section"><a href="#see-also">See Also</a></li>
+<li class="doctools_section"><a href="#keywords">Keywords</a></li>
+<li class="doctools_section"><a href="#copyright">Copyright</a></li>
 </ul>
 </div>
-<div id="synopsis" class="section"><h2><a name="synopsis">Synopsis</a></h2>
-<div class="synopsis">
-<ul class="requirements">
+<div id="synopsis" class="doctools_section"><h2><a name="synopsis">Synopsis</a></h2>
+<div class="doctools_synopsis">
+<ul class="doctools_requirements">
 <li>package require <b class="pkgname">Tcl 8.5</b></li>
-<li>package require <b class="pkgname">vfs::cookfs <span class="opt">?1.3.2?</span></b></li>
+<li>package require <b class="pkgname">vfs::cookfs <span class="opt">?1.5.0?</span></b></li>
 </ul>
-<ul class="syntax">
+<ul class="doctools_syntax">
 <li><a href="#1"><b class="cmd">::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></li>
 <li><a href="#2"><b class="cmd">::vfs::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></li>
 <li><a href="#3"><b class="cmd">::cookfs::Unmount</b> <b class="method">fsid</b></a></li>
@@ -139,7 +142,7 @@
 </ul>
 </div>
 </div>
-<div id="section1" class="section"><h2><a name="section1">Description</a></h2>
+<div id="section1" class="doctools_section"><h2><a name="section1">Description</a></h2>
 <p>Package <b class="package">vfs::cookfs</b> is a Tcl virtual filesystem (VFS) that allows
 storing one or more files in a single file. This is similar to mk4vfs, zipvfs
 and many other archive formats.</p>
@@ -147,8 +150,8 @@ and many other archive formats.</p>
 optimized for both shipping Tcl scripts as well as delivering large payloads
 in an efficient way.</p>
 </div>
-<div id="section2" class="section"><h2><a name="section2">COMMANDS</a></h2>
-<dl class="definitions">
+<div id="section2" class="doctools_section"><h2><a name="section2">COMMANDS</a></h2>
+<dl class="doctools_definitions">
 <dt><a name="1"><b class="cmd">::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></dt>
 <dd></dd>
 <dt><a name="2"><b class="cmd">::vfs::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></dt>
@@ -175,13 +178,13 @@ When <i class="arg">filelist</i> contains paths relative to subdirectory of arch
 <p>For example if archive contains files
 <b class="const">contents/dir1/file1</b> and <b class="const">contents/dir1/subdir/file2</b>, the following code can be used:
 Specifying <i class="arg">filelist</i> relative to a directory and proper <i class="arg">base</i>:</p>
-<pre class="example">
+<pre class="doctools_example">
 % puts [$fsid optimizelist contents/dir1 {file1 subdir/file2}]
 subdir/file2
 file1
 </pre>
 <p>Specifying <i class="arg">filelist</i> relative to root directory:</p>
-<pre class="example">
+<pre class="doctools_example">
 % puts [$fsid optimizelist &quot;&quot; {contents/dir1/file1 contents/dir1/subdir/file2}]
 contents/dir1/subdir/file2
 contents/dir1/file1
@@ -201,7 +204,7 @@ Each <i class="arg">filename</i> specifies name of the file, relative to archive
 Elements <i class="arg">type</i> and <i class="arg">data</i> specify source for adding a file as well as actual data.
 <i class="arg">Size</i> specifies size of the file. If specified as empty string, it is calculated based on <i class="arg">type</i>.</p>
 <p>The following values for <i class="arg">type</i> are accepted:</p>
-<ul class="itemized">
+<ul class="doctools_itemized">
 <li><p><b class="const">file</b> -
 <i class="arg">data</i> specifies path to file that should be put in the cookfs archive; path is relative to current working directory, same as for command such as <b class="cmd">file copy</b>;
 file is copied directly and does not require staging file in memory, unlike writing a file in cookfs archive using <b class="cmd">open</b></p></li>
@@ -218,9 +221,9 @@ The size only includes page sizes and does not include overhead for index and ad
 <dd><p>Returns size of all files that are queued up to be written.</p></dd>
 </dl>
 </div>
-<div id="section3" class="section"><h2><a name="section3">MOUNT OPTIONS</a></h2>
+<div id="section3" class="doctools_section"><h2><a name="section3">MOUNT OPTIONS</a></h2>
 <p>The following options can be specified when mounting a cookfs archive:</p>
-<dl class="definitions">
+<dl class="doctools_definitions">
 <dt><b class="option">-readonly</b></dt>
 <dd><p>Mount archive as read-only. Archive must exist and be a valid cookfs archive, otherwise mount will fail.</p></dd>
 <dt><b class="option">-writetomemory</b></dt>
@@ -283,12 +286,12 @@ Defaults to <b class="const">md5</b>, can also be <b class="const">crc32</b>. Ma
 <dd><p>Do not create cookfs::pages object, use specified pages object. Mainly for internal use.</p></dd>
 </dl>
 </div>
-<div id="section4" class="section"><h2><a name="section4">COOKFS STORAGE</a></h2>
+<div id="section4" class="doctools_section"><h2><a name="section4">COOKFS STORAGE</a></h2>
 <p>Cookfs uses <b class="sectref">cookfs::pages</b> for storing all files and
 directories in an archive. Information on which pages store what files is stored
 in <b class="sectref">cookfs::fsindex</b> object, that is stored as part of archive.</p>
 <p>Cookfs stores files in one of the following ways:</p>
-<ol class="enumerated">
+<ol class="doctools_enumerated">
 <li><p>Entire file is stored in a single cookfs page.
 This happens if file's size is larger than <i class="arg">-smallfilesize</i>,
 but smaller than <i class="arg">-pagesize</i>.</p></li>
@@ -311,7 +314,7 @@ their extension, followed by their file name. This allows files such as
 <b class="const">pkgIndex.tcl</b> to be compressed in same page, which is much more efficient
 than compressing each of them independantly.</p>
 </div>
-<div id="section5" class="section"><h2><a name="section5">COMPRESSSION</a></h2>
+<div id="section5" class="doctools_section"><h2><a name="section5">COMPRESSSION</a></h2>
 <p>Cookfs uses compression to store pages and filesystem index more efficiently.
 Pages are compressed as a whole and independant of files. Filesystem index is
 also compressed to reduce file size.</p>
@@ -319,7 +322,7 @@ also compressed to reduce file size.</p>
 This option applies to newly stored pages and whenever a file index should be
 saved. Existing pages are not re-compressed on compression change.</p>
 <p>Cookfs provides the following compressions:</p>
-<ul class="itemized">
+<ul class="doctools_itemized">
 <li><p><b class="const">none</b> -
 no compression is used at all; mainly used for testing purposes or when
 content should not be packed at all</p></li>
@@ -338,7 +341,7 @@ use Tcl commands for compressing and decompressing pages</p></li>
 have to be specified. These commands will be used to compress data and will be called
 with data to be compressed or decompressed as additional argument.</p>
 <p>For example the following are sample compress and decompress commands:</p>
-<pre class="example">
+<pre class="doctools_example">
 # use vfs::zip to (de)compress data and encode it in HEX
 proc testc {d} {
     binary scan [vfs::zip -mode compress $d] H* rc
@@ -356,7 +359,7 @@ vfs::cookfs::Mount archive archive -compression custom -compresscommand testc -d
 These are outcome of performing multiple tests.
 It is not recommended to change it for <b class="const">zlib</b> compression.</p>
 </div>
-<div id="section6" class="section"><h2><a name="section6">COOKFS METADATA</a></h2>
+<div id="section6" class="doctools_section"><h2><a name="section6">COOKFS METADATA</a></h2>
 <p>Cookfs supports storing metadata in an archive. Metadata are any number of
 properties stored in a cookfs archive.</p>
 <p>Cookfs does not impose any limits or rules on naming of properties as well as
@@ -366,7 +369,7 @@ using <b class="const">cookfs.*</b> prefix and cookit related properties use
 <p>User properties do not need to use any prefix or suffix, but it is recommended
 to use form of <b class="const"><i class="arg">appname</i>.*</b>.</p>
 </div>
-<div id="section7" class="section"><h2><a name="section7">ASIDE AND WRITE TO MEMORY</a></h2>
+<div id="section7" class="doctools_section"><h2><a name="section7">ASIDE AND WRITE TO MEMORY</a></h2>
 <p>Cookfs supports a feature called aside changes. It stores all changes
 in a separate file. It can be used for updating files in read-only archives such
 as standalone binaries or data on read-only media.</p>
@@ -384,13 +387,47 @@ archives to store all changes in memory and those will not be saved back on disk
 This feature is mainly intended for handling temporary files or running legacy code that
 requires write access to files inside a read-only archive.</p>
 </div>
-<div id="see-also" class="section"><h2><a name="see-also">See Also</a></h2>
+<div id="section8" class="doctools_section"><h2><a name="section8">CACHING</a></h2>
+<p>In order to make I/O operations with pages more efficient and avoid additional
+page read attempts, a page cache is used.</p>
+<p>Generally, pages that contain more than one file are more interesting to cache.
+For these pages, it is more likely that they will be needed to read
+the following files.</p>
+<p>To provide higher priority caching for pages with many files, each cache entry
+has a &quot;weight&quot; field. The value of this field is 0 for pages that contain data
+from only one file. And the value of this field is 1 if this page contains
+data from multiple files. According to this field, the priority for storing
+pages in the cache will be implemented. When replacing pages in the cache,
+the page with the minimum weight is replaced first.</p>
+<p>However, another issue arises with this approach. There may be a situation
+where a page with several files will be stored in the cache, but access to
+these files is no longer needed. In this case, the cached page will reside
+in the cache and prevent more used pages from being added.</p>
+<p>To solve this issue, each cache entry also has an &quot;age&quot; field. The &quot;age&quot;
+field is a special value that is incremented by 1 during page operations.
+When this value reaches a certain limit, the page weight is reset to the
+default value of 0. Also, if the page is requested from the cache and used,
+the value of its &quot;age&quot; will be reset to the original value 0.</p>
+<p>This makes it possible to free up cache space from prioritized but unused pages.</p>
+<p>The concept of &quot;age&quot; has the following nuances:</p>
+<p>It is possible to read a file splitted into a large number of pages. To avoid
+adding &quot;age&quot; multiple times for all cache elements when reading each page,
+&quot;age&quot; for all items will be incremented only on the very first attempt to
+read this file.</p>
+<p>The opposite situation is possible, when a single page contains a large number
+of small files. To avoid &quot;age&quot; overflow for other pages when reading these files,
+the field &quot;age&quot; will only increase the first time this page is read. If this page
+already exists in the cache, then the field &quot;age&quot; for cache items
+will not be increased.</p>
+</div>
+<div id="see-also" class="doctools_section"><h2><a name="see-also">See Also</a></h2>
 <p>cookfs_fsindex, cookfs_pages</p>
 </div>
-<div id="keywords" class="section"><h2><a name="keywords">Keywords</a></h2>
+<div id="keywords" class="doctools_section"><h2><a name="keywords">Keywords</a></h2>
 <p>cookfs, vfs</p>
 </div>
-<div id="copyright" class="section"><h2><a name="copyright">Copyright</a></h2>
-<p>Copyright &copy; 2010-2011 Wojciech Kocjan &lt;wojciech@kocjan.org&gt;</p>
+<div id="copyright" class="doctools_section"><h2><a name="copyright">Copyright</a></h2>
+<p>Copyright &copy; 2010-2011 Wojciech Kocjan &lt;wojciech@kocjan.org&gt;<br>
+Copyright &copy; 2024 Konstantin Kushnir &lt;chpock@gmail.com&gt;</p>
 </div>
 </div></body></html>

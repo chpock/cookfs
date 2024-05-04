@@ -6,6 +6,11 @@ namespace eval cookfs {}
 namespace eval cookfs::tcl {}
 namespace eval cookfs::pages {}
 
+# enable bzip2 if Trf package is available
+if { ![catch { package require Trf }] } {
+    set ::cookfs::pkgconfig::pkgconfig(feature-bzip2) 1
+}
+
 set ::cookfs::pages::errorMessage "Unable to create Cookfs object"
 
 set ::cookfs::pageshandleIdx 0
@@ -29,6 +34,7 @@ proc cookfs::tcl::pages {args} {
         alwayscompress 0
         asyncwrites {}
         asyncpreloadBusy {}
+        maxAge 50
     }
 
     if {[info commands ::zlib] != ""} {
@@ -338,7 +344,7 @@ proc cookfs::pages::pageAdd {name contents} {
     set idx 0
     foreach imd5 $c(idx.md5list) {
         if {[string equal $md5 $imd5]} {
-            if {[string equal [pageGet $name $idx] $contents]} {
+            if {[string equal [pageGet $name $idx -1000] $contents]} {
                 return $idx
             }
         }
@@ -425,7 +431,7 @@ proc cookfs::pages::pageGetData {name idx} {
     return $fc
 }
 
-proc cookfs::pages::pageGetStored {name idx variableName {clean true}} {
+proc cookfs::pages::pageGetStored {name idx weight variableName {clean true}} {
     upvar $variableName fc
     upvar #0 $name c
 
@@ -435,53 +441,133 @@ proc cookfs::pages::pageGetStored {name idx variableName {clean true}} {
         return true
     }
 
-    if {[cacheGet $name $idx fc]} {
+    if {[cacheGet $name $idx $weight fc]} {
         return true
     }
 
     return [asyncGet $name $idx fc $clean]
 }
 
-proc cookfs::pages::cacheGet {name idx variableName} {
+proc cookfs::pages::cacheGet {name idx args} {
+
+    if { [llength $args] == 1 } {
+        set weight ""
+        set variableName [lindex $args 0]
+    } elseif { [llength $args] == 2 } {
+        set weight [lindex $args 0]
+        set variableName [lindex $args 1]
+    } else {
+        error "cacheGet: wrong # args: \"$args\""
+    }
+
     upvar $variableName fc
     upvar #0 $name c
 
-    set cidx [lsearch -exact $c(cachelist) $idx]
+    set cidx [lsearch -exact -index 0 $c(cachelist) $idx]
+
     if {$cidx >= 0} {
-        if {$cidx > 0} {
-            set c(cachelist) [linsert [lreplace $c(cachelist) $cidx $cidx] 0 $idx]
-        }
-        set fc $c(cache,$idx)
+        cacheMoveToTop $name $cidx $weight
+        # now our page is at the top
+        set fc $c(cache,0)
         return true
     }
 
     return false
+
 }
 
-proc cookfs::pages::cacheAdd {name idx fc} {
+proc cookfs::pages::isCached {name idx} {
+    upvar #0 $name c
+    return [expr { [lsearch -exact -index 0 $c(cachelist) $idx] != -1 }]
+}
+
+proc cookfs::pages::cacheAdd {name idx weight fc} {
     upvar #0 $name c
 
-    if {$c(cachesize) > 0} {
-        set cidx [lsearch -exact $c(cachelist) $idx]
-        if {$cidx < 0} {
-            if {[llength $c(cachelist)] >= $c(cachesize)} {
-                set remidx [lindex $c(cachelist) [expr {$c(cachesize) - 1}]]
-                unset c(cache,$remidx)
-                set c(cachelist) [lrange $c(cachelist) 0 [expr {$c(cachesize) - 2}]]
+    if {$c(cachesize) <= 0} {
+        return
+    }
+
+    set cidx [lsearch -exact -index 0 $c(cachelist) $idx]
+
+    if { $cidx != -1 } {
+        cacheMoveToTop $name $cidx $weight
+        return
+    }
+
+    if { [llength $c(cachelist)] && [llength $c(cachelist)] >= $c(cachesize) } {
+
+        set newIdx [expr { [llength $c(cachelist)] - 1 }]
+
+        for { set i [expr { [llength $c(cachelist)] - 2 }] } { $i >= 0 } { incr i -1 } {
+
+            if { [lindex $c(cachelist) [list $i 1]] > [lindex $c(cachelist) [list $newIdx 1]] } {
+                continue
             }
-            set c(cachelist) [linsert $c(cachelist) 0 $idx]
-            set c(cache,$idx) $fc
+
+            if {
+                [lindex $c(cachelist) [list $i 1]] == [lindex $c(cachelist) [list $newIdx 1]] &&
+                [lindex $c(cachelist) [list $i 2]] <= [lindex $c(cachelist) [list $newIdx 2]]
+            } {
+                continue
+            }
+
+            set newIdx $i
+
+        }
+
+    } else {
+        set newIdx [llength $c(cachelist)]
+    }
+
+    set c(cachelist) [lreplace $c(cachelist) $newIdx $newIdx [list $idx $weight 0]]
+    set c(cache,$newIdx) $fc
+
+    cacheMoveToTop $name $newIdx $weight
+}
+
+proc cookfs::pages::cacheMoveToTop {name idx {weight {}} } {
+    upvar #0 $name c
+
+    set rec [lindex $c(cachelist) $idx]
+    if { [string length $weight] } {
+        set rec [lreplace $rec 1 1 $weight]; # weight
+    }
+    set rec [lreplace $rec 2 2 0]; # age
+
+    if { !$idx } {
+        # avoid unnecessary action if the situation does not change
+        set c(cachelist) [lreplace $c(cachelist) 0 0 $rec]
+    } else {
+        set c(cachelist) [linsert [lreplace $c(cachelist) $idx $idx] 0 $rec]
+        set tmp $c(cache,$idx)
+        for { set i $idx } { $i >= 1 } { incr i -1 } {
+            set c(cache,$i) $c(cache,[expr { $i - 1 }])
+        }
+        set c(cache,0) $tmp
+    }
+
+}
+
+proc cookfs::pages::tickTock {name} {
+    upvar #0 $name c
+    for { set i 0 } { $i < [llength $c(cachelist)] } { incr i } {
+        set age [lindex $c(cachelist) [list $i 2]]
+        incr age
+        lset c(cachelist) [list $i 2] $age
+        if { $age >= $c(maxAge) } {
+            lset c(cachelist) [list $i 1] 0
         }
     }
 }
 
-proc cookfs::pages::pageGet {name idx} {
+proc cookfs::pages::pageGet {name idx weight} {
     asyncPreload $name [expr {$idx + 1}]
 
-    if {![pageGetStored $name $idx fc]} {
+    if {![pageGetStored $name $idx $weight fc] && ![cacheGet $name $idx $weight fc]} {
         set fc [pageGetData $name $idx]
         set fc [decompress $name $fc]
-        cacheAdd $name $idx $fc
+        cacheAdd $name $idx $weight $fc
     }
 
     return $fc
@@ -548,7 +634,7 @@ proc cookfs::pages::asyncPreload {name idx} {
         }
         #puts "PRELOAD $idx -> $maxIdx -> $c(asyncpreloadBusy)"
         for {set i $idx} {$i < $maxIdx} {incr i} {
-            if {![pageGetStored $name $i - false] && ([lsearch $c(asyncpreloadBusy) $i] < 0)} {
+            if {![pageGetStored $name $i 1000 - false] && ([lsearch $c(asyncpreloadBusy) $i] < 0)} {
                 set fc [pageGetData $name $i]
                 # validate compression type and remove it before passing for processing
                 if {[string index $fc 0] == "\u00ff"} {
@@ -589,7 +675,7 @@ proc cookfs::pages::asyncDecompressWait {name widx require} {
 	if {[llength $rc] > 0} {
 	    set rcidx [lindex $rc 0]
 	    #set c(asyncpreload,$rcidx) [lindex $rc 1]
-            cacheAdd $name $rcidx [lindex $rc 1]
+            cacheAdd $name $rcidx 1000 [lindex $rc 1]
             #puts "WAIT GOT $rcidx"
 	    if {[set lidx [lsearch -exact $c(asyncpreloadBusy) $rcidx]] >= 0} {
 		set c(asyncpreloadBusy) [lreplace $c(asyncpreloadBusy) $lidx $lidx]
@@ -663,15 +749,33 @@ proc cookfs::pages::handle {name cmd args} {
     upvar #0 $name c
     switch -- $cmd {
         get {
-            if {[llength $args] == 1} {
-                if {[catch {
-                    pageGet $name [lindex $args 0]
-                } rc]} {
-		    ::cookfs::debug {pageGet error: $::errorInfo}
-                    error "Unable to retrieve chunk"
-                }
-                return $rc
+            if {[llength $args] != 1 && [llength $args] != 3 } {
+                error "wrong # args: should be \"$name\
+                    $cmd ?-weight weight? index\""
             }
+            set weight 0
+            if { [llength $args] == 3 } {
+                if {[lindex $args 0] ne "-weight"} {
+                    error [format "unknown option \"%s\" has been\
+                        specified where -weight is expected" [lindex $args 0]]
+                }
+                if {![string is integer -strict [lindex $args 1]]} {
+                    error [format "expected integer but got\
+                        \"%s\"" [lindex $args 1]]
+                }
+                set weight [lindex $args 1]
+            }
+            if {![string is integer -strict [lindex $args end]]} {
+                error [format "expected integer but got\
+                    \"%s\"" [lindex $args end]]
+            }
+            if {[catch {
+                pageGet $name [lindex $args end] $weight
+            } rc]} {
+                ::cookfs::debug {pageGet error: $::errorInfo}
+                error "Unable to retrieve chunk"
+            }
+            return $rc
         }
         preload {
             if {[llength $args] == 1} {
@@ -752,6 +856,40 @@ proc cookfs::pages::handle {name cmd args} {
             }  elseif {[llength $args] == 1} {
                 return [setCompression $name [lindex $args 0]]
             }
+        }
+        ticktock {
+            if {[llength $args] > 1} {
+                error "wrong # args: should be \"$name\ $cmd ?maxAge?\""
+            }
+            if {[llength $args]} {
+                if {![string is integer -strict [lindex $args 0]]} {
+                    error [format "expected integer but got\
+                        \"%s\"" [lindex $args 0]]
+                }
+                if { [lindex $args 0] >= 0 } {
+                    set c(maxAge) [lindex $args 0]
+                }
+            } else {
+                tickTock $name
+            }
+            return $c(maxAge)
+        }
+        getcache {
+            if {[llength $args] > 1} {
+                error "wrong # args: should be \"$name\ $cmd ?index?\""
+            }
+            if {[llength $args]} {
+                if {![string is integer -strict [lindex $args 0]]} {
+                    error [format "expected integer but got\
+                        \"%s\"" [lindex $args 0]]
+                }
+                return [isCached $name [lindex $args 0]]
+            }
+            return [lmap x $c(cachelist) { dict create {*}[list \
+                index  [lindex $x 0] \
+                weight [lindex $x 1] \
+                age    [lindex $x 2] \
+            ] }]
         }
         default {
             error "Not implemented"

@@ -33,7 +33,7 @@ proc cookfs::createReadableChannel {fsid path} {
 
     # create C channel if available and was not disabled
     if {!$fs(tclreaderchannel) && [pkgconfig get c-readerchannel]} {
-	set chan [cookfs::c::readerchannel $fs(pages) $chunklist]
+	set chan [cookfs::c::readerchannel $fs(pages) $fs(index) $chunklist]
 	fconfigure $chan -buffersize 65536
 	return $chan
     }
@@ -44,6 +44,7 @@ proc cookfs::createReadableChannel {fsid path} {
 
     array set ch {
         offset 0
+        firstread 1
     }
 
     # initialize internal information with chunk list
@@ -138,7 +139,14 @@ proc cookfs::readableChannelHandler {fsid chid command args} {
                         error "Unable to handle small files not written yet!"
                     }
 
-                    set d [$fs(pages) get $chunkId]
+                    if { $ch(firstread) } {
+                        if { ![$fs(pages) getcache $chunkId] } {
+                            $fs(pages) ticktock
+                        }
+                        set ch(firstread) 0
+                    }
+                    set weight [expr { [$fs(index) getblockusage $chunkId] > 1 ? 1 : 0 }]
+                    set d [$fs(pages) get -weight $weight $chunkId]
                     if {($cpoffset != 0) || ($dsize != [string length $d])} {
                         set d [string range $d $cpoffset [expr {$cpoffset + $dsize - 1}]]
                     }

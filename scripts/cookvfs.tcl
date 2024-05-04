@@ -144,13 +144,18 @@ proc cookfs::Mount {args} {
 	{tcl-readerchannel			      {Use Tcl based readerchannel handler}}
 	{pagesize.arg		   262144	  {Maximum page size}}
 	{pagecachesize.arg	      8	       {Number of pages to cache}}
-	{pagehash.arg		   "md5"	   {Hash algorithm to use for page hashing}}
 	{volume					 {Mount as volume}}
 	{smallfilesize.arg	      32768	   {Maximum size of small files}}
 	{smallfilebuffer.arg	    4194304	 {Maximum buffer for optimizing small files}}
 	{nodirectorymtime				{Do not initialize mtime for new directories to current date and time}}
     }
     lappend options [list tempfilename.arg "" {Temporary file name to keep index in}]
+
+    if { [pkgconfig get c-pages] || ![catch { package require md5 2 }] } {
+        lappend options {pagehash.arg "md5" {Hash algorithm to use for page hashing}}
+    } else {
+        lappend options {pagehash.arg "crc32" {Hash algorithm to use for page hashing}}
+    }
 
     set usage {archive local}
 

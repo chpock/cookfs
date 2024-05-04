@@ -67,8 +67,28 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	    blockRead = bytesLeft;
 	}
 
-	CookfsLog(printf("Cookfs_Readerchannel_Input: reading page %d", instData->buf[instData->currentBlock + 0]))
-	pageObj = Cookfs_PageGet(instData->pages, instData->buf[instData->currentBlock + 0]);
+	int pageIndex = instData->buf[instData->currentBlock + 0];
+	CookfsLog(printf("Cookfs_Readerchannel_Input: reading page %d", pageIndex))
+	int pageUsage = Cookfs_FsindexGetBlockUsage(instData->fsindex, pageIndex);
+	/* If page contains only one file, set its weight to 0. Otherwise, set its weight to 1. */
+	int pageWeight = (pageUsage <= 1) ? 0 : 1;
+	/*
+	   Check if we need to do a tick-tock on the page cache. This should only be done when
+	   we are reading a file for the first time. This will avoid tick-tocks when reading
+	   a large file with multiple pages.
+	*/
+	if (instData->firstTimeRead) {
+	    /*
+	       Check to see if the page we are interested in is cached. This will avoid tick-tocks
+	       when reading multiple small files from one page, or when one file is requested
+	       multiple times.
+	    */
+	    if (!Cookfs_PagesIsCached(instData->pages, pageIndex)) {
+	        Cookfs_PagesTickTock(instData->pages);
+	    }
+	    instData->firstTimeRead = 0;
+	}
+	pageObj = Cookfs_PageGet(instData->pages, pageIndex, pageWeight);
 	CookfsLog(printf("Cookfs_Readerchannel_Input: result %s", (pageObj ? "SET" : "NULL")))
 
 	if (pageObj == NULL) {

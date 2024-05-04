@@ -1,9 +1,10 @@
-[manpage_begin cookfs n 1.3.2]
+[manpage_begin cookfs n 1.5.0]
 [copyright {2010-2011 Wojciech Kocjan <wojciech@kocjan.org>}]
+[copyright {2024 Konstantin Kushnir <chpock@gmail.com>}]
 [moddesc   {vfs::cookfs}]
 [titledesc {vfs::cookfs}]
 [require Tcl 8.5]
-[require vfs::cookfs [opt 1.3.2]]
+[require vfs::cookfs [opt 1.5.0]]
 
 [description]
 
@@ -385,6 +386,55 @@ Write to memory feature is slightly different. It allows read-only and read-writ
 archives to store all changes in memory and those will not be saved back on disk.
 This feature is mainly intended for handling temporary files or running legacy code that
 requires write access to files inside a read-only archive.
+
+[section {CACHING}]
+In order to make I/O operations with pages more efficient and avoid additional
+page read attempts, a page cache is used.
+
+[para]
+Generally, pages that contain more than one file are more interesting to cache.
+For these pages, it is more likely that they will be needed to read
+the following files.
+
+[para]
+To provide higher priority caching for pages with many files, each cache entry
+has a "weight" field. The value of this field is 0 for pages that contain data
+from only one file. And the value of this field is 1 if this page contains
+data from multiple files. According to this field, the priority for storing
+pages in the cache will be implemented. When replacing pages in the cache,
+the page with the minimum weight is replaced first.
+
+[para]
+However, another issue arises with this approach. There may be a situation
+where a page with several files will be stored in the cache, but access to
+these files is no longer needed. In this case, the cached page will reside
+in the cache and prevent more used pages from being added.
+
+[para]
+To solve this issue, each cache entry also has an "age" field. The "age"
+field is a special value that is incremented by 1 during page operations.
+When this value reaches a certain limit, the page weight is reset to the
+default value of 0. Also, if the page is requested from the cache and used,
+the value of its "age" will be reset to the original value 0.
+
+[para]
+This makes it possible to free up cache space from prioritized but unused pages.
+
+[para]
+The concept of "age" has the following nuances:
+
+[para]
+It is possible to read a file splitted into a large number of pages. To avoid
+adding "age" multiple times for all cache elements when reading each page,
+"age" for all items will be incremented only on the very first attempt to
+read this file.
+
+[para]
+The opposite situation is possible, when a single page contains a large number
+of small files. To avoid "age" overflow for other pages when reading these files,
+the field "age" will only increase the first time this page is read. If this page
+already exists in the cache, then the field "age" for cache items
+will not be increased.
 
 [see_also cookfs_pages cookfs_fsindex]
 [keywords vfs cookfs]

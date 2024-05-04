@@ -282,8 +282,18 @@ ERROR:
 
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     static char *commands[] = {
-        "add", "aside", "get", "gethead", "getheadmd5", "gettail", "gettailmd5", "hash", "index", "length", "dataoffset", "close", "delete", "cachesize", "filesize", "compression", NULL };
-    enum { cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail, cmdGetTailMD5, cmdHash, cmdIndex, cmdLength, cmdDataoffset, cmdClose, cmdDelete, cmdCachesize, cmdFilesize, cmdCompression };
+        "add", "aside", "get", "gethead", "getheadmd5", "gettail",
+        "gettailmd5", "hash", "index", "length", "dataoffset",
+        "close", "delete", "cachesize", "filesize", "compression",
+        "getcache", "ticktock",
+        NULL
+    };
+    enum {
+        cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail,
+        cmdGetTailMD5, cmdHash, cmdIndex, cmdLength, cmdDataoffset,
+        cmdClose, cmdDelete, cmdCachesize, cmdFilesize, cmdCompression,
+        cmdGetCache, cmdTickTock
+    };
     int idx;
     Cookfs_Pages *p = (Cookfs_Pages *) clientData;
 
@@ -315,15 +325,27 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
         case cmdGet:
         {
             int idx;
+            int weight = 0;
             Tcl_Obj *rc;
-            if (objc != 3) {
-                Tcl_WrongNumArgs(interp, 2, objv, "index");
+            if (objc != 3 && objc != 5) {
+                Tcl_WrongNumArgs(interp, 2, objv, "?-weight weight? index");
                 return TCL_ERROR;
             }
-            if (Tcl_GetIntFromObj(interp, objv[2], &idx) != TCL_OK) {
+            if (objc > 3) {
+                if (strcmp(Tcl_GetString(objv[2]), "-weight") != 0) {
+                    Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown option"
+                        " \"%s\" has been specified where -weight is expected",
+                        Tcl_GetString(objv[2])));
+                    return TCL_ERROR;
+                }
+                if (Tcl_GetIntFromObj(interp, objv[3], &weight) != TCL_OK) {
+                    return TCL_ERROR;
+                }
+            }
+            if (Tcl_GetIntFromObj(interp, objv[objc-1], &idx) != TCL_OK) {
                 return TCL_ERROR;
             }
-            rc = Cookfs_PageGet(p, idx);
+            rc = Cookfs_PageGet(p, idx, weight);
             CookfsLog(printf("cmdGet [%s]", rc == NULL ? "NULL" : "SET"))
             if (rc == NULL) {
                 Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve chunk", -1));
@@ -535,6 +557,57 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 Tcl_WrongNumArgs(interp, 2, objv, "?type?");
                 return TCL_ERROR;
             }
+            break;
+        }
+        case cmdGetCache:
+        {
+            if (objc < 2 || objc > 3) {
+                Tcl_WrongNumArgs(interp, 2, objv, "?index?");
+                return TCL_ERROR;
+            }
+            Tcl_Obj *rc;
+            if (objc == 3) {
+                int index;
+                if (Tcl_GetIntFromObj(interp, objv[2], &index) != TCL_OK) {
+                    return TCL_ERROR;
+                }
+                int isCached = Cookfs_PagesIsCached(p, index);
+                rc = Tcl_NewBooleanObj(isCached);
+            } else {
+                rc = Tcl_NewListObj(0, NULL);
+                for (int i = 0; i < p->cacheSize; i++) {
+                    if (p->cache[i].pageObj == NULL) {
+                        continue;
+                    }
+                    Tcl_Obj *rec = Tcl_NewDictObj();
+                    Tcl_DictObjPut(interp, rec, Tcl_NewStringObj("index", -1),
+                        Tcl_NewIntObj(p->cache[i].pageIdx));
+                    Tcl_DictObjPut(interp, rec, Tcl_NewStringObj("weight", -1),
+                        Tcl_NewIntObj(p->cache[i].weight));
+                    Tcl_DictObjPut(interp, rec, Tcl_NewStringObj("age", -1),
+                        Tcl_NewIntObj(p->cache[i].age));
+                    Tcl_ListObjAppendElement(interp, rc, rec);
+                }
+            }
+            Tcl_SetObjResult(interp, rc);
+            break;
+        }
+        case cmdTickTock:
+        {
+            int maxAge;
+            if (objc < 2 || objc > 3) {
+                Tcl_WrongNumArgs(interp, 2, objv, "?maxAge?");
+                return TCL_ERROR;
+            }
+            if (objc == 3) {
+                if (Tcl_GetIntFromObj(interp, objv[2], &maxAge) != TCL_OK) {
+                    return TCL_ERROR;
+                }
+                maxAge = Cookfs_PagesSetMaxAge(p, maxAge);
+            } else {
+                maxAge = Cookfs_PagesTickTock(p);
+            }
+            Tcl_SetObjResult(interp, Tcl_NewIntObj(maxAge));
             break;
         }
     }

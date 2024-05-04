@@ -35,6 +35,7 @@ static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e);
  */
 
 int Cookfs_FsindexGetBlockUsage(Cookfs_Fsindex *i, int idx) {
+    CookfsLog(printf("Cookfs_FsindexGetBlockUsage: from [%p] index [%d]", i, idx));
     if (idx < 0 || i->blockIndexSize <= idx)
         return 0;
     return i->blockIndex[idx];
@@ -69,10 +70,10 @@ void Cookfs_FsindexModifyBlockUsage(Cookfs_Fsindex *i, int idx, int count) {
     if (idx < 0)
         return;
 
-    CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: increase block index [%d] value with [%d]", idx, count));
+    CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: increase block index [%d] by [%d]", idx, count));
     // check if we have enough space in the block index
     if (i->blockIndexSize <= idx) {
-        CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: expand block index buffer from [%d] to [%d]", i->blockIndexSize, idx));
+        CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: expand block index buffer from [%d] to [%d]", i->blockIndexSize, idx + 1));
         // expand our block index
         i->blockIndex = (int *)ckrealloc(i->blockIndex, sizeof(int) * (idx + 1));
         // initialize newly allocated block indexes with zeros
@@ -109,10 +110,12 @@ Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName)
 
     /* TODO: verify command suffix etc */
 
+    CookfsLog(printf("Cookfs_FsindexGetHandle: get handle from cmd [%s]", cmdName));
     if (!Tcl_GetCommandInfo(interp, cmdName, &cmdInfo)) {
 	return NULL;
     }
 
+    CookfsLog(printf("Cookfs_FsindexGetHandle: return [%p]", cmdInfo.objClientData));
     /* if we found proper Tcl command, its objClientData is Cookfs_Fsindex */
     return (Cookfs_Fsindex *) (cmdInfo.objClientData);
 }

@@ -12,11 +12,13 @@ typedef struct Cookfs_ReaderChannelInstData {
     Tcl_TimerToken watchTimer;
 
     Cookfs_Pages *pages;
+    Cookfs_Fsindex *fsindex;
 
     Tcl_WideInt currentOffset;
     Tcl_WideInt fileSize;
     int currentBlock;
     int currentBlockOffset;
+    int firstTimeRead;
 
     int bufSize;
     int buf[1];
@@ -24,9 +26,9 @@ typedef struct Cookfs_ReaderChannelInstData {
 
 int Cookfs_InitReaderchannelCmd(Tcl_Interp *interp);
 
-Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Tcl_Obj *listObj, Tcl_Interp *interp, char **channelNamePtr);
+Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Cookfs_Fsindex *fsindex, Tcl_Obj *listObj, Tcl_Interp *interp, char **channelNamePtr);
 
-Cookfs_ReaderChannelInstData *Cookfs_CreateReaderchannelAlloc(Cookfs_Pages *pages, int bufSize);
+Cookfs_ReaderChannelInstData *Cookfs_CreateReaderchannelAlloc(Cookfs_Pages *pages, Cookfs_Fsindex *fsindex, int bufSize);
 int Cookfs_CreateReaderchannelCreate(Cookfs_ReaderChannelInstData *instData, Tcl_Interp *interp);
 void Cookfs_CreateReaderchannelFree(Cookfs_ReaderChannelInstData *instData);
 

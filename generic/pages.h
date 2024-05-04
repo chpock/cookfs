@@ -35,6 +35,7 @@ enum {
 #define COOKFS_MAX_CACHE_PAGES 256
 #define COOKFS_DEFAULT_CACHE_PAGES 4
 #define COOKFS_MAX_PRELOAD_PAGES 8
+#define COOKFS_MAX_CACHE_AGE 50
 
 #define COOKFS_PAGES_ASIDE 0x10000000
 #define COOKFS_PAGES_MASK  0x0fffffff
@@ -46,6 +47,13 @@ typedef struct Cookfs_AsyncPage {
     int pageIdx;
     Tcl_Obj *pageContents;
 } Cookfs_AsyncPage;
+
+typedef struct Cookfs_CacheEntry {
+    int pageIdx;
+    int weight;
+    int age;
+    Tcl_Obj *pageObj;
+} Cookfs_CacheEntry;
 
 typedef struct Cookfs_Pages {
     /* main interp */
@@ -105,8 +113,8 @@ typedef struct Cookfs_Pages {
 
     /* cache */
     int cacheSize;
-    int cachePageIdx[COOKFS_MAX_CACHE_PAGES];
-    Tcl_Obj *cachePageObj[COOKFS_MAX_CACHE_PAGES];
+    int cacheMaxAge;
+    Cookfs_CacheEntry cache[COOKFS_MAX_CACHE_PAGES];
 
     /* async compress */
     Tcl_Obj *asyncCommandProcess;
@@ -128,9 +136,9 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p);
 Tcl_WideInt Cookfs_GetFilesize(Cookfs_Pages *p);
 void Cookfs_PagesFini(Cookfs_Pages *p);
 int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj);
-Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index);
-Tcl_Obj *Cookfs_PageCacheGet(Cookfs_Pages *p, int idx);
-void Cookfs_PageCacheSet(Cookfs_Pages *p, int idx, Tcl_Obj *obj);
+Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index, int weight);
+Tcl_Obj *Cookfs_PageCacheGet(Cookfs_Pages *p, int index, int update, int weight);
+void Cookfs_PageCacheSet(Cookfs_Pages *p, int idx, Tcl_Obj *obj, int weight);
 Tcl_Obj *Cookfs_PageGetHead(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetHeadMD5(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p);
@@ -147,6 +155,10 @@ void Cookfs_PagesSetIndex(Cookfs_Pages *p, Tcl_Obj *dataIndex);
 Tcl_Obj *Cookfs_PagesGetIndex(Cookfs_Pages *p);
 
 Tcl_WideInt Cookfs_PagesGetPageOffset(Cookfs_Pages *p, int idx);
+
+int Cookfs_PagesSetMaxAge(Cookfs_Pages *p, int maxAge);
+int Cookfs_PagesTickTock(Cookfs_Pages *p);
+int Cookfs_PagesIsCached(Cookfs_Pages *p, int index);
 
 #endif /* COOKFS_USECPAGES */
 

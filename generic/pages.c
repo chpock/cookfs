@@ -159,10 +159,13 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
 
     /* initialize cache */
     for (i = 0; i < COOKFS_MAX_CACHE_PAGES; i++) {
-	rc->cachePageIdx[i] = -1;
-	rc->cachePageObj[i] = NULL;
+        rc->cache[i].pageObj = NULL;
+        rc->cache[i].pageIdx = -1;
+        rc->cache[i].weight = 0;
+        rc->cache[i].age = 0;
     }
     rc->cacheSize = 0;
+    rc->cacheMaxAge = COOKFS_MAX_CACHE_AGE;
 
     CookfsLog(printf("Opening file %s as %s with compression %d", Tcl_GetStringFromObj(fileName, NULL), (rc->fileReadOnly ? "r" : "w+"), fileCompression))
 
@@ -377,8 +380,8 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     /* clean up cache */
     CookfsLog(printf("Cleaning up cache"))
     for (i = 0; i < p->cacheSize; i++) {
-	if (p->cachePageObj[i] != NULL) {
-	    Tcl_DecrRefCount(p->cachePageObj[i]);
+	if (p->cache[i].pageObj != NULL) {
+	    Tcl_DecrRefCount(p->cache[i].pageObj);
 	}
     }
 
@@ -489,7 +492,8 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
 
 	    CookfsLog(printf("Cookfs_PageAdd: Comparing page %d", idx))
 
-	    otherPageData = Cookfs_PageGet(p, idx);
+	    /* use -1000 weight as it is temporary page and we don't really need it in cache */
+	    otherPageData = Cookfs_PageGet(p, idx, -1000);
 	    /* fail in case when decompression is not available */
 	    if (otherPageData == NULL) {
 		CookfsLog(printf("Cookfs_PageAdd: Unable to verify page with same MD5 checksum"))
@@ -570,7 +574,7 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
  *
  * Cookfs_PageGet --
  *
- *	Gets contents of a page at specified index
+ *	Gets contents of a page at specified index and sets its weight in cache
  *
  * Results:
  *	Tcl_Obj with page data as bytearray object
@@ -586,11 +590,11 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
  *----------------------------------------------------------------------
  */
 
-Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
+Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index, int weight) {
     Tcl_Obj *rc;
     int preloadIndex = index + 1;
 
-    CookfsLog(printf("Cookfs_PageGet: index [%d]", index))
+    CookfsLog(printf("Cookfs_PageGet: index [%d] with weight [%d]", index, weight))
 
     for (; preloadIndex < p->dataNumPages ; preloadIndex++) {
 	if (!Cookfs_AsyncPagePreload(p, preloadIndex)) {
@@ -600,7 +604,7 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
 
     /* TODO: cleanup refcount for cached vs non-cached entries */
 
-    /* if page is disabled, immediately get page */
+    /* if cache is disabled, immediately get page */
     if (p->cacheSize <= 0) {
 	rc = CookfsPagesPageGetInt(p, index);
 	CookfsLog(printf("Returning directly [%s]", rc == NULL ? "NULL" : "SET"))
@@ -615,7 +619,7 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
 	}
     }
 
-    rc = Cookfs_PageCacheGet(p, index);
+    rc = Cookfs_PageCacheGet(p, index, 1, weight);
     if (rc != NULL) {
 	return rc;
     }
@@ -627,7 +631,7 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
 	return NULL;
     }
 
-    Cookfs_PageCacheSet(p, index, rc);
+    Cookfs_PageCacheSet(p, index, rc, weight);
 
     return rc;
 }
@@ -638,7 +642,8 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
  *
  * Cookfs_PageCacheGet --
  *
- *	Gets contents of a page at specified index if cached
+ *      Gets contents of a page at specified index if cached and update
+ *      its weight if the argument update is true
  *
  * Results:
  *	Tcl_Obj with page data as bytearray object
@@ -652,7 +657,7 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index) {
  *----------------------------------------------------------------------
  */
 
-Tcl_Obj *Cookfs_PageCacheGet(Cookfs_Pages *p, int index) {
+Tcl_Obj *Cookfs_PageCacheGet(Cookfs_Pages *p, int index, int update, int weight) {
     Tcl_Obj *rc;
     int i;
 
@@ -664,12 +669,12 @@ Tcl_Obj *Cookfs_PageCacheGet(Cookfs_Pages *p, int index) {
     CookfsLog(printf("Cookfs_PageCacheGet: index [%d]", index))
     /* iterate through pages cache and check if it already is in memory */
     for (i = 0; i < p->cacheSize; i++) {
-	if (p->cachePageIdx[i] == index) {
-	    rc = p->cachePageObj[i];
-	    /* if found and is not the first page in cache, move it to front */
-	    if (i > 0) {
-		CookfsPagesPageCacheMoveToTop(p, i);
+	if (p->cache[i].pageIdx == index) {
+	    rc = p->cache[i].pageObj;
+	    if (update) {
+	        p->cache[i].weight = weight;
 	    }
+	    CookfsPagesPageCacheMoveToTop(p, i);
 	    CookfsLog(printf("Returning from cache [%s]", rc == NULL ? "NULL" : "SET"))
 	    return rc;
 	}
@@ -696,31 +701,190 @@ Tcl_Obj *Cookfs_PageCacheGet(Cookfs_Pages *p, int index) {
  *----------------------------------------------------------------------
  */
 
-void Cookfs_PageCacheSet(Cookfs_Pages *p, int idx, Tcl_Obj *obj) {
-    /* replace page not used the most with new page and move it to top */
-    int newIdx = p->cacheSize - 1;
-    int i;
+void Cookfs_PageCacheSet(Cookfs_Pages *p, int idx, Tcl_Obj *obj, int weight) {
 
     if (p->cacheSize <= 0) {
 	return;
     }
 
-    CookfsLog(printf("Cookfs_PageCacheSet: index [%d]", idx))
+    int i;
+
+    /* if we already have that page in cache, then set its weight and move it to top */
+    CookfsLog(printf("Cookfs_PageCacheSet: index [%d]", idx));
     for (i = 0 ; i < p->cacheSize ; i++) {
-	if (p->cachePageIdx[i] == idx) {
+	if (p->cache[i].pageIdx == idx) {
+	    p->cache[i].weight = weight;
+	    /* age will be set by CookfsPagesPageCacheMoveToTop */
 	    CookfsPagesPageCacheMoveToTop(p, i);
 	    return;
 	}
     }
 
-    if (p->cachePageObj[newIdx] != NULL) {
-	Tcl_DecrRefCount(p->cachePageObj[newIdx]);
+    /*
+       Decide which cache element should be replaced. Let's try to find an empty
+       element or an element with minimum weight or maximum age.
+    */
+
+    int newIdx = p->cacheSize - 1;
+    CookfsLog(printf("Cookfs_PageCacheSet: initial newIdx [%d]", newIdx));
+
+    if (p->cache[newIdx].pageObj == NULL) {
+        CookfsLog(printf("Cookfs_PageCacheSet: use it as it is empty"));
+        goto found_empty;
     }
-    p->cachePageIdx[newIdx] = idx;
-    p->cachePageObj[newIdx] = obj;
+
+    /* save the current weight/age for later comparison */
+    int oldWeight = p->cache[newIdx].weight;
+    int oldAge = p->cache[newIdx].age;
+
+    CookfsLog(printf("Cookfs_PageCacheSet: iterate over existing cache entries. Old entry is with weight [%d] and age [%d]", oldWeight, oldAge));
+    for (i = p->cacheSize - 2; i >= 0; i--) {
+        /* use current entry if it is empty */
+        if (p->cache[i].pageObj == NULL) {
+            newIdx = i;
+            CookfsLog(printf("Cookfs_PageCacheSet: found empty entry [%d]", newIdx));
+            goto found_empty;
+        }
+        /* skip a entry if its weight is greater than the weight of the saved entry */
+        if (p->cache[i].weight > oldWeight) {
+            CookfsLog(printf("Cookfs_PageCacheSet: entry [%d] has too much weight [%d]", i, p->cache[i].weight));
+            continue;
+        }
+        /* if weight of current entry is the same, then skip a entry if its age is
+           less than or equal to the age of the saved entry */
+        if (p->cache[i].weight == oldWeight && p->cache[i].age <= oldAge) {
+            CookfsLog(printf("Cookfs_PageCacheSet: entry [%d] has too low an age [%d]", i, p->cache[i].age));
+            continue;
+        }
+        /* we found a suitable entry for replacement */
+        newIdx = i;
+        oldWeight = p->cache[i].weight;
+        oldAge = p->cache[i].age;
+        CookfsLog(printf("Cookfs_PageCacheSet: a new candidate for eviction has been found - entry [%d] with weight [%d] and age [%d]", newIdx, oldWeight, oldAge));
+    }
+
+    /* release the previous entry */
+    Tcl_DecrRefCount(p->cache[newIdx].pageObj);
+
+found_empty:
+    p->cache[newIdx].pageIdx = idx;
+    p->cache[newIdx].pageObj = obj;
+    p->cache[newIdx].weight = weight;
+    CookfsLog(printf("Cookfs_PageCacheSet: replace entry [%d]", newIdx));
+    /* age will be set by CookfsPagesPageCacheMoveToTop */
     CookfsPagesPageCacheMoveToTop(p, newIdx);
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsPagesPageCacheMoveToTop --
+ *
+ *	Move specified entry in page cache to top of page cache
+ *
+ * Results:
+ *	None
+ *
+ * Side effects:
+ *      Resets age of the specified entry to zero.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void CookfsPagesPageCacheMoveToTop(Cookfs_Pages *p, int index) {
+
+    /* reset the age of the entry as it is used now */
+    p->cache[index].age = 0;
+
+    /* if index is 0, do not do anything more */
+    if (index == 0) {
+        return;
+    }
+
+    /* save previous entry with specified index */
+    Cookfs_CacheEntry saved = p->cache[index];
+
+    /* move entries from 0 to index-1 to next positions */
+    memmove((void *) (p->cache + 1), p->cache, sizeof(Cookfs_CacheEntry) * index);
+
+    /* set previous entry located at index to position 0 */
+    p->cache[0] = saved;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PagesTickTock --
+ *
+ *      Increases the age of all cached entries by 1
+ *
+ * Results:
+ *      Current max age value for cache entries
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+int Cookfs_PagesTickTock(Cookfs_Pages *p) {
+    int maxAge = p->cacheMaxAge;
+    for (int i = 0; i < p->cacheSize; i++) {
+        if (++p->cache[i].age >= maxAge) {
+            p->cache[i].weight = 0;
+        }
+    }
+    return maxAge;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PagesSetMaxAge --
+ *
+ *      Changes max age for cache entries. If max age value is less than
+ *      zero, it will be ignored.
+ *
+ * Results:
+ *      Current max age value for cache entries
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+int Cookfs_PagesSetMaxAge(Cookfs_Pages *p, int maxAge) {
+    if (maxAge >= 0) {
+        p->cacheMaxAge = maxAge;
+    }
+    return p->cacheMaxAge;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PagesIsCached --
+ *
+ *      Checks whether the specified page is cached
+ *
+ * Results:
+ *      Returns true if the specified page is cached and false otherwise.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+int Cookfs_PagesIsCached(Cookfs_Pages *p, int index) {
+    for (int i = 0; i < p->cacheSize; i++) {
+        if (p->cache[i].pageIdx == index && p->cache[i].pageObj != NULL) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 /*
  *----------------------------------------------------------------------
@@ -969,15 +1133,16 @@ void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size) {
     }
     /* TODO: only clean up pages above min(prevSize, currentSize) */
     for (i = 0; i < COOKFS_MAX_CACHE_PAGES; i++) {
-	p->cachePageIdx[i] = -1;
-	if (p->cachePageObj[i] != NULL) {
-	    Tcl_DecrRefCount(p->cachePageObj[i]);
-	}
-	p->cachePageObj[i] = NULL;
+        p->cache[i].age = 0;
+        p->cache[i].weight = 0;
+        p->cache[i].pageIdx = -1;
+        if (p->cache[i].pageObj != NULL) {
+            Tcl_DecrRefCount(p->cache[i].pageObj);
+            p->cache[i].pageObj = NULL;
+        }
     }
     p->cacheSize = size;
 }
-
 
 /*
  *----------------------------------------------------------------------
@@ -1185,46 +1350,6 @@ static Tcl_Obj *CookfsPagesPageGetInt(Cookfs_Pages *p, int index) {
 
     return buffer;
 }
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CookfsPagesPageCacheMoveToTop --
- *
- *	Move specified entry in page cache to top of page cache
- *
- * Results:
- *	None
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-static void CookfsPagesPageCacheMoveToTop(Cookfs_Pages *p, int index) {
-    Tcl_Obj *to;
-    int ti;
-
-    /* if index is 0, do not do anything */
-    if (index == 0) {
-	return;
-    }
-
-    /* get previous values at specified index */
-    to = p->cachePageObj[index];
-    ti = p->cachePageIdx[index];
-
-    /* move entries from 0 to index-1 to next positions */
-    memmove((void *) (p->cachePageIdx + 1), p->cachePageIdx, sizeof(int) * index);
-    memmove((void *) (p->cachePageObj + 1), p->cachePageObj, sizeof(Tcl_Obj *) * index);
-
-    /* set previous values located at index to position 0 */
-    p->cachePageObj[0] = to;
-    p->cachePageIdx[0] = ti;
-}
-
 
 /*
  *----------------------------------------------------------------------

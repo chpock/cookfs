@@ -5,6 +5,7 @@
 	* Optimize compiler/linker flags
 	* Fix locked files during tests
 	* Add a makefile recipe for generating documentation
+	* Add a smart cache feature
 
 2024-05-03 Konstantin Kushnir <chpock@gmail.com>
 	* Fix missed quotes in pages.test

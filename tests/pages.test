@@ -1,3 +1,4 @@
+
 tcltest::test cookfsPages-1.1 "Create empty pages as read-write" -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
@@ -731,7 +732,13 @@ tcltest::test cookfsPages-10.1 "Test crc32 checksum algorithm" -setup {
     file delete -force $file
 } -returnCodes {ok} -result 1
 
-tcltest::test cookfsPages-10.2 "Test crc32 checksum algorithm fail if not re-set" -setup {
+# tcl-pages uses crc32 hash by default unless an md5 package is available.
+# In this case, after reopening, hash algorithm remain the same - crc32, and
+# this test doesn't catch a failure. Thus, it should be disabled when
+# c-pages feature is not enabled or md5 package is not available.
+tcltest::test cookfsPages-10.2 "Test crc32 checksum algorithm fail if not re-set" -constraints {
+    [cookfs::pkgconfig get c-pages] || ![catch { package require md5 2 }]
+} -setup {
     set file [tcltest::makeFile {TESTTEST} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -993,3 +1000,379 @@ tcltest::test cookfsPages-13.7 "Error message when specifying non-existing file"
     file delete -force $file
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object: couldn't open "*": no such file or directory}
 
+tcltest::test cookfsPages-13.8.1 "Error message when specifying wrong # arg for 'page get'" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg get 1 2 3 4
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pageshandle* get ?-weight weight? index"}
+
+tcltest::test cookfsPages-13.8.2 "Error message when specifying wrong # arg for 'page get'" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg get 1 2
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pageshandle* get ?-weight weight? index"}
+
+tcltest::test cookfsPages-13.8.3 "Error message when specifying wrong # arg for 'page get'" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg get -weight 2
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pageshandle* get ?-weight weight? index"}
+
+tcltest::test cookfsPages-13.8.4 "Error message when specifying wrong arg format for 'page get'" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg get -weight not-a-num1 1
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -returnCodes {error} -result {expected integer but got "not-a-num1"}
+
+tcltest::test cookfsPages-13.8.5 "Error message when specifying wrong arg format for 'page get'" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg get -weight 1 not-a-num2
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -returnCodes {error} -result {expected integer but got "not-a-num2"}
+
+tcltest::test cookfsPages-13.9.1 "Error message when specifying wrong # args for 'page ticktock'" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg ticktock a b c
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pageshandle* ticktock ?maxAge?"}
+
+tcltest::test cookfsPages-13.9.2 "Error message when specifying wrong arg format for 'page ticktock'" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg ticktock not-a-num3
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -returnCodes {error} -result {expected integer but got "not-a-num3"}
+
+tcltest::test cookfsPages-13.10.1 "Error message when specifying wrong # args for 'page getcache'" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg getcache a b c
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pageshandle* getcache ?index?"}
+
+tcltest::test cookfsPages-13.10.2 "Error message when specifying wrong arg format for 'page getcache'" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg getcache not-a-num4
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -returnCodes {error} -result {expected integer but got "not-a-num4"}
+
+tcltest::test cookfsPages-14.1 "Cache is empty on open" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg getcache
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -result ""
+
+tcltest::test cookfsPages-14.2 "Check that getcache returns a dict value with expected keys" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set pg [cookfs::pages -compression none $file]
+    $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
+    $pg delete
+} -body {
+    set pg [cookfs::pages -readonly -cachesize 1 $file]
+    $pg get 0
+    # a delay is here to make sure that there are no background preloads
+    after 30
+
+    lmap x [$pg getcache] {
+        join [lmap {k v} [lsort -stride 2 -index 0 $x] {
+            set k "$k-$v"
+        }] { }
+    }
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -result {{age-0 index-0 weight-0}}
+
+tcltest::test cookfsPages-14.3 "Cache contains exactly the 2nd page" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set pg [cookfs::pages -compression none $file]
+    $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
+    $pg delete
+} -body {
+    set pg [cookfs::pages -readonly -cachesize 1 $file]
+    $pg get 0
+    # a delay is here to make sure that there are no background preloads
+    after 30
+    $pg get 1
+    # a delay is here to make sure that there are no background preloads
+    after 30
+    lmap x [$pg getcache] { dict get $x index }
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -result "1"
+
+tcltest::test cookfsPages-14.4 "Cache contains exactly two pages" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set pg [cookfs::pages -compression none $file]
+    $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
+    $pg delete
+} -body {
+    set pg [cookfs::pages -readonly -cachesize 10 $file]
+    $pg get 0
+    $pg get 1
+    lmap x [$pg getcache] { dict get $x index }
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -result "1 0"
+
+tcltest::test cookfsPages-14.5 "Cache contains exactly three pages in specific order" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set pg [cookfs::pages -compression none $file]
+    $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
+    $pg delete
+} -body {
+    set pg [cookfs::pages -readonly -cachesize 3 $file]
+    $pg get 0
+    $pg get 1
+    $pg get 4
+    $pg get 0
+    # a delay is here to make sure that there are no background preloads
+    after 30
+    $pg get 3
+    lmap x [$pg getcache] { dict get $x index }
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -result "3 0 4"
+
+tcltest::test cookfsPages-15.1 "Check if the cache weight is stored correctly" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set pg [cookfs::pages -compression none $file]
+    $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
+    $pg delete
+} -body {
+    set pg [cookfs::pages -readonly -cachesize 4 $file]
+    $pg get -weight 5 3
+    $pg get -weight 0 1
+    $pg get -weight 20 4
+    $pg get -weight -5 0
+    # a delay is here to make sure that there are no background preloads
+    after 30
+    # here we override the previous weight 5
+    $pg get 3
+    lmap x [$pg getcache] { list [dict get $x index] [dict get $x weight] }
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -result {{3 0} {0 -5} {4 20} {1 0}}
+
+tcltest::test cookfsPages-15.2 "Check if the cache entry with minimum weight is evicted" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set pg [cookfs::pages -compression none $file]
+    $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
+    $pg delete
+} -body {
+    set pg [cookfs::pages -readonly -cachesize 4 $file]
+    $pg get -weight 5 3
+    $pg get -weight 0 1
+    $pg get -weight 20 4
+    $pg get -weight -5 0
+    # a delay is here to make sure that there are no background preloads
+    after 30
+    # here we override the previous weight 5
+    $pg get 3
+    unset -nocomplain result
+    # at this point, the cache should look like this:
+    # {3 0} {0 -5} {4 20} {1 0}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x weight] }]
+    # get another page
+    $pg get 2
+    # at this point, the page with weight -5 should be evicted:
+    # {2 0} {3 0} {4 20} {1 0}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x weight] }]
+    # get another page
+    $pg get 0
+    # at this point, the last page #1 with weight 0 should be evicted:
+    # {0 0} {2 0} {3 0} {4 20}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x weight] }]
+    # get another page. It has a negative weight, but it still needs to be added
+    $pg get -weight -100 1
+    # at this point, the last page #3 with weight 0 should be evicted:
+    # {1 -100} {0 0} {2 0} {4 20}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x weight] }]
+    # get page which already exists in cache
+    $pg get 2
+    # at this point, the picture should be similar as before, but now page #2 should be moved to the top:
+    # {2 0} {1 -100} {0 0} {4 20}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x weight] }]
+    # get page which already exists in case, but change its weight
+    $pg get -weight 5 0
+    # at this point, the picture should be similar as before, but now page #0 must have weight 5 and be moved to the top:
+    # {0 5} {2 0} {1 -100} {4 20}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x weight] }]
+    # get another page
+    $pg get 3
+    # at this point, the page #1 with weight -100 should be evicted:
+    # {3 0} {0 5} {2 0} {4 20}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x weight] }]
+    # get another page
+    $pg get -weight -1 1
+    # at this point, the last page with weight 0 (page #2) should be evicted:
+    # {1 -1} {3 0} {0 5} {4 20}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x weight] }]
+    # get another page
+    $pg get 2
+    # at this point, the most recent page #1 should be evicted as it has the lowest weight -1:
+    # {2 0} {3 0} {0 5} {4 20}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x weight] }]
+    # let's see what we have
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -result {{3 0} {0 -5} {4 20} {1 0}
+{2 0} {3 0} {4 20} {1 0}
+{0 0} {2 0} {3 0} {4 20}
+{1 -100} {0 0} {2 0} {4 20}
+{2 0} {1 -100} {0 0} {4 20}
+{0 5} {2 0} {1 -100} {4 20}
+{3 0} {0 5} {2 0} {4 20}
+{1 -1} {3 0} {0 5} {4 20}
+{2 0} {3 0} {0 5} {4 20}}
+
+tcltest::test cookfsPages-16.1 "Check if the cache age is stored correctly" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set pg [cookfs::pages -compression none $file]
+    $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
+    $pg delete
+} -body {
+    set pg [cookfs::pages -readonly -cachesize 4 $file]
+    unset -nocomplain result
+    # get one page, its weight will be used later in this test
+    $pg get -weight 10 0
+    # we have only one page with age 0
+    # {0 0}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x age] }]
+    # ticktock
+    $pg ticktock
+    # age must increase
+    # {0 1}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x age] }]
+    # ticktock more
+    $pg ticktock
+    # age must increase again
+    # {0 2}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x age] }]
+    # get another page
+    $pg get 1
+    # we should see the new page with age 0 and the old one
+    # {1 0} {0 2}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x age] }]
+    # just check the current max age
+    $pg ticktock -1
+    # the cache should be exactly the same
+    # {1 0} {0 2}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x age] }]
+    # set the max age setting to 5
+    $pg ticktock 5
+    # the cache should be exactly the same
+    # {1 0} {0 2}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x age] }]
+    # ticktock once more
+    $pg ticktock
+    # age for 2 entries must increase
+    # {1 1} {0 3}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x age] }]
+    # get page
+    $pg get 2
+    # we have 3 pages now:
+    # {2 0} {1 1} {0 3}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x age] }]
+    # ticktock
+    $pg ticktock
+    # age for all entries must increase
+    # {2 1 0} {1 2 0} {0 4 10}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x age] [dict get $x weight] }]
+    # get 2 pages
+    $pg get 3
+    $pg get 4
+    # page #1 with weight 0 should be evicted
+    # {4 0 0} {3 0 0} {2 1 0} {0 4 10}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x age] [dict get $x weight] }]
+    # ticktock
+    $pg ticktock
+    # now page #0 has reached the previously set age limit (5), its weight should be reset to 0:
+    # {4 1 0} {3 1 0} {2 2 0} {0 5 0}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x age] [dict get $x weight] }]
+    $pg get 1
+    # now page #0 should be evicted as the oldest page:
+    # {1 0 0} {4 1 0} {3 1 0} {2 2 0}
+    lappend result [lmap x [$pg getcache] { list [dict get $x index] [dict get $x age] [dict get $x weight] }]
+    # let's see what we have
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -result {{0 0}
+{0 1}
+{0 2}
+{1 0} {0 2}
+{1 0} {0 2}
+{1 0} {0 2}
+{1 1} {0 3}
+{2 0} {1 1} {0 3}
+{2 1 0} {1 2 0} {0 4 10}
+{4 0 0} {3 0 0} {2 1 0} {0 4 10}
+{4 1 0} {3 1 0} {2 2 0} {0 5 0}
+{1 0 0} {4 1 0} {3 1 0} {2 2 0}}
+
+tcltest::test cookfsPages-17.1 "Check if cache checking is working properly" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set pg [cookfs::pages -compression none $file]
+    $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
+    $pg delete
+} -body {
+    set pg [cookfs::pages -readonly -cachesize 4 $file]
+    $pg get 2
+    $pg get 4
+    unset -nocomplain result
+    lappend result [list [$pg getcache 0] [$pg getcache 1] [$pg getcache 2] [$pg getcache 3] [$pg getcache 4]]
+    # delete all cache
+    $pg cachesize 0
+    lappend result [list [$pg getcache 0] [$pg getcache 1] [$pg getcache 2] [$pg getcache 3] [$pg getcache 4]]
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -result {0 0 1 0 1
+0 0 0 0 0}

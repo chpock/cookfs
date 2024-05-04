@@ -31,7 +31,7 @@ static Tcl_ChannelType cookfsReaderChannel = {
     NULL,
 };
 
-Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Tcl_Obj *listObj, Tcl_Interp *interp, char **channelNamePtr)
+Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Cookfs_Fsindex *fsindex, Tcl_Obj *listObj, Tcl_Interp *interp, char **channelNamePtr)
 {
     Tcl_WideInt fileSize = 0;
     Tcl_Obj **listObjv;
@@ -54,7 +54,7 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Tcl_Obj *listObj, Tc
 	return NULL;
     }
 
-    instData = Cookfs_CreateReaderchannelAlloc(pages, listObjc);
+    instData = Cookfs_CreateReaderchannelAlloc(pages, fsindex, listObjc);
 
     if (instData == NULL) {
 	return NULL;
@@ -109,7 +109,7 @@ int Cookfs_CreateReaderchannelCreate(Cookfs_ReaderChannelInstData *instData, Tcl
     return TCL_OK;
 }
 
-Cookfs_ReaderChannelInstData *Cookfs_CreateReaderchannelAlloc(Cookfs_Pages *pages, int bufSize) {
+Cookfs_ReaderChannelInstData *Cookfs_CreateReaderchannelAlloc(Cookfs_Pages *pages, Cookfs_Fsindex *fsindex, int bufSize) {
     Cookfs_ReaderChannelInstData *result;
 
     result = (Cookfs_ReaderChannelInstData *) Tcl_Alloc(sizeof(Cookfs_ReaderChannelInstData) + bufSize * sizeof(int));
@@ -117,6 +117,7 @@ Cookfs_ReaderChannelInstData *Cookfs_CreateReaderchannelAlloc(Cookfs_Pages *page
     result->watchTimer = NULL;
 
     result->pages = pages;
+    result->fsindex = fsindex;
 
     result->currentOffset = 0;
     result->currentBlock = 0;
@@ -124,6 +125,8 @@ Cookfs_ReaderChannelInstData *Cookfs_CreateReaderchannelAlloc(Cookfs_Pages *page
 
     result->fileSize = 0;
     result->bufSize = bufSize;
+
+    result->firstTimeRead = 1;
 
     return result;
 }
@@ -144,11 +147,12 @@ void Cookfs_CreateReaderchannelFree(Cookfs_ReaderChannelInstData *instData) {
 static int CookfsCreateReaderchannelCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     UNUSED(clientData);
     Cookfs_Pages *pages;
+    Cookfs_Fsindex *fsindex;
     Tcl_Channel channel;
     char *channelName;
 
-    if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "pagesObject chunkList");
+    if (objc != 4) {
+        Tcl_WrongNumArgs(interp, 1, objv, "pagesObject fsindexObject chunkList");
         return TCL_ERROR;
     }
 
@@ -159,7 +163,15 @@ static int CookfsCreateReaderchannelCmd(ClientData clientData, Tcl_Interp *inter
 	return TCL_ERROR;
     }
 
-    channel = Cookfs_CreateReaderchannel(pages, objv[2], interp, &channelName);
+    fsindex = Cookfs_FsindexGetHandle(interp, Tcl_GetStringFromObj(objv[2], NULL));
+
+    CookfsLog(printf("CookfsCreateReaderchannelCmd: fsindex [%p]", fsindex));
+    if (fsindex == NULL) {
+	Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to find fsindex object", -1));
+	return TCL_ERROR;
+    }
+
+    channel = Cookfs_CreateReaderchannel(pages, fsindex, objv[3], interp, &channelName);
 
     if (channel == NULL) {
 	return TCL_ERROR;

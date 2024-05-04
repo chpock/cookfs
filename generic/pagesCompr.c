@@ -573,10 +573,11 @@ Tcl_Obj *Cookfs_AsyncPageGet(Cookfs_Pages *p, int idx) {
 	int i;
 	for (i = 0 ; i < p->asyncDecompressQueue ; i++) {
 	    if (p->asyncDecompressIdx[i] == idx) {
-		while (p->asyncDecompressIdx[i] == idx) {
-		    Cookfs_AsyncDecompressWait(p, idx, 1);
-		}
-		return Cookfs_PageCacheGet(p, idx);
+                while (p->asyncDecompressIdx[i] == idx) {
+                    Cookfs_AsyncDecompressWait(p, idx, 1);
+                }
+                /* don't modify here cache entry weight, it will be set by Cookfs_PageGet */
+                return Cookfs_PageCacheGet(p, idx, 0, 0);
 	    }
 	}
     }
@@ -752,7 +753,8 @@ int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
 	    }
 	}
 
-	if (Cookfs_PageCacheGet(p, idx) != NULL) {
+	/* don't modify page weight in cache, as here we are just checking if it is already loaded */
+	if (Cookfs_PageCacheGet(p, idx, 0, 0) != NULL) {
 	    // page already in cache and we just moved it to top; do nothing
 	    CookfsLog(printf("Cookfs_AsyncPagePreload: return 1 - Page already in cache and we just moved it to top"))
 	    return 1;
@@ -834,7 +836,12 @@ int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require) {
 
 	    CookfsLog(printf("Cookfs_AsyncDecompressWait: callback returned data for %d", i))
 	    Tcl_IncrRefCount(resObj);
-	    Cookfs_PageCacheSet(p, i, resObj);
+	    /*
+	        Set the page weight to 1000 because it should be cached and used further.
+	        If it will be displaced by other weighty pages, then preloading makes no sense.
+	        Real page weight will be set by Cookfs_PageGet
+	    */
+	    Cookfs_PageCacheSet(p, i, resObj, 1000);
 
 	    Tcl_DecrRefCount(result);
 

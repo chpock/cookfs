@@ -1,75 +1,83 @@
 '\"
-'\" Generated from file 'cookfs_pages.man' by tcllib/doctools with format 'nroff'
-'\" Copyright (c) 2010-2011 Wojciech Kocjan <wojciech@kocjan.org>
+'\" Generated from file 'cookfs_pages\&.man' by tcllib/doctools with format 'nroff'
+'\" Copyright (c) 2010-2011 Wojciech Kocjan <wojciech@kocjan\&.org>
+'\" Copyright (c) 2024 Konstantin Kushnir <chpock@gmail\&.com>
 '\"
-'\" The definitions below are for supplemental macros used in Tcl/Tk
-'\" manual entries.
-'\"
-'\" .AP type name in/out ?indent?
-'\"	Start paragraph describing an argument to a library procedure.
-'\"	type is type of argument (int, etc.), in/out is either "in", "out",
-'\"	or "in/out" to describe whether procedure reads or modifies arg,
-'\"	and indent is equivalent to second arg of .IP (shouldn't ever be
-'\"	needed;  use .AS below instead)
-'\"
-'\" .AS ?type? ?name?
-'\"	Give maximum sizes of arguments for setting tab stops.  Type and
-'\"	name are examples of largest possible arguments that will be passed
-'\"	to .AP later.  If args are omitted, default tab stops are used.
-'\"
-'\" .BS
-'\"	Start box enclosure.  From here until next .BE, everything will be
-'\"	enclosed in one large box.
-'\"
-'\" .BE
-'\"	End of box enclosure.
-'\"
-'\" .CS
-'\"	Begin code excerpt.
-'\"
-'\" .CE
-'\"	End code excerpt.
-'\"
-'\" .VS ?version? ?br?
-'\"	Begin vertical sidebar, for use in marking newly-changed parts
-'\"	of man pages.  The first argument is ignored and used for recording
-'\"	the version when the .VS was added, so that the sidebars can be
-'\"	found and removed when they reach a certain age.  If another argument
-'\"	is present, then a line break is forced before starting the sidebar.
-'\"
-'\" .VE
-'\"	End of vertical sidebar.
-'\"
-'\" .DS
-'\"	Begin an indented unfilled display.
-'\"
-'\" .DE
-'\"	End of indented unfilled display.
-'\"
-'\" .SO
-'\"	Start of list of standard options for a Tk widget.  The
-'\"	options follow on successive lines, in four columns separated
-'\"	by tabs.
-'\"
-'\" .SE
-'\"	End of list of standard options for a Tk widget.
-'\"
-'\" .OP cmdName dbName dbClass
-'\"	Start of description of a specific option.  cmdName gives the
-'\"	option's name as specified in the class command, dbName gives
-'\"	the option's name in the option database, and dbClass gives
-'\"	the option's class in the option database.
-'\"
-'\" .UL arg1 arg2
-'\"	Print arg1 underlined, then print arg2 normally.
-'\"
-'\" RCS: @(#) $Id: man.macros,v 1.1 2009/01/30 04:56:47 andreas_kupries Exp $
-'\"
-'\"	# Set up traps and other miscellaneous stuff for Tcl/Tk man pages.
+.TH "cookfs::pages" n 1\&.5\&.0 cookfs_pages "vfs::cookfs::pages"
+.\" The -*- nroff -*- definitions below are for supplemental macros used
+.\" in Tcl/Tk manual entries.
+.\"
+.\" .AP type name in/out ?indent?
+.\"	Start paragraph describing an argument to a library procedure.
+.\"	type is type of argument (int, etc.), in/out is either "in", "out",
+.\"	or "in/out" to describe whether procedure reads or modifies arg,
+.\"	and indent is equivalent to second arg of .IP (shouldn't ever be
+.\"	needed;  use .AS below instead)
+.\"
+.\" .AS ?type? ?name?
+.\"	Give maximum sizes of arguments for setting tab stops.  Type and
+.\"	name are examples of largest possible arguments that will be passed
+.\"	to .AP later.  If args are omitted, default tab stops are used.
+.\"
+.\" .BS
+.\"	Start box enclosure.  From here until next .BE, everything will be
+.\"	enclosed in one large box.
+.\"
+.\" .BE
+.\"	End of box enclosure.
+.\"
+.\" .CS
+.\"	Begin code excerpt.
+.\"
+.\" .CE
+.\"	End code excerpt.
+.\"
+.\" .VS ?version? ?br?
+.\"	Begin vertical sidebar, for use in marking newly-changed parts
+.\"	of man pages.  The first argument is ignored and used for recording
+.\"	the version when the .VS was added, so that the sidebars can be
+.\"	found and removed when they reach a certain age.  If another argument
+.\"	is present, then a line break is forced before starting the sidebar.
+.\"
+.\" .VE
+.\"	End of vertical sidebar.
+.\"
+.\" .DS
+.\"	Begin an indented unfilled display.
+.\"
+.\" .DE
+.\"	End of indented unfilled display.
+.\"
+.\" .SO ?manpage?
+.\"	Start of list of standard options for a Tk widget. The manpage
+.\"	argument defines where to look up the standard options; if
+.\"	omitted, defaults to "options". The options follow on successive
+.\"	lines, in three columns separated by tabs.
+.\"
+.\" .SE
+.\"	End of list of standard options for a Tk widget.
+.\"
+.\" .OP cmdName dbName dbClass
+.\"	Start of description of a specific option.  cmdName gives the
+.\"	option's name as specified in the class command, dbName gives
+.\"	the option's name in the option database, and dbClass gives
+.\"	the option's class in the option database.
+.\"
+.\" .UL arg1 arg2
+.\"	Print arg1 underlined, then print arg2 normally.
+.\"
+.\" .QW arg1 ?arg2?
+.\"	Print arg1 in quotes, then arg2 normally (for trailing punctuation).
+.\"
+.\" .PQ arg1 ?arg2?
+.\"	Print an open parenthesis, arg1 in quotes, then arg2 normally
+.\"	(for trailing punctuation) and then a closing parenthesis.
+.\"
+.\"	# Set up traps and other miscellaneous stuff for Tcl/Tk man pages.
 .if t .wh -1.3i ^B
 .nr ^l \n(.l
 .ad b
-'\"	# Start an argument description
+.\"	# Start an argument description
 .de AP
 .ie !"\\$4"" .TP \\$4
 .el \{\
@@ -78,7 +86,7 @@
 .\}
 .ta \\n()Au \\n()Bu
 .ie !"\\$3"" \{\
-\&\\$1	\\fI\\$2\\fP	(\\$3)
+\&\\$1 \\fI\\$2\\fP (\\$3)
 .\".b
 .\}
 .el \{\
@@ -91,7 +99,7 @@
 .\}
 .\}
 ..
-'\"	# define tabbing values for .AP
+.\"	# define tabbing values for .AP
 .de AS
 .nr )A 10n
 .if !"\\$1"" .nr )A \\w'\\$1'u+3n
@@ -101,9 +109,9 @@
 .nr )C \\n()Bu+\\w'(in/out)'u+2n
 ..
 .AS Tcl_Interp Tcl_CreateInterp in/out
-'\"	# BS - start boxed text
-'\"	# ^y = starting y location
-'\"	# ^b = 1
+.\"	# BS - start boxed text
+.\"	# ^y = starting y location
+.\"	# ^b = 1
 .de BS
 .br
 .mk ^y
@@ -113,7 +121,7 @@
 .if n \l'\\n(.lu\(ul'
 .if n .fi
 ..
-'\"	# BE - end boxed text (draw box now)
+.\"	# BE - end boxed text (draw box now)
 .de BE
 .nf
 .ti 0
@@ -133,16 +141,16 @@
 .br
 .nr ^b 0
 ..
-'\"	# VS - start vertical sidebar
-'\"	# ^Y = starting y location
-'\"	# ^v = 1 (for troff;  for nroff this doesn't matter)
+.\"	# VS - start vertical sidebar
+.\"	# ^Y = starting y location
+.\"	# ^v = 1 (for troff;  for nroff this doesn't matter)
 .de VS
 .if !"\\$2"" .br
 .mk ^Y
 .ie n 'mc \s12\(br\s0
 .el .nr ^v 1u
 ..
-'\"	# VE - end of vertical sidebar
+.\"	# VE - end of vertical sidebar
 .de VE
 .ie n 'mc
 .el \{\
@@ -157,9 +165,9 @@
 .\}
 .nr ^v 0
 ..
-'\"	# Special macro to handle page bottom:  finish off current
-'\"	# box/sidebar if in box/sidebar mode, then invoked standard
-'\"	# page bottom macro.
+.\"	# Special macro to handle page bottom:  finish off current
+.\"	# box/sidebar if in box/sidebar mode, then invoked standard
+.\"	# page bottom macro.
 .de ^B
 .ev 2
 'ti 0
@@ -186,34 +194,36 @@
 .mk ^Y
 .\}
 ..
-'\"	# DS - begin display
+.\"	# DS - begin display
 .de DS
 .RS
 .nf
 .sp
 ..
-'\"	# DE - end display
+.\"	# DE - end display
 .de DE
 .fi
 .RE
 .sp
 ..
-'\"	# SO - start of list of standard options
+.\"	# SO - start of list of standard options
 .de SO
+'ie '\\$1'' .ds So \\fBoptions\\fR
+'el .ds So \\fB\\$1\\fR
 .SH "STANDARD OPTIONS"
 .LP
 .nf
-.ta 4c 8c 12c
+.ta 5.5c 11c
 .ft B
 ..
-'\"	# SE - end of list of standard options
+.\"	# SE - end of list of standard options
 .de SE
 .fi
 .ft R
 .LP
-See the \\fBoptions\\fR manual entry for details on the standard options.
+See the \\*(So manual entry for details on the standard options.
 ..
-'\"	# OP - start of full description for a single option
+.\"	# OP - start of full description for a single option
 .de OP
 .LP
 .nf
@@ -224,28 +234,50 @@ Database Class:	\\fB\\$3\\fR
 .fi
 .IP
 ..
-'\"	# CS - begin code excerpt
+.\"	# CS - begin code excerpt
 .de CS
 .RS
 .nf
 .ta .25i .5i .75i 1i
 ..
-'\"	# CE - end code excerpt
+.\"	# CE - end code excerpt
 .de CE
 .fi
 .RE
 ..
+.\"	# UL - underline word
 .de UL
 \\$1\l'|0\(ul'\\$2
 ..
-.TH "cookfs::pages" n 1.3.2 cookfs_pages "vfs::cookfs::pages"
+.\"	# QW - apply quotation marks to word
+.de QW
+.ie '\\*(lq'"' ``\\$1''\\$2
+.\"" fix emacs highlighting
+.el \\*(lq\\$1\\*(rq\\$2
+..
+.\"	# PQ - apply parens and quotation marks to word
+.de PQ
+.ie '\\*(lq'"' (``\\$1''\\$2)\\$3
+.\"" fix emacs highlighting
+.el (\\*(lq\\$1\\*(rq\\$2)\\$3
+..
+.\"	# QR - quoted range
+.de QR
+.ie '\\*(lq'"' ``\\$1''\\-``\\$2''\\$3
+.\"" fix emacs highlighting
+.el \\*(lq\\$1\\*(rq\\-\\*(lq\\$2\\*(rq\\$3
+..
+.\"	# MT - "empty" string
+.de MT
+.QW ""
+..
 .BS
 .SH NAME
 cookfs::pages \- vfs::cookfs::pages
 .SH SYNOPSIS
-package require \fBTcl  8.5\fR
+package require \fBTcl 8\&.5\fR
 .sp
-package require \fBvfs::cookfs  ?1.3.2?\fR
+package require \fBvfs::cookfs ?1\&.5\&.0?\fR
 .sp
 \fB::cookfs::pages\fR ?\fIoptions\fR? \fIarchive\fR
 .sp
@@ -253,7 +285,7 @@ package require \fBvfs::cookfs  ?1.3.2?\fR
 .sp
 \fIpagesHandle\fR \fBadd\fR \fIcontents\fR
 .sp
-\fIpagesHandle\fR \fBget\fR \fIpageIdx\fR
+\fIpagesHandle\fR \fBget\fR ?\fI-weight weight\fR? \fIpageIdx\fR
 .sp
 \fIpagesHandle\fR \fBlength\fR
 .sp
@@ -272,6 +304,10 @@ package require \fBvfs::cookfs  ?1.3.2?\fR
 \fIpagesHandle\fR \fBgettailmd5\fR
 .sp
 \fIpagesHandle\fR \fBcachesize\fR ?\fInumPages\fR?
+.sp
+\fIpagesHandle\fR \fBgetcache\fR ?\fIpageIdx\fR?
+.sp
+\fIpagesHandle\fR \fBticktock\fR ?\fImaxAge\fR?
 .sp
 \fIpagesHandle\fR \fBfilesize\fR
 .sp
@@ -281,43 +317,49 @@ package require \fBvfs::cookfs  ?1.3.2?\fR
 .sp
 .BE
 .SH DESCRIPTION
-Cookfs pages provide a low level mechanism for reading and writing to cookfs pages.
+Cookfs pages provide a low level mechanism for reading and writing to cookfs pages\&.
 .PP
-This mechanism should only be used by advanced users and is only documented for reference.
+This mechanism should only be used by advanced users and is only documented for reference\&.
 .SH COMMANDS
 .TP
 \fB::cookfs::pages\fR ?\fIoptions\fR? \fIarchive\fR
-Creates a new pages object that can be used to read and write pages.
+Creates a new pages object that can be used to read and write pages\&.
 .sp
-The command returns a pages command that can be used to perform actions on pages.
+The command returns a pages command that can be used to perform actions on pages\&.
 .sp
-For definition of available options, see \fBPAGES OPTIONS\fR.
+For definition of available options, see \fBPAGES OPTIONS\fR\&.
 .TP
 \fIpagesHandle\fR \fBaside\fR \fIfilename\fR
-Uses a separate file for storing changes to an archive. This can be used to keep changes for a read-only archive in a separate file.
-See \fBcookfs\fR for more details on aside files and how they can be used.
+Uses a separate file for storing changes to an archive\&. This can be used to keep changes for a read-only archive in a separate file\&.
+See \fBcookfs\fR for more details on aside files and how they can be used\&.
 .TP
 \fIpagesHandle\fR \fBadd\fR \fIcontents\fR
-Add a new page to archive. Index of new page is returned. Index will be between 0 and \fBlength\fR-1.
+Add a new page to archive\&. Index of new page is returned\&. Index will be between 0 and \fBlength\fR-1\&.
 .sp
-When adding a page that already exists, index to already existing page is returned.
-Otherwise a new page is added at the end and its index is returned.
+When adding a page that already exists, index to already existing page is returned\&.
+Otherwise a new page is added at the end and its index is returned\&.
 .TP
-\fIpagesHandle\fR \fBget\fR \fIpageIdx\fR
-Gets a page in an archive. This can be between 0 and \fBlength\fR-1.
+\fIpagesHandle\fR \fBget\fR ?\fI-weight weight\fR? \fIpageIdx\fR
+Gets a page in an archive\&. This can be between 0 and \fBlength\fR-1\&.
+.sp
+If \fI-weight weight\fR is specified, the appropriate weight will be set for
+the cache entry for the returned page\&. If it is not specified, the weight of
+the cache entry for the returned page will be set to 0\&.
+.sp
+See \fBcookfs\fR for more details on caching in cookfs\&.
 .TP
 \fIpagesHandle\fR \fBlength\fR
-Returns number of pages in an archive.
+Returns number of pages in an archive\&.
 .TP
 \fIpagesHandle\fR \fBindex\fR ?\fInewIndex\fR?
-Get or set index data. Index is a binary data that is stored in an archive and can be changed at any time.
-This is used to store exported version of \fBcookfs_fsindex\fR.
+Get or set index data\&. Index is a binary data that is stored in an archive and can be changed at any time\&.
+This is used to store exported version of \fBcookfs_fsindex\fR\&.
 .TP
 \fIpagesHandle\fR \fBdataoffset\fR
-Returns offset to beginning of cookfs archive in the file.
+Returns offset to beginning of cookfs archive in the file\&.
 .TP
 \fIpagesHandle\fR \fBdelete\fR
-Saves all changes and deletes a cookfs pages object.
+Saves all changes and deletes a cookfs pages object\&.
 .TP
 \fIpagesHandle\fR \fBgethead\fR
 .TP
@@ -326,66 +368,87 @@ Saves all changes and deletes a cookfs pages object.
 \fIpagesHandle\fR \fBgettail\fR
 .TP
 \fIpagesHandle\fR \fBgettailmd5\fR
-Gets part of file as binary data or MD5 checksum of it.
-Head is the part of the file prior to cookfs archive.
-Tail is the entire cookfs archive.
+Gets part of file as binary data or MD5 checksum of it\&.
+Head is the part of the file prior to cookfs archive\&.
+Tail is the entire cookfs archive\&.
 .sp
-These commands can be used as helper procedures to read or compare currently open/mounted binaries.
+These commands can be used as helper procedures to read or compare currently open/mounted binaries\&.
 .TP
 \fIpagesHandle\fR \fBcachesize\fR ?\fInumPages\fR?
-Sets or gets maximum number of pages to store in cache.
-If \fInumPages\fR is specified, size is modified. If more than \fInumPages\fR pages are currently buffered, they are removed from cache.
-If 0, no cache is used. Otherwise, up to \fInumPages\fR are kept in memory
+Sets or gets maximum number of pages to store in cache\&.
+If \fInumPages\fR is specified, size is modified\&. If more than \fInumPages\fR pages are currently buffered, they are removed from cache\&.
+If 0, no cache is used\&. Otherwise, up to \fInumPages\fR are kept in memory
+.TP
+\fIpagesHandle\fR \fBgetcache\fR ?\fIpageIdx\fR?
+If \fIpageIdx\fR is specified, returns a boolean value corresponding to whether
+the internal cache contains data for the specified page\&.
+.sp
+If \fIpageIdx\fR is not specified, the content of the cache is returned\&.
+.sp
+The contents of the cache are a list of entries\&. Each element in the list is
+a Tcl dict with keys: index, weight and age\&.
+.sp
+This method is mainly used in tests\&.
+.TP
+\fIpagesHandle\fR \fBticktock\fR ?\fImaxAge\fR?
+If \fImaxAge\fR is specified, sets the maximum age for cache entries\&.
+.sp
+It \fImaxAge\fR is not specified, the age of all cache entries is incremented by 1\&.
+The current age for each record is also checked against the previously set maxAge\&.
+If the current age of an entry is greater than or equal to the maxAge value
+set previously, its weight will be reset to 0\&.
+.sp
+See \fBcookfs\fR for more details on caching in cookfs\&.
 .TP
 \fIpagesHandle\fR \fBfilesize\fR
-Returns size of file up to last stored page.
-The size only includes page sizes and does not include overhead for index and additional information used by cookfs.
+Returns size of file up to last stored page\&.
+The size only includes page sizes and does not include overhead for index and additional information used by cookfs\&.
 .TP
 \fIpagesHandle\fR \fBhash\fR
-Hash function to use for comparing if pages are equal. This is mainly used as pre-check and entire page is still checked for.
-Defaults to \fBmd5\fR, can also be \fBcrc32\fR. Mainly for internal/testing at this moment. Do not use.
+Hash function to use for comparing if pages are equal\&. This is mainly used as pre-check and entire page is still checked for\&.
+Defaults to \fBmd5\fR, can also be \fBcrc32\fR\&. Mainly for internal/testing at this moment\&. Do not use\&.
 .TP
 \fIpagesHandle\fR \fBclose\fR
-Closes pages object and return offset to end of cookfs archive.
-This is almost an equivalent of calling \fBdelete\fR.
+Closes pages object and return offset to end of cookfs archive\&.
+This is almost an equivalent of calling \fBdelete\fR\&.
 .sp
-This is meant for internal development and should not be used outside cookfs.
+This is meant for internal development and should not be used outside cookfs\&.
 .PP
 .SH "PAGES OPTIONS"
 The following options can be specified when creating a cookfs pages object:
 .TP
 \fB-readwrite\fR
-Open as read-write, which is the default. If file exists and is valid cookfs pages format archive, it is used.
-Otherwise new cookfs pages archive is created at end of file.
+Open as read-write, which is the default\&. If file exists and is valid cookfs pages format archive, it is used\&.
+Otherwise new cookfs pages archive is created at end of file\&.
 .TP
 \fB-readonly\fR
-Open as read-only. File must exist and be in valid cookfs pages format archive, otherwise operation will fail.
+Open as read-only\&. File must exist and be in valid cookfs pages format archive, otherwise operation will fail\&.
 .TP
 \fB-cachesize\fR \fInumPages\fR
-Maximum number of pages to store in cache.
-If 0, no cache is used. Otherwise, up to \fInumPages\fR are kept in memory
-for efficient access.
+Maximum number of pages to store in cache\&.
+If 0, no cache is used\&. Otherwise, up to \fInumPages\fR are kept in memory
+for efficient access\&.
 .TP
 \fB-endoffset\fR \fIoffset\fR
-Read archive starting at specified offset, instead of reading from end of file.
+Read archive starting at specified offset, instead of reading from end of file\&.
 .sp
 This feature is used when cookfs archive is not stored at end of file - for example if it is
-used in tclkit and followed by mk4vfs archive.
+used in tclkit and followed by mk4vfs archive\&.
 .TP
 \fB-compression\fR \fInone|zlib|bzip2|xz|custom\fR
-Compression to use for storing new files.
+Compression to use for storing new files\&.
 .sp
-See \fBcookfs\fR for more details on compression in cookfs.
+See \fBcookfs\fR for more details on compression in cookfs\&.
 .TP
 \fB-compresscommand\fR \fItcl command\fR
-For \fIcustom\fR compression, specifies command to use for compressing pages.
+For \fIcustom\fR compression, specifies command to use for compressing pages\&.
 .sp
-See \fBcookfs\fR for more details on compression in cookfs.
+See \fBcookfs\fR for more details on compression in cookfs\&.
 .TP
 \fB-decompresscommand\fR \fItcl command\fR
-For \fIcustom\fR compression, specifies command to use for decompressing pages.
+For \fIcustom\fR compression, specifies command to use for decompressing pages\&.
 .sp
-See \fBcookfs\fR for more details on compression in cookfs.
+See \fBcookfs\fR for more details on compression in cookfs\&.
 .PP
 .SH "SEE ALSO"
 cookfs_fsindex, cookfs_pages
@@ -393,6 +456,7 @@ cookfs_fsindex, cookfs_pages
 cookfs, vfs
 .SH COPYRIGHT
 .nf
-Copyright (c) 2010-2011 Wojciech Kocjan <wojciech@kocjan.org>
+Copyright (c) 2010-2011 Wojciech Kocjan <wojciech@kocjan\&.org>
+Copyright (c) 2024 Konstantin Kushnir <chpock@gmail\&.com>
 
 .fi

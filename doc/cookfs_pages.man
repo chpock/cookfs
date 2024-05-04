@@ -1,9 +1,10 @@
-[manpage_begin cookfs::pages n 1.3.2]
+[manpage_begin cookfs::pages n 1.5.0]
 [copyright {2010-2011 Wojciech Kocjan <wojciech@kocjan.org>}]
+[copyright {2024 Konstantin Kushnir <chpock@gmail.com>}]
 [moddesc   {vfs::cookfs::pages}]
 [titledesc {vfs::cookfs::pages}]
 [require Tcl 8.5]
-[require vfs::cookfs [opt 1.3.2]]
+[require vfs::cookfs [opt 1.5.0]]
 
 [description]
 
@@ -36,8 +37,16 @@ Add a new page to archive. Index of new page is returned. Index will be between 
 When adding a page that already exists, index to already existing page is returned.
 Otherwise a new page is added at the end and its index is returned.
 
-[call [arg pagesHandle] [method get] [arg pageIdx]]
+[call [arg pagesHandle] [method get] [opt [arg "-weight weight"]] [arg pageIdx]]
 Gets a page in an archive. This can be between 0 and [method length]-1.
+
+[para]
+If [arg "-weight weight"] is specified, the appropriate weight will be set for
+the cache entry for the returned page. If it is not specified, the weight of
+the cache entry for the returned page will be set to 0.
+
+[para]
+See [sectref-external cookfs] for more details on caching in cookfs.
 
 [call [arg pagesHandle] [method length]]
 Returns number of pages in an archive.
@@ -68,6 +77,32 @@ These commands can be used as helper procedures to read or compare currently ope
 Sets or gets maximum number of pages to store in cache.
 If [arg numPages] is specified, size is modified. If more than [arg numPages] pages are currently buffered, they are removed from cache.
 If 0, no cache is used. Otherwise, up to [arg numPages] are kept in memory
+
+[call [arg pagesHandle] [method getcache] [opt [arg pageIdx]]]
+If [arg pageIdx] is specified, returns a boolean value corresponding to whether
+the internal cache contains data for the specified page.
+
+[para]
+If [arg pageIdx] is not specified, the content of the cache is returned.
+
+[para]
+The contents of the cache are a list of entries. Each element in the list is
+a Tcl dict with keys: index, weight and age.
+
+[para]
+This method is mainly used in tests.
+
+[call [arg pagesHandle] [method ticktock] [opt [arg maxAge]]]
+If [arg maxAge] is specified, sets the maximum age for cache entries.
+
+[para]
+It [arg maxAge] is not specified, the age of all cache entries is incremented by 1.
+The current age for each record is also checked against the previously set maxAge.
+If the current age of an entry is greater than or equal to the maxAge value
+set previously, its weight will be reset to 0.
+
+[para]
+See [sectref-external cookfs] for more details on caching in cookfs.
 
 [call [arg pagesHandle] [method filesize]]
 Returns size of file up to last stored page.
