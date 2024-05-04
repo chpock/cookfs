@@ -1,3 +1,4 @@
+
 tcltest::test cookfsVfs-1.1.1 "Mount empty filename (unix)" -constraints unix -setup {
 } -body {
     vfs::cookfs::Mount "" ""
@@ -113,6 +114,7 @@ tcltest::test cookfsVfs-1.8 "Mounting as volume" -setup {
     expr {([lsearch [vfs::filesystem info] test:/]>=0)?1:0}
 } -cleanup {
     catch {vfs::unmount $file}
+    catch {vfs::unmount test:/}
     tcltest::removeFile $file
 } -returnCodes {ok} -result 1
 
@@ -657,5 +659,3 @@ tcltest::test cookfsVfs-10.1 "Test changing compression without remounting" -set
     catch {vfs::unmount $file}
     tcltest::removeFile $file
 } -returnCodes {ok}
-
-

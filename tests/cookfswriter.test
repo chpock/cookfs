@@ -46,10 +46,11 @@ tcltest::test cookfsWriter-1.3 "Create non-empty archive with bootstrap" -constr
     if {![string equal [read $fh] {SAMPLECONTENTS}]} {
 	error "File file1 does not contain predefined data"
     }
+    close $fh
 
     vfs::unmount $file
 } -cleanup {
+    catch {close $fh}
     catch {vfs::unmount $file}
     catch {file delete -force $file}
 } -returnCodes {ok}
-
