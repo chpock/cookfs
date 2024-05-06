@@ -1,4 +1,5 @@
 2024-05-06 Konstantin Kushnir <chpock@gmail.com>
+	* Bumped version to 1.6.0
 	* Fix undefined behaviour
 
 2024-05-05 Konstantin Kushnir <chpock@gmail.com>

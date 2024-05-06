@@ -30,4 +30,4 @@ proc cookfs::optimizelist {fsid base filelist} {
     return [concat $smallfiles $largefiles]
 }
 
-package provide vfs::cookfs::tcl::optimize 1.5.0
+package provide vfs::cookfs::tcl::optimize 1.6.0
