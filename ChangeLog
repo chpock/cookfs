@@ -1,3 +1,6 @@
+2024-05-06 Konstantin Kushnir <chpock@gmail.com>
+	* Fix undefined behaviour
+
 2024-05-05 Konstantin Kushnir <chpock@gmail.com>
 	* RELEASE TAG 1.5.0
 

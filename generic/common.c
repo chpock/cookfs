@@ -31,7 +31,13 @@
 unsigned char *Cookfs_Binary2Int(unsigned char *input, int *output, int count) {
     int b;
     while (count > 0) {
-        b = (input[0] << 24)
+        /*
+            Avoid undefined behaviour warning:
+                runtime error: left shift of 255 by 24 places cannot be represented in type 'int'
+            because even if input[0] is an unsigned char, it is still promoted
+            to a normal signed int.
+        */
+        b = ((unsigned int)input[0] << 24)
             | (input[1] << 16)
             | (input[2] << 8)
             | input[3];
@@ -39,6 +45,7 @@ unsigned char *Cookfs_Binary2Int(unsigned char *input, int *output, int count) {
         input += 4;
         count--;
     }
+
     return input;
 }
 
