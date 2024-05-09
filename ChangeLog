@@ -1,3 +1,6 @@
+2024-05-10 Konstantin Kushnir <chpock@gmail.com>
+	* Make pkgconfig.tcl file optional, implement it in C
+
 2024-05-06 Konstantin Kushnir <chpock@gmail.com>
 	* Bumped version to 1.6.0
 	* Fix undefined behaviour

@@ -8,6 +8,13 @@ package ifneeded vfs::@PACKAGE_NAME@::tcl::fsindex @PACKAGE_VERSION@ [list sourc
 package ifneeded vfs::@PACKAGE_NAME@::tcl::optimize @PACKAGE_VERSION@ [list source [file join $dir optimize.tcl]]
 package ifneeded vfs::@PACKAGE_NAME@::asyncworker::process @PACKAGE_VERSION@ [list source [file join $dir asyncworker_process.tcl]]
 package ifneeded vfs::@PACKAGE_NAME@::asyncworker::thread @PACKAGE_VERSION@ [list source [file join $dir asyncworker_thread.tcl]]
-package ifneeded vfs::@PACKAGE_NAME@::pkgconfig @PACKAGE_VERSION@ [list source [file join $dir pkgconfig.tcl]]
+
+package ifneeded vfs::@PACKAGE_NAME@::pkgconfig @PACKAGE_VERSION@ [list ::apply {{ dir } {
+    if { @COOKFS_PKGCONFIG_USECPKGCONFIG@ } {
+        load [file join $dir @PKG_LIB_FILE@] @PACKAGE_NAME@
+    } else {
+        source [file join $dir pkgconfig.tcl]
+    }
+}} $dir]
 
 package ifneeded vfs::@PACKAGE_NAME@::c @PACKAGE_VERSION@ [list load [file join $dir @PKG_LIB_FILE@] @PACKAGE_NAME@]

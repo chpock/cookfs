@@ -25,6 +25,11 @@
 
 #define UNUSED(expr) do { (void)(expr); } while (0)
 
+#ifndef STRINGIFY
+#  define STRINGIFY(x) STRINGIFY1(x)
+#  define STRINGIFY1(x) #x
+#endif
+
 #include "common.h"
 #include "bindata.h"
 #include "hashes.h"
@@ -45,5 +50,19 @@
 #include "readerchannel.h"
 #include "readerchannelIO.h"
 #endif /* COOKFS_USECREADERCHAN */
+
+#ifdef COOKFS_USEPKGCONFIG
+static Tcl_Config const cookfs_pkgconfig[] = {
+    {"package-version",  PACKAGE_VERSION},
+    {"c-pages",          STRINGIFY(COOKFS_PKGCONFIG_USECPAGES)},
+    {"c-fsindex",        STRINGIFY(COOKFS_PKGCONFIG_USECFSINDEX)},
+    {"c-readerchannel",  STRINGIFY(COOKFS_PKGCONFIG_USECREADERCHAN)},
+    {"feature-aside",    STRINGIFY(COOKFS_PKGCONFIG_FEATURE_ASIDE)},
+    {"feature-bzip2",    STRINGIFY(COOKFS_PKGCONFIG_USEBZ2)},
+    {"feature-xz",       STRINGIFY(COOKFS_PKGCONFIG_USEXZ)},
+    {"feature-metadata", STRINGIFY(COOKFS_PKGCONFIG_FEATURE_METADATA)},
+    {NULL, NULL}
+};
+#endif /* COOKFS_USEPKGCONFIG */
 
 #endif /* COOKFS_H */

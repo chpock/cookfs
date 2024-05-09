@@ -1,0 +1,26 @@
+
+tcltest::test cookfsPkgconfig-1 "Check pkgconfig fields and their types" -body {
+    set result [list {}]
+    foreach f [lsort [::cookfs::pkgconfig list]] {
+        set v [::cookfs::pkgconfig get $f]
+        if { $v in {0 1} } {
+            set v "bool"
+        } elseif { [regexp {^\d+\.\d+\.\d+$} $v] } {
+            set v "version"
+        } else {
+            set v "unknown"
+        }
+        lappend result "$f $v"
+    }
+    lappend result {}
+    join $result \n
+} -result {
+c-fsindex bool
+c-pages bool
+c-readerchannel bool
+feature-aside bool
+feature-bzip2 bool
+feature-metadata bool
+feature-xz bool
+package-version version
+}

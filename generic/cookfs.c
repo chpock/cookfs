@@ -32,10 +32,6 @@ Cookfs_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    if (Tcl_PkgProvide(interp, "vfs::" PACKAGE_NAME "::c", PACKAGE_VERSION) != TCL_OK) {
-        return TCL_ERROR;
-    }
-
     strcpy(buf, "namespace eval ::cookfs {} ; namespace eval ::cookfs::c {}");
     if (Tcl_EvalEx(interp, buf, -1, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
         return TCL_ERROR;
@@ -64,6 +60,18 @@ Cookfs_Init(Tcl_Interp *interp)
     }
 
     if (Cookfs_InitHashesCmd(interp) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+#ifdef COOKFS_USEPKGCONFIG
+    Tcl_RegisterConfig(interp, PACKAGE_NAME, cookfs_pkgconfig, "iso8859-1");
+
+    if (Tcl_PkgProvide(interp, "vfs::" PACKAGE_NAME "::pkgconfig", PACKAGE_VERSION) != TCL_OK) {
+        return TCL_ERROR;
+    }
+#endif
+
+    if (Tcl_PkgProvide(interp, "vfs::" PACKAGE_NAME "::c", PACKAGE_VERSION) != TCL_OK) {
         return TCL_ERROR;
     }
 

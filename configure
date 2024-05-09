@@ -656,6 +656,7 @@ MAKE_SHARED_LIB
 MAKE_LIB
 EGREP
 GREP
+COOKFS_PKGCONFIG_USECPKGCONFIG
 COOKFS_PKGCONFIG_FEATURE_METADATA
 COOKFS_PKGCONFIG_USECFSINDEX
 COOKFS_PKGCONFIG_USEXZ
@@ -787,6 +788,7 @@ enable_tcl_fallback
 enable_c_pages
 enable_c_fsindex
 enable_c_readerchannel
+enable_c_pkgconfig
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1430,6 +1432,7 @@ Optional Features:
   --disable-c-pages         Use pages handling written in C. Defaults to true
   --disable-c-fsindex       Use index handling written in C. Defaults to true
   --disable-c-readerchannel Use reader handler written in C. Defaults to true
+  --disable-c-pkgconfig     Use pkgconfig written in C. Defaults to true
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -8632,6 +8635,14 @@ else $as_nop
   USECREADERCHAN=yes
 fi
 
+# Check whether --enable-c-pkgconfig was given.
+if test ${enable_c_pkgconfig+y}
+then :
+  enableval=$enable_c_pkgconfig; USECPKGCONFIG=${enableval}
+else $as_nop
+  USECPKGCONFIG=yes
+fi
+
 
 if test ${INTERNALDEBUG} = yes; then
     printf "%s\n" "#define COOKFS_INTERNAL_DEBUG 1" >>confdefs.h
@@ -8959,17 +8970,10 @@ else
     COOKFS_PKGCONFIG_USEBZ2=0
 fi
 
-
-
-
-
-
-
 if test ${USECFSINDEX} = yes; then
     printf "%s\n" "#define COOKFS_USECFSINDEX 1" >>confdefs.h
 
     COOKFS_PKGCONFIG_USECFSINDEX=1
-    COOKFS_PKGCONFIG_FEATURE_METADATA=1
 
     vars="fsindex.c fsindexIO.c fsindexCmd.c"
     for i in $vars; do
@@ -9007,12 +9011,42 @@ if test ${USECFSINDEX} = yes; then
 
 else
     COOKFS_PKGCONFIG_USECFSINDEX=0
-
-    # TODO: move this outside conditions since
-    # metadata is supported in pure Tcl version as well
-    COOKFS_PKGCONFIG_FEATURE_METADATA=1
 fi
 
+COOKFS_PKGCONFIG_FEATURE_METADATA=1
+
+
+
+
+
+
+
+
+
+if test ${USECPKGCONFIG} = yes; then
+    COOKFS_PKGCONFIG_USECPKGCONFIG=1
+    printf "%s\n" "#define COOKFS_PKGCONFIG_FEATURE_ASIDE $COOKFS_PKGCONFIG_FEATURE_ASIDE" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_PKGCONFIG_USECPAGES $COOKFS_PKGCONFIG_USECPAGES" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_PKGCONFIG_USECREADERCHAN $COOKFS_PKGCONFIG_USECREADERCHAN" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_PKGCONFIG_USECPKGCONFIG $COOKFS_PKGCONFIG_USECPKGCONFIG" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_PKGCONFIG_USEBZ2 $COOKFS_PKGCONFIG_USEBZ2" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_PKGCONFIG_USEXZ $COOKFS_PKGCONFIG_USEXZ" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_PKGCONFIG_USECFSINDEX $COOKFS_PKGCONFIG_USECFSINDEX" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_PKGCONFIG_FEATURE_METADATA $COOKFS_PKGCONFIG_FEATURE_METADATA" >>confdefs.h
+
+
+    printf "%s\n" "#define COOKFS_USEPKGCONFIG 1" >>confdefs.h
+
+else
+    COOKFS_PKGCONFIG_USECPKGCONFIG=0
+fi
 
 
 
