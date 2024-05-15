@@ -4,6 +4,7 @@
  * Provides functions for using pages
  *
  * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ * (c) 2024 Konstantin Kushnir
  */
 
 #include "cookfs.h"
@@ -20,6 +21,26 @@ static void CookfsPagesPageExtendIfNeeded(Cookfs_Pages *p, int count);
 static void CookfsTruncateFileIfNeeded(Cookfs_Pages *p, Tcl_WideInt targetOffset);
 
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PagesIsReadonly --
+ *
+ *      Checks if the given pages object is in readonly mode.
+ *
+ * Results:
+ *      Returns a boolean value corresponding to the readonly mode for
+ *      given pages object.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+int Cookfs_PagesIsReadonly(Cookfs_Pages *p) {
+    return p->fileReadOnly;
+}
 
 /*
  *----------------------------------------------------------------------

@@ -4,6 +4,7 @@
  * Provides Tcl commands for managing filesystem indexes
  *
  * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ * (c) 2024 Konstantin Kushnir
  */
 
 #include "cookfs.h"
@@ -27,7 +28,8 @@ static int CookfsFsindexCmdSetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *inte
 static int CookfsFsindexCmdUnsetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdGetBlockUsage(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
-
+static int CookfsFsindexCmdChangeCount(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+static int CookfsFsindexCmdImport(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
 /*
  *----------------------------------------------------------------------
@@ -96,10 +98,10 @@ static int CookfsRegisterFsindexObjectCmd(ClientData clientData, Tcl_Interp *int
     CookfsLog(printf("CookfsRegisterFsindexObjectCmd: create new command [%s]", buf));
     /* import fsindex from specified data if specified, otherwise create new fsindex */
     if (objc == 2) {
-        i = Cookfs_FsindexFromObject(objv[1]);
+        i = Cookfs_FsindexFromObject(NULL, objv[1]);
         CookfsLog(printf("CookfsRegisterFsindexObjectCmd: created fsindex from obj [%p]", i));
     } else {
-        i = Cookfs_FsindexInit();
+        i = Cookfs_FsindexInit(NULL);
         CookfsLog(printf("CookfsRegisterFsindexObjectCmd: created fsindex from scratch [%p]", i));
     }
 
@@ -161,8 +163,8 @@ static void CookfsFsindexDeleteProc(ClientData clientData) {
  */
 
 static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    static char *commands[] = { "export", "list", "get", "getmtime", "set", "setmtime", "unset", "delete", "setmetadata", "getmetadata", "unsetmetadata", "getblockusage", NULL };
-    enum { cmdExport, cmdList, cmdGet, cmdGetmtime, cmdSet, cmdSetmtime, cmdUnset, cmdDelete, cmdSetMetadata, cmdGetMetadata, cmdUnsetMetadata, cmdGetBlockUsage };
+    static char *commands[] = { "export", "list", "get", "getmtime", "set", "setmtime", "unset", "delete", "setmetadata", "getmetadata", "unsetmetadata", "getblockusage", "changecount", "import", NULL };
+    enum { cmdExport, cmdList, cmdGet, cmdGetmtime, cmdSet, cmdSetmtime, cmdUnset, cmdDelete, cmdSetMetadata, cmdGetMetadata, cmdUnsetMetadata, cmdGetBlockUsage, cmdChangeCount, cmdImport };
     int idx;
 
     Cookfs_Fsindex *fsIndex = (Cookfs_Fsindex *) clientData;
@@ -202,10 +204,43 @@ static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc,
 	     return CookfsFsindexCmdGetMetadata(fsIndex, interp, objc, objv);
         case cmdGetBlockUsage:
 	     return CookfsFsindexCmdGetBlockUsage(fsIndex, interp, objc, objv);
+	case cmdChangeCount:
+	     return CookfsFsindexCmdChangeCount(fsIndex, interp, objc, objv);
+	case cmdImport:
+	     return CookfsFsindexCmdImport(fsIndex, interp, objc, objv);
         default:
             return TCL_ERROR;
     }
 
+    return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsFsindexCmdChangeCount --
+ *
+ *      Returns the current value for the change counter.
+ *
+ * Results:
+ *      Returns TCL_OK
+ *      Interp result is set to the change counter.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int CookfsFsindexCmdChangeCount(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+    /* check arguments */
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
+        return TCL_ERROR;
+    }
+
+    Tcl_WideInt rc = Cookfs_FsindexIncrChangeCount(fsIndex, 0);
+    Tcl_SetObjResult(interp, Tcl_NewWideIntObj(rc));
     return TCL_OK;
 }
 
@@ -286,6 +321,35 @@ static int CookfsFsindexCmdExport(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, i
 	Tcl_SetObjResult(interp, exportObj);
 	return TCL_OK;
     }
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsFsindexCmdImport --
+ *
+ *      Import fsindex from binary platform-independant format to
+ *      internal storage.
+ *
+ * Results:
+ *      Returns TCL_OK on success; TCL_ERROR on error
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int CookfsFsindexCmdImport(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+    /* check arguments */
+    if (objc != 3) {
+	Tcl_WrongNumArgs(interp, 2, objv, "data");
+	return TCL_ERROR;
+    }
+
+    Cookfs_Fsindex *result = Cookfs_FsindexFromObject(fsIndex, objv[2]);
+
+    return (result == NULL ? TCL_ERROR : TCL_OK);
 }
 
 
@@ -392,6 +456,7 @@ static int CookfsFsindexCmdSetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
 
     /* update mtime */
     entry->fileTime = fileTime;
+    Cookfs_FsindexIncrChangeCount(fsIndex, 1);
 
     return TCL_OK;
 }

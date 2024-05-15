@@ -1,4 +1,7 @@
-/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
+/*
+   (c) 2010 Wojciech Kocjan, Pawel Salawa
+   (c) 2024 Konstantin Kushnir
+*/
 
 #ifndef COOKFS_FSINDEX_H
 #define COOKFS_FSINDEX_H 1
@@ -42,12 +45,14 @@ typedef struct Cookfs_Fsindex {
     Tcl_HashTable metadataHash;
     int *blockIndex;
     int blockIndexSize;
+    Tcl_WideInt changeCount;
 } Cookfs_Fsindex;
 
 Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName);
 
-Cookfs_Fsindex *Cookfs_FsindexInit();
+Cookfs_Fsindex *Cookfs_FsindexInit(Cookfs_Fsindex *i);
 void Cookfs_FsindexFini(Cookfs_Fsindex *i);
+void Cookfs_FsindexCleanup(Cookfs_Fsindex *i);
 
 /* TODO: move these to non-public API somehow? */
 Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks, int useHash);
@@ -57,8 +62,10 @@ Cookfs_FsindexEntry *Cookfs_FsindexGet(Cookfs_Fsindex *i, Tcl_Obj *pathList);
 Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Tcl_Obj *pathList, int numBlocks);
 Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_FsindexEntry *currentNode, char *pathTailStr, int pathTailLen, int numBlocks);
 int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Tcl_Obj *pathList);
+int Cookfs_FsindexUnsetRecursive(Cookfs_Fsindex *i, Tcl_Obj *pathList);
 
 Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Tcl_Obj *pathList, int *itemCountPtr);
+Cookfs_FsindexEntry **Cookfs_FsindexListEntry(Cookfs_FsindexEntry *dirNode, int *itemCountPtr);
 void Cookfs_FsindexListFree(Cookfs_FsindexEntry **items);
 
 Tcl_Obj *Cookfs_FsindexGetMetadata(Cookfs_Fsindex *i, const char *paramName);
@@ -66,6 +73,11 @@ void Cookfs_FsindexSetMetadata(Cookfs_Fsindex *i, const char *paramName, Tcl_Obj
 int Cookfs_FsindexUnsetMetadata(Cookfs_Fsindex *i, const char *paramName);
 int Cookfs_FsindexGetBlockUsage(Cookfs_Fsindex *i, int idx);
 void Cookfs_FsindexModifyBlockUsage(Cookfs_Fsindex *i, int idx, int count);
+
+Cookfs_FsindexEntry *CookfsFsindexFindElement(Cookfs_Fsindex *i, Tcl_Obj *pathList, int listSize);
+
+Tcl_WideInt Cookfs_FsindexIncrChangeCount(Cookfs_Fsindex *i, int count);
+void Cookfs_FsindexResetChangeCount(Cookfs_Fsindex *i);
 
 #endif /* COOKFS_USECFSINDEX */
 

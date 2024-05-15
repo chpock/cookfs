@@ -7,6 +7,7 @@
  * - includes additional header files, if enabled in configure
  *
  * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ * (c) 2024 Konstantin Kushnir
  */
 
 #ifndef COOKFS_H
@@ -51,12 +52,18 @@
 #include "readerchannelIO.h"
 #endif /* COOKFS_USECREADERCHAN */
 
+#ifdef COOKFS_USECVFS
+#include "vfs.h"
+#include "vfsCmd.h"
+#endif /* COOKFS_USECVFS */
+
 #ifdef COOKFS_USEPKGCONFIG
 static Tcl_Config const cookfs_pkgconfig[] = {
     {"package-version",  PACKAGE_VERSION},
     {"c-pages",          STRINGIFY(COOKFS_PKGCONFIG_USECPAGES)},
     {"c-fsindex",        STRINGIFY(COOKFS_PKGCONFIG_USECFSINDEX)},
     {"c-readerchannel",  STRINGIFY(COOKFS_PKGCONFIG_USECREADERCHAN)},
+    {"c-vfs",            STRINGIFY(COOKFS_PKGCONFIG_USECVFS)},
     {"feature-aside",    STRINGIFY(COOKFS_PKGCONFIG_FEATURE_ASIDE)},
     {"feature-bzip2",    STRINGIFY(COOKFS_PKGCONFIG_USEBZ2)},
     {"feature-xz",       STRINGIFY(COOKFS_PKGCONFIG_USEXZ)},

@@ -15,6 +15,8 @@ set ::cookfs::pages::errorMessage "Unable to create Cookfs object"
 
 set ::cookfs::pageshandleIdx 0
 proc cookfs::tcl::pages {args} {
+    variable default_hash
+
     set name ::cookfs::tcl::pageshandle[incr ::cookfs::pageshandleIdx]
     upvar #0 $name c
     array set c {
@@ -43,8 +45,20 @@ proc cookfs::tcl::pages {args} {
         set c(_usezlib) 0
     }
 
-    if {![catch { package require md5 2 }]} {
-        set c(hash) md5
+    # Use md5 hash only when it is available.
+    # The command "package require" command is very expensive because it tries
+    # to load packages by parsing pkgIndex.tcl files. It takes a long time.
+    # To avoid delays in creating each page object, we will cache the
+    # availability of the md5 packet in the "default_hash" variable.
+    if { [info exists default_hash] } {
+        set c(hash) $default_hash
+    } else {
+        if {![catch { package require md5 2 }]} {
+            set c(hash) md5
+            set default_hash md5
+        } else {
+            set default_hash crc32
+        }
     }
 
     while {[llength $args] > 1} {

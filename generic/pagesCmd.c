@@ -4,6 +4,7 @@
  * Provides Tcl commands for managing pages
  *
  * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ * (c) 2024 Konstantin Kushnir
  */
 
 #include "cookfs.h"
@@ -84,11 +85,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     int cmdidx = ++deprecatedCounter;
     int idx;
     int oReadOnly = 0;
-#ifdef COOKFS_USEXZ
-    int oCompression = COOKFS_COMPRESSION_XZ;
-#else
-    int oCompression = COOKFS_COMPRESSION_ZLIB;
-#endif
+    int oCompression;
     int tobjc = objc;
     int oCachesize = -1;
     int useFoffset = 0;
@@ -100,6 +97,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     Tcl_Obj *asyncCompressCmd = NULL;
     Tcl_Obj *asyncDecompressCmd = NULL;
     Tcl_Obj *decompressCmd = NULL;
+    Tcl_Obj *compression = NULL;
 
     while (tobjc > 1) {
         if (Tcl_GetIndexFromObj(interp, tobjv[1], (const char **) options, "", 0, &idx) != TCL_OK) {
@@ -118,12 +116,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 }
                 tobjc--;
                 tobjv++;
-
-                if (Tcl_GetIndexFromObj(interp, tobjv[1], (const char **) cookfsCompressionOptions, "compression", 0, &oCompression) != TCL_OK) {
-                    return TCL_ERROR;
-                }
-                /* map compression from cookfsCompressionOptionMap */
-                oCompression = cookfsCompressionOptionMap[oCompression];
+                compression = tobjv[1];
                 break;
             }
             case optCompressCommand: {
@@ -227,6 +220,10 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
         }
         tobjc--;
         tobjv++;
+    }
+
+    if (Cookfs_CompressionFromObj(interp, compression, &oCompression) != TCL_OK) {
+        return TCL_ERROR;
     }
 
     if (tobjc != 2) {

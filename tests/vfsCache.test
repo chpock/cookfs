@@ -15,12 +15,12 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -se
 } -body {
     set result [list {}]
     # The test VFS contains the following pages with the corresponding number of files:
-    # page#0        - 1 (test1)
-    # page#1        - 2 (test2.1 test2.2)
-    # page#2        - 1 (test3)
-    # page#3        - 2 (test4.1 test4.2)
-    # page#4+page#5 - 1 (test5)
-    # page#6        - 2 (test6.1 test6.2)
+    # page#0        - 1 file  (test1)
+    # page#1        - 2 files (test2.1 test2.2)
+    # page#2        - 1 file  (test3)
+    # page#3        - 2 files (test4.1 test4.2)
+    # page#4+page#5 - 1 file  (test5)
+    # page#6        - 2 files (test6.1 test6.2)
     set fsid [vfs::cookfs::Mount -readonly -pagecachesize 3 $file $file]
     # set expected ticktock age - 5 to not depend on the default value and to make this test fully reproducible
     [set ${fsid}(pages)] ticktock 4

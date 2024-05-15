@@ -2,6 +2,7 @@
 #
 # (c) 2010 Wojciech Kocjan, Pawel Salawa
 # (c) 2011-2014 Wojciech Kocjan
+# (c) 2024 Konstantin Kushnir
 
 namespace eval cookfs {}
 
@@ -31,11 +32,9 @@ proc cookfs::vfshandler {fsid cmd root relative actualpath args} {
             }
         }
         deletefile {
-            incr fs(changeCount)
             set rc [vfshandleDelete $fsid $root $relative $actualpath file false]
         }
         removedirectory {
-            incr fs(changeCount)
             set rc [vfshandleDelete $fsid $root $relative $actualpath directory [lindex $args 0]]
         }
         fileattributes {
@@ -58,8 +57,6 @@ proc cookfs::vfshandler {fsid cmd root relative actualpath args} {
             set rc true
         }
         utime {
-            incr fs(changeCount)
-
             # modify mtime and atime, assuming file exists
             if {[catch {vfshandleStat $fsid $relative $actualpath} rc]} {
                 vfs::filesystem posixerror $::cookfs::posix(ENOENT)
@@ -80,7 +77,6 @@ proc cookfs::vfshandleCreatedirectory {fsid root relative actualpath} {
         set clk [clock seconds]
     }
     $fs(index) set $relative $clk
-    incr fs(changeCount)
 }
 
 # handle file attributes
@@ -99,7 +95,6 @@ proc cookfs::vfshandleFileattributes {fsid root relative actualpath a} {
         }
         2 {
             # set value
-            incr fs(changeCount)
             if {0} {
                 # handle read-only
                 vfs::filesystem posixerror $::cookfs::posix(EROFS)

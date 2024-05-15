@@ -5,6 +5,7 @@
  *
  * (c) 2010-2011 Wojciech Kocjan, Pawel Salawa
  * (c) 2011-2014 Wojciech Kocjan
+ * (c) 2024 Konstantin Kushnir
  */
 
 #ifdef COOKFS_USEBZ2
@@ -94,6 +95,46 @@ const int cookfsCompressionOptionMap[] = {
     -1 /* dummy entry */
 };
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_CompressionFromObj --
+ *
+ *      Returns an integer compression ID based on string in the corresponding
+ *      Tcl object. If an error occurs, returns TCL_ERROR and an appropriate
+ *      error message if the interp is not NULL.
+ *
+ * Results:
+ *      TCL_OK if compression ID was successfully converted from Tcl_Obj.
+ *
+ * Side effects:
+ *      If NULL is specified as the Tcl object, the default compression is
+ *      returned.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int Cookfs_CompressionFromObj(Tcl_Interp *interp, Tcl_Obj *obj, int *compressionPtr) {
+#ifdef COOKFS_USEXZ
+    int compression = COOKFS_COMPRESSION_XZ;
+#else
+    int compression = COOKFS_COMPRESSION_ZLIB;
+#endif
+
+    if (obj != NULL) {
+        if (Tcl_GetIndexFromObj(interp, obj,
+            (const char **)cookfsCompressionOptions, "compression", 0,
+            &compression) != TCL_OK)
+        {
+            return TCL_ERROR;
+        }
+        /* map compression from cookfsCompressionOptionMap */
+        compression = cookfsCompressionOptionMap[compression];
+    }
+
+    *compressionPtr = compression;
+    return TCL_OK;
+}
 
 /*
  *----------------------------------------------------------------------

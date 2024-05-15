@@ -136,6 +136,7 @@
 <li><a href="#11"><i class="arg">fsindexHandle</i> <b class="method">setmetadata</b> <i class="arg">name</i> <i class="arg">value</i></a></li>
 <li><a href="#12"><i class="arg">fsindexHandle</i> <b class="method">unsetmetadata</b> <i class="arg">name</i></a></li>
 <li><a href="#13"><i class="arg">fsindexHandle</i> <b class="method">getblockusage</b> <i class="arg">block</i></a></li>
+<li><a href="#14"><i class="arg">fsindexHandle</i> <b class="method">changecount</b></a></li>
 </ul>
 </div>
 </div>
@@ -193,6 +194,13 @@ Overwrites previous value if it existed.</p></dd>
 <dt><a name="13"><i class="arg">fsindexHandle</i> <b class="method">getblockusage</b> <i class="arg">block</i></a></dt>
 <dd><p>Returns the number of files using the specified block (index of cookfs page).
 Returns zero if the specified block is not used by any file.</p></dd>
+<dt><a name="14"><i class="arg">fsindexHandle</i> <b class="method">changecount</b></a></dt>
+<dd><p>Returns a counter corresponding to the number of changes to an index since
+the last import/export or create operation. Initially, this value is <b class="const">0</b>.</p>
+<p>This counter is incremented by one after each <b class="method">set</b>, <b class="method">unset</b>,
+<b class="method">setmetadata</b>, <b class="method">unsetmetadata</b> or <b class="method">setmtime</b> operation.</p>
+<p>This method can be used to check whether changes have been made to an index
+and whether it should be saved before deleting it.</p></dd>
 </dl>
 </div>
 <div id="section3" class="doctools_section"><h2><a name="section3">BLOCK-OFFSET-SIZE INFORMATION</a></h2>

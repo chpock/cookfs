@@ -305,6 +305,8 @@ package require \fBvfs::cookfs ?1\&.6\&.0?\fR
 .sp
 \fIfsindexHandle\fR \fBgetblockusage\fR \fIblock\fR
 .sp
+\fIfsindexHandle\fR \fBchangecount\fR
+.sp
 .BE
 .SH DESCRIPTION
 Cookfs fsindex provide a low level mechanism for storing mapping between files in cookfs archive and pages they correspond to\&.
@@ -378,6 +380,16 @@ Removes metadata with specified name from index\&.
 \fIfsindexHandle\fR \fBgetblockusage\fR \fIblock\fR
 Returns the number of files using the specified block (index of cookfs page)\&.
 Returns zero if the specified block is not used by any file\&.
+.TP
+\fIfsindexHandle\fR \fBchangecount\fR
+Returns a counter corresponding to the number of changes to an index since
+the last import/export or create operation\&. Initially, this value is \fB0\fR\&.
+.sp
+This counter is incremented by one after each \fBset\fR, \fBunset\fR,
+\fBsetmetadata\fR, \fBunsetmetadata\fR or \fBsetmtime\fR operation\&.
+.sp
+This method can be used to check whether changes have been made to an index
+and whether it should be saved before deleting it\&.
 .PP
 .SH "BLOCK-OFFSET-SIZE INFORMATION"
 Files in cookfs are described storing block-offset-size triplets\&. These specify

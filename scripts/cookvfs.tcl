@@ -2,6 +2,7 @@
 #
 # (c) 2010 Wojciech Kocjan, Pawel Salawa
 # (c) 2011-2014 Wojciech Kocjan
+# (c) 2024 Konstantin Kushnir
 
 namespace eval cookfs {}
 namespace eval vfs::cookfs {}
@@ -233,19 +234,11 @@ proc cookfs::Mount {args} {
     # initialize FS data
     array set fs {
 	channelId 0
-	smallfilepaths {}
-	smallfilebuf {}
-	smallfilebufsize 0
     }
     set fs(archive) $archive
     set fs(local) $local
-    set fs(pagesize) $opt(pagesize)
     set fs(noregister) $opt(noregister)
     set fs(nocommand) $opt(nocommand)
-    set fs(smallfilesize) $opt(smallfilesize)
-    set fs(smallfilebuffersize) $opt(smallfilebuffer)
-    set fs(changeCount) 0
-    set fs(writetomemory) $opt(writetomemory)
     set fs(readonly) $opt(readonly)
     set fs(nodirectorymtime) $opt(nodirectorymtime)
     set fs(tclpages) [expr {![pkgconfig get c-pages] || $opt(tcl-pages)}]
@@ -305,6 +298,13 @@ proc cookfs::Mount {args} {
 	set fs(index) $opt(fsindexobject)
     }
 
+    set fs(writer) [::cookfs::tcl::writer \
+        -pages $fs(pages) -index $fs(index) \
+        -smallfilebuffersize $opt(smallfilebuffer) \
+        -smallfilesize $opt(smallfilesize) \
+        -pagesize $opt(pagesize) \
+        -writetomemory $opt(writetomemory)]
+
     # additional initialization if no pages currently exist
     if {[$fs(pages) length] == 0} {
 	# add bootstrap if specified
@@ -321,7 +321,6 @@ proc cookfs::Mount {args} {
     }
 
     foreach {paramname paramvalue} $opt(setmetadata) {
-	incr fs(changeCount)
 	$fs(index) setmetadata $paramname $paramvalue
     }
 
@@ -351,13 +350,14 @@ proc cookfs::Unmount {fsid args} {
     upvar #0 $fsid fs
 
     # finalize any small files pending write
-    purgeSmallfiles $fsid
+    $fs(writer) purge
 
-    if {$fs(changeCount) > 0 && (!$fs(writetomemory))} {
+    if {[$fs(index) changecount] && ![$fs(writer) writetomemory] && !$fs(readonly)} {
 	$fs(pages) index [$fs(index) export]
     }
 
-    # finalize pages and index
+    # finalize writer, pages and index
+    $fs(writer) delete
     set offset [$fs(pages) close]
     $fs(pages) delete
     $fs(index) delete
@@ -424,7 +424,6 @@ proc cookfs::handleVfsCommandAlias {fsid args} {
 		    set ei "Archive is read-only"
 		    error $ei $ei
 		}
-		incr fs(changeCount)
 		return [$fs(index) setmetadata [lindex $args 1] [lindex $args 2]]
 	    }  else  {
 		set ei "wrong # args: should be \"$fsid setmetadata property value\""
@@ -451,21 +450,21 @@ proc cookfs::handleVfsCommandAlias {fsid args} {
 		set ei "wrong # args: should be \"$fsid smallfilebuffersize\""
 		error $ei $ei
 	    }
-	    return $fs(smallfilebufsize)
+	    return [$fs(writer) smallfilebuffersize]
 	}
 	flush {
 	    if {[llength $args] != 1} {
 		set ei "wrong # args: should be \"$fsid flush\""
 		error $ei $ei
 	    }
-	    cookfs::purgeSmallfiles $fsid
+	    $fs(writer) purge
 	}
 	compression {
 	    if {[llength $args] == 1} {
 		return [$fs(pages) compression]
 	    }  elseif {[llength $args] == 2} {
 		# always purge small files cache when compression changes
-		cookfs::purgeSmallfiles $fsid
+		$fs(writer) purge
 		$fs(pages) compression [lindex $args 1]
 	    }  else  {
 		set ei "wrong # args: should be \"$fsid compression ?type?\""
@@ -481,22 +480,29 @@ proc cookfs::handleVfsCommandAlias {fsid args} {
 
 proc cookfs::aside {fsid filename} {
     upvar #0 $fsid fs
-    if {$fs(writetomemory)} {
+    if {[$fs(writer) writetomemory]} {
 	error "Write to memory option enabled; not creating add-aside archive"
     }
 
+    $fs(writer) purge
     $fs(pages) aside $filename
 
     set newindex [cookfs::fsindex [$fs(pages) index]]
     $fs(index) delete
     set fs(index) $newindex
+    $fs(writer) index $newindex
     set fs(readonly) 0
 }
 
 proc cookfs::writetomemory {fsid} {
     upvar #0 $fsid fs
-    set fs(writetomemory) 1
     set fs(readonly) 0
+    $fs(writer) writetomemory 1
+}
+
+proc cookfs::writeFiles {fsid args} {
+    upvar #0 $fsid fs
+    tailcall $fs(writer) write {*}$args
 }
 
 cookfs::initialize

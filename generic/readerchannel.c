@@ -4,6 +4,7 @@
  * Provides implementation for reader channel
  *
  * (c) 2010-2014 Wojciech Kocjan
+ * (c) 2024 Konstantin Kushnir
  */
 
 #include "cookfs.h"
@@ -31,7 +32,7 @@ static Tcl_ChannelType cookfsReaderChannel = {
     NULL,
 };
 
-Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Cookfs_Fsindex *fsindex, Tcl_Obj *listObj, Tcl_Interp *interp, char **channelNamePtr)
+Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Cookfs_Fsindex *fsindex, Tcl_Obj *listObj, Cookfs_FsindexEntry *entry, Tcl_Interp *interp, char **channelNamePtr)
 {
     Tcl_WideInt fileSize = 0;
     Tcl_Obj **listObjv;
@@ -41,38 +42,53 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Cookfs_Fsindex *fsin
 
     CookfsLog(printf("Cookfs_CreateReaderchannel: welcome"))
 
-    if (Tcl_ListObjGetElements(interp, listObj, &listObjc, &listObjv) != TCL_OK) {
-	return NULL;
-    }
+    if (listObj != NULL) {
 
-    CookfsLog(printf("Cookfs_CreateReaderchannel: listObjc = %d", listObjc))
+        if (Tcl_ListObjGetElements(interp, listObj, &listObjc, &listObjv) != TCL_OK) {
+            return NULL;
+        }
 
-    if ((listObjc % 3) != 0) {
-	if (interp != NULL) {
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj("Invalid page-offset-size list length", -1));
-	}
-	return NULL;
+        CookfsLog(printf("Cookfs_CreateReaderchannel: listObjc = %d", listObjc))
+
+        if ((listObjc % 3) != 0) {
+            if (interp != NULL) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj("Invalid page-offset-size list length", -1));
+            }
+            return NULL;
+        }
+
+    } else {
+        CookfsLog(printf("Cookfs_CreateReaderchannel: init by fsindex entry [%p]", (void *)entry));
+        listObjc = entry->fileBlocks * 3;
     }
 
     instData = Cookfs_CreateReaderchannelAlloc(pages, fsindex, listObjc);
 
     if (instData == NULL) {
-	return NULL;
+        return NULL;
     }
 
     CookfsLog(printf("Cookfs_CreateReaderchannel: alloc"))
 
-    for (i = 0; i < listObjc; i++) {
-	if (Tcl_GetIntFromObj(interp, listObjv[i], &instData->buf[i]) != TCL_OK) {
-	    CookfsLog(printf("Cookfs_CreateReaderchannel: buf[%d] failed", i))
-	    Cookfs_CreateReaderchannelFree(instData);
-	    return NULL;
-	}
-	CookfsLog(printf("Cookfs_CreateReaderchannel: buf[%d] = %d", i, instData->buf[i]))
-    }
+    if (listObj != NULL) {
+        for (i = 0; i < listObjc; i++) {
+            if (Tcl_GetIntFromObj(interp, listObjv[i], &instData->buf[i]) != TCL_OK) {
+                CookfsLog(printf("Cookfs_CreateReaderchannel: buf[%d] failed", i))
+                Cookfs_CreateReaderchannelFree(instData);
+                return NULL;
+            }
+            CookfsLog(printf("Cookfs_CreateReaderchannel: buf[%d] = %d", i, instData->buf[i]))
+        }
 
-    for (i = 2; i < listObjc; i += 3) {
-	fileSize = fileSize + ((Tcl_WideInt) instData->buf[i]);
+        for (i = 2; i < listObjc; i += 3) {
+            fileSize = fileSize + ((Tcl_WideInt) instData->buf[i]);
+        }
+    } else {
+        for (i = 0; i < listObjc; i++) {
+            instData->buf[i] = entry->data.fileInfo.fileBlockOffsetSize[i];
+        }
+
+        fileSize = entry->data.fileInfo.fileSize;
     }
 
     CookfsLog(printf("Cookfs_CreateReaderchannel: fileSize=%d", ((int) fileSize)))
@@ -171,7 +187,7 @@ static int CookfsCreateReaderchannelCmd(ClientData clientData, Tcl_Interp *inter
 	return TCL_ERROR;
     }
 
-    channel = Cookfs_CreateReaderchannel(pages, fsindex, objv[3], interp, &channelName);
+    channel = Cookfs_CreateReaderchannel(pages, fsindex, objv[3], NULL, interp, &channelName);
 
     if (channel == NULL) {
 	return TCL_ERROR;

@@ -3,26 +3,143 @@
 # invoked separately to add files without writing them to channel first
 #
 # (c) 2010 Wojciech Kocjan, Pawel Salawa
+# (c) 2024 Konstantin Kushnir
 
 namespace eval cookfs {}
+namespace eval cookfs::tcl {}
+namespace eval cookfs::tcl::writer {}
 
 package require vfs
 
-# Purge a chunk of small files, internal proc for purgeSmallfiles
-proc cookfs::_purgeSmallfilesChunk {} {
+set ::cookfs::writerhandleIdx 0
+
+proc cookfs::tcl::writer {args} {
+    set name ::cookfs::tcl::writerhandle[incr ::cookfs::writerhandleIdx]
+    upvar #0 $name c
+    array set c {
+        pages ""
+        index ""
+        smallfilebufsize 0
+        smallfilebuf ""
+        smallfilepaths ""
+        smallfilesize 0
+        smallfilebuffersize 0
+        pagesize 0
+        writetomemory 0
+    }
+    while {[llength $args]} {
+
+        set opt [lindex $args 0]
+        set args [lrange $args 1 end]
+
+        if { ![llength $args] } {
+            return -code error "option \"$arg\" requires a value"
+        }
+
+        set val [lindex $args 0]
+        set args [lrange $args 1 end]
+
+        switch -- $opt {
+            -pages -
+            -index -
+            -writetomemory -
+            -smallfilebuffersize -
+            -smallfilesize -
+            -pagesize {
+                set c([string range $opt 1 end]) $val
+            }
+            default {
+                unset c
+                return -code error "unknown option \"$opt\""
+            }
+        }
+
+    }
+    interp alias {} $name {} ::cookfs::tcl::writer::handle $name
+    return $name
+}
+
+proc ::cookfs::tcl::writer::handle { name cmd args } {
+    upvar #0 $name c
+    switch -- $cmd {
+        getbuf {
+            if { [llength $args] != 1 } {
+                error "wrong # args: should be \"$name\
+                    $cmd index\""
+            }
+            set idx [lindex $args 0]
+            if { $idx < 0 } {
+                set idx [expr { -$idx - 1 }]
+            }
+            if { $idx >= [llength $c(smallfilebuf)] } {
+                error "buffer index is out of range"
+            }
+            return [lindex $c(smallfilebuf) $idx]
+        }
+        smallfilebuffersize {
+            if { [llength $args] } {
+                error "wrong # args: should be \"$name $cmd\""
+            }
+            return $c(smallfilebufsize)
+        }
+        write {
+            tailcall write $name {*}$args
+        }
+        writetomemory {
+            if { [llength $args] > 1 } {
+                error "wrong # args: should be \"$name\
+                    $cmd ?writetomemory?\""
+            }
+            if { [llength $args] } {
+                set c(writetomemory) [lindex $args 0]
+            }
+            return $c(writetomemory)
+        }
+        index {
+            if { [llength $args] > 1 } {
+                error "wrong # args: should be \"$name\
+                    $cmd ?fsindex?\""
+            }
+            if { [llength $args] } {
+                set c(index) [lindex $args 0]
+            }
+            return $c(index)
+        }
+        purge {
+            if { [llength $args] } {
+                error "wrong # args: should be \"$name\ $cmd\""
+            }
+            tailcall purge $name
+        }
+        delete {
+            purge $name
+            unset $name
+            rename $name ""
+            return ""
+        }
+        close {
+            purge $name
+        }
+        default {
+            error "Not implemented"
+        }
+    }
+}
+
+# Purge a chunk of small files, internal proc for purge
+proc ::cookfs::tcl::writer::_purgeSmallfilesChunk {} {
     # helper proc to dump current chunk
-    upvar 1 fs fs fsid fsid
+    upvar 1 c c
     upvar 1 currentchunk currentchunk
     upvar 1 currentchunkPOS currentchunkPOS
 
     if {[llength $currentchunkPOS] > 0} {
-        set idx [$fs(pages) add $currentchunk]
+        set idx [$c(pages) add $currentchunk]
 
         foreach {pathlist offset size} $currentchunkPOS {
-            incr fs(changeCount)
             foreach path $pathlist {
-                set mtime [$fs(index) getmtime $path]
-                $fs(index) set $path $mtime [list $idx $offset $size]
+                set mtime [$c(index) getmtime $path]
+                $c(index) set $path $mtime [list $idx $offset $size]
             }
         }
 
@@ -33,14 +150,13 @@ proc cookfs::_purgeSmallfilesChunk {} {
 
 # purge all small files pending write; usually called from finalize
 # or when buffer size exceeds maximum buffer for large files
-proc cookfs::purgeSmallfiles {fsid} {
-    upvar #0 $fsid fs
-
-    if {$fs(smallfilebufsize) > 0} {
+proc ::cookfs::tcl::writer::purge {wrid} {
+    upvar #0 $wrid c
+    if {$c(smallfilebufsize) > 0} {
         set plist [list]
 
         # create complete list of files
-        foreach {path size clk} $fs(smallfilepaths) buf $fs(smallfilebuf) {
+        foreach {path size clk} $c(smallfilepaths) buf $c(smallfilebuf) {
             set pbuf($path) $buf
             set psize($path) $size
             set pclk($path) $clk
@@ -66,7 +182,7 @@ proc cookfs::purgeSmallfiles {fsid} {
 
             # if size of page would exceed maximum size,
             # write whatever is in buffer now
-            if {([string length $currentchunk] + $size) > $fs(pagesize)} {
+            if {([string length $currentchunk] + $size) > $c(pagesize)} {
                 _purgeSmallfilesChunk
             }
 
@@ -79,7 +195,7 @@ proc cookfs::purgeSmallfiles {fsid} {
         # dump remaining files, if any
         _purgeSmallfilesChunk
 
-        array set fs {
+        array set c {
             smallfilepaths {}
             smallfilebuf {}
             smallfilebufsize 0
@@ -87,8 +203,8 @@ proc cookfs::purgeSmallfiles {fsid} {
     }
 }
 
-proc cookfs::writeFiles {fsid args} {
-    upvar #0 $fsid fs
+proc ::cookfs::tcl::writer::write {wrid args} {
+    upvar #0 $wrid c
     # args - path type data size
 
     # iterate over arguments
@@ -144,7 +260,7 @@ proc cookfs::writeFiles {fsid args} {
         #vfs::log [list cookfs::writeFiles write $path with $size byte(s)]
 
         # check if this is a small file or writing to memory has been enabled
-        if {($size <= $fs(smallfilesize)) || $fs(writetomemory)} {
+        if {($size <= $c(smallfilesize)) || $c(writetomemory)} {
             # add file to "small file buffer" instead of writing to disk
             if {$rawdata} {
                 set fc $data
@@ -152,18 +268,17 @@ proc cookfs::writeFiles {fsid args} {
                 set fc [read $chan]
             }
 
-            set sfidx [llength $fs(smallfilebuf)]
-            lappend fs(smallfilebuf) $fc
-            lappend fs(smallfilepaths) $path $size $clk
-            incr fs(smallfilebufsize) [string length $fc]
+            set sfidx [llength $c(smallfilebuf)]
+            lappend c(smallfilebuf) $fc
+            lappend c(smallfilepaths) $path $size $clk
+            incr c(smallfilebufsize) [string length $fc]
 
-            $fs(index) set $path $clk [list [expr {-$sfidx - 1}] 0 $size]
-            incr fs(changeCount)
+            $c(index) set $path $clk [list [expr {-$sfidx - 1}] 0 $size]
 
             # if current buffer exceeds maximum, write small files to clean it
             # but only if not writing to memory
-            if {(!$fs(writetomemory)) && ($fs(smallfilebufsize) >= $fs(smallfilebuffersize))} {
-                purgeSmallfiles $fsid
+            if {(!$c(writetomemory)) && ($c(smallfilebufsize) >= $c(smallfilebuffersize))} {
+                purge $wrid
             }
         }  else  {
             # large file - written as chunks
@@ -171,8 +286,8 @@ proc cookfs::writeFiles {fsid args} {
             set chunklist [list]
 
             while {$left > 0} {
-                if {$left > $fs(pagesize)} {
-                    set read $fs(pagesize)
+                if {$left > $c(pagesize)} {
+                    set read $c(pagesize)
                 }  else  {
                     set read $left
                 }
@@ -189,7 +304,7 @@ proc cookfs::writeFiles {fsid args} {
 
                 if {$datalen == 0} {break}
 
-                set chunkid [$fs(pages) add $data]
+                set chunkid [$c(pages) add $data]
 
                 lappend chunklist $chunkid 0 $datalen
 
@@ -197,8 +312,7 @@ proc cookfs::writeFiles {fsid args} {
             }
 
             #vfs::log [list cookfs::writeFiles $path as $chunklist]
-            $fs(index) set $path $clk $chunklist
-            incr fs(changeCount)
+            $c(index) set $path $clk $chunklist
         }
         if {$doclose} {close $chan}
     }

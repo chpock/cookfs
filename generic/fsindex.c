@@ -4,19 +4,63 @@
  * Provides functions for managing filesystem indexes
  *
  * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ * (c) 2024 Konstantin Kushnir
  */
 
 #include "cookfs.h"
 
-#define COOKFSFSINDEX_FIND_FIND   0
-#define COOKFSFSINDEX_FIND_CREATE 1
-#define COOKFSFSINDEX_FIND_DELETE 2
+#define COOKFSFSINDEX_FIND_FIND             0
+#define COOKFSFSINDEX_FIND_CREATE           1
+#define COOKFSFSINDEX_FIND_DELETE           2
+#define COOKFSFSINDEX_FIND_DELETE_RECURSIVE 3
 
 /* declarations of static and/or internal functions */
-static Cookfs_FsindexEntry *CookfsFsindexFindElement(Cookfs_Fsindex *i, Tcl_Obj *pathList, int listSize);
+Cookfs_FsindexEntry *CookfsFsindexFindElement(Cookfs_Fsindex *i, Tcl_Obj *pathList, int listSize);
 static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexEntry **dirPtr, Tcl_Obj *pathList, int command, Cookfs_FsindexEntry *newFileNode);
 static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *currentNode, char *pathTailStr, int command, Cookfs_FsindexEntry *newFileNode);
 static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e);
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexIncrChangeCount --
+ *
+ *      Increases the change counter
+ *
+ * Results:
+ *      Current value of the change counter
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Tcl_WideInt Cookfs_FsindexIncrChangeCount(Cookfs_Fsindex *i, int count) {
+    i->changeCount += count;
+    return i->changeCount;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexResetChangeCount --
+ *
+ *      Resets the change counter to zero
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_FsindexResetChangeCount(Cookfs_Fsindex *i) {
+    i->changeCount = 0;
+    return;
+}
 
 /*
  *----------------------------------------------------------------------
@@ -126,10 +170,43 @@ Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName)
  *
  * Cookfs_FsindexInit --
  *
- *	Create new fsindex instance.
+ *      Initializes the given fsindex instance. If the given fsindex is NULL,
+ *      then allocates it.
  *
  * Results:
- *	Returns pointer to new instance
+ *      Returns pointer to new instance
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Cookfs_Fsindex *Cookfs_FsindexInit(Cookfs_Fsindex *i) {
+    Cookfs_Fsindex *rc;
+    if (i == NULL) {
+        rc = (Cookfs_Fsindex *) Tcl_Alloc(sizeof(Cookfs_Fsindex));
+    } else {
+        rc = i;
+    }
+    rc->rootItem = Cookfs_FsindexEntryAlloc(0, COOKFS_NUMBLOCKS_DIRECTORY, COOKFS_USEHASH_DEFAULT);
+    rc->rootItem->fileName = ".";
+    rc->blockIndexSize = 0;
+    rc->blockIndex = NULL;
+    rc->changeCount = 0;
+    Tcl_InitHashTable(&rc->metadataHash, TCL_STRING_KEYS);
+    return rc;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexCleanup --
+ *
+ *	Clears entire fsindex along with its child elements
+ *
+ * Results:
+ *	None
  *
  * Side effects:
  *	None
@@ -137,15 +214,26 @@ Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName)
  *----------------------------------------------------------------------
  */
 
-Cookfs_Fsindex *Cookfs_FsindexInit() {
-    Cookfs_Fsindex *rc;
-    rc = (Cookfs_Fsindex *) Tcl_Alloc(sizeof(Cookfs_Fsindex));
-    rc->rootItem = Cookfs_FsindexEntryAlloc(0, COOKFS_NUMBLOCKS_DIRECTORY, COOKFS_USEHASH_DEFAULT);
-    rc->rootItem->fileName = ".";
-    rc->blockIndexSize = 0;
-    rc->blockIndex = NULL;
-    Tcl_InitHashTable(&rc->metadataHash, TCL_STRING_KEYS);
-    return rc;
+void Cookfs_FsindexCleanup(Cookfs_Fsindex *i) {
+    Tcl_HashEntry *hashEntry;
+    Tcl_HashSearch hashSearch;
+
+    /* free up block index, set it to NULL to avoid modifications when
+       unsetting individual entries */
+    if (i->blockIndex != NULL) {
+        ckfree(i->blockIndex);
+        i->blockIndex = NULL;
+    }
+
+    /* free up root entry and memory for storing fsindex */
+    Cookfs_FsindexEntryFree(i->rootItem);
+
+    /* free all entries in hash table */
+    for (hashEntry = Tcl_FirstHashEntry(&i->metadataHash, &hashSearch); hashEntry != NULL; hashEntry = Tcl_NextHashEntry(&hashSearch)) {
+        Tcl_DecrRefCount((Tcl_Obj *) Tcl_GetHashValue(hashEntry));
+        Tcl_DeleteHashEntry(hashEntry);
+    }
+    Tcl_DeleteHashTable(&i->metadataHash);
 }
 
 
@@ -166,25 +254,7 @@ Cookfs_Fsindex *Cookfs_FsindexInit() {
  */
 
 void Cookfs_FsindexFini(Cookfs_Fsindex *i) {
-    Tcl_HashEntry *hashEntry;
-    Tcl_HashSearch hashSearch;
-
-    /* free up block index, set it to NULL to avoid modifications when
-       unsetting individual entries */
-    if (i->blockIndex != NULL) {
-        ckfree(i->blockIndex);
-        i->blockIndex = NULL;
-    }
-
-    /* free up root entry and memory for storing fsindex */
-    Cookfs_FsindexEntryFree(i->rootItem);
-
-    /* free all entries in hash table */
-    for (hashEntry = Tcl_FirstHashEntry(&i->metadataHash, &hashSearch); hashEntry != NULL; hashEntry = Tcl_NextHashEntry(&hashSearch)) {
-	Tcl_DecrRefCount((Tcl_Obj *) Tcl_GetHashValue(hashEntry));
-        Tcl_DeleteHashEntry(hashEntry);
-    }
-    Tcl_DeleteHashTable(&i->metadataHash);
+    Cookfs_FsindexCleanup(i);
     Tcl_Free((void *) i);
 }
 
@@ -296,11 +366,11 @@ Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Tcl_Obj *pathList, int
     /* run CREATE command - if entry exists, currently passed fileNode will be freed */
     foundFileNode = CookfsFsindexFind(i, &dirNode, pathList, COOKFSFSINDEX_FIND_CREATE, fileNode);
 
-    /* if finding failed (i.e. parent did not exist), free current node and return NULL */
+    /* if finding failed (i.e. parent did not exist), return NULL */
     if ((foundFileNode == NULL) || (dirNode == NULL)) {
         CookfsLog(printf("Cookfs_FsindexSet - NULL"))
-        Cookfs_FsindexEntryFree(fileNode);
-	return NULL;
+        /* the current node is already released by CookfsFsindexFind() */
+        return NULL;
     }
 
     CookfsLog(printf("Cookfs_FsindexSet - creating node for \"%s\"; new count=%d", pathTailStr, dirNode->data.dirInfo.childCount))
@@ -383,13 +453,46 @@ int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Tcl_Obj *pathList) {
     return 1;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexUnsetRecursive --
+ *
+ *	Removes specified entry and all child entries from filesystem index
+ *
+ * Results:
+ *	1 on success; 0 on error
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+int Cookfs_FsindexUnsetRecursive(Cookfs_Fsindex *i, Tcl_Obj *pathList) {
+    Cookfs_FsindexEntry *fileNode;
+
+    CookfsLog(printf("Cookfs_FsindexUnsetRecursive - start"))
+
+    /* invoke DELETE command */
+    fileNode = CookfsFsindexFind(i, NULL, pathList, COOKFSFSINDEX_FIND_DELETE_RECURSIVE, NULL);
+    if (fileNode == NULL) {
+        CookfsLog(printf("Cookfs_FsindexUnsetRecursive - NULL"))
+        return 0;
+    }
+
+    CookfsLog(printf("Cookfs_FsindexUnsetRecursive - success"))
+
+    return 1;
+}
+
 
 /*
  *----------------------------------------------------------------------
  *
- * Cookfs_FsindexList --
+ * Cookfs_FsindexListEntry --
  *
- *	Lists entries in specified path of filesystem index
+ *	Lists entries in specified path entry of filesystem index
  *
  *	Number of entries is put in itemCountPtr, if it is non-NULL
  *
@@ -404,31 +507,28 @@ int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Tcl_Obj *pathList) {
  *----------------------------------------------------------------------
  */
 
-Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Tcl_Obj *pathList, int *itemCountPtr) {
-    Cookfs_FsindexEntry *dirNode = NULL;
+Cookfs_FsindexEntry **Cookfs_FsindexListEntry(Cookfs_FsindexEntry *dirNode, int *itemCountPtr) {
     Cookfs_FsindexEntry *itemNode;
     Cookfs_FsindexEntry **result;
     int idx = 0;
     Tcl_HashSearch hashSearch;
     Tcl_HashEntry *hashEntry;
 
-    CookfsLog(printf("Cookfs_FsindexList - start"))
-
-    dirNode = CookfsFsindexFind(i, NULL, pathList, COOKFSFSINDEX_FIND_FIND, NULL);
+    CookfsLog(printf("Cookfs_FsindexListEntry - start"))
 
     if (dirNode == NULL) {
-        CookfsLog(printf("Cookfs_FsindexList - not found"))
+        CookfsLog(printf("Cookfs_FsindexListEntry - not found"))
         return NULL;
     }
     if (dirNode->fileBlocks != COOKFS_NUMBLOCKS_DIRECTORY) {
-        CookfsLog(printf("Cookfs_FsindexList - not directory"))
+        CookfsLog(printf("Cookfs_FsindexListEntry - not directory"))
         return NULL;
     }
 
-    CookfsLog(printf("Cookfs_FsindexList - childCount = %d", dirNode->data.dirInfo.childCount))
+    CookfsLog(printf("Cookfs_FsindexListEntry - childCount = %d", dirNode->data.dirInfo.childCount))
     result = (Cookfs_FsindexEntry **) Tcl_Alloc((dirNode->data.dirInfo.childCount + 1) * sizeof(Cookfs_FsindexEntry *));
 
-    CookfsLog(printf("Cookfs_FsindexList - isHash=%d", dirNode->data.dirInfo.isHash))
+    CookfsLog(printf("Cookfs_FsindexListEntry - isHash=%d", dirNode->data.dirInfo.isHash))
     if (dirNode->data.dirInfo.isHash) {
 	hashEntry = Tcl_FirstHashEntry(&dirNode->data.dirInfo.dirData.children, &hashSearch);
 	while (hashEntry != NULL) {
@@ -457,6 +557,34 @@ Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Tcl_Obj *pathList, i
     return result;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexList --
+ *
+ *      Lists entries in specified path of filesystem index.
+ *
+ *      Number of entries is put in itemCountPtr, if it is non-NULL
+ *
+ * Results:
+ *      See Cookfs_FsindexListEntry.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Tcl_Obj *pathList, int *itemCountPtr) {
+
+    CookfsLog(printf("Cookfs_FsindexList - start"))
+
+    Cookfs_FsindexEntry *dirNode = CookfsFsindexFind(i, NULL, pathList,
+        COOKFSFSINDEX_FIND_FIND, NULL);
+
+    return Cookfs_FsindexListEntry(dirNode, itemCountPtr);
+
+}
 
 /*
  *----------------------------------------------------------------------
@@ -659,6 +787,7 @@ void Cookfs_FsindexSetMetadata(Cookfs_Fsindex *i, const char *paramName, Tcl_Obj
     }
     Tcl_IncrRefCount(data);
     Tcl_SetHashValue(hashEntry, (ClientData) data);
+    Cookfs_FsindexIncrChangeCount(i, 1);
 }
 
 
@@ -685,14 +814,12 @@ int Cookfs_FsindexUnsetMetadata(Cookfs_Fsindex *i, const char *paramName) {
     if (hashEntry != NULL) {
 	Tcl_DecrRefCount((Tcl_Obj *) Tcl_GetHashValue(hashEntry));
 	Tcl_DeleteHashEntry(hashEntry);
+	Cookfs_FsindexIncrChangeCount(i, 1);
 	return 1;
     }  else  {
 	return 0;
     }
 }
-
-
-/* definitions of static and/or internal functions */
 
 /*
  *----------------------------------------------------------------------
@@ -713,7 +840,7 @@ int Cookfs_FsindexUnsetMetadata(Cookfs_Fsindex *i, const char *paramName) {
  *
  *----------------------------------------------------------------------
  */
-static Cookfs_FsindexEntry *CookfsFsindexFindElement(Cookfs_Fsindex *i, Tcl_Obj *pathList, int listSize) {
+Cookfs_FsindexEntry *CookfsFsindexFindElement(Cookfs_Fsindex *i, Tcl_Obj *pathList, int listSize) {
     int idx;
     Tcl_Obj *currentPath;
     Tcl_HashEntry *hashEntry;
@@ -780,6 +907,7 @@ static Cookfs_FsindexEntry *CookfsFsindexFindElement(Cookfs_Fsindex *i, Tcl_Obj 
     return currentNode;
 }
 
+/* definitions of static and/or internal functions */
 
 /*
  *----------------------------------------------------------------------
@@ -850,7 +978,11 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
     pathTailStr = Tcl_GetStringFromObj(pathTail, NULL);
     CookfsLog(printf("CookfsFsindexCreateHashElement - Path tail: %s", pathTailStr))
 
-    return CookfsFsindexFindInDirectory(currentNode, pathTailStr, command, newFileNode);
+    Cookfs_FsindexEntry *rc = CookfsFsindexFindInDirectory(currentNode, pathTailStr, command, newFileNode);
+    if (command != COOKFSFSINDEX_FIND_FIND && rc != NULL) {
+        Cookfs_FsindexIncrChangeCount(i, 1);
+    }
+    return rc;
 }
 
 
@@ -878,6 +1010,10 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
  *	- COOKFSFSINDEX_FIND_DELETE - deletes specified entry; if entry previously
  *	  existed, it is returned (after being freed - it is only returned for )
  *
+ *	- COOKFSFSINDEX_FIND_DELETE_RECURSIVE - deletes specified entry and all
+ *	  child entries; if entry previously existed, it is returned (after being
+ *	  freed - it is only returned for )
+ *
  * Results:
  *	Dependant on command:
  *	- COOKFSFSINDEX_FIND_FIND - found entry or NULL
@@ -886,6 +1022,8 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
  *	   otherwise returns NULL
  *
  *	- COOKFSFSINDEX_FIND_DELETE - entry if existed, NULL otherwise
+ *
+ *	- COOKFSFSINDEX_FIND_DELETE_RECURSIVE - entry if existed, NULL otherwise
  *
  * Side effects:
  *	Can convert parent entry (currentNode) from array of children into
@@ -946,9 +1084,10 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *cu
 		    Tcl_SetHashValue(hashEntry, newFileNode);
 		    CookfsLog(printf("CookfsFsindexCreateHashElement - setting as newFileNode done"))
 		    return newFileNode;
-		}  else if (command == COOKFSFSINDEX_FIND_DELETE) {
+		}  else if ((command == COOKFSFSINDEX_FIND_DELETE) || (command == COOKFSFSINDEX_FIND_DELETE_RECURSIVE)) {
 		    /* if deleting current node, check if it can be deleted */
-		    if ((fileNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY)
+		    if ((command == COOKFSFSINDEX_FIND_DELETE)
+		        && (fileNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY)
 			&& (fileNode->data.dirInfo.childCount > 0)) {
 			/* if it is a non-empty directory, disallow unsetting it */
 			return NULL;
@@ -985,9 +1124,10 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *cu
 	    /* if found, perform specified command */
 	    if (fileNode != NULL) {
 		CookfsLog(printf("CookfsFsindexCreateHashElement - found in table cmd=%d", command))
-		if (command == COOKFSFSINDEX_FIND_DELETE) {
+		if ((command == COOKFSFSINDEX_FIND_DELETE) || (command == COOKFSFSINDEX_FIND_DELETE_RECURSIVE)) {
 		    /* if deleting current node, check if it can be deleted */
-		    if ((fileNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY)
+		    if ((command == COOKFSFSINDEX_FIND_DELETE)
+		        && (fileNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY)
 			&& (fileNode->data.dirInfo.childCount > 0)) {
 			/* if it is a non-empty directory, disallow unsetting it */
 			return NULL;

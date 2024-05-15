@@ -1,3 +1,8 @@
+2024-05-15 Konstantin Kushnir <chpock@gmail.com>
+	* Refactor Tcl/C code
+	* Add support for changecount subcommand for fsindex
+	* Add support for import subcommand for fsindex (undocumented)
+
 2024-05-10 Konstantin Kushnir <chpock@gmail.com>
 	* Make pkgconfig.tcl file optional, implement it in C
 

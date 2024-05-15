@@ -1,4 +1,7 @@
-/* (c) 2010-2014 Wojciech Kocjan, Pawel Salawa */
+/*
+  (c) 2010-2014 Wojciech Kocjan, Pawel Salawa
+  (c) 2024 Konstantin Kushnir
+*/
 
 #ifndef COOKFS_PAGESCOMPR_H
 #define COOKFS_PAGESCOMPR_H 1
@@ -30,6 +33,8 @@ enum {
     cookfsCompressionOptCustom,
     cookfsCompressionOptMax
 };
+
+int Cookfs_CompressionFromObj(Tcl_Interp *interp, Tcl_Obj *obj, int *compressionPtr);
 
 void Cookfs_PagesInitCompr(Cookfs_Pages *rc);
 void Cookfs_PagesFiniCompr(Cookfs_Pages *rc);

@@ -92,6 +92,18 @@ Removes metadata with specified name from index.
 Returns the number of files using the specified block (index of cookfs page).
 Returns zero if the specified block is not used by any file.
 
+[call [arg fsindexHandle] [method changecount]]
+Returns a counter corresponding to the number of changes to an index since
+the last import/export or create operation. Initially, this value is [const 0].
+
+[para]
+This counter is incremented by one after each [method set], [method unset],
+[method setmetadata], [method unsetmetadata] or [method setmtime] operation.
+
+[para]
+This method can be used to check whether changes have been made to an index
+and whether it should be saved before deleting it.
+
 [list_end]
 
 [section {BLOCK-OFFSET-SIZE INFORMATION}]

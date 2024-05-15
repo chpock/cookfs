@@ -1,4 +1,7 @@
-/* (c) 2010 Wojciech Kocjan, Pawel Salawa */
+/*
+   (c) 2010 Wojciech Kocjan, Pawel Salawa
+   (c) 2024 Konstantin Kushnir
+*/
 
 #ifndef COOKFS_PAGES_H
 #define COOKFS_PAGES_H 1
@@ -148,6 +151,8 @@ int Cookfs_PagesGetAlwaysCompress(Cookfs_Pages *p);
 void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress);
 int Cookfs_PagesGetCompression(Cookfs_Pages *p);
 void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression);
+
+int Cookfs_PagesIsReadonly(Cookfs_Pages *p);
 
 void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside);
 

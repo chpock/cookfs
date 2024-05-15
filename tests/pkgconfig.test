@@ -18,6 +18,7 @@ tcltest::test cookfsPkgconfig-1 "Check pkgconfig fields and their types" -body {
 c-fsindex bool
 c-pages bool
 c-readerchannel bool
+c-vfs bool
 feature-aside bool
 feature-bzip2 bool
 feature-metadata bool

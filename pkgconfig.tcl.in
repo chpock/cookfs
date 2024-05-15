@@ -9,6 +9,7 @@ proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
 	array set pkgconfig {
 	    package-version	"@PACKAGE_VERSION@"
 
+	    c-vfs		"@COOKFS_PKGCONFIG_USECVFS@"
 	    c-pages		"@COOKFS_PKGCONFIG_USECPAGES@"
 	    c-fsindex		"@COOKFS_PKGCONFIG_USECFSINDEX@"
 	    c-readerchannel	"@COOKFS_PKGCONFIG_USECREADERCHAN@"

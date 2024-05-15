@@ -7,7 +7,7 @@
 #ifdef COOKFS_USECFSINDEX
 
 Tcl_Obj *Cookfs_FsindexToObject(Cookfs_Fsindex *i);
-Cookfs_Fsindex *Cookfs_FsindexFromObject(Tcl_Obj *o);
+Cookfs_Fsindex *Cookfs_FsindexFromObject(Cookfs_Fsindex *i, Tcl_Obj *o);
 
 #endif /* COOKFS_USECFSINDEX */
 

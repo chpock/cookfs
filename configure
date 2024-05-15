@@ -657,6 +657,7 @@ MAKE_LIB
 EGREP
 GREP
 COOKFS_PKGCONFIG_USECPKGCONFIG
+COOKFS_PKGCONFIG_USECVFS
 COOKFS_PKGCONFIG_FEATURE_METADATA
 COOKFS_PKGCONFIG_USECFSINDEX
 COOKFS_PKGCONFIG_USEXZ
@@ -789,6 +790,7 @@ enable_c_pages
 enable_c_fsindex
 enable_c_readerchannel
 enable_c_pkgconfig
+enable_c_vfs
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1433,6 +1435,7 @@ Optional Features:
   --disable-c-fsindex       Use index handling written in C. Defaults to true
   --disable-c-readerchannel Use reader handler written in C. Defaults to true
   --disable-c-pkgconfig     Use pkgconfig written in C. Defaults to true
+  --enable-c-vfs            Use VFS support written in C. Defaults to false
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -8643,6 +8646,14 @@ else $as_nop
   USECPKGCONFIG=yes
 fi
 
+# Check whether --enable-c-vfs was given.
+if test ${enable_c_vfs+y}
+then :
+  enableval=$enable_c_vfs; USECVFS=${enableval}
+else $as_nop
+  USECVFS=no
+fi
+
 
 if test ${INTERNALDEBUG} = yes; then
     printf "%s\n" "#define COOKFS_INTERNAL_DEBUG 1" >>confdefs.h
@@ -8723,50 +8734,6 @@ if test ${USECPAGES} = yes; then
 
 
 
-
-    # reader channel requires support for pages in C
-    if test ${USECREADERCHAN} = yes; then
-        printf "%s\n" "#define COOKFS_USECREADERCHAN 1" >>confdefs.h
-
-        COOKFS_PKGCONFIG_USECREADERCHAN=1
-
-    vars="readerchannel.c readerchannelIO.c"
-    for i in $vars; do
-	case $i in
-	    \$*)
-		# allow $-var names
-		PKG_SOURCES="$PKG_SOURCES $i"
-		PKG_OBJECTS="$PKG_OBJECTS $i"
-		;;
-	    *)
-		# check for existence - allows for generic/win/unix VPATH
-		# To add more dirs here (like 'src'), you have to update VPATH
-		# in Makefile.in as well
-		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
-		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
-		    -a ! -f "${srcdir}/macosx/$i" \
-		    ; then
-		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
-		fi
-		PKG_SOURCES="$PKG_SOURCES $i"
-		# this assumes it is in a VPATH dir
-		i=`basename $i`
-		# handle user calling this before or after TEA_SETUP_COMPILER
-		if test x"${OBJEXT}" != x ; then
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
-		else
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
-		fi
-		PKG_OBJECTS="$PKG_OBJECTS $j"
-		;;
-	esac
-    done
-
-
-
-    else
-        COOKFS_PKGCONFIG_USECREADERCHAN=0
-    fi
 
     # enable bz2 files only if pages are handled using C
     if test ${USEBZ2} = yes; then
@@ -8963,11 +8930,13 @@ else
     COOKFS_PKGCONFIG_FEATURE_ASIDE=0
     COOKFS_PKGCONFIG_USEXZ=0
 
-    # if not using c-pages, use Tcl only readerchannel
-    COOKFS_PKGCONFIG_USECREADERCHAN=0
-
     # Tcl implementation offers bzip2 compression only with Trf package
     COOKFS_PKGCONFIG_USEBZ2=0
+
+    # c-vfs requires c-pages
+    USECVFS="no"
+    # c-readerchannel requires c-pages
+    USECREADERCHAN="no"
 fi
 
 if test ${USECFSINDEX} = yes; then
@@ -9011,9 +8980,104 @@ if test ${USECFSINDEX} = yes; then
 
 else
     COOKFS_PKGCONFIG_USECFSINDEX=0
+    # c-vfs requires c-fsindex
+    USECVFS="no"
+    # c-readerchannel requires c-fsindex
+    USECREADERCHAN="no"
 fi
 
 COOKFS_PKGCONFIG_FEATURE_METADATA=1
+
+# reader channel requires support for pages in C
+if test ${USECREADERCHAN} = yes; then
+    printf "%s\n" "#define COOKFS_USECREADERCHAN 1" >>confdefs.h
+
+    COOKFS_PKGCONFIG_USECREADERCHAN=1
+
+    vars="readerchannel.c readerchannelIO.c"
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
+		    ; then
+		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+else
+    COOKFS_PKGCONFIG_USECREADERCHAN=0
+    # c-vfs requires c-readerchannel
+    USECVFS="no"
+fi
+
+if test ${USECVFS} = yes; then
+    as_fn_error $? "support for c-vfs is not ready yet" "$LINENO" 5
+    printf "%s\n" "#define COOKFS_USECVFS 1" >>confdefs.h
+
+    COOKFS_PKGCONFIG_USECVFS=1
+
+    vars="vfs.c vfsCmd.c"
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
+		    ; then
+		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+else
+    COOKFS_PKGCONFIG_USECVFS=0
+fi
+
 
 
 
@@ -9040,6 +9104,8 @@ if test ${USECPKGCONFIG} = yes; then
     printf "%s\n" "#define COOKFS_PKGCONFIG_USECFSINDEX $COOKFS_PKGCONFIG_USECFSINDEX" >>confdefs.h
 
     printf "%s\n" "#define COOKFS_PKGCONFIG_FEATURE_METADATA $COOKFS_PKGCONFIG_FEATURE_METADATA" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_PKGCONFIG_USECVFS $COOKFS_PKGCONFIG_USECVFS" >>confdefs.h
 
 
     printf "%s\n" "#define COOKFS_USEPKGCONFIG 1" >>confdefs.h

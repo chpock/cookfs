@@ -4,6 +4,7 @@
 #
 # (c) 2010 Wojciech Kocjan, Pawel Salawa
 # (c) 2011-2014 Wojciech Kocjan
+# (c) 2024 Konstantin Kushnir
 
 namespace eval cookfs {}
 
@@ -27,7 +28,7 @@ proc cookfs::initMemchan {fsid path read} {
             foreach {mtime size chunklist} $fileinfo break
             if {([llength $chunklist] == 3) && ([lindex $chunklist 0] < 0)} {
                 # It is a small file that's still kept in memory
-                puts -nonewline $chan [lindex $fs(smallfilebuf) [expr {-[lindex $chunklist 0] - 1}]]
+                puts -nonewline $chan [$fs(writer) getbuf [lindex $chunklist 0]]
                 flush $chan
             }  else  {
                 # read all chunks to memchan

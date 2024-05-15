@@ -362,3 +362,149 @@ tcltest::test cookfsFsindex-7.9 "Test getblockusage, set with override" -body {
 } -cleanup {
     $fsidx delete
 } -result [list 0 0 0 1 1]
+
+tcltest::test cookfsFsindex-8.1 "Test changecount, wrong args" -body {
+    set fsidx [cookfs::fsindex]
+    $fsidx changecount 1
+} -cleanup {
+    $fsidx delete
+} -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::fsindexhandle* changecount"}
+
+tcltest::test cookfsFsindex-8.2 "Test changecount, set/unset increments" -body {
+    set res [list]
+    set fsidx [cookfs::fsindex]
+    lappend res [$fsidx changecount]
+    $fsidx set test1 1 {4 5 6}
+    lappend res [$fsidx changecount]
+    $fsidx set test2 1 {3 4 5}
+    lappend res [$fsidx changecount]
+    $fsidx set test3 1
+    lappend res [$fsidx changecount]
+    $fsidx set test3/test1 1 {3 4 5}
+    lappend res [$fsidx changecount]
+    $fsidx unset test3/test1
+    lappend res [$fsidx changecount]
+    $fsidx unset test3
+    lappend res [$fsidx changecount]
+    $fsidx unset test2
+    lappend res [$fsidx changecount]
+    $fsidx unset test1
+    lappend res [$fsidx changecount]
+} -cleanup {
+    $fsidx delete
+} -result {0 1 2 3 4 5 6 7 8}
+
+tcltest::test cookfsFsindex-8.3 "Test changecount, set/unset metadata increments" -body {
+    set res [list]
+    set fsidx [cookfs::fsindex]
+    lappend res [$fsidx changecount]
+    $fsidx setmetadata a b
+    lappend res [$fsidx changecount]
+    $fsidx unsetmetadata a
+    lappend res [$fsidx changecount]
+} -cleanup {
+    $fsidx delete
+} -result {0 1 2}
+
+tcltest::test cookfsFsindex-8.4 "Test changecount, don't increase the counter on unset errors" -body {
+    set res [list]
+    set fsidx [cookfs::fsindex]
+    lappend res [$fsidx changecount]
+    $fsidx set test3 1
+    lappend res [$fsidx changecount]
+    $fsidx set test3/test1 1 {3 4 5}
+    lappend res [$fsidx changecount]
+    # error here and the change counter should remain the same
+    catch { $fsidx unset test3 }
+    lappend res [$fsidx changecount]
+    $fsidx unset test3/test1
+    lappend res [$fsidx changecount]
+    $fsidx unset test3
+    lappend res [$fsidx changecount]
+} -cleanup {
+    $fsidx delete
+} -result {0 1 2 2 3 4}
+
+tcltest::test cookfsFsindex-8.5 "Test changecount, reset the change counter on import/export" -body {
+    set res [list]
+    set fsidx [cookfs::fsindex]
+    lappend res [$fsidx changecount]
+    $fsidx set test3 1
+    lappend res [$fsidx changecount]
+    set exp [$fsidx export]
+    lappend res [$fsidx changecount]
+    $fsidx set test1 1
+    lappend res [$fsidx changecount]
+    $fsidx import $exp
+    lappend res [$fsidx changecount]
+    $fsidx set test2 1
+    lappend res [$fsidx changecount]
+} -cleanup {
+    $fsidx delete
+} -result {0 1 0 1 0 1}
+
+tcltest::test cookfsFsindex-8.6 "Test changecount, setmtime increment" -body {
+    set res [list]
+    set fsidx [cookfs::fsindex]
+    lappend res [$fsidx changecount]
+    $fsidx set test3 1
+    lappend res [$fsidx changecount]
+    $fsidx setmtime test3 2
+    lappend res [$fsidx changecount]
+} -cleanup {
+    $fsidx delete
+} -result {0 1 2}
+
+tcltest::test cookfsFsindex-8.7 "Test changecount, non-incremental operations" -body {
+    set res [list]
+    set fsidx [cookfs::fsindex]
+    lappend res [$fsidx changecount]
+    $fsidx set test3 1 {3 4 5}
+    lappend res [$fsidx changecount]
+    $fsidx setmetadata a b
+    lappend res [$fsidx changecount]
+    $fsidx list ""
+    lappend res [$fsidx changecount]
+    $fsidx get test3
+    lappend res [$fsidx changecount]
+    $fsidx getmtime test3
+    lappend res [$fsidx changecount]
+    $fsidx getmetadata a
+    lappend res [$fsidx changecount]
+    $fsidx getblockusage 3
+    lappend res [$fsidx changecount]
+} -cleanup {
+    $fsidx delete
+} -result {0 1 2 2 2 2 2 2}
+
+tcltest::test cookfsFsindex-8.8 "Test changecount, don't increment on errors" -body {
+    set res [list]
+    set fsidx [cookfs::fsindex]
+    lappend res [$fsidx changecount]
+    $fsidx set test3 1 {3 4 5}
+    lappend res [$fsidx changecount]
+    $fsidx setmetadata a b
+    lappend res [$fsidx changecount]
+    catch { $fsidx list "foo" }
+    lappend res [$fsidx changecount]
+    catch { $fsidx get "bar" }
+    lappend res [$fsidx changecount]
+    catch { $fsidx getmtime "bar" }
+    lappend res [$fsidx changecount]
+    catch { $fsidx getmetadata x }
+    lappend res [$fsidx changecount]
+    catch { $fsidx getblockusage 100 }
+    lappend res [$fsidx changecount]
+    # replace the file with the directory, this should result in an error
+    catch { $fsidx set test3 1 }
+    lappend res [$fsidx changecount]
+    # the parent doesn't exist, this should result in an error
+    catch { $fsidx set foo/bar 1 {3 4 5} }
+    lappend res [$fsidx changecount]
+    # the parent is not a directory, this should result in an error
+    catch { $fsidx set test3/bar 1 {3 4 5} }
+    lappend res [$fsidx changecount]
+} -cleanup {
+    $fsidx delete
+} -result {0 1 2 2 2 2 2 2 2 2 2}
+

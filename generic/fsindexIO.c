@@ -4,6 +4,7 @@
  * Provides mechanisms to export/import fsindex from/to binary data
  *
  * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ * (c) 2024 Konstantin Kushnir
  */
 
 
@@ -70,6 +71,8 @@ Tcl_Obj *Cookfs_FsindexToObject(Cookfs_Fsindex *fsIndex) {
     objSize = CookfsFsindexExportMetadata(fsIndex, result, objSize);
     Tcl_SetByteArrayLength(result, objSize);
 
+    Cookfs_FsindexResetChangeCount(fsIndex);
+
     return result;
 }
 
@@ -91,7 +94,7 @@ Tcl_Obj *Cookfs_FsindexToObject(Cookfs_Fsindex *fsIndex) {
  *----------------------------------------------------------------------
  */
 
-Cookfs_Fsindex *Cookfs_FsindexFromObject(Tcl_Obj *o) {
+Cookfs_Fsindex *Cookfs_FsindexFromObject(Cookfs_Fsindex *fsindex, Tcl_Obj *o) {
     int objLength;
     int i;
     unsigned char *bytes;
@@ -99,8 +102,13 @@ Cookfs_Fsindex *Cookfs_FsindexFromObject(Tcl_Obj *o) {
 
     CookfsLog(printf("Cookfs_FsindexFromObject - BEGIN"))
 
+    /* cleanup fsindex if it is not NULL */
+    if (fsindex != NULL) {
+        Cookfs_FsindexCleanup(fsindex);
+    }
+
     /* initialize empty fsindex */
-    result = Cookfs_FsindexInit();
+    result = Cookfs_FsindexInit(fsindex);
 
     if (result == NULL) {
         CookfsLog(printf("Cookfs_FsindexFromObject - unable to initialize Fsindex object"))
@@ -128,6 +136,8 @@ Cookfs_Fsindex *Cookfs_FsindexFromObject(Tcl_Obj *o) {
     }
 
     CookfsLog(printf("Cookfs_FsindexFromObject - Import metadata done - %d vs %d", i, objLength))
+
+    Cookfs_FsindexResetChangeCount(result);
 
     CookfsLog(printf("Cookfs_FsindexFromObject - END"))
 

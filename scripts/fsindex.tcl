@@ -1,6 +1,7 @@
 # Pure Tcl implementation of index handling
 #
 # (c) 2010-2014 Wojciech Kocjan
+# (c) 2024 Konstantin Kushnir
 
 namespace eval cookfs {}
 namespace eval cookfs::tcl {}
@@ -12,6 +13,10 @@ proc cookfs::tcl::fsindex {{data ""}} {
     upvar #0 $name c
     upvar #0 $name.m cm
     upvar #0 $name.b cb
+    upvar #0 $name.c cc
+
+    # initialize change count
+    set cc 0
 
     # initialize metadata array
     array set cm {}
@@ -26,6 +31,7 @@ proc cookfs::tcl::fsindex {{data ""}} {
     }
 
     interp alias {} $name {} ::cookfs::fsindex::handle $name
+
     return $name
 }
 
@@ -60,6 +66,16 @@ proc cookfs::fsindex::incrBlockUsage {name block {count 1}} {
     if { $block < 0 } return
     upvar #0 $name.b cb
     incr cb($block) $count
+}
+
+proc cookfs::fsindex::incrChangeCount {name {count 1}} {
+    upvar #0 $name.c cc
+    return [incr cc $count]
+}
+
+proc cookfs::fsindex::resetChangeCount {name} {
+    upvar #0 $name.c cc
+    set cc 0
 }
 
 proc cookfs::fsindex::entriesList {name path} {
@@ -122,6 +138,7 @@ proc cookfs::fsindex::entrySet {name path data} {
     foreach {block - -} [lindex $data 2] {
         incrBlockUsage $name $block
     }
+    incrChangeCount $name
 }
 
 proc cookfs::fsindex::entrySetmtime {name path mtime} {
@@ -137,6 +154,7 @@ proc cookfs::fsindex::entrySetmtime {name path mtime} {
          lset da($tail) 0 $mtime
         set d [array get da]
     }
+    incrChangeCount $name
 }
 
 proc cookfs::fsindex::entryUnset {name path} {
@@ -166,6 +184,7 @@ proc cookfs::fsindex::entryUnset {name path} {
     }  else  {
          error "Unable to unset item"
     }
+    incrChangeCount $name
 }
 
 proc cookfs::fsindex::cleanup {name} {
@@ -179,6 +198,7 @@ proc cookfs::fsindex::import {name data} {
     set data [string range $data 8 end]
     importPath $name {} data
     importMetadata $name data
+    resetChangeCount $name
 }
 
 proc cookfs::fsindex::importPath {name path varname} {
@@ -219,6 +239,7 @@ proc cookfs::fsindex::importPath {name path varname} {
 
 proc cookfs::fsindex::export {name} {
     upvar #0 $name c
+    resetChangeCount $name
     return "CFS2.200[exportPath $name {}][exportMetadata $name]"
 }
 
@@ -293,11 +314,13 @@ proc cookfs::fsindex::getMetadata {name paramname valuevariable} {
 
 proc cookfs::fsindex::setMetadata {name paramname paramvalue} {
     upvar #0 $name.m cm
+    incrChangeCount $name
     set cm($paramname) $paramvalue
 }
 
 proc cookfs::fsindex::unsetMetadata {name paramname} {
     upvar #0 $name.m cm
+    incrChangeCount $name
     unset -nocomplain cm($paramname)
 }
 
@@ -310,6 +333,11 @@ proc cookfs::fsindex::handle {name cmd args} {
     switch -- $cmd {
          export {
              return [export $name]
+         }
+         import {
+             if {([llength $args] == 1)} {
+                 return [import $name [lindex $args 0]]
+             }
          }
          list {
              if {([llength $args] == 1)} {
@@ -385,6 +413,12 @@ proc cookfs::fsindex::handle {name cmd args} {
                  return -code error "could not get integer from block arg"
              }
              return [getblockusage $name $block]
+         }
+         changecount {
+             if {[llength $args] != 0} {
+                 return -code error "wrong # args: should be \"$name $cmd\""
+             }
+             return [incrChangeCount $name 0]
          }
     }
     error "TODO: args"

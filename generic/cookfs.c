@@ -4,6 +4,7 @@
  * Provides Cookfs initialization code.
  *
  * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ * (c) 2024 Konstantin Kushnir
  */
 
 #include "cookfs.h"
@@ -62,6 +63,12 @@ Cookfs_Init(Tcl_Interp *interp)
     if (Cookfs_InitHashesCmd(interp) != TCL_OK) {
         return TCL_ERROR;
     }
+
+#ifdef COOKFS_USECVFS
+    if (Cookfs_InitMountCmd(interp) != TCL_OK) {
+        return TCL_ERROR;
+    }
+#endif
 
 #ifdef COOKFS_USEPKGCONFIG
     Tcl_RegisterConfig(interp, PACKAGE_NAME, cookfs_pkgconfig, "iso8859-1");
