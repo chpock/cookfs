@@ -2,45 +2,15 @@
 #
 # (c) 2010 Wojciech Kocjan, Pawel Salawa
 # (c) 2011-2014 Wojciech Kocjan
+# (c) 2024 Konstantin Kushnir
 
 namespace eval cookfs {}
 
 # creates a new channel for reading data from a VFS
 # uses reflected channels
-proc cookfs::createReadableChannel {fsid path} {
+proc cookfs::createReadableChannel {fsid chunklist} {
     variable dirlistParameters
     upvar #0 $fsid fs
-
-    # try to get information about specified path
-    if {[catch {
-        set fileinfo [$fs(index) get $path]
-    }]} {
-        return ""
-    }
-
-    # return if trying to open a directory
-    if {([llength $fileinfo] != 3)} {
-        return ""
-    }
-
-    foreach {mtime size chunklist} $fileinfo break
-
-    # if this is a small file, currently pending write, pass it to memchan
-    if {([llength $chunklist] == 3) && ([lindex $chunklist 0] < 0)} {
-        #vfs::log [list cookfs::createReadableChannel $fsid $path smallfile]
-        if {!$fs(tclwriterchannel) && [pkgconfig get c-writerchannel]} {
-            return [::cookfs::c::writerchannel $fs(pages) $fs(index) $fs(writer) $path true]
-        } else {
-            return [lindex [initMemchan $fsid $path true] 0]
-        }
-    }
-
-    # create C channel if available and was not disabled
-    if {!$fs(tclreaderchannel) && [pkgconfig get c-readerchannel]} {
-	set chan [cookfs::c::readerchannel $fs(pages) $fs(index) $chunklist]
-	fconfigure $chan -buffersize 65536
-	return $chan
-    }
 
     set id [incr fs(channelId)]
     set chid "$fsid.ch$id"

@@ -255,17 +255,26 @@ proc cookfs::vfshandleOpen {fsid relative mode} {
         "" - r {
             #vfs::log [list cookfs::vfshandleOpen $fsid $relative read]
             if {[catch {
-                set channel [cookfs::createReadableChannel $fsid $relative]
-            } error]} {
-                #vfs::log [list cookfs::vfshandleOpen $fsid $relative error $::errorInfo]
+                $fs(index) get $relative
+            } fileinfo]} {
                 vfs::filesystem posixerror $::cookfs::posix(ENOENT)
             }
-
-            if {$channel == ""} {
-                #vfs::log [list cookfs::vfshandleOpen $fsid $relative {does not exist}]
-                vfs::filesystem posixerror $::cookfs::posix(ENOENT)
+            if {[llength $fileinfo] != 3} {
+                vfs::filesystem posixerror $::cookfs::posix(EISDIR)
             }
-
+            foreach {mtime size chunklist} $fileinfo break
+            # if this is a small file, currently pending write, pass it to memchan
+            if {([llength $chunklist] == 3) && ([lindex $chunklist 0] < 0)} {
+                if {!$fs(tclwriterchannel) && [pkgconfig get c-writerchannel]} {
+                    set channel [::cookfs::c::writerchannel $fs(pages) $fs(index) $fs(writer) $relative true]
+                } else {
+                    set channel [lindex [initMemchan $fsid $relative true] 0]
+                }
+            } elseif {!$fs(tclreaderchannel) && [pkgconfig get c-readerchannel]} {
+                set channel [cookfs::c::readerchannel $fs(pages) $fs(index) $chunklist]
+            } else {
+                set channel [cookfs::createReadableChannel $fsid $chunklist]
+            }
             return [list $channel ""]
         }
         r+ {

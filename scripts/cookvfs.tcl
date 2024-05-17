@@ -40,9 +40,6 @@ proc cookfs::sha1 {args} {
 
 proc cookfs::pages {args} {
     if {[pkgconfig get c-pages]} {
-	if {![llength [info commands ::cookfs::c::pages]]} {
-	    package require vfs::cookfs::c::pages [pkgconfig get package-version]
-	}
 	return [uplevel #0 [concat [list ::cookfs::c::pages] $args]]
     }  else  {
 	if {![llength [info commands ::cookfs::tcl::pages]]} {
@@ -54,9 +51,6 @@ proc cookfs::pages {args} {
 
 proc cookfs::fsindex {args} {
     if {[pkgconfig get c-fsindex]} {
-	if {![llength [info commands ::cookfs::c::fsindex]]} {
-	    package require vfs::cookfs::c::fsindex [pkgconfig get package-version]
-	}
 	return [uplevel #0 [concat [list ::cookfs::c::fsindex] $args]]
     }  else  {
 	if {![llength [info commands ::cookfs::tcl::fsindex]]} {
@@ -75,35 +69,39 @@ proc cookfs::initialize {} {
     variable pkginitialized
 
     if {![info exists pkginitialized]} {
-	package require vfs::cookfs::pkgconfig
+        catch { package require vfs::cookfs::c }
 
-	# load Tcl versions of packages for now
-	package require vfs::cookfs::tcl::vfs [pkgconfig get package-version]
-	package require vfs::cookfs::tcl::memchan [pkgconfig get package-version]
-	package require vfs::cookfs::tcl::writer [pkgconfig get package-version]
-	package require vfs::cookfs::tcl::optimize [pkgconfig get package-version]
+        # load Tcl version of pkgconfig if we don't have such a command in C module
+        if { ![llength [info commands cookfs::pkgconfig]] } {
+            package require vfs::cookfs::pkgconfig
+        }
 
-	# load C version of Pages if available
-	if {[pkgconfig get c-pages]} {
-	    package require vfs::cookfs::c [pkgconfig get package-version]
-    } {
-	    package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
-	}
+        # load Tcl versions of packages for now
+        package require vfs::cookfs::tcl::vfs [pkgconfig get package-version]
+        package require vfs::cookfs::tcl::writer [pkgconfig get package-version]
+        package require vfs::cookfs::tcl::optimize [pkgconfig get package-version]
 
-	# load C version of Fsindex if available
-	if {[pkgconfig get c-fsindex]} {
-	    package require vfs::cookfs::c [pkgconfig get package-version]
-    } {
-	    package require vfs::cookfs::tcl::fsindex [pkgconfig get package-version]
-	}
+        # load C version of Pages if available
+        if {![pkgconfig get c-pages]} {
+            package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
+        }
 
-    package require vfs::cookfs::tcl::readerchannel [pkgconfig get package-version]
-	# load C version of Readerchannel if available
-	if {[pkgconfig get c-readerchannel]} {
-	    package require vfs::cookfs::c [pkgconfig get package-version]
-    }
+        # load C version of Fsindex if available
+        if {![pkgconfig get c-fsindex]} {
+            package require vfs::cookfs::tcl::fsindex [pkgconfig get package-version]
+        }
 
-	set pkginitialized 1
+        # load C version of Readerchannel if available
+        if {![pkgconfig get c-readerchannel]} {
+            package require vfs::cookfs::tcl::readerchannel [pkgconfig get package-version]
+        }
+
+        # load C version of Writerchannel if available
+        if {![pkgconfig get c-writerchannel]} {
+            package require vfs::cookfs::tcl::memchan [pkgconfig get package-version]
+        }
+
+        set pkginitialized 1
     }
 
     # decide on crc32 implementation based on if zlib command is present
@@ -246,6 +244,20 @@ proc cookfs::Mount {args} {
     set fs(tclfsindex) [expr {![pkgconfig get c-fsindex] || $opt(tcl-fsindex)}]
     set fs(tclreaderchannel) [expr {$fs(tclpages) || ![pkgconfig get c-readerchannel] || $opt(tcl-readerchannel)}]
     set fs(tclwriterchannel) [expr {$fs(tclpages) || $fs(tclfsindex) || ![pkgconfig get c-writerchannel] || $opt(tcl-writerchannel)}]
+
+    # load Tcl packages if we need them but don't currently have them
+    if {$fs(tclpages) && [catch {package present vfs::cookfs::tcl::pages}]} {
+        package require vfs::cookfs::tcl::pages [pkgconfig get package-version]
+    }
+    if {$fs(tclfsindex) && [catch {package present vfs::cookfs::tcl::fsindex}]} {
+        package require vfs::cookfs::tcl::fsindex [pkgconfig get package-version]
+    }
+    if {$fs(tclreaderchannel) && [catch {package present vfs::cookfs::tcl::readerchannel}]} {
+        package require require vfs::cookfs::tcl::readerchannel [pkgconfig get package-version]
+    }
+    if {$fs(tclwriterchannel) && [catch {package present vfs::cookfs::tcl::memchan}]} {
+        package require require vfs::cookfs::tcl::memchan [pkgconfig get package-version]
+    }
 
     # initialize pages
     if {$opt(pagesobject) == ""} {

@@ -1,3 +1,8 @@
+2024-05-18 Konstantin Kushnir <chpock@gmail.com>
+	* Provide successful operation when tcl files unavailable. CookFS should
+	work when readerchannel.tcl memchan.tcl pages.tcl fsindex.tcl unavailable,
+	but C module contains all required functionality.
+
 2024-05-17 Konstantin Kushnir <chpock@gmail.com>
 	* Add support for c-writerchannel. This removes the dependency on vfs::memchan and improves memory utilization/performance
 
