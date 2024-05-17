@@ -9,9 +9,6 @@
 
 #include "cookfs.h"
 
-/* counter for all pages objects */
-static int deprecatedCounter = 0;
-
 /* definitions of static and/or internal functions */
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
@@ -41,6 +38,36 @@ int Cookfs_InitPagesCmd(Tcl_Interp *interp) {
         (ClientData) NULL, NULL);
 
     return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsRegisterExistingPagesObjectCmd --
+ *
+ *      Creates a Tcl command for existing pages object
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      New Tcl command is created on success. Set the interp result to
+ *      the name of the created command.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p) {
+    if (p->commandToken != NULL) {
+        return;
+    }
+    char buf[128];
+    /* create Tcl command and return its name */
+    sprintf(buf, "::cookfs::c::pageshandle%p", (void *)p);
+    p->commandToken = Tcl_CreateObjCommand(interp, buf, CookfsPagesCmd,
+        (ClientData)p, CookfsPagesDeleteProc);
+    p->interp = interp;
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
 }
 
 /* command for creating new objects that deal with pages */
@@ -80,9 +107,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     UNUSED(clientData);
     static char *options[] = { "-readonly", "-readwrite", "-compression", "-cachesize", "-endoffset", "-compresscommand", "-decompresscommand", "-asynccompresscommand", "-asyncdecompresscommand", "-alwayscompress", "-asyncdecompressqueuesize", NULL };
     enum { optReadonly = 0, optReadwrite, optCompression, optCachesize, optEndoffset, optCompressCommand, optDecompressCommand, optAsyncCompressCommand, optAsyncDecompressCommand, optAlwaysCompress, optAsyncDecompressQueue };
-    char buf[128];
     Cookfs_Pages *pages;
-    int cmdidx = ++deprecatedCounter;
     int idx;
     int oReadOnly = 0;
     int oCompression;
@@ -244,12 +269,9 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     Cookfs_PagesSetCacheSize(pages, oCachesize);
     CookfsLog(printf("Cookfs Page Cmd: %08x -> %d\n", pages, pages->cacheSize))
 
-    /* create Tcl command and return its name */
-    sprintf(buf, "::cookfs::c::pageshandle%d", cmdidx);
-    Tcl_CreateObjCommand(interp, buf, CookfsPagesCmd, (ClientData) pages, CookfsPagesDeleteProc);
-
-    CookfsLog(printf("Cookfs Page Cmd: %s", buf))
-    Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
+    /* create Tcl command and return its name and set interp result to the command name */
+    CookfsLog(printf("Create Tcl command for the pages object..."))
+    CookfsRegisterExistingPagesObjectCmd(interp, pages);
     return TCL_OK;
 
 ERROR:
@@ -665,6 +687,8 @@ static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc,
  */
 
 static void CookfsPagesDeleteProc(ClientData clientData) {
+    Cookfs_Pages *pages = (Cookfs_Pages *) clientData;
     CookfsLog(printf("DELETING PAGES COMMAND"))
-    Cookfs_PagesFini((Cookfs_Pages *) clientData);
+    pages->commandToken = NULL;
+    Cookfs_PagesFini(pages);
 }

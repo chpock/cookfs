@@ -1,3 +1,6 @@
+2024-05-17 Konstantin Kushnir <chpock@gmail.com>
+	* Add support for c-writerchannel. This removes the dependency on vfs::memchan and improves memory utilization/performance
+
 2024-05-15 Konstantin Kushnir <chpock@gmail.com>
 	* Refactor Tcl/C code
 	* Add support for changecount subcommand for fsindex

@@ -9,6 +9,7 @@
 #ifdef COOKFS_USECPAGES
 
 int Cookfs_InitPagesCmd(Tcl_Interp *interp);
+void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p);
 
 #endif /* COOKFS_USECPAGES */
 

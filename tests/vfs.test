@@ -36,6 +36,7 @@ tcltest::test cookfsVfs-1.4 "Remounting archive" -setup {
 } -body {
     vfs::cookfs::Mount $file $file
     set fh [open [file join $file testfile] w]
+    fconfigure $fh -translation binary
     puts $fh TEST
     close $fh
     vfs::unmount $file
@@ -52,6 +53,7 @@ tcltest::test cookfsVfs-1.5 "Remounting archive using -pagesobject" -setup {
 } -body {
     vfs::cookfs::Mount $file $file
     set fh [open [file join $file testfile] w]
+    fconfigure $fh -translation binary
     puts $fh TEST
     close $fh
     vfs::unmount $file
@@ -69,6 +71,7 @@ tcltest::test cookfsVfs-1.6 "Remounting archive using -fsindexobject" -setup {
 } -body {
     vfs::cookfs::Mount $file $file
     set fh [open [file join $file testfile] w]
+    fconfigure $fh -translation binary
     puts $fh TEST
     close $fh
     vfs::unmount $file
@@ -87,6 +90,7 @@ tcltest::test cookfsVfs-1.7 "Setting metadata on mount" -setup {
 } -body {
     vfs::cookfs::Mount $file $file
     set fh [open [file join $file testfile] w]
+    fconfigure $fh -translation binary
     puts $fh TEST
     close $fh
     vfs::unmount $file
@@ -106,6 +110,7 @@ tcltest::test cookfsVfs-1.8 "Mounting as volume" -setup {
 } -body {
     vfs::cookfs::Mount $file $file
     set fh [open [file join $file testfile] w]
+    fconfigure $fh -translation binary
     puts $fh TEST
     close $fh
     vfs::unmount $file
@@ -186,6 +191,7 @@ tcltest::test cookfsVfs-2.3 "Test correct storing of empty files or new director
     set fsid [vfs::cookfs::Mount $file $file]
 
     set fh [open $file/file1 w]
+    fconfigure $fh -translation binary
     puts $fh [string repeat TEST 1024]
     close $fh
     vfs::unmount $file
@@ -421,12 +427,14 @@ tcltest::test cookfsVfs-6.1 "Test crc32 based VFS and page handling" -constraint
 } -body {
     vfs::cookfs::Mount -pagehash crc32 $file $file
     set fh [open $file/test1 w]
+    fconfigure $fh -translation binary
     puts $fh "TEST TEST"
     close $fh
     vfs::unmount $file
 
     set h [vfs::cookfs::Mount $file $file]
     set fh [open $file/test2 w]
+    fconfigure $fh -translation binary
     puts $fh "TEST TEST"
     close $fh
 
@@ -440,14 +448,17 @@ tcltest::test cookfsVfs-7.1 "Test filesize command" -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]
+    fconfigure $fh -translation binary
     puts -nonewline $fh [string repeat "TEST" 1024]
     close $fh
 } -body {
     set fsid [vfs::cookfs::Mount -smallfilesize 8192 -compression none $file $file]
     set fh [open [file join $file testfile1] w]
+    fconfigure $fh -translation binary
     puts -nonewline $fh [string repeat "Test0001" 4096]
     close $fh
     set fh [open [file join $file testfile2] w]
+    fconfigure $fh -translation binary
     puts -nonewline $fh [string repeat "Test0002" 4096]
     close $fh
     $fsid filesize
@@ -464,12 +475,15 @@ tcltest::test cookfsVfs-7.2 "Test filesize command" -setup {
 } -body {
     set fsid [vfs::cookfs::Mount -smallfilesize 8192 -compression none $file $file]
     set fh [open [file join $file testfile1] w]
+    fconfigure $fh -translation binary
     puts -nonewline $fh [string repeat "Test0001" 4096]
     close $fh
     set fh [open [file join $file testfile2] w]
+    fconfigure $fh -translation binary
     puts -nonewline $fh [string repeat "Test0002" 4096]
     close $fh
     set fh [open [file join $file testfile3] w]
+    fconfigure $fh -translation binary
     puts -nonewline $fh [string repeat "Test0002" 128]
     close $fh
     $fsid smallfilebuffersize
@@ -486,6 +500,7 @@ tcltest::test cookfsVfs-8.1 "Test modifying file mtime" -setup {
 } -body {
     set fsid [vfs::cookfs::Mount -compression none $file $file]
     set fh [open [file join $file testfile1] w]
+    fconfigure $fh -translation binary
     puts -nonewline $fh [string repeat "Test0001" 4096]
     close $fh
     file mtime [file join $file testfile1] 1
@@ -616,6 +631,7 @@ tcltest::test cookfsVfs-10.1 "Test changing compression without remounting" -set
     }
 
     set fh [open [file join $file testfile1] w]
+    fconfigure $fh -translation binary
     puts -nonewline $fh [string repeat "TEST" 256]
     close $fh
 
@@ -625,6 +641,7 @@ tcltest::test cookfsVfs-10.1 "Test changing compression without remounting" -set
     }
 
     set fh [open [file join $file testfile2] w]
+    fconfigure $fh -translation binary
     puts -nonewline $fh [string repeat "test" 256]
     close $fh
 

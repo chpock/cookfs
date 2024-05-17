@@ -143,6 +143,7 @@ proc cookfs::Mount {args} {
 	{tcl-pages				      {Use Tcl based pages handler}}
 	{tcl-fsindex				    {Use Tcl based fsindex handler}}
 	{tcl-readerchannel			      {Use Tcl based readerchannel handler}}
+	{tcl-writerchannel			      {Use Tcl based writerchannel handler}}
 	{pagesize.arg		   262144	  {Maximum page size}}
 	{pagecachesize.arg	      8	       {Number of pages to cache}}
 	{volume					 {Mount as volume}}
@@ -244,6 +245,7 @@ proc cookfs::Mount {args} {
     set fs(tclpages) [expr {![pkgconfig get c-pages] || $opt(tcl-pages)}]
     set fs(tclfsindex) [expr {![pkgconfig get c-fsindex] || $opt(tcl-fsindex)}]
     set fs(tclreaderchannel) [expr {$fs(tclpages) || ![pkgconfig get c-readerchannel] || $opt(tcl-readerchannel)}]
+    set fs(tclwriterchannel) [expr {$fs(tclpages) || $fs(tclfsindex) || ![pkgconfig get c-writerchannel] || $opt(tcl-writerchannel)}]
 
     # initialize pages
     if {$opt(pagesobject) == ""} {

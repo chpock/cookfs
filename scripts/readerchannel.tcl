@@ -28,7 +28,11 @@ proc cookfs::createReadableChannel {fsid path} {
     # if this is a small file, currently pending write, pass it to memchan
     if {([llength $chunklist] == 3) && ([lindex $chunklist 0] < 0)} {
         #vfs::log [list cookfs::createReadableChannel $fsid $path smallfile]
-        return [lindex [initMemchan $fsid $path true] 0]
+        if {!$fs(tclwriterchannel) && [pkgconfig get c-writerchannel]} {
+            return [::cookfs::c::writerchannel $fs(pages) $fs(index) $fs(writer) $path true]
+        } else {
+            return [lindex [initMemchan $fsid $path true] 0]
+        }
     }
 
     # create C channel if available and was not disabled

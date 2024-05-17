@@ -115,6 +115,7 @@ AC_ARG_ENABLE(tcl-fallback,    [  --enable-tcl-fallback     Install Tcl scripts 
 AC_ARG_ENABLE(c-pages,         [  --disable-c-pages         Use pages handling written in C. Defaults to true],     USECPAGES=${enableval},        USECPAGES=yes)
 AC_ARG_ENABLE(c-fsindex,       [  --disable-c-fsindex       Use index handling written in C. Defaults to true],     USECFSINDEX=${enableval},      USECFSINDEX=yes)
 AC_ARG_ENABLE(c-readerchannel, [  --disable-c-readerchannel Use reader handler written in C. Defaults to true],     USECREADERCHAN=${enableval},   USECREADERCHAN=yes)
+AC_ARG_ENABLE(c-writerchannel, [  --disable-c-writerchannel Use writer handler written in C. Defaults to true],     USECWRITERCHAN=${enableval},   USECWRITERCHAN=yes)
 AC_ARG_ENABLE(c-pkgconfig,     [  --disable-c-pkgconfig     Use pkgconfig written in C. Defaults to true],          USECPKGCONFIG=${enableval},    USECPKGCONFIG=yes)
 AC_ARG_ENABLE(c-vfs,           [  --enable-c-vfs            Use VFS support written in C. Defaults to false],       USECVFS=${enableval},          USECVFS=no)
 
@@ -182,6 +183,8 @@ else
     USECVFS="no"
     # c-readerchannel requires c-pages
     USECREADERCHAN="no"
+    # c-writerchannel requires c-pages
+    USECWRITERCHAN="no"
 fi
 
 if test ${USECFSINDEX} = yes; then
@@ -194,11 +197,12 @@ else
     USECVFS="no"
     # c-readerchannel requires c-fsindex
     USECREADERCHAN="no"
+    # c-writerchannel requires c-fsindex
+    USECWRITERCHAN="no"
 fi
 
 COOKFS_PKGCONFIG_FEATURE_METADATA=1
 
-# reader channel requires support for pages in C
 if test ${USECREADERCHAN} = yes; then
     AC_DEFINE(COOKFS_USECREADERCHAN)
     COOKFS_PKGCONFIG_USECREADERCHAN=1
@@ -206,6 +210,16 @@ if test ${USECREADERCHAN} = yes; then
 else
     COOKFS_PKGCONFIG_USECREADERCHAN=0
     # c-vfs requires c-readerchannel
+    USECVFS="no"
+fi
+
+if test ${USECWRITERCHAN} = yes; then
+    AC_DEFINE(COOKFS_USECWRITERCHAN)
+    COOKFS_PKGCONFIG_USECWRITERCHAN=1
+    TEA_ADD_SOURCES([writerchannel.c])
+else
+    COOKFS_PKGCONFIG_USECWRITERCHAN=0
+    # c-vfs requires c-writerchannel
     USECVFS="no"
 fi
 
@@ -221,6 +235,7 @@ fi
 AC_SUBST(COOKFS_PKGCONFIG_FEATURE_ASIDE)
 AC_SUBST(COOKFS_PKGCONFIG_USECPAGES)
 AC_SUBST(COOKFS_PKGCONFIG_USECREADERCHAN)
+AC_SUBST(COOKFS_PKGCONFIG_USECWRITERCHAN)
 AC_SUBST(COOKFS_PKGCONFIG_USEBZ2)
 AC_SUBST(COOKFS_PKGCONFIG_USEXZ)
 AC_SUBST(COOKFS_PKGCONFIG_USECFSINDEX)
@@ -232,6 +247,7 @@ if test ${USECPKGCONFIG} = yes; then
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_FEATURE_ASIDE, $COOKFS_PKGCONFIG_FEATURE_ASIDE)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECPAGES, $COOKFS_PKGCONFIG_USECPAGES)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECREADERCHAN, $COOKFS_PKGCONFIG_USECREADERCHAN)
+    AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECWRITERCHAN, $COOKFS_PKGCONFIG_USECWRITERCHAN)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECPKGCONFIG, $COOKFS_PKGCONFIG_USECPKGCONFIG)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USEBZ2, $COOKFS_PKGCONFIG_USEBZ2)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USEXZ, $COOKFS_PKGCONFIG_USEXZ)

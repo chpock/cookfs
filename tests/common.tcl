@@ -17,6 +17,7 @@ proc makeTree { dir tree } {
         switch -glob -- $type {
             f* {
                 set fp [open [file join $dir $name] w]
+                fconfigure $fp -translation binary
                 puts -nonewline $fp [string repeat "a" $data]
                 close $fp
             }
@@ -91,7 +92,9 @@ proc testIfEqual {a b} {
             return "file size $a: [file size $a]\nfile size $b: [file size $b]"
         }
         set afh [open $a r]
+        fconfigure $afh -translation binary
         set bfh [open $b r]
+        fconfigure $bfh -translation binary
         while {![eof $afh]} {
             set afc [read $afh 65536]
             set bfc [read $bfh 65536]

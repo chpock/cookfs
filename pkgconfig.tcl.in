@@ -13,6 +13,7 @@ proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
 	    c-pages		"@COOKFS_PKGCONFIG_USECPAGES@"
 	    c-fsindex		"@COOKFS_PKGCONFIG_USECFSINDEX@"
 	    c-readerchannel	"@COOKFS_PKGCONFIG_USECREADERCHAN@"
+	    c-writerchannel	"@COOKFS_PKGCONFIG_USECWRITERCHAN@"
 
 	    feature-aside "@COOKFS_PKGCONFIG_FEATURE_ASIDE@"
 	    feature-bzip2 "@COOKFS_PKGCONFIG_USEBZ2@"

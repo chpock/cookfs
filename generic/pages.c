@@ -117,6 +117,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
 
     /* initialize basic information */
     rc->interp = interp;
+    rc->commandToken = NULL;
     rc->isAside = isAside;
     Cookfs_PagesInitCompr(rc);
 
@@ -432,6 +433,11 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     CookfsLog(printf("Cleaning up pages MD5/size"))
     Tcl_Free((void *) p->dataPagesSize);
     Tcl_Free((void *) p->dataPagesMD5);
+
+    CookfsLog(printf("Cleaning tcl command"));
+    if (p->commandToken != NULL) {
+        Tcl_DeleteCommandFromToken(p->interp, p->commandToken);
+    }
 
     CookfsLog(printf("Cleaning up pages"))
     /* clean up storage */

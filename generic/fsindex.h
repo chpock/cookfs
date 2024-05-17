@@ -46,6 +46,8 @@ typedef struct Cookfs_Fsindex {
     int *blockIndex;
     int blockIndexSize;
     Tcl_WideInt changeCount;
+    Tcl_Interp *interp;
+    Tcl_Command commandToken;
 } Cookfs_Fsindex;
 
 Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName);

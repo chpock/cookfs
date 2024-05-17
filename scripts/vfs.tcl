@@ -271,7 +271,11 @@ proc cookfs::vfshandleOpen {fsid relative mode} {
         r+ {
             #vfs::log [list cookfs::vfshandleOpen $fsid $relative read+]
 
-            set rc [cookfs::initMemchan $fsid $relative true]
+            if {!$fs(tclwriterchannel) && [pkgconfig get c-writerchannel]} {
+                set rc [::cookfs::c::writerchannel $fs(pages) $fs(index) $fs(writer) $relative true]
+            } else {
+                set rc [cookfs::initMemchan $fsid $relative true]
+            }
 
             #vfs::log [list cookfs::vfshandleOpen $fsid $relative result $rc]
             return $rc
@@ -279,7 +283,11 @@ proc cookfs::vfshandleOpen {fsid relative mode} {
         w - w+ {
             #vfs::log [list cookfs::vfshandleOpen $fsid $relative write]
 
-            set rc [cookfs::initMemchan $fsid $relative false]
+            if {!$fs(tclwriterchannel) && [pkgconfig get c-writerchannel]} {
+                set rc [::cookfs::c::writerchannel $fs(pages) $fs(index) $fs(writer) $relative false]
+            } else {
+                set rc [cookfs::initMemchan $fsid $relative false]
+            }
 
             #vfs::log [list cookfs::vfshandleOpen $fsid $relative result $rc]
             return $rc
@@ -290,7 +298,11 @@ proc cookfs::vfshandleOpen {fsid relative mode} {
                 vfs::filesystem posixerror $::cookfs::posix(ENOENT)
             }
 
-            set rc [cookfs::initMemchan $fsid $relative true]
+            if {!$fs(tclwriterchannel) && [pkgconfig get c-writerchannel]} {
+                set rc [::cookfs::c::writerchannel $fs(pages) $fs(index) $fs(writer) $relative true]
+            } else {
+                set rc [cookfs::initMemchan $fsid $relative true]
+            }
 
             seek [lindex $rc 0] 0 end
 

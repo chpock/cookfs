@@ -33,33 +33,33 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -se
     # expected {}
     #
     # read 1st file from page#0
-    read [set fd [open [file join $file test1] r]]; close $fd
+    read [set fd [open [file join $file test1] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     # expected: i#0-w:0-a:0
     #
     # read file2.1 from page#1
     # since this is the first file from a multi-file page, the age of all entries
     # should be increased because that page is not yet cached
-    read [set fd [open [file join $file test2.1] r]]; close $fd
+    read [set fd [open [file join $file test2.1] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     # expected: i#1-w:1-a:0 i#0-w:0-a:1
     #
     # read file2.2 from page#1
     # since this file is from the same page as file 2.1, the cache picture should not be changed
-    read [set fd [open [file join $file test2.2] r]]; close $fd
+    read [set fd [open [file join $file test2.2] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     # expected: i#1-w:1-a:0 i#0-w:0-a:1
     #
     # read file1 from page#0 again
     # since this file in cache, the age for page#1 should not be changed,
     # but the age of page #0 should be reset, and it should be moved to the top of the cache
-    read [set fd [open [file join $file test1] r]]; close $fd
+    read [set fd [open [file join $file test1] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     # expected: i#0-w:0-a:0 i#1-w:1-a:0
     #
     # read file3 from page#2
     # as this is a new file, the age for page#0 and page# should be increased
-    read [set fd [open [file join $file test3] r]]; close $fd
+    read [set fd [open [file join $file test3] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     # expected: i#2-w:0-a:0 i#0-w:0-a:1 i#1-w:1-a:1
     #
@@ -67,14 +67,14 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -se
     # This is a new file, the age for all pages should be increased.
     # Also, we have reached a cache limit. page#0 and page#2 have
     # the lowest weight 0, and page#0 is the oldest. This, page#0 must be evicted.
-    read [set fd [open [file join $file test4.1] r]]; close $fd
+    read [set fd [open [file join $file test4.1] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     # expected: i#3-w:1-a:0 i#2-w:0-a:1 i#1-w:1-a:2
     #
     # read file4.2 from page#3
     # This page is already in the cache, so the age of all pages should remain the same.
     # Also, this page already at the top. Thus, the overall cache picture should remain the same.
-    read [set fd [open [file join $file test4.2] r]]; close $fd
+    read [set fd [open [file join $file test4.2] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     # expected: i#3-w:1-a:0 i#2-w:0-a:1 i#1-w:1-a:2
     #
@@ -88,7 +88,7 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -se
     # the least weight. But the age for other pages should remain the same.
     # The picture should be as follows:
     # i#5-w:0-a:0 i#3-w:1-a:1 i#1-w:1-a:3
-    read [set fd [open [file join $file test5] r]]; close $fd
+    read [set fd [open [file join $file test5] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     # expected: i#5-w:0-a:0 i#3-w:1-a:1 i#1-w:1-a:3
     #
@@ -97,7 +97,7 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -se
     # The age of page#1 will reach end-of-life limit (4) that we set at the beginning
     # of this test case. Its weight will be reset to 0 and it will be evicted as
     # the page with the lowest weight.
-    read [set fd [open [file join $file test1] r]]; close $fd
+    read [set fd [open [file join $file test1] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     # expected: i#0-w:0-a:0 i#5-w:0-a:1 i#3-w:1-a:2
     #
@@ -109,7 +109,7 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -se
     # as this is the second page of a large file. Thus, page#0 should be evicted as
     # the oldest page with weight 0. The picture should be as follows:
     # i#5-w:0-a:0 i#4-w:0-a:0 i#3-w:1-a:3
-    read [set fd [open [file join $file test5] r]]; close $fd
+    read [set fd [open [file join $file test5] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     # expected: i#5-w:0-a:0 i#4-w:0-a:0 i#3-w:1-a:3
     #
@@ -117,7 +117,7 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -se
     # The age for all pages should be increased. This means, that page#3 will reach
     # the end-of-life age (4). Its weight will be reset and it will be the best candidate
     # for eviction since it is the oldest page in the cache.
-    read [set fd [open [file join $file test3] r]]; close $fd
+    read [set fd [open [file join $file test3] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     # expected: i#2-w:0-a:0 i#5-w:0-a:1 i#4-w:0-a:1
     #
@@ -128,14 +128,14 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -se
     # expected: {}
     # read file5 from page#4 and page#5
     # cache has zero size, thus it is not available and should be empty
-    read [set fd [open [file join $file test5] r]]; close $fd
+    read [set fd [open [file join $file test5] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     # expected: {}
     # increase the cache size
     [set ${fsid}(pages)] cachesize 1
     # read file5
     # Since the cache size is 1, we expect only the last page (page#5) from file5 to be in the cache.
-    read [set fd [open [file join $file test5] r]]; close $fd
+    read [set fd [open [file join $file test5] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     #expected: i#5-w:0-a:0
     #
@@ -143,7 +143,7 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -se
     [set ${fsid}(pages)] cachesize 3
     # read file5
     # Since the cache size is 3, we expect both pages (page#4 and page#5) to be in the cache.
-    read [set fd [open [file join $file test5] r]]; close $fd
+    read [set fd [open [file join $file test5] rb]]; close $fd
     lappend result [lmap x [[set ${fsid}(pages)] getcache] { set x i#[dict get $x index]-w:[dict get $x weight]-a:[dict get $x age] }]
     #expected: i#5-w:0-a:0 i#4-w:0-a:0
     lappend result {}

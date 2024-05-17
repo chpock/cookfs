@@ -56,6 +56,12 @@ Cookfs_Init(Tcl_Interp *interp)
     }
 #endif
 
+#ifdef COOKFS_USECWRITERCHAN
+    if (Cookfs_InitWriterchannelCmd(interp) != TCL_OK) {
+        return TCL_ERROR;
+    }
+#endif
+
     if (Cookfs_InitBinaryDataCmd(interp) != TCL_OK) {
         return TCL_ERROR;
     }

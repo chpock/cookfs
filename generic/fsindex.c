@@ -194,6 +194,8 @@ Cookfs_Fsindex *Cookfs_FsindexInit(Cookfs_Fsindex *i) {
     rc->blockIndexSize = 0;
     rc->blockIndex = NULL;
     rc->changeCount = 0;
+    rc->commandToken = NULL;
+    rc->interp = NULL;
     Tcl_InitHashTable(&rc->metadataHash, TCL_STRING_KEYS);
     return rc;
 }
@@ -254,7 +256,12 @@ void Cookfs_FsindexCleanup(Cookfs_Fsindex *i) {
  */
 
 void Cookfs_FsindexFini(Cookfs_Fsindex *i) {
+    CookfsLog(printf("Cookfs_FsindexFini: release"));
     Cookfs_FsindexCleanup(i);
+    CookfsLog(printf("Cleaning tcl command"));
+    if (i->commandToken != NULL) {
+        Tcl_DeleteCommandFromToken(i->interp, i->commandToken);
+    }
     Tcl_Free((void *) i);
 }
 

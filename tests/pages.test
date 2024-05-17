@@ -12,11 +12,13 @@ tcltest::test cookfsPages-1.2 "Create pages as read-write with existing prefix" 
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set fh [open $file w]
+    fconfigure $fh -translation binary
     puts -nonewline $fh "PrefixTest01"
     close $fh
     set pg [cookfs::pages $file]
     $pg delete
     set fh [open $file r]
+    fconfigure $fh -translation binary
     set fc [read $fh 12]
 } -cleanup {
     close $fh
@@ -27,12 +29,14 @@ tcltest::test cookfsPages-1.3 "Create pages as read-write with existing prefix a
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set fh [open $file w]
+    fconfigure $fh -translation binary
     puts -nonewline $fh "PrefixTest01"
     close $fh
     set pg [cookfs::pages $file]
     $pg add "Test"
     $pg delete
     set fh [open $file r]
+    fconfigure $fh -translation binary
     set fc [read $fh 12]
 } -cleanup {
     close $fh
@@ -69,6 +73,7 @@ tcltest::test cookfsPages-1.6 "Check dataoffset command reporting properly for f
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]
+    fconfigure $fh -translation binary
     puts -nonewline $fh [string repeat TEST 1024]
     close $fh
 } -body {
@@ -102,6 +107,7 @@ tcltest::test cookfsPages-1.8 "Check filesize command reporting properly for fil
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]
+    fconfigure $fh -translation binary
     puts -nonewline $fh [string repeat TEST 1024]
     close $fh
 } -body {

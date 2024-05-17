@@ -7,6 +7,7 @@
 #ifdef COOKFS_USECFSINDEX
 
 int Cookfs_InitFsindexCmd(Tcl_Interp *interp);
+void CookfsRegisterExistingFsindexObjectCmd(Tcl_Interp *interp, Cookfs_Fsindex *i);
 
 #endif /* COOKFS_USECFSINDEX */
 

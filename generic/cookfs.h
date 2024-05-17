@@ -57,12 +57,17 @@
 #include "vfsCmd.h"
 #endif /* COOKFS_USECVFS */
 
+#ifdef COOKFS_USECWRITERCHAN
+#include "writerchannel.h"
+#endif /* COOKFS_USECWRITERCHAN */
+
 #ifdef COOKFS_USEPKGCONFIG
 static Tcl_Config const cookfs_pkgconfig[] = {
     {"package-version",  PACKAGE_VERSION},
     {"c-pages",          STRINGIFY(COOKFS_PKGCONFIG_USECPAGES)},
     {"c-fsindex",        STRINGIFY(COOKFS_PKGCONFIG_USECFSINDEX)},
     {"c-readerchannel",  STRINGIFY(COOKFS_PKGCONFIG_USECREADERCHAN)},
+    {"c-writerchannel",  STRINGIFY(COOKFS_PKGCONFIG_USECWRITERCHAN)},
     {"c-vfs",            STRINGIFY(COOKFS_PKGCONFIG_USECVFS)},
     {"feature-aside",    STRINGIFY(COOKFS_PKGCONFIG_FEATURE_ASIDE)},
     {"feature-bzip2",    STRINGIFY(COOKFS_PKGCONFIG_USEBZ2)},

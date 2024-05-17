@@ -55,6 +55,37 @@ int Cookfs_InitFsindexCmd(Tcl_Interp *interp) {
     return TCL_OK;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * CookfsRegisterExistingFsindexObjectCmd --
+ *
+ *      Creates a Tcl command for existing fsindex object
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      New Tcl command is created on success. Set the interp result to
+ *      the name of the created command.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void CookfsRegisterExistingFsindexObjectCmd(Tcl_Interp *interp, Cookfs_Fsindex *i) {
+    if (i->commandToken != NULL) {
+        return;
+    }
+    char buf[128];
+    /* create Tcl command and return its name */
+    sprintf(buf, "::cookfs::c::fsindexhandle%p", (void *)i);
+    i->commandToken = Tcl_CreateObjCommand(interp, buf, CookfsFsindexCmd,
+        (ClientData) i, CookfsFsindexDeleteProc);
+    i->interp = interp;
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
+}
+
+
 /* definitions of static and/or internal functions */
 
 /*
@@ -111,10 +142,9 @@ static int CookfsRegisterFsindexObjectCmd(ClientData clientData, Tcl_Interp *int
         return TCL_ERROR;
     }
 
-    /* create new Tcl command to manage newly created fsindex and return its name */
-    Tcl_CreateObjCommand(interp, buf, CookfsFsindexCmd, (ClientData) i, CookfsFsindexDeleteProc);
-
-    Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
+    /* create Tcl command and return its name and set interp result to the command name */
+    CookfsLog(printf("Create Tcl command for the fsindex object..."))
+    CookfsRegisterExistingFsindexObjectCmd(interp, i);
     return TCL_OK;
 
 ERROR:
@@ -140,8 +170,10 @@ ERROR:
  */
 
 static void CookfsFsindexDeleteProc(ClientData clientData) {
+    Cookfs_Fsindex *fsindex = (Cookfs_Fsindex *) clientData;
     CookfsLog(printf("DELETING FSINDEX COMMAND"))
-    Cookfs_FsindexFini((Cookfs_Fsindex *) clientData);
+    fsindex->commandToken = NULL;
+    Cookfs_FsindexFini(fsindex);
     CookfsLog(printf("DELETED FSINDEX COMMAND"))
 }
 

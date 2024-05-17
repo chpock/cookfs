@@ -48,6 +48,15 @@ proc cookfs::tcl::writer {args} {
             -pagesize {
                 set c([string range $opt 1 end]) $val
             }
+            -pagesobject {
+                set c(-pages) $val
+            }
+            -fsindexobject {
+                set c(-index) $val
+            }
+            -smallfilebuffer {
+                set c(-smallfilebuffersize) $val
+            }
             default {
                 unset c
                 return -code error "unknown option \"$opt\""

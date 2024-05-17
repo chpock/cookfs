@@ -61,6 +61,7 @@ typedef struct Cookfs_CacheEntry {
 typedef struct Cookfs_Pages {
     /* main interp */
     Tcl_Interp *interp;
+    Tcl_Command commandToken;
 #ifdef COOKFS_USEXZ
     CXzProps xzEncoderProps;
     CXzEncHandle xzEncoder;

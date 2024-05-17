@@ -662,6 +662,7 @@ COOKFS_PKGCONFIG_FEATURE_METADATA
 COOKFS_PKGCONFIG_USECFSINDEX
 COOKFS_PKGCONFIG_USEXZ
 COOKFS_PKGCONFIG_USEBZ2
+COOKFS_PKGCONFIG_USECWRITERCHAN
 COOKFS_PKGCONFIG_USECREADERCHAN
 COOKFS_PKGCONFIG_USECPAGES
 COOKFS_PKGCONFIG_FEATURE_ASIDE
@@ -789,6 +790,7 @@ enable_tcl_fallback
 enable_c_pages
 enable_c_fsindex
 enable_c_readerchannel
+enable_c_writerchannel
 enable_c_pkgconfig
 enable_c_vfs
 '
@@ -1434,6 +1436,7 @@ Optional Features:
   --disable-c-pages         Use pages handling written in C. Defaults to true
   --disable-c-fsindex       Use index handling written in C. Defaults to true
   --disable-c-readerchannel Use reader handler written in C. Defaults to true
+  --disable-c-writerchannel Use writer handler written in C. Defaults to true
   --disable-c-pkgconfig     Use pkgconfig written in C. Defaults to true
   --enable-c-vfs            Use VFS support written in C. Defaults to false
 
@@ -8638,6 +8641,14 @@ else $as_nop
   USECREADERCHAN=yes
 fi
 
+# Check whether --enable-c-writerchannel was given.
+if test ${enable_c_writerchannel+y}
+then :
+  enableval=$enable_c_writerchannel; USECWRITERCHAN=${enableval}
+else $as_nop
+  USECWRITERCHAN=yes
+fi
+
 # Check whether --enable-c-pkgconfig was given.
 if test ${enable_c_pkgconfig+y}
 then :
@@ -8937,6 +8948,8 @@ else
     USECVFS="no"
     # c-readerchannel requires c-pages
     USECREADERCHAN="no"
+    # c-writerchannel requires c-pages
+    USECWRITERCHAN="no"
 fi
 
 if test ${USECFSINDEX} = yes; then
@@ -8984,11 +8997,12 @@ else
     USECVFS="no"
     # c-readerchannel requires c-fsindex
     USECREADERCHAN="no"
+    # c-writerchannel requires c-fsindex
+    USECWRITERCHAN="no"
 fi
 
 COOKFS_PKGCONFIG_FEATURE_METADATA=1
 
-# reader channel requires support for pages in C
 if test ${USECREADERCHAN} = yes; then
     printf "%s\n" "#define COOKFS_USECREADERCHAN 1" >>confdefs.h
 
@@ -9031,6 +9045,51 @@ if test ${USECREADERCHAN} = yes; then
 else
     COOKFS_PKGCONFIG_USECREADERCHAN=0
     # c-vfs requires c-readerchannel
+    USECVFS="no"
+fi
+
+if test ${USECWRITERCHAN} = yes; then
+    printf "%s\n" "#define COOKFS_USECWRITERCHAN 1" >>confdefs.h
+
+    COOKFS_PKGCONFIG_USECWRITERCHAN=1
+
+    vars="writerchannel.c"
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
+		    ; then
+		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+else
+    COOKFS_PKGCONFIG_USECWRITERCHAN=0
+    # c-vfs requires c-writerchannel
     USECVFS="no"
 fi
 
@@ -9087,6 +9146,7 @@ fi
 
 
 
+
 if test ${USECPKGCONFIG} = yes; then
     COOKFS_PKGCONFIG_USECPKGCONFIG=1
     printf "%s\n" "#define COOKFS_PKGCONFIG_FEATURE_ASIDE $COOKFS_PKGCONFIG_FEATURE_ASIDE" >>confdefs.h
@@ -9094,6 +9154,8 @@ if test ${USECPKGCONFIG} = yes; then
     printf "%s\n" "#define COOKFS_PKGCONFIG_USECPAGES $COOKFS_PKGCONFIG_USECPAGES" >>confdefs.h
 
     printf "%s\n" "#define COOKFS_PKGCONFIG_USECREADERCHAN $COOKFS_PKGCONFIG_USECREADERCHAN" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_PKGCONFIG_USECWRITERCHAN $COOKFS_PKGCONFIG_USECWRITERCHAN" >>confdefs.h
 
     printf "%s\n" "#define COOKFS_PKGCONFIG_USECPKGCONFIG $COOKFS_PKGCONFIG_USECPKGCONFIG" >>confdefs.h
 
