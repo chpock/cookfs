@@ -769,7 +769,7 @@ static Tcl_WideInt Cookfs_Writerchannel_WideSeek(ClientData instanceData,
 static int Cookfs_Writerchannel_Seek(ClientData instanceData, long offset,
     int seekMode, int *errorCodePtr)
 {
-    return Cookfs_Readerchannel_WideSeek(instanceData, offset, seekMode,
+    return Cookfs_Writerchannel_WideSeek(instanceData, offset, seekMode,
         errorCodePtr);
 }
 
