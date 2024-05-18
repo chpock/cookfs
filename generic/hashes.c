@@ -167,11 +167,15 @@ int Cookfs_InitHashesCmd(Tcl_Interp *interp) {
     Tcl_CreateObjCommand(interp, "::cookfs::c::md5", (Tcl_ObjCmdProc *)CookfsMd5Cmd,
         (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
 
+    Tcl_CreateAlias(interp, "::cookfs::md5", interp, "::cookfs::c::md5", 0, NULL);
+
 #ifdef COOKFS_USEXZ
     Tcl_CreateObjCommand(interp, "::cookfs::c::sha256", (Tcl_ObjCmdProc *)CookfsSha256Cmd,
         (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
+    Tcl_CreateAlias(interp, "::cookfs::sha256", interp, "::cookfs::c::sha256", 0, NULL);
     Tcl_CreateObjCommand(interp, "::cookfs::c::sha1", (Tcl_ObjCmdProc *)CookfsSha1Cmd,
         (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
+    Tcl_CreateAlias(interp, "::cookfs::sha1", interp, "::cookfs::c::sha1", 0, NULL);
 #endif
 
     return TCL_OK;

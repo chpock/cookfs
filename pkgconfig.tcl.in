@@ -1,5 +1,4 @@
 namespace eval cookfs {}
-namespace eval cookfs {}
 
 proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
     variable pkgconfig
@@ -51,5 +50,5 @@ proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
     error "Usage: ::cookfs::pkgconfig list|get paramName"
 }
 
-package provide vfs::cookfs::pkgconfig 1.6.0
+package provide cookfs::tcl::pkgconfig 1.6.0
 

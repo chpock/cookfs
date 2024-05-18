@@ -3,6 +3,7 @@
 	work when readerchannel.tcl memchan.tcl pages.tcl fsindex.tcl unavailable,
 	but C module contains all required functionality.
 	* Return Tcl error from writer when closing a channel
+	* Refactor internal names for procedures/objects
 
 2024-05-17 Konstantin Kushnir <chpock@gmail.com>
 	* Add support for c-writerchannel. This removes the dependency on vfs::memchan and improves memory utilization/performance

@@ -20,6 +20,54 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p);
 static void CookfsPagesPageExtendIfNeeded(Cookfs_Pages *p, int count);
 static void CookfsTruncateFileIfNeeded(Cookfs_Pages *p, Tcl_WideInt targetOffset);
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PagesGetLastError --
+ *
+ *      Gets the description of the last error that occurred
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Tcl_Obj *Cookfs_PagesGetLastError(Cookfs_Pages *p) {
+    return p->lastErrorObj;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PagesSetLastError --
+ *
+ *      Sets the description of the last error that occurred
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      Discards the previous registered error message
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_PagesSetLastError(Cookfs_Pages *p, const char *msg) {
+    if (p->lastErrorObj != NULL) {
+        Tcl_DecrRefCount(p->lastErrorObj);
+    }
+    if (msg == NULL) {
+        p->lastErrorObj = NULL;
+    } else {
+        p->lastErrorObj = Tcl_NewStringObj(msg, -1);
+        Tcl_IncrRefCount(p->lastErrorObj);
+    }
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -117,6 +165,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
 
     /* initialize basic information */
     rc->interp = interp;
+    rc->lastErrorObj = NULL;
     rc->commandToken = NULL;
     rc->isAside = isAside;
     Cookfs_PagesInitCompr(rc);
@@ -437,6 +486,10 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     CookfsLog(printf("Cleaning tcl command"));
     if (p->commandToken != NULL) {
         Tcl_DeleteCommandFromToken(p->interp, p->commandToken);
+    }
+
+    if (p->lastErrorObj != NULL) {
+        Tcl_DecrRefCount(p->lastErrorObj);
     }
 
     CookfsLog(printf("Cleaning up pages"))

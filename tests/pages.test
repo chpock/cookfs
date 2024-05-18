@@ -6,7 +6,7 @@ tcltest::test cookfsPages-1.1 "Create empty pages as read-write" -setup {
 } -cleanup {
     $pg delete
     file delete -force $file
-} -returnCodes {ok} -match glob -result {::cookfs::*::pageshandle*}
+} -returnCodes {ok} -match glob -result {::cookfs::*::pages::handle*}
 
 tcltest::test cookfsPages-1.2 "Create pages as read-write with existing prefix" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -578,12 +578,12 @@ tcltest::test cookfsPages-7.3 "Test custom compression algorithm - no decompress
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression custom -compresscommand testcompress $file]
-    set i0 [$pg add [string repeat "TEST" 1024]]
+    catch { set i0 [$pg add [string repeat "TEST" 1024]] } err
     set i1 [$pg add [string repeat "TEST" 1024]]
 } -cleanup {
     catch {$pg delete}
     file delete -force $file
-} -returnCodes {error} -result {Unable to add page}
+} -returnCodes {error} -result {No decompresscommand specified}
 
 tcltest::test cookfsPages-7.4 "Test custom compression algorithm not used when size would not be smaller" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -787,7 +787,7 @@ tcltest::test cookfsPages-10.4 "Test crc32 with large chunks" -setup {
 } -cleanup {
     catch {$pg delete}
     file delete -force $file
-} -returnCodes {error} -result {Unable to add page}
+} -returnCodes {error} -result {No decompresscommand specified}
 
 tcltest::test cookfsPages-11.1 "Test increasing page cache" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -1014,7 +1014,7 @@ tcltest::test cookfsPages-13.8.1 "Error message when specifying wrong # arg for 
 } -cleanup {
     catch {$pg delete}
     file delete -force $file
-} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pageshandle* get ?-weight weight? index"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pages::handle* get ?-weight weight? index"}
 
 tcltest::test cookfsPages-13.8.2 "Error message when specifying wrong # arg for 'page get'" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -1024,7 +1024,7 @@ tcltest::test cookfsPages-13.8.2 "Error message when specifying wrong # arg for 
 } -cleanup {
     catch {$pg delete}
     file delete -force $file
-} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pageshandle* get ?-weight weight? index"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pages::handle* get ?-weight weight? index"}
 
 tcltest::test cookfsPages-13.8.3 "Error message when specifying wrong # arg for 'page get'" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -1034,7 +1034,7 @@ tcltest::test cookfsPages-13.8.3 "Error message when specifying wrong # arg for 
 } -cleanup {
     catch {$pg delete}
     file delete -force $file
-} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pageshandle* get ?-weight weight? index"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pages::handle* get ?-weight weight? index"}
 
 tcltest::test cookfsPages-13.8.4 "Error message when specifying wrong arg format for 'page get'" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -1064,7 +1064,7 @@ tcltest::test cookfsPages-13.9.1 "Error message when specifying wrong # args for
 } -cleanup {
     catch {$pg delete}
     file delete -force $file
-} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pageshandle* ticktock ?maxAge?"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pages::handle* ticktock ?maxAge?"}
 
 tcltest::test cookfsPages-13.9.2 "Error message when specifying wrong arg format for 'page ticktock'" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -1084,7 +1084,7 @@ tcltest::test cookfsPages-13.10.1 "Error message when specifying wrong # args fo
 } -cleanup {
     catch {$pg delete}
     file delete -force $file
-} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pageshandle* getcache ?index?"}
+} -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pages::handle* getcache ?index?"}
 
 tcltest::test cookfsPages-13.10.2 "Error message when specifying wrong arg format for 'page getcache'" -setup {
     set file [tcltest::makeFile {} pages.cfs]

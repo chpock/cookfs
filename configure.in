@@ -58,9 +58,14 @@ TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/generic`\"])
 TEA_ADD_LIBS([])
 TEA_ADD_CFLAGS([-Wall -Wextra -pedantic -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections -fvisibility=hidden])
 TEA_ADD_STUB_SOURCES([])
-TEA_ADD_TCL_SOURCES([scripts/cookvfs.tcl scripts/memchan.tcl scripts/vfs.tcl scripts/optimize.tcl scripts/asyncworker_process.tcl scripts/asyncworker_thread.tcl])
-TEA_ADD_TCL_SOURCES([scripts/readerchannel.tcl])
-TEA_ADD_TCL_SOURCES([scripts/writer.tcl])
+TEA_ADD_TCL_SOURCES([
+    scripts/writerchannel.tcl
+    scripts/vfs.tcl
+    scripts/asyncworker_process.tcl
+    scripts/asyncworker_thread.tcl
+    scripts/readerchannel.tcl
+    scripts/writer.tcl
+])
 
 #--------------------------------------------------------------------
 # Define a special symbol for Windows (BUILD_sample in this case) so

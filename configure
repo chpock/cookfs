@@ -5453,29 +5453,14 @@ printf "%s\n" "#define AC_APPLE_UNIVERSAL_BUILD 1" >>confdefs.h
 
 
 
-    vars="scripts/cookvfs.tcl scripts/memchan.tcl scripts/vfs.tcl scripts/optimize.tcl scripts/asyncworker_process.tcl scripts/asyncworker_thread.tcl"
-    for i in $vars; do
-	# check for existence, be strict because it is installed
-	if test ! -f "${srcdir}/$i" ; then
-	    as_fn_error $? "could not find tcl source file '${srcdir}/$i'" "$LINENO" 5
-	fi
-	PKG_TCL_SOURCES="$PKG_TCL_SOURCES $i"
-    done
-
-
-
-    vars="scripts/readerchannel.tcl"
-    for i in $vars; do
-	# check for existence, be strict because it is installed
-	if test ! -f "${srcdir}/$i" ; then
-	    as_fn_error $? "could not find tcl source file '${srcdir}/$i'" "$LINENO" 5
-	fi
-	PKG_TCL_SOURCES="$PKG_TCL_SOURCES $i"
-    done
-
-
-
-    vars="scripts/writer.tcl"
+    vars="
+    scripts/writerchannel.tcl
+    scripts/vfs.tcl
+    scripts/asyncworker_process.tcl
+    scripts/asyncworker_thread.tcl
+    scripts/readerchannel.tcl
+    scripts/writer.tcl
+"
     for i in $vars; do
 	# check for existence, be strict because it is installed
 	if test ! -f "${srcdir}/$i" ; then

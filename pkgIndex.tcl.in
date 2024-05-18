@@ -1,20 +1,35 @@
-package ifneeded vfs::@PACKAGE_NAME@ @PACKAGE_VERSION@ [list source [file join $dir cookvfs.tcl]]
-package ifneeded vfs::@PACKAGE_NAME@::tcl::memchan @PACKAGE_VERSION@ [list source [file join $dir memchan.tcl]]
-package ifneeded vfs::@PACKAGE_NAME@::tcl::vfs @PACKAGE_VERSION@ [list source [file join $dir vfs.tcl]]
-package ifneeded vfs::@PACKAGE_NAME@::tcl::readerchannel @PACKAGE_VERSION@ [list source [file join $dir readerchannel.tcl]]
-package ifneeded vfs::@PACKAGE_NAME@::tcl::writer @PACKAGE_VERSION@ [list source [file join $dir writer.tcl]]
-package ifneeded vfs::@PACKAGE_NAME@::tcl::pages @PACKAGE_VERSION@ [list source [file join $dir pages.tcl]]
-package ifneeded vfs::@PACKAGE_NAME@::tcl::fsindex @PACKAGE_VERSION@ [list source [file join $dir fsindex.tcl]]
-package ifneeded vfs::@PACKAGE_NAME@::tcl::optimize @PACKAGE_VERSION@ [list source [file join $dir optimize.tcl]]
-package ifneeded vfs::@PACKAGE_NAME@::asyncworker::process @PACKAGE_VERSION@ [list source [file join $dir asyncworker_process.tcl]]
-package ifneeded vfs::@PACKAGE_NAME@::asyncworker::thread @PACKAGE_VERSION@ [list source [file join $dir asyncworker_thread.tcl]]
+package ifneeded @PACKAGE_NAME@::c @PACKAGE_VERSION@ [list load [file join $dir @PKG_LIB_FILE@] @PACKAGE_NAME@]
 
-package ifneeded vfs::@PACKAGE_NAME@::pkgconfig @PACKAGE_VERSION@ [list ::apply {{ dir } {
-    if { @COOKFS_PKGCONFIG_USECPKGCONFIG@ } {
-        load [file join $dir @PKG_LIB_FILE@] @PACKAGE_NAME@
-    } else {
-        source [file join $dir pkgconfig.tcl]
+package ifneeded @PACKAGE_NAME@::tcl::pkgconfig @PACKAGE_VERSION@ [list source [file join $dir pkgconfig.tcl]]
+package ifneeded @PACKAGE_NAME@::tcl::writerchannel @PACKAGE_VERSION@ [list source [file join $dir writerchannel.tcl]]
+package ifneeded @PACKAGE_NAME@::tcl::vfs @PACKAGE_VERSION@ [list source [file join $dir vfs.tcl]]
+package ifneeded @PACKAGE_NAME@::tcl::readerchannel @PACKAGE_VERSION@ [list source [file join $dir readerchannel.tcl]]
+package ifneeded @PACKAGE_NAME@::tcl::writer @PACKAGE_VERSION@ [list source [file join $dir writer.tcl]]
+package ifneeded @PACKAGE_NAME@::tcl::pages @PACKAGE_VERSION@ [list source [file join $dir pages.tcl]]
+package ifneeded @PACKAGE_NAME@::tcl::fsindex @PACKAGE_VERSION@ [list source [file join $dir fsindex.tcl]]
+package ifneeded @PACKAGE_NAME@::asyncworker::process @PACKAGE_VERSION@ [list source [file join $dir asyncworker_process.tcl]]
+package ifneeded @PACKAGE_NAME@::asyncworker::thread @PACKAGE_VERSION@ [list source [file join $dir asyncworker_thread.tcl]]
+
+package ifneeded @PACKAGE_NAME@ @PACKAGE_VERSION@ [list ::apply {{ dir } {
+    # As for now, always load C module
+    package require @PACKAGE_NAME@::c @PACKAGE_VERSION@
+    if { ![llength [info commands @PACKAGE_NAME@::pkgconfig]] } {
+        package require @PACKAGE_NAME@::tcl::pkgconfig @PACKAGE_VERSION@
     }
+    if { ![@PACKAGE_NAME@::pkgconfig get c-pages] } {
+        package require @PACKAGE_NAME@::tcl::pages @PACKAGE_VERSION@
+    }
+    if { ![@PACKAGE_NAME@::pkgconfig get c-fsindex] } {
+        package require @PACKAGE_NAME@::tcl::fsindex @PACKAGE_VERSION@
+    }
+    if { ![@PACKAGE_NAME@::pkgconfig get c-vfs] } {
+        package require @PACKAGE_NAME@::tcl::vfs @PACKAGE_VERSION@
+    }
+    package require @PACKAGE_NAME@::tcl::writer @PACKAGE_VERSION@
+    package provide @PACKAGE_NAME@ @PACKAGE_VERSION@
 }} $dir]
 
-package ifneeded vfs::@PACKAGE_NAME@::c @PACKAGE_VERSION@ [list load [file join $dir @PKG_LIB_FILE@] @PACKAGE_NAME@]
+package ifneeded vfs::@PACKAGE_NAME@ @PACKAGE_VERSION@ [list ::apply {{ dir } {
+    package require @PACKAGE_NAME@ @PACKAGE_VERSION@
+    package provide vfs::@PACKAGE_NAME@ @PACKAGE_VERSION@
+}} $dir]

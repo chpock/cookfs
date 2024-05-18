@@ -34,9 +34,10 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
  */
 
 int Cookfs_InitPagesCmd(Tcl_Interp *interp) {
+    Tcl_CreateNamespace(interp, "::cookfs::c::pages", NULL, NULL);
     Tcl_CreateObjCommand(interp, "::cookfs::c::pages", CookfsRegisterPagesObjectCmd,
         (ClientData) NULL, NULL);
-
+    Tcl_CreateAlias(interp, "::cookfs::pages", interp, "::cookfs::c::pages", 0, NULL);
     return TCL_OK;
 }
 
@@ -63,7 +64,7 @@ void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p) {
     }
     char buf[128];
     /* create Tcl command and return its name */
-    sprintf(buf, "::cookfs::c::pageshandle%p", (void *)p);
+    sprintf(buf, "::cookfs::c::pages::handle%p", (void *)p);
     p->commandToken = Tcl_CreateObjCommand(interp, buf, CookfsPagesCmd,
         (ClientData)p, CookfsPagesDeleteProc);
     p->interp = interp;
@@ -334,7 +335,11 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             }
             idx = Cookfs_PageAdd(p, objv[2]);
             if (idx < 0) {
-                Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to add page", -1));
+                Tcl_Obj *err = Cookfs_PagesGetLastError(p);
+                if (err == NULL) {
+                    err = Tcl_NewStringObj("Unable to add page", -1);
+                }
+                Tcl_SetObjResult(interp, err);
                 return TCL_ERROR;
             }
 

@@ -5,10 +5,12 @@
 # (c) 2024 Konstantin Kushnir
 
 namespace eval cookfs {}
+namespace eval cookfs::tcl {}
+namespace eval cookfs::tcl::readerchannel {}
 
 # creates a new channel for reading data from a VFS
 # uses reflected channels
-proc cookfs::createReadableChannel {fsid chunklist} {
+proc cookfs::tcl::readerchannel {fsid chunklist} {
     variable dirlistParameters
     upvar #0 $fsid fs
 
@@ -33,11 +35,11 @@ proc cookfs::createReadableChannel {fsid chunklist} {
     # create Tcl channel
     if {[info commands ::chan] != ""} {
 	set ch(refchannel) \
-	    [::chan create {read} [list cookfs::readableChannelHandler $fsid $chid]]
+	    [::chan create {read} [list cookfs::tcl::readerchannel::handler $fsid $chid]]
     }  else  {
 	# fallback to rechan
 	set ch(refchannel) \
-	    [rechan [list cookfs::readableChannelHandler $fsid $chid] 2]
+	    [rechan [list cookfs::tcl::readerchannel::handler $fsid $chid] 2]
     }
 
     fconfigure $ch(refchannel) -buffersize 65536
@@ -45,12 +47,12 @@ proc cookfs::createReadableChannel {fsid chunklist} {
 }
 
 # event handling for watch subcommand
-proc ::cookfs::eventClean {fd} {
+proc cookfs::tcl::readerchannel::eventClean {fd} {
     variable eventEnable
     eventSet $fd 0
 }
 
-proc ::cookfs::eventWatch {fd a} {
+proc cookfs::tcl::readerchannel::eventWatch {fd a} {
     if {[lindex $a 0] == "read"} {
 	eventSet $fd 1
     }  else  {
@@ -58,9 +60,9 @@ proc ::cookfs::eventWatch {fd a} {
     }
 }
 
-proc cookfs::eventSet {fd e} {
+proc cookfs::tcl::readerchannel::eventSet {fd e} {
     variable eventEnable
-    set cmd [list ::cookfs:::eventPost $fd]
+    set cmd [list ::cookfs::tcl::readerchannel::eventPost $fd]
     after cancel $cmd
     if {$e} {
 	set eventEnable($fd) 1
@@ -70,7 +72,7 @@ proc cookfs::eventSet {fd e} {
     }
 }
 
-proc cookfs::eventPost {fd} {
+proc cookfs::tcl::readerchannel::eventPost {fd} {
     variable eventEnable
     if {[info exists eventEnable($fd)] && $eventEnable($fd)} {
         chan postevent $fd read
@@ -78,7 +80,7 @@ proc cookfs::eventPost {fd} {
 }
 
 # handle command for a channel
-proc cookfs::readableChannelHandler {fsid chid command args} {
+proc cookfs::tcl::readerchannel::handler {fsid chid command args} {
     upvar #0 $fsid fs
     upvar #0 $chid ch
 
@@ -156,4 +158,4 @@ proc cookfs::readableChannelHandler {fsid chid command args} {
     }
 }
 
-package provide vfs::cookfs::tcl::readerchannel 1.6.0
+package provide cookfs::tcl::readerchannel 1.6.0

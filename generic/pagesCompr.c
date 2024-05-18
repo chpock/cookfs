@@ -1592,6 +1592,7 @@ static Tcl_Obj *CookfsReadPageCustom(Cookfs_Pages *p, int size) {
     int count;
 
     if (p->decompressCommandPtr == NULL) {
+        Cookfs_PagesSetLastError(p, "No decompresscommand specified");
 	return NULL;
     }
 

@@ -79,12 +79,12 @@ Cookfs_Init(Tcl_Interp *interp)
 #ifdef COOKFS_USEPKGCONFIG
     Tcl_RegisterConfig(interp, PACKAGE_NAME, cookfs_pkgconfig, "iso8859-1");
 
-    if (Tcl_PkgProvide(interp, "vfs::" PACKAGE_NAME "::pkgconfig", PACKAGE_VERSION) != TCL_OK) {
+    if (Tcl_PkgProvide(interp, PACKAGE_NAME "::pkgconfig", PACKAGE_VERSION) != TCL_OK) {
         return TCL_ERROR;
     }
 #endif
 
-    if (Tcl_PkgProvide(interp, "vfs::" PACKAGE_NAME "::c", PACKAGE_VERSION) != TCL_OK) {
+    if (Tcl_PkgProvide(interp, PACKAGE_NAME "::c", PACKAGE_VERSION) != TCL_OK) {
         return TCL_ERROR;
     }
 

@@ -62,6 +62,7 @@ typedef struct Cookfs_Pages {
     /* main interp */
     Tcl_Interp *interp;
     Tcl_Command commandToken;
+    Tcl_Obj *lastErrorObj;
 #ifdef COOKFS_USEXZ
     CXzProps xzEncoderProps;
     CXzEncHandle xzEncoder;
@@ -165,6 +166,9 @@ Tcl_WideInt Cookfs_PagesGetPageOffset(Cookfs_Pages *p, int idx);
 int Cookfs_PagesSetMaxAge(Cookfs_Pages *p, int maxAge);
 int Cookfs_PagesTickTock(Cookfs_Pages *p);
 int Cookfs_PagesIsCached(Cookfs_Pages *p, int index);
+
+void Cookfs_PagesSetLastError(Cookfs_Pages *p, const char *msg);
+Tcl_Obj *Cookfs_PagesGetLastError(Cookfs_Pages *p);
 
 #endif /* COOKFS_USECPAGES */
 

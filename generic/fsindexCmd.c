@@ -49,9 +49,10 @@ static int CookfsFsindexCmdImport(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, i
  */
 
 int Cookfs_InitFsindexCmd(Tcl_Interp *interp) {
+    Tcl_CreateNamespace(interp, "::cookfs::c::fsindex", NULL, NULL);
     Tcl_CreateObjCommand(interp, "::cookfs::c::fsindex", CookfsRegisterFsindexObjectCmd,
         (ClientData) NULL, NULL);
-
+    Tcl_CreateAlias(interp, "::cookfs::fsindex", interp, "::cookfs::c::fsindex", 0, NULL);
     return TCL_OK;
 }
 

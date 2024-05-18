@@ -9,12 +9,10 @@ namespace eval cookfs {}
 namespace eval cookfs::tcl {}
 namespace eval cookfs::tcl::writer {}
 
-package require vfs
-
 set ::cookfs::writerhandleIdx 0
 
 proc cookfs::tcl::writer {args} {
-    set name ::cookfs::tcl::writerhandle[incr ::cookfs::writerhandleIdx]
+    set name ::cookfs::tcl::writer::handle[incr ::cookfs::writerhandleIdx]
     upvar #0 $name c
     array set c {
         pages ""
@@ -68,7 +66,7 @@ proc cookfs::tcl::writer {args} {
     return $name
 }
 
-proc ::cookfs::tcl::writer::handle { name cmd args } {
+proc cookfs::tcl::writer::handle { name cmd args } {
     upvar #0 $name c
     switch -- $cmd {
         getbuf {
@@ -136,7 +134,7 @@ proc ::cookfs::tcl::writer::handle { name cmd args } {
 }
 
 # Purge a chunk of small files, internal proc for purge
-proc ::cookfs::tcl::writer::_purgeSmallfilesChunk {} {
+proc cookfs::tcl::writer::_purgeSmallfilesChunk {} {
     # helper proc to dump current chunk
     upvar 1 c c
     upvar 1 currentchunk currentchunk
@@ -159,7 +157,7 @@ proc ::cookfs::tcl::writer::_purgeSmallfilesChunk {} {
 
 # purge all small files pending write; usually called from finalize
 # or when buffer size exceeds maximum buffer for large files
-proc ::cookfs::tcl::writer::purge {wrid} {
+proc cookfs::tcl::writer::purge {wrid} {
     upvar #0 $wrid c
     if {$c(smallfilebufsize) > 0} {
         set plist [list]
@@ -212,7 +210,7 @@ proc ::cookfs::tcl::writer::purge {wrid} {
     }
 }
 
-proc ::cookfs::tcl::writer::write {wrid args} {
+proc cookfs::tcl::writer::write {wrid args} {
     upvar #0 $wrid c
     # args - path type data size
 
@@ -266,7 +264,6 @@ proc ::cookfs::tcl::writer::write {wrid args} {
             }
         }
 
-        #vfs::log [list cookfs::writeFiles write $path with $size byte(s)]
         # check if this is a small file or writing to memory has been enabled
         if {($size <= $c(smallfilesize)) || $c(writetomemory)} {
             # add file to "small file buffer" instead of writing to disk
@@ -308,8 +305,6 @@ proc ::cookfs::tcl::writer::write {wrid args} {
                 }
                 set datalen [string length $data]
 
-                #vfs::log [list cookfs::writeFiles write $path left $left read $read result $datalen]
-
                 if {$datalen == 0} {break}
 
                 set chunkid [$c(pages) add $data]
@@ -319,11 +314,12 @@ proc ::cookfs::tcl::writer::write {wrid args} {
                 incr left -$datalen
             }
 
-            #vfs::log [list cookfs::writeFiles $path as $chunklist]
             $c(index) set $path $clk $chunklist
         }
         if {$doclose} {close $chan}
     }
 }
 
-package provide vfs::cookfs::tcl::writer 1.6.0
+interp alias {} cookfs::writer {} cookfs::tcl::writer
+
+package provide cookfs::tcl::writer 1.6.0

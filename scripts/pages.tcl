@@ -1,23 +1,24 @@
 # Pure Tcl implementation of pages
 #
 # (c) 2010-2014 Wojciech Kocjan
+# (c) 2024 Konstantin Kushnir
 
 namespace eval cookfs {}
 namespace eval cookfs::tcl {}
-namespace eval cookfs::pages {}
+namespace eval cookfs::tcl::pages {
+    variable errorMessage "Unable to create Cookfs object"
+    variable pageshandleIdx 0
+}
 
 # enable bzip2 if Trf package is available
 if { ![catch { package require Trf }] } {
     set ::cookfs::pkgconfig::pkgconfig(feature-bzip2) 1
 }
 
-set ::cookfs::pages::errorMessage "Unable to create Cookfs object"
-
-set ::cookfs::pageshandleIdx 0
 proc cookfs::tcl::pages {args} {
     variable default_hash
 
-    set name ::cookfs::tcl::pageshandle[incr ::cookfs::pageshandleIdx]
+    set name ::cookfs::tcl::pages::handle[incr pages::pageshandleIdx]
     upvar #0 $name c
     array set c {
         readonly 0
@@ -93,7 +94,7 @@ proc cookfs::tcl::pages {args} {
     }
 
     if {[catch {
-        set c(cid) [::cookfs::pages::compression2cid $c(compression)]
+        set c(cid) [pages::compression2cid $c(compression)]
     } err]} {
         error $err $err
     }
@@ -110,7 +111,7 @@ proc cookfs::tcl::pages {args} {
         fconfigure $c(fh) -translation binary
     } err]} {
         catch {close $c(fh)}
-        set msg "$::cookfs::pages::errorMessage: $err"
+        set msg "$pages::errorMessage: $err"
         error $msg $msg
     }
 
@@ -118,7 +119,7 @@ proc cookfs::tcl::pages {args} {
         if {[catch {
             seek $c(fh) $c(endoffset) start
         }]} {
-            set msg "$::cookfs::pages::errorMessage: index not found"
+            set msg "$pages::errorMessage: index not found"
             error $msg $msg
         }
     }  else  {
@@ -132,7 +133,7 @@ proc cookfs::tcl::pages {args} {
             }
             set tail [read $c(fh)]
         }]} {
-            set msg "$::cookfs::pages::errorMessage: index not found"
+            set msg "$pages::errorMessage: index not found"
             error $msg $msg
         }
         set tailOffset [string last $c(cfsname) $tail]
@@ -144,7 +145,7 @@ proc cookfs::tcl::pages {args} {
         }
     }
 
-    if {[::cookfs::pages::readIndex $name msg]} {
+    if {[pages::readIndex $name msg]} {
         set c(haschanged) 0
         set c(indexChanged) 0
     }  else  {
@@ -159,7 +160,7 @@ proc cookfs::tcl::pages {args} {
         set c(idx.sizelist) {}
     }
 
-    interp alias {} $name {} ::cookfs::pages::handle $name
+    interp alias {} $name {} ::cookfs::tcl::pages::handle $name
 
     if {([string length $c(asyncdecompresscommand)] != 0)} {
         set c(asyncpreloadCount) 2
@@ -168,7 +169,23 @@ proc cookfs::tcl::pages {args} {
     return $name
 }
 
-proc cookfs::pages::compress {name origdata} {
+proc cookfs::tcl::pages::crc32 { v } {
+    variable crc32use_zlib
+    if { ![info exists crc32use_zlib] } {
+        if {(![catch {zlib crc32 ""} testvalue]) && ($testvalue == "0")} {
+            set crc32use_zlib 1
+        } else {
+            set crc32use_zlib 0
+        }
+    }
+    if { $crc32use_zlib } {
+        tailcall zlib crc32 $v
+    }
+    package require crc32
+    tailcall crc::crc32 -format %d $v
+}
+
+proc cookfs::tcl::pages::compress {name origdata} {
     upvar #0 $name c
     if {[string length $origdata] == 0} {
         return ""
@@ -182,6 +199,8 @@ proc cookfs::pages::compress {name origdata} {
     }  elseif {$c(cid) == 2} {
         package require Trf
         set data "\u0002[binary format I [string length $origdata]][bz2 -mode compress $origdata]"
+    } elseif {$c(cid) == 3} {
+        error "XZ compression is not supported by Tcl pages"
     }  elseif {$c(cid) == 255} {
         if {$c(compresscommand) != ""} {
             set data "\u00ff[uplevel #0 [concat $c(compresscommand) [list $origdata]]]"
@@ -198,7 +217,7 @@ proc cookfs::pages::compress {name origdata} {
     return $data
 }
 
-proc cookfs::pages::decompress {name data} {
+proc cookfs::tcl::pages::decompress {name data} {
     upvar #0 $name c
     if {[string length $data] == 0} {
         return ""
@@ -232,7 +251,7 @@ proc cookfs::pages::decompress {name data} {
     error "Unable to decompress page"
 }
 
-proc cookfs::pages::compression2cid {name} {
+proc cookfs::tcl::pages::compression2cid {name} {
     switch -- $name {
         none {
             return 0
@@ -243,6 +262,9 @@ proc cookfs::pages::compression2cid {name} {
         bz2 {
             return 2
         }
+        xz {
+            return 3
+        }
         custom {
             return 255
         }
@@ -252,7 +274,7 @@ proc cookfs::pages::compression2cid {name} {
     }
 }
 
-proc cookfs::pages::cid2compression {name} {
+proc cookfs::tcl::pages::cid2compression {name} {
     switch -- $name {
         0 {
             return "none"
@@ -263,6 +285,9 @@ proc cookfs::pages::cid2compression {name} {
         2 {
             return "bz2"
         }
+        3 {
+            return "xz"
+        }
         255 {
             return "custom"
         }
@@ -272,22 +297,23 @@ proc cookfs::pages::cid2compression {name} {
     }
 }
 
-proc cookfs::pages::readIndex {name msgVariable} {
+proc cookfs::tcl::pages::readIndex {name msgVariable} {
+    variable errorMessage
     upvar #0 $name c
     upvar 1 $msgVariable msg
     if {[catch {
         seek $c(fh) [expr {$c(endoffset) - 16}] start
         set fc [read $c(fh) 16]
     }]} {
-        set msg "$::cookfs::pages::errorMessage: index not found"
+        set msg "$errorMessage: index not found"
         return 0
     }
     if {[string length $fc] != 16} {
-        set msg "$::cookfs::pages::errorMessage: unable to read index suffix"
+        set msg "$errorMessage: unable to read index suffix"
         return 0
     }
     if {[string range $fc 9 15] != "$c(cfsname)"} {
-        set msg "$::cookfs::pages::errorMessage: invalid file signature"
+        set msg "$errorMessage: invalid file signature"
         return 0
     }
     binary scan [string range $fc 0 7] II idxsize numpages
@@ -296,7 +322,7 @@ proc cookfs::pages::readIndex {name msgVariable} {
     set c(indexoffset) $idxoffset
 
     if {$idxoffset < 0} {
-        set msg "$::cookfs::pages::errorMessage: page sizes not found"
+        set msg "$errorMessage: page sizes not found"
         return 0
     }
 
@@ -325,7 +351,7 @@ proc cookfs::pages::readIndex {name msgVariable} {
     return 1
 }
 
-proc cookfs::pages::pagewrite {name contents} {
+proc cookfs::tcl::pages::pagewrite {name contents} {
     upvar #0 $name c
 
     binary scan $contents H* hd
@@ -344,12 +370,12 @@ proc cookfs::pages::pagewrite {name contents} {
     set c(haschanged) 1
 }
 
-proc cookfs::pages::pageAdd {name contents} {
+proc cookfs::tcl::pages::pageAdd {name contents} {
     upvar #0 $name c
 
     if {$c(hash) == "crc32"} {
         set md5 [string toupper [format %08x%08x%08x%08x \
-            0 0 [string length $contents] [::cookfs::getCRC32 $contents] \
+            0 0 [string length $contents] [crc32 $contents] \
             ]]
     }  else  {
         set md5 [string toupper [md5::md5 -hex $contents]]
@@ -382,7 +408,7 @@ proc cookfs::pages::pageAdd {name contents} {
     return $idx
 }
 
-proc cookfs::pages::cleanup {name} {
+proc cookfs::tcl::pages::cleanup {name} {
     upvar #0 $name c
     while {[asyncCompressWait $name true]} {}
     while {[asyncDecompressWait $name -1 true]} {}
@@ -419,7 +445,7 @@ proc cookfs::pages::cleanup {name} {
     return $c(endoffset)
 }
 
-proc cookfs::pages::pageGetOffset {name idx} {
+proc cookfs::tcl::pages::pageGetOffset {name idx} {
     upvar #0 $name c
     set o $c(startoffset)
     for {set i 0} {$i < $idx} {incr i} {
@@ -428,7 +454,7 @@ proc cookfs::pages::pageGetOffset {name idx} {
     return $o
 }
 
-proc cookfs::pages::pageGetData {name idx} {
+proc cookfs::tcl::pages::pageGetData {name idx} {
     upvar #0 $name c
     set o $c(startoffset)
 
@@ -445,7 +471,7 @@ proc cookfs::pages::pageGetData {name idx} {
     return $fc
 }
 
-proc cookfs::pages::pageGetStored {name idx weight variableName {clean true}} {
+proc cookfs::tcl::pages::pageGetStored {name idx weight variableName {clean true}} {
     upvar $variableName fc
     upvar #0 $name c
 
@@ -462,7 +488,7 @@ proc cookfs::pages::pageGetStored {name idx weight variableName {clean true}} {
     return [asyncGet $name $idx fc $clean]
 }
 
-proc cookfs::pages::cacheGet {name idx args} {
+proc cookfs::tcl::pages::cacheGet {name idx args} {
 
     if { [llength $args] == 1 } {
         set weight ""
@@ -490,12 +516,12 @@ proc cookfs::pages::cacheGet {name idx args} {
 
 }
 
-proc cookfs::pages::isCached {name idx} {
+proc cookfs::tcl::pages::isCached {name idx} {
     upvar #0 $name c
     return [expr { [lsearch -exact -index 0 $c(cachelist) $idx] != -1 }]
 }
 
-proc cookfs::pages::cacheAdd {name idx weight fc} {
+proc cookfs::tcl::pages::cacheAdd {name idx weight fc} {
     upvar #0 $name c
 
     if {$c(cachesize) <= 0} {
@@ -540,7 +566,7 @@ proc cookfs::pages::cacheAdd {name idx weight fc} {
     cacheMoveToTop $name $newIdx $weight
 }
 
-proc cookfs::pages::cacheMoveToTop {name idx {weight {}} } {
+proc cookfs::tcl::pages::cacheMoveToTop {name idx {weight {}} } {
     upvar #0 $name c
 
     set rec [lindex $c(cachelist) $idx]
@@ -563,7 +589,7 @@ proc cookfs::pages::cacheMoveToTop {name idx {weight {}} } {
 
 }
 
-proc cookfs::pages::tickTock {name} {
+proc cookfs::tcl::pages::tickTock {name} {
     upvar #0 $name c
     for { set i 0 } { $i < [llength $c(cachelist)] } { incr i } {
         set age [lindex $c(cachelist) [list $i 2]]
@@ -575,7 +601,7 @@ proc cookfs::pages::tickTock {name} {
     }
 }
 
-proc cookfs::pages::pageGet {name idx weight} {
+proc cookfs::tcl::pages::pageGet {name idx weight} {
     asyncPreload $name [expr {$idx + 1}]
 
     if {![pageGetStored $name $idx $weight fc] && ![cacheGet $name $idx $weight fc]} {
@@ -587,7 +613,7 @@ proc cookfs::pages::pageGet {name idx weight} {
     return $fc
 }
 
-proc cookfs::pages::asyncCompress {name idx contents} {
+proc cookfs::tcl::pages::asyncCompress {name idx contents} {
     upvar #0 $name c
     set c(asyncwrites,$idx) $contents
     while {[asyncCompressWait $name false]} {}
@@ -595,7 +621,7 @@ proc cookfs::pages::asyncCompress {name idx contents} {
     uplevel #0 [concat $c(asynccompresscommand) [list process $idx $contents]]
 }
 
-proc cookfs::pages::asyncCompressWait {name require} {
+proc cookfs::tcl::pages::asyncCompressWait {name require} {
     upvar #0 $name c
     if {([string length $c(asynccompresscommand)] != 0) && ($require || ([llength $c(asyncwrites)] > 0))} {
         if {[llength $c(asyncwrites)] > 0} {
@@ -631,14 +657,14 @@ proc cookfs::pages::asyncCompressWait {name require} {
     }
 }
 
-proc cookfs::pages::asyncCompressFinalize {name} {
+proc cookfs::tcl::pages::asyncCompressFinalize {name} {
     upvar #0 $name c
     if {([string length $c(asynccompresscommand)] != 0)} {
         uplevel #0 [concat $c(asynccompresscommand) [list finalize {} {}]]
     }
 }
 
-proc cookfs::pages::asyncPreload {name idx} {
+proc cookfs::tcl::pages::asyncPreload {name idx} {
     upvar #0 $name c
     # TODO: clean old cache/buffers
     if {([string length $c(asyncdecompresscommand)] != 0)} {
@@ -666,7 +692,7 @@ proc cookfs::pages::asyncPreload {name idx} {
     }
 }
 
-proc cookfs::pages::asyncGet {name idx variableName {clean true}} {
+proc cookfs::tcl::pages::asyncGet {name idx variableName {clean true}} {
     upvar #0 $name c
     upvar 1 $variableName fc
     # check if page is currently being processed
@@ -682,7 +708,7 @@ proc cookfs::pages::asyncGet {name idx variableName {clean true}} {
     return [cacheGet $name $idx fc]
 }
 
-proc cookfs::pages::asyncDecompressWait {name widx require} {
+proc cookfs::tcl::pages::asyncDecompressWait {name widx require} {
     upvar #0 $name c
     if {([string length $c(asyncdecompresscommand)] != 0) && ($require || [llength $c(asyncpreloadBusy)] > 0)} {
 	set rc [uplevel #0 [concat $c(asyncdecompresscommand) [list wait $widx $require]]]
@@ -705,19 +731,19 @@ proc cookfs::pages::asyncDecompressWait {name widx require} {
     }
 }
 
-proc cookfs::pages::asyncDecompressFinalize {name} {
+proc cookfs::tcl::pages::asyncDecompressFinalize {name} {
     upvar #0 $name c
     if {([string length $c(asyncdecompresscommand)] != 0)} {
         uplevel #0 [concat $c(asyncdecompresscommand) [list finalize -1 1]]
     }
 }
 
-proc cookfs::pages::sethash {name hash} {
+proc cookfs::tcl::pages::sethash {name hash} {
     upvar #0 $name c
     set c(hash) $hash
 }
 
-proc cookfs::pages::setcachesize {name csize} {
+proc cookfs::tcl::pages::setcachesize {name csize} {
     upvar #0 $name c
     if {![string is integer -strict $csize]} {
         error "Invalid cache size"
@@ -731,7 +757,7 @@ proc cookfs::pages::setcachesize {name csize} {
     set c(cachesize) $csize
 }
 
-proc cookfs::pages::getFilesize {name} {
+proc cookfs::tcl::pages::getFilesize {name} {
     upvar #0 $name c
     set o $c(startoffset)
     foreach i $c(idx.sizelist) {
@@ -740,26 +766,26 @@ proc cookfs::pages::getFilesize {name} {
     return $o
 }
 
-proc cookfs::pages::getCompression {name} {
+proc cookfs::tcl::pages::getCompression {name} {
     upvar #0 $name c
     return $c(compression)
 }
 
-proc cookfs::pages::setCompression {name compression} {
+proc cookfs::tcl::pages::setCompression {name compression} {
     upvar #0 $name c
     if {[catch {
-	set cid [::cookfs::pages::compression2cid $compression]
+	set cid [compression2cid $compression]
     } err]} {
         error $err $err
     }
     if {$cid != $c(cid)} {
 	while {[asyncCompressWait $name true]} {}
-	set c(cid) [::cookfs::pages::compression2cid $compression]
+	set c(cid) [compression2cid $compression]
 	set c(compression) $compression
     }
 }
 
-proc cookfs::pages::handle {name cmd args} {
+proc cookfs::tcl::pages::handle {name cmd args} {
     upvar #0 $name c
     switch -- $cmd {
         get {
@@ -801,13 +827,7 @@ proc cookfs::pages::handle {name cmd args} {
         }
         add {
             if {[llength $args] == 1} {
-                if {[catch {
-                    pageAdd $name [lindex $args 0]
-                } rc]} {
-		    ::cookfs::debug {pageAdd error: $::errorInfo}
-                    error "Unable to add page"
-                }
-                return $rc
+                return [pageAdd $name [lindex $args 0]]
             }
 
         }
@@ -912,4 +932,8 @@ proc cookfs::pages::handle {name cmd args} {
     error "TODO: help"
 }
 
-package provide vfs::cookfs::tcl::pages 1.6.0
+if { ![llength [info commands cookfs::pages]] } {
+    interp alias {} cookfs::pages {} cookfs::tcl::pages
+}
+
+package provide cookfs::tcl::pages 1.6.0

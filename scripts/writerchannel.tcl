@@ -7,11 +7,13 @@
 # (c) 2024 Konstantin Kushnir
 
 namespace eval cookfs {}
+namespace eval cookfs::tcl {}
+namespace eval cookfs::tcl::writerchannel {}
 
 package require vfs
 
 # initialize a memchan, optionally read current contents of the file
-proc cookfs::initMemchan {fsid path read} {
+proc cookfs::tcl::writerchannel {fsid path read} {
     upvar #0 $fsid fs
     upvar #0 $fsid.dir fsdir
     upvar #0 $fsid.chk fschk
@@ -50,17 +52,17 @@ proc cookfs::initMemchan {fsid path read} {
 
     # return channel along with procedure to invoke after closing it
     return [list $chan \
-        [list cookfs::onMemchanClose $fsid $path $chan]]
+        [list ::cookfs::tcl::writerchannel::onClose $fsid $path $chan]]
 }
 
 # clean up memchan and write its contents to archive
-proc cookfs::onMemchanClose {fsid path chan} {
+proc cookfs::tcl::writerchannel::onClose {fsid path chan} {
+    upvar #0 $fsid fs
     fconfigure $chan -translation binary
     seek $chan 0 end
     set size [tell $chan]
     seek $chan 0 start
-
-    writeFiles $fsid $path channel $chan ""
+    $fs(writer) write $path channel $chan ""
 }
 
-package provide vfs::cookfs::tcl::memchan 1.6.0
+package provide cookfs::tcl::writerchannel 1.6.0
