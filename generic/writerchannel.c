@@ -117,10 +117,10 @@ static void Cookfs_Writerchannel_CloseHandler(ClientData clientData) {
 
     // Exec the writer command
     CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: exec writer..."));
-    instData->closeResult = Tcl_EvalObjEx(instData->interp, writerCmd,
+    int ret = Tcl_EvalObjEx(instData->interp, writerCmd,
         TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
     CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: writer"
-        " returned: %d", instData->closeResult));
+        " returned: %d", ret));
 
     /*
      * One more magic from tclvfs:
@@ -132,6 +132,17 @@ static void Cookfs_Writerchannel_CloseHandler(ClientData clientData) {
      * unregister it without cleanup.
      */
     Tcl_DetachChannel(instData->interp, instData->channel);
+
+    if (instData->closeResult != NULL) {
+        Tcl_DecrRefCount(instData->closeResult);
+    }
+
+    if (ret != TCL_OK) {
+        instData->closeResult = Tcl_GetObjResult(instData->interp);
+        Tcl_IncrRefCount(instData->closeResult);
+    } else {
+        instData->closeResult = NULL;
+    }
 
     // Restore interp result
     Tcl_RestoreResult(instData->interp, &savedResult);
@@ -198,6 +209,7 @@ static Cookfs_WriterChannelInstData *Cookfs_CreateWriterchannelAlloc(
     instData->channel = NULL;
     instData->event = NULL;
     instData->interp = interp;
+    instData->closeResult = NULL;
 
     instData->pages = pages;
     instData->index = index;
@@ -225,6 +237,10 @@ static void Cookfs_CreateWriterchannelFree(Cookfs_WriterChannelInstData *instDat
     if (instData->event != NULL) {
         instData->event->instData = NULL;
         instData->event = NULL;
+    }
+
+    if (instData->closeResult != NULL) {
+        Tcl_DecrRefCount(instData->closeResult);
     }
 
     if (instData->buffer != NULL) {
@@ -542,11 +558,20 @@ static int Cookfs_Writerchannel_Close(ClientData instanceData,
     CookfsLog(printf("Cookfs_Writerchannel_Close: channel [%s] at [%p]",
         Tcl_GetChannelName(instData->channel), (void *)instData));
 
-    int closeResult = instData->closeResult;
+    int closeResult;
+
+    if (instData->closeResult == NULL) {
+        closeResult = TCL_OK;
+    } else {
+        closeResult = TCL_ERROR;
+        Tcl_SetObjResult(interp, instData->closeResult);
+        Tcl_DecrRefCount(instData->closeResult);
+        instData->closeResult = NULL;
+    }
 
     Cookfs_CreateWriterchannelFree(instData);
 
-    return (closeResult == TCL_OK ? 0 : EIO);
+    return closeResult;
 }
 
 static int Cookfs_Writerchannel_Realloc(Cookfs_WriterChannelInstData *instData,

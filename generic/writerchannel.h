@@ -15,7 +15,7 @@ typedef struct Cookfs_WriterChannelInstData {
     Tcl_Interp *interp;
     ChannelEvent* event;
     int interest;
-    int closeResult;
+    Tcl_Obj *closeResult;
 
     Cookfs_Pages *pages;
     Cookfs_Fsindex *index;
