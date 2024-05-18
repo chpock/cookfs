@@ -49,13 +49,13 @@ proc cookfs::tcl::writer {args} {
                 set c([string range $opt 1 end]) $val
             }
             -pagesobject {
-                set c(-pages) $val
+                set c(pages) $val
             }
             -fsindexobject {
-                set c(-index) $val
+                set c(index) $val
             }
             -smallfilebuffer {
-                set c(-smallfilebuffersize) $val
+                set c(smallfilebuffersize) $val
             }
             default {
                 unset c
@@ -267,7 +267,6 @@ proc ::cookfs::tcl::writer::write {wrid args} {
         }
 
         #vfs::log [list cookfs::writeFiles write $path with $size byte(s)]
-
         # check if this is a small file or writing to memory has been enabled
         if {($size <= $c(smallfilesize)) || $c(writetomemory)} {
             # add file to "small file buffer" instead of writing to disk
