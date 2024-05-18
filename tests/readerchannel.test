@@ -155,3 +155,133 @@ tcltest::test cookfsReaderChannel-4 {position when reading a file randomly over 
     unset -nocomplain result expected fp
     unset -nocomplain offset size
 }
+
+tcltest::test cookfsReaderChannel-5.1 {readable fileevent works for file in pages} -setup {
+    set vfs  [tcltest::makeFile {} cookfs.cfs]
+    vfs::cookfs::Mount $vfs $vfs
+    set data "[string repeat "TEST" 1000]\n"
+    set file [tcltest::makeFile $data test $vfs]
+    vfs::unmount $vfs
+} -body {
+    set ::result ""
+    set ::wait 0
+    vfs::cookfs::Mount -readonly $vfs $vfs
+    set fp [open $file rb]
+    fileevent $fp readable [list apply {{ chan } {
+        if {[eof $chan]} {
+            fileevent $chan readable {}
+            set ::wait "eof"
+        }
+        append ::result [read $chan 1000]
+    }} $fp]
+    set timer [after 1000 [list set ::wait "timeout"]]
+    vwait ::wait
+    catch { after cancel $timer }
+    close $fp
+    vfs::unmount $vfs
+    list [string equal $::result $::data] $::wait
+} -result [list 1 "eof"] -cleanup {
+    catch { close $fp }
+    catch { vfs::unmount $vfs }
+    file delete -force $vfs
+    catch { after cancel $timer }
+}
+
+tcltest::test cookfsReaderChannel-5.2 {readable fileevent works for file in smallfilebuffer} -setup {
+    set vfs [tcltest::makeFile {} cookfs.cfs]
+    set file [file join $vfs test1]
+} -body {
+    set ::result ""
+    set ::wait 0
+    # 4x1000+<newline> = 4001 bytes
+    set data "[string repeat "TEST" 1000]\n"
+    # ensure that files below 64kb will be stored in the smallfilebuffer
+    vfs::cookfs::Mount $vfs $vfs -smallfilesize 65536 -smallfilebuffer 65536
+    set fp [open $file wb]
+    puts -nonewline $fp $data
+    close $fp
+    set fp [open $file rb]
+    fileevent $fp readable [list apply {{ chan } {
+        if {[eof $chan]} {
+            fileevent $chan readable {}
+            set ::wait "eof"
+        }
+        append ::result [read $chan 1000]
+    }} $fp]
+    set timer [after 1000 [list set ::wait "timeout"]]
+    vwait ::wait
+    catch { after cancel $timer }
+    close $fp
+    vfs::unmount $vfs
+    list [string equal $::result $::data] $::wait
+} -result [list 1 "eof"] -cleanup {
+    catch { close $fp }
+    catch { vfs::unmount $vfs }
+    file delete -force $vfs
+    catch { after cancel $timer }
+}
+
+tcltest::test cookfsReaderChannel-6.1 {channel options for file in pages} -setup {
+    set vfs [tcltest::makeFile {} cookfs.cfs]
+    vfs::cookfs::Mount $vfs $vfs
+    set file [tcltest::makeFile {} test $vfs]
+    vfs::unmount $vfs
+} -body {
+    # get default channel options for native filesystem, don't use "rb" here
+    set fp [open $vfs r]
+    set expected [fconfigure $fp]
+    close $fp
+    vfs::cookfs::Mount -readonly $vfs $vfs
+    # don't use "rb" here
+    set fp [open $file r]
+    set actual [fconfigure $fp]
+    close $fp
+    vfs::unmount $vfs
+    set result [list]
+    foreach opt {-translation -encoding -eofchar} {
+        if { [dict get $expected $opt] eq [dict get $actual $opt] } {
+            lappend result $opt ok
+        } else {
+            lappend result $opt "expected: \"[dict get $expected $opt]\" actual: \"[dict get $actual $opt]\""
+        }
+    }
+    set result
+} -result [list -translation ok -encoding ok -eofchar ok] -cleanup {
+    catch { close $fp }
+    catch { vfs::unmount $vfs }
+    file delete -force $vfs
+}
+
+tcltest::test cookfsReaderChannel-6.2 {channel options for file in smallfilebuffer} -setup {
+    set vfs [tcltest::makeFile {} cookfs.cfs]
+    set file [file join $vfs test1]
+} -body {
+    # get default channel options for native filesystem, don't use "rb" here
+    set fp [open $vfs r+]
+    set expected [fconfigure $fp]
+    close $fp
+    set data "123"
+    # ensure that files below 64kb will be stored in the smallfilebuffer
+    vfs::cookfs::Mount $vfs $vfs -smallfilesize 65536 -smallfilebuffer 65536
+    set fp [open $file wb]
+    puts -nonewline $fp $data
+    close $fp
+    # don't use "rb" here
+    set fp [open $file r]
+    set actual [fconfigure $fp]
+    close $fp
+    vfs::unmount $vfs
+    set result [list]
+    foreach opt {-translation -encoding -eofchar} {
+        if { [dict get $expected $opt] eq [dict get $actual $opt] } {
+            lappend result $opt ok
+        } else {
+            lappend result $opt "expected: \"[dict get $expected $opt]\" actual: \"[dict get $actual $opt]\""
+        }
+    }
+    set result
+} -result [list -translation ok -encoding ok -eofchar ok] -cleanup {
+    catch { close $fp }
+    catch { vfs::unmount $vfs }
+    file delete -force $vfs
+}

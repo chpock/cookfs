@@ -381,6 +381,8 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
         }
 
     }
+    // Set current position to the start of file
+    instData->currentOffset = 0;
     CookfsLog(printf("Cookfs_CreateWriterchannel: reading of existing data"
         " is completed"));
 

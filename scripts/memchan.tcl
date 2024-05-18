@@ -18,6 +18,7 @@ proc cookfs::initMemchan {fsid path read} {
 
     set chan [vfs::memchan]
     set translation [fconfigure $chan -translation]
+    set encoding    [fconfigure $chan -encoding]
     # larger buffer size speeds up memchan
     fconfigure $chan -translation binary -buffersize 262144
 
@@ -45,7 +46,7 @@ proc cookfs::initMemchan {fsid path read} {
 
     # re-seek to start of file, revert to original translation
     seek $chan 0 start
-    fconfigure $chan -translation $translation
+    fconfigure $chan -translation $translation -encoding $encoding
 
     # return channel along with procedure to invoke after closing it
     return [list $chan \

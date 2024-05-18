@@ -73,8 +73,7 @@ proc cookfs::eventSet {fd e} {
 proc cookfs::eventPost {fd} {
     variable eventEnable
     if {[info exists eventEnable($fd)] && $eventEnable($fd)} {
-	chan postevent $fd read
-	eventSet $fd 1
+        chan postevent $fd read
     }
 }
 
