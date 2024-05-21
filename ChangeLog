@@ -7,6 +7,7 @@
 	* Fix compiler warnings in --enable-internal-debug mode
 	* Add a presentation from the original authors
 	* Add multiple configurations to github workflows
+	* Fix clang compiler warnings
 
 2024-05-18 Konstantin Kushnir <chpock@gmail.com>
 	* Provide successful operation when tcl files unavailable. CookFS should

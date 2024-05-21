@@ -5,7 +5,8 @@
  * as static functions to prevent issues with linking other
  * libraries that also include MD5 code
  *
- * (c) 2010 Wojciech Kocjan, Pawel Salawa 
+ * (c) 2010 Wojciech Kocjan, Pawel Salawa
+ * (c) 2024 Konstantin Kushnir
  *
  * MD5 copyright information specified below
  */
@@ -111,8 +112,7 @@ static unsigned char PADDING[64] = {
 /* The routine MD5Init initializes the message-digest context
    mdContext. All fields are set to zero.
  */
-static void MD5Init (mdContext)
-MD5_CTX *mdContext;
+static void MD5Init (MD5_CTX *mdContext)
 {
   mdContext->i[0] = mdContext->i[1] = (UINT4)0;
 
@@ -128,9 +128,7 @@ MD5_CTX *mdContext;
    account for the presence of each of the characters inBuf[0..inLen-1]
    in the message whose digest is being computed.
  */
-static void MD5Update (mdContext, inBuf, inLen)
-    register MD5_CTX *mdContext; unsigned char *inBuf;
-    unsigned int inLen;
+static void MD5Update (register MD5_CTX *mdContext, unsigned char *inBuf, unsigned int inLen)
 {
   register int i, ii;
   int mdi;
@@ -165,8 +163,7 @@ static void MD5Update (mdContext, inBuf, inLen)
 /* The routine MD5Final terminates the message-digest computation and
    ends with the desired message digest in mdContext->digest[0...15].
  */
-static void MD5Final (digest, mdContext)
-unsigned char digest[16]; MD5_CTX *mdContext;
+static void MD5Final (unsigned char digest[16], MD5_CTX *mdContext)
 {
   UINT4 in[16];
   int mdi;
@@ -205,9 +202,7 @@ unsigned char digest[16]; MD5_CTX *mdContext;
    Constants are arranged backwards in little-endian order and decrypted with
    the DES they produce OCCULT MESSAGES!
  */
-static void Transform(buf, in)
-register UINT4 *buf;
-register UINT4 *in;
+static void Transform(register UINT4 *buf, register UINT4 *in)
 {
   register UINT4 a = buf[0], b = buf[1], c = buf[2], d = buf[3];
 
@@ -304,7 +299,7 @@ register UINT4 *in;
   buf[2] += c;
   buf[3] += d;
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -329,7 +324,7 @@ void Cookfs_MD5(unsigned char *buf, unsigned int len, unsigned char digest[16]) 
     MD5Update(&ctx, buf, len);
     MD5Final(digest, &ctx);
 }
-
+
 
 /*
  *----------------------------------------------------------------------
@@ -365,4 +360,4 @@ Tcl_Obj *Cookfs_MD5FromObj(Tcl_Obj *obj) {
     hex[32] = 0;
     return Tcl_NewStringObj(hex, 32);
 }
-
+
