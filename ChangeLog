@@ -6,6 +6,7 @@
 	* Update 7z lib (xz/lzma2 support) from 23.01 to 24.05
 	* Fix compiler warnings in --enable-internal-debug mode
 	* Add a presentation from the original authors
+	* Add multiple configurations to github workflows
 
 2024-05-18 Konstantin Kushnir <chpock@gmail.com>
 	* Provide successful operation when tcl files unavailable. CookFS should
