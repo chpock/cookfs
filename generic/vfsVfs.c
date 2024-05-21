@@ -1,5 +1,5 @@
 /*
- * vfs.c
+ * vfsVfs.c
  *
  * Provides methods for mounting/unmounting cookfs VFS in Tcl core
  *

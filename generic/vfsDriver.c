@@ -1,5 +1,5 @@
 /*
- * vfs.c
+ * vfsDriver.c
  *
  * Provides implementation for cookfs VFS
  *

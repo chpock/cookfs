@@ -1,5 +1,5 @@
 /*
- * vfsMountCmd.c
+ * vfsCmd.c
  *
  * Provides Tcl commands for mounting cookfs
  *
