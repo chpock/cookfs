@@ -1202,7 +1202,7 @@ XzInStreamRead(const struct ISeqInStream_ *p, void *buf, size_t *size)
 
     if (stream->source) {
 
-        CookfsLog(printf("XzInStreamRead: start reading from buffer. Want to read %zu bytes. Have %zu bytes total, current offset is %zu.", *size, stream->size, stream->offset));
+        CookfsLog(printf("XzInStreamRead: start reading from buffer. Want to read %zu bytes. Have %u bytes total, current offset is %u.", *size, stream->size, stream->offset));
 
         if (*size + stream->offset > stream->size) {
             *size = stream->size - stream->offset;
@@ -1214,7 +1214,7 @@ XzInStreamRead(const struct ISeqInStream_ *p, void *buf, size_t *size)
 
     } else {
 
-        CookfsLog(printf("XzInStreamRead: start reading from channel. Want to read %zu bytes, have %zu bytes.", *size, stream->size));
+        CookfsLog(printf("XzInStreamRead: start reading from channel. Want to read %zu bytes, have %u bytes.", *size, stream->size));
 
         if (*size > stream->size)
             *size = stream->size;
@@ -1234,7 +1234,7 @@ XzInStreamRead(const struct ISeqInStream_ *p, void *buf, size_t *size)
         *size = res;
         stream->size -= res;
 
-        CookfsLog(printf("XzInStreamRead: %zu bytes left in channel.", stream->size));
+        CookfsLog(printf("XzInStreamRead: %u bytes left in channel.", stream->size));
 
     }
 
@@ -1270,7 +1270,7 @@ XzOutStreamWrite(const struct ISeqOutStream_ *p, const void *buf, size_t size)
         memcpy(&dest[stream->size], buf, size);
         stream->size += size;
 
-        CookfsLog(printf("XzOutStreamWrite: stored %zu bytes in buf, total buf size: %zu.", size, stream->size));
+        CookfsLog(printf("XzOutStreamWrite: stored %zu bytes in buf, total buf size: %u.", size, stream->size));
 
         res = size;
 
@@ -1290,7 +1290,7 @@ XzOutStreamWrite(const struct ISeqOutStream_ *p, const void *buf, size_t size)
     //}
     //printf("\n"); fflush(stdout);
 
-    CookfsLog(printf("XzOutStreamWrite: end. Wrote %zu bytes. Total: %zu bytes.", res, stream->size));
+    CookfsLog(printf("XzOutStreamWrite: end. Wrote %zu bytes. Total: %u bytes.", res, stream->size));
     return res;
 
 }
@@ -1431,7 +1431,7 @@ static Tcl_Obj *CookfsReadPageXz(Cookfs_Pages *p, int size) {
     //}
     //printf("\n"); fflush(stdout);
 
-    CookfsLog(printf("CookfsReadPageXz: finish. Got total %zu bytes.", ostream.size));
+    CookfsLog(printf("CookfsReadPageXz: finish. Got total %u bytes.", ostream.size));
     return resultObj;
 #else
     return NULL;

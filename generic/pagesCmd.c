@@ -295,7 +295,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
 
     /* set up cache size */
     Cookfs_PagesSetCacheSize(pages, oCachesize);
-    CookfsLog(printf("Cookfs Page Cmd: %08x -> %d\n", pages, pages->cacheSize))
+    CookfsLog(printf("Cookfs Page Cmd: %p -> %d\n", (void *)pages, pages->cacheSize))
 
     /* create Tcl command and return its name and set interp result to the command name */
     CookfsLog(printf("Create Tcl command for the pages object..."))

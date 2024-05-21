@@ -128,7 +128,7 @@ void Cookfs_FsindexResetChangeCount(Cookfs_Fsindex *i) {
  */
 
 int Cookfs_FsindexGetBlockUsage(Cookfs_Fsindex *i, int idx) {
-    CookfsLog(printf("Cookfs_FsindexGetBlockUsage: from [%p] index [%d]", i, idx));
+    CookfsLog(printf("Cookfs_FsindexGetBlockUsage: from [%p] index [%d]", (void *)i, idx));
     if (idx < 0 || i->blockIndexSize <= idx)
         return 0;
     return i->blockIndex[idx];
@@ -469,7 +469,7 @@ Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_FsindexEntry *currentNo
     fileNode = Cookfs_FsindexEntryAlloc(pathTailLen, numBlocks, COOKFS_USEHASH_DEFAULT);
     strcpy(fileNode->fileName, pathTailStr);
 
-    CookfsLog(printf("Cookfs_FsindexSetInDirectory - fileNode=%08x", fileNode))
+    CookfsLog(printf("Cookfs_FsindexSetInDirectory - fileNode=%p", (void *)fileNode))
     foundFileNode = CookfsFsindexFindInDirectory(currentNode, pathTailStr, COOKFSFSINDEX_FIND_CREATE, fileNode);
     if (foundFileNode == NULL) {
         CookfsLog(printf("Cookfs_FsindexSetInDirectory - NULL"))
@@ -1121,7 +1121,7 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *cu
 		/* if entry exists or has just been created */
 		fileNode = Tcl_GetHashValue(hashEntry);
 
-		CookfsLog(printf("CookfsFsindexFindInDirectory - fileNode=%08x", fileNode))
+		CookfsLog(printf("CookfsFsindexFindInDirectory - fileNode=%p", (void *)fileNode))
 
 		/* if we are to create a new entry, set new value */
 		if (command == COOKFSFSINDEX_FIND_CREATE) {
@@ -1143,7 +1143,7 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *cu
 		    }
 
 		    /* set new value for specified hash table entry */
-		    CookfsLog(printf("CookfsFsindexFindInDirectory - setting as newFileNode = %08x", newFileNode))
+		    CookfsLog(printf("CookfsFsindexFindInDirectory - setting as newFileNode = %p", (void *)newFileNode))
 		    Tcl_SetHashValue(hashEntry, newFileNode);
 		    CookfsLog(printf("CookfsFsindexFindInDirectory - setting as newFileNode done"))
 		    return newFileNode;

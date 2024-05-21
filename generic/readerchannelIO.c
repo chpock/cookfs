@@ -39,7 +39,7 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
     char *pageBuf;
     int pageBufSize;
 
-    CookfsLog(printf("Cookfs_Readerchannel_Input: read %d, current offset: %d", bufSize, instData->currentOffset))
+    CookfsLog(printf("Cookfs_Readerchannel_Input: read %d, current offset: %ld", bufSize, instData->currentOffset))
 
     if (instData->currentBlock >= instData->bufSize) {
 	CookfsLog(printf("Cookfs_Readerchannel_Input: EOF reached"))
@@ -113,7 +113,7 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	instData->currentBlockOffset += blockRead;
 	bytesRead += blockRead;
 	instData->currentOffset += blockRead;
-	CookfsLog(printf("Cookfs_Readerchannel_Input: currentOffset: %d", instData->currentOffset))
+	CookfsLog(printf("Cookfs_Readerchannel_Input: currentOffset: %ld", instData->currentOffset))
     }
 
     CookfsLog(printf("Cookfs_Readerchannel_Input: bytesRead=%d", bytesRead))

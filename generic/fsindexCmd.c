@@ -151,10 +151,10 @@ static int CookfsRegisterFsindexObjectCmd(ClientData clientData, Tcl_Interp *int
     /* import fsindex from specified data if specified, otherwise create new fsindex */
     if (objc == 2) {
         i = Cookfs_FsindexFromObject(NULL, objv[1]);
-        CookfsLog(printf("CookfsRegisterFsindexObjectCmd: created fsindex from obj [%p]", i));
+        CookfsLog(printf("CookfsRegisterFsindexObjectCmd: created fsindex from obj [%p]", (void *)i));
     } else {
         i = Cookfs_FsindexInit(NULL);
-        CookfsLog(printf("CookfsRegisterFsindexObjectCmd: created fsindex from scratch [%p]", i));
+        CookfsLog(printf("CookfsRegisterFsindexObjectCmd: created fsindex from scratch [%p]", (void *)i));
     }
 
     /* throw error if import or creation failed */
