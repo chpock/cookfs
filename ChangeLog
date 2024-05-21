@@ -5,6 +5,7 @@
 	* Make the ::cookfs::Unmount command accept both fsid and mount point
 	* Update 7z lib (xz/lzma2 support) from 23.01 to 24.05
 	* Fix compiler warnings in --enable-internal-debug mode
+	* Add a presentation from the original authors
 
 2024-05-18 Konstantin Kushnir <chpock@gmail.com>
 	* Provide successful operation when tcl files unavailable. CookFS should
