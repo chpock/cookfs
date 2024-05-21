@@ -12,13 +12,30 @@ It is designed only for use as Tcl VFS and provides multiple optimizations espec
 
 ## Compatibility
 
-This package requires [tclvfs](https://core.tcl-lang.org/tclvfs/index) and Tcl 8.5 or later, however it has only been tested with Tcl 8.6.14.
+This package requires Tcl 8.5 or later, however it has only been tested with Tcl 8.6.14.
+
+Tcl variant of Cookfs also requires the [tclvfs](https://core.tcl-lang.org/tclvfs/index) package.
 
 ## Built packages and sources
 
 The source code is available on [Github](https://github.com/chpock/cookfs).
 
-Built packages are available on the above Github page, under [Releases](https://github.com/chpock/cookfs/releases).
+This package uses the Tcl Extension Architecture (TEA) to build and install on Linux, Mac, or Windows platforms. For Windows platform only building with Mingw-w64 toolchain is supported.
+
+The standard TEA config, make and install process is supported.
+
+```
+$ git clone https://github.com/chpock/cookfs.git
+$ cd cookfs
+$ git submodule update --init --recursive
+$ mkdir build && cd build
+$ ../configure
+$ make
+$ make test
+$ make install
+```
+
+Already built packages are available on Github under [Releases](https://github.com/chpock/cookfs/releases).
 
 There are packages for the following platforms:
 
