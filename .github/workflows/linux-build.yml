@@ -16,22 +16,22 @@ jobs:
           - description: "default"
           - compiler: gcc
             configure: "--disable-c-pkgconfig --disable-c-pages --disable-c-fsindex --disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
-            description: "without pkgconfig, pages, fsindex, readedchannel, writerchannel, vfs"
+            description: "no pkgcfg, pages, fsindex, readedchannel, writerchannel, vfs"
           - compiler: gcc
             configure: "--disable-c-pages --disable-c-fsindex --disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
-            description: "without pages, fsindex, readedchannel, writerchannel, vfs"
+            description: "no pages, fsindex, readedchannel, writerchannel, vfs"
           - compiler: gcc
             configure: "--disable-c-fsindex --disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
-            description: "without fsindex, readedchannel, writerchannel, vfs"
+            description: "no fsindex, readedchannel, writerchannel, vfs"
           - compiler: gcc
             configure: "--disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
-            description: "without readedchannel, writerchannel, vfs"
+            description: "no readedchannel, writerchannel, vfs"
           - compiler: gcc
             configure: "--disable-c-writerchannel --disable-c-vfs"
-            description: "without writerchannel, vfs"
+            description: "no writerchannel, vfs"
           - compiler: gcc
             configure: "--disable-c-vfs"
-            description: "without vfs"
+            description: "no vfs"
     name: build (${{ matrix.compiler }}, ${{ matrix.description }})
     steps:
       - name: Checkout
@@ -51,7 +51,6 @@ jobs:
           CONFIGURE: ${{ matrix.configure }}
       - name: Configure
         run: |
-          set -x
           ./configure $CFGOPT_COMMON $CFGOPT_CUSTOM "--prefix=$HOME/install dir" "--exec-prefix=$HOME/install dir" || {
             cat config.log
             echo "::error::Failure during Configure"
