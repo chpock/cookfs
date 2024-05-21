@@ -221,7 +221,7 @@ fi
 if test ${USECWRITERCHAN} = yes; then
     AC_DEFINE(COOKFS_USECWRITERCHAN)
     COOKFS_PKGCONFIG_USECWRITERCHAN=1
-    TEA_ADD_SOURCES([writerchannel.c])
+    TEA_ADD_SOURCES([writerchannel.c writerchannelIO.c])
 else
     COOKFS_PKGCONFIG_USECWRITERCHAN=0
     # c-vfs requires c-writerchannel

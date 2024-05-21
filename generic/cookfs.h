@@ -62,6 +62,7 @@
 
 #ifdef COOKFS_USECWRITERCHAN
 #include "writerchannel.h"
+#include "writerchannelIO.h"
 #endif /* COOKFS_USECWRITERCHAN */
 
 #ifdef COOKFS_USEPKGCONFIG

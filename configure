@@ -9038,7 +9038,7 @@ if test ${USECWRITERCHAN} = yes; then
 
     COOKFS_PKGCONFIG_USECWRITERCHAN=1
 
-    vars="writerchannel.c"
+    vars="writerchannel.c writerchannelIO.c"
     for i in $vars; do
 	case $i in
 	    \$*)
