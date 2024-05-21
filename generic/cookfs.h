@@ -53,7 +53,10 @@
 #endif /* COOKFS_USECREADERCHAN */
 
 #ifdef COOKFS_USECVFS
+#include "writer.h"
 #include "vfs.h"
+#include "vfsDriver.h"
+#include "vfsVfs.h"
 #include "vfsCmd.h"
 #endif /* COOKFS_USECVFS */
 

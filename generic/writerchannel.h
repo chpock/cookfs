@@ -36,5 +36,8 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
     Cookfs_Fsindex *fsindex, Tcl_Obj *writerObjCmd, Tcl_Obj *pathObj,
     int pathObjLen, Cookfs_FsindexEntry *entry, Tcl_Interp *interp);
 
+Tcl_Channel Cookfs_CreateWriterchannelRO(Cookfs_Pages *pages,
+    Cookfs_Fsindex *index, Cookfs_FsindexEntry *entry, Tcl_Interp *interp);
+
 #endif /* COOKFS_WRITERCHANNEL_H */
 

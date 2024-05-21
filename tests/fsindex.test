@@ -3,7 +3,7 @@ tcltest::test cookfsFsindex-1.1 "Create empty fsindex" -setup {
     set fsidx [cookfs::fsindex]
 } -cleanup {
     $fsidx delete
-} -returnCodes {ok} -match glob -result {::cookfs::*::fsindexhandle*}
+} -returnCodes {ok} -match glob -result {::cookfs::*::fsindex::handle*}
 
 tcltest::test cookfsFsindex-1.2 "Create empty fsindex and create file" -setup {
 } -body {
@@ -251,7 +251,7 @@ tcltest::test cookfsFsindex-7.1 "Test getblockusage, without arguments" -body {
     $fsidx getblockusage
 } -cleanup {
     $fsidx delete
-} -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::fsindexhandle* getblockusage block"}
+} -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::fsindex::handle* getblockusage block"}
 
 tcltest::test cookfsFsindex-7.2 "Test getblockusage, wrong block number" -body {
     set fsidx [cookfs::fsindex]
@@ -368,7 +368,7 @@ tcltest::test cookfsFsindex-8.1 "Test changecount, wrong args" -body {
     $fsidx changecount 1
 } -cleanup {
     $fsidx delete
-} -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::fsindexhandle* changecount"}
+} -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::fsindex::handle* changecount"}
 
 tcltest::test cookfsFsindex-8.2 "Test changecount, set/unset increments" -body {
     set res [list]

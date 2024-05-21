@@ -738,9 +738,16 @@ proc cookfs::tcl::pages::asyncDecompressFinalize {name} {
     }
 }
 
-proc cookfs::tcl::pages::sethash {name hash} {
+proc cookfs::tcl::pages::sethash {name args} {
     upvar #0 $name c
-    set c(hash) $hash
+    if { [llength $args] } {
+        set hash [lindex $args 0]
+        if { $hash ni {md5 crc32} } {
+            return -code error "bad hash \"$hash\": must be md5 or crc32"
+        }
+        set c(hash) $hash
+    }
+    return $c(hash)
 }
 
 proc cookfs::tcl::pages::setcachesize {name csize} {
@@ -858,9 +865,10 @@ proc cookfs::tcl::pages::handle {name cmd args} {
             return [cleanup $name]
         }
         hash {
-            if {[llength $args] == 1} {
-                sethash $name [lindex $args 0]
-                return
+            if {![llength $args]} {
+                return [sethash $name]
+            } elseif {[llength $args] == 1} {
+                return [sethash $name [lindex $args 0]]
             }
         }
         dataoffset {

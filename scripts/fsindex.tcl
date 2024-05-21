@@ -5,11 +5,11 @@
 
 namespace eval cookfs {}
 namespace eval cookfs::tcl {}
-namespace eval cookfs::fsindex {}
+namespace eval cookfs::tcl::fsindex {}
 
 set ::cookfs::fsindexhandleIdx 0
 proc cookfs::tcl::fsindex {{data ""}} {
-    set name ::cookfs::tcl::fsindexhandle[incr ::cookfs::fsindexhandleIdx]
+    set name ::cookfs::tcl::fsindex::handle[incr ::cookfs::fsindexhandleIdx]
     upvar #0 $name c
     upvar #0 $name.m cm
     upvar #0 $name.b cb
@@ -25,17 +25,17 @@ proc cookfs::tcl::fsindex {{data ""}} {
     array set cb {}
 
     if {$data != ""} {
-         ::cookfs::fsindex::import $name $data
+         ::cookfs::tcl::fsindex::import $name $data
     }  else  {
          array set c {"" {}}
     }
 
-    interp alias {} $name {} ::cookfs::fsindex::handle $name
+    interp alias {} $name {} ::cookfs::tcl::fsindex::handle $name
 
     return $name
 }
 
-proc cookfs::fsindex::_normalizePath {path} {
+proc cookfs::tcl::fsindex::_normalizePath {path} {
     set rc [join [file split $path] /]
     if {$rc == "."} {
          set rc ""
@@ -43,7 +43,7 @@ proc cookfs::fsindex::_normalizePath {path} {
     return $rc
 }
 
-proc cookfs::fsindex::upvarPath {name path varName} {
+proc cookfs::tcl::fsindex::upvarPath {name path varName} {
     upvar #0 $name c
     set path [_normalizePath $path]
     if {![info exists c($path)]} {
@@ -52,7 +52,7 @@ proc cookfs::fsindex::upvarPath {name path varName} {
     uplevel 1 [list upvar #0 ${name}($path) $varName]
 }
 
-proc cookfs::fsindex::upvarPathDir {name path varName tailVarName} {
+proc cookfs::tcl::fsindex::upvarPathDir {name path varName tailVarName} {
     upvar #0 $name c
     uplevel 1 [list set $tailVarName [file tail $path]]
     set dpath [_normalizePath [file dirname $path]]
@@ -62,23 +62,23 @@ proc cookfs::fsindex::upvarPathDir {name path varName tailVarName} {
     uplevel 1 [list upvar #0 ${name}($dpath) $varName]
 }
 
-proc cookfs::fsindex::incrBlockUsage {name block {count 1}} {
+proc cookfs::tcl::fsindex::incrBlockUsage {name block {count 1}} {
     if { $block < 0 } return
     upvar #0 $name.b cb
     incr cb($block) $count
 }
 
-proc cookfs::fsindex::incrChangeCount {name {count 1}} {
+proc cookfs::tcl::fsindex::incrChangeCount {name {count 1}} {
     upvar #0 $name.c cc
     return [incr cc $count]
 }
 
-proc cookfs::fsindex::resetChangeCount {name} {
+proc cookfs::tcl::fsindex::resetChangeCount {name} {
     upvar #0 $name.c cc
     set cc 0
 }
 
-proc cookfs::fsindex::entriesList {name path} {
+proc cookfs::tcl::fsindex::entriesList {name path} {
     upvarPath $name $path d
     set rc {}
     foreach {n v} $d {
@@ -87,7 +87,7 @@ proc cookfs::fsindex::entriesList {name path} {
     return [lsort $rc]
 }
 
-proc cookfs::fsindex::entryGet {name path} {
+proc cookfs::tcl::fsindex::entryGet {name path} {
     upvar #0 $name c
     upvarPathDir $name $path d tail
     array set da $d
@@ -97,11 +97,11 @@ proc cookfs::fsindex::entryGet {name path} {
     return $da($tail)
 }
 
-proc cookfs::fsindex::entryGetmtime {name path} {
+proc cookfs::tcl::fsindex::entryGetmtime {name path} {
     return [lindex [entryGet $name $path] 0]
 }
 
-proc cookfs::fsindex::entrySet {name path data} {
+proc cookfs::tcl::fsindex::entrySet {name path data} {
     # TODO: validate entry - data types
     # TODO: validate entry - parent has to be existing directory
     upvar #0 $name c
@@ -141,7 +141,7 @@ proc cookfs::fsindex::entrySet {name path data} {
     incrChangeCount $name
 }
 
-proc cookfs::fsindex::entrySetmtime {name path mtime} {
+proc cookfs::tcl::fsindex::entrySetmtime {name path mtime} {
     if {[catch {
          upvarPathDir $name $path d tail
     }]} {
@@ -157,7 +157,7 @@ proc cookfs::fsindex::entrySetmtime {name path mtime} {
     incrChangeCount $name
 }
 
-proc cookfs::fsindex::entryUnset {name path} {
+proc cookfs::tcl::fsindex::entryUnset {name path} {
     if {[catch {
          upvarPathDir $name $path d tail
     }]} {
@@ -187,10 +187,10 @@ proc cookfs::fsindex::entryUnset {name path} {
     incrChangeCount $name
 }
 
-proc cookfs::fsindex::cleanup {name} {
+proc cookfs::tcl::fsindex::cleanup {name} {
 }
 
-proc cookfs::fsindex::import {name data} {
+proc cookfs::tcl::fsindex::import {name data} {
     upvar #0 $name c
     if {[string range $data 0 7] != "CFS2.200"} {
          error "Unable to create index object"
@@ -201,7 +201,7 @@ proc cookfs::fsindex::import {name data} {
     resetChangeCount $name
 }
 
-proc cookfs::fsindex::importPath {name path varname} {
+proc cookfs::tcl::fsindex::importPath {name path varname} {
     upvar #0 $name c
     upvar 1 $varname data
     if {[binary scan $data Ia* numitems data] != 2} {
@@ -237,13 +237,13 @@ proc cookfs::fsindex::importPath {name path varname} {
     }
 }
 
-proc cookfs::fsindex::export {name} {
+proc cookfs::tcl::fsindex::export {name} {
     upvar #0 $name c
     resetChangeCount $name
     return "CFS2.200[exportPath $name {}][exportMetadata $name]"
 }
 
-proc cookfs::fsindex::exportPath {name path} {
+proc cookfs::tcl::fsindex::exportPath {name path} {
     upvar #0 $name c
     upvarPath $name $path d
     array set da $d
@@ -265,7 +265,7 @@ proc cookfs::fsindex::exportPath {name path} {
     return $rc
 }
 
-proc cookfs::fsindex::importMetadata {name varname} {
+proc cookfs::tcl::fsindex::importMetadata {name varname} {
     upvar #0 $name.m cm
     upvar $varname data
     if {([string length $data] >= 4) && ([binary scan $data I count] > 0)} {
@@ -288,7 +288,7 @@ proc cookfs::fsindex::importMetadata {name varname} {
     }
 }
 
-proc cookfs::fsindex::exportMetadata {name} {
+proc cookfs::tcl::fsindex::exportMetadata {name} {
     upvar #0 $name.m cm
 
     set nl [array names cm]
@@ -301,7 +301,7 @@ proc cookfs::fsindex::exportMetadata {name} {
     return $rc
 }
 
-proc cookfs::fsindex::getMetadata {name paramname valuevariable} {
+proc cookfs::tcl::fsindex::getMetadata {name paramname valuevariable} {
     upvar #0 $name.m cm
     if {[info exists cm($paramname)]} {
          upvar 1 $valuevariable v
@@ -312,24 +312,24 @@ proc cookfs::fsindex::getMetadata {name paramname valuevariable} {
     }
 }
 
-proc cookfs::fsindex::setMetadata {name paramname paramvalue} {
+proc cookfs::tcl::fsindex::setMetadata {name paramname paramvalue} {
     upvar #0 $name.m cm
     incrChangeCount $name
     set cm($paramname) $paramvalue
 }
 
-proc cookfs::fsindex::unsetMetadata {name paramname} {
+proc cookfs::tcl::fsindex::unsetMetadata {name paramname} {
     upvar #0 $name.m cm
     incrChangeCount $name
     unset -nocomplain cm($paramname)
 }
 
-proc cookfs::fsindex::getblockusage {name block} {
+proc cookfs::tcl::fsindex::getblockusage {name block} {
     upvar #0 $name.b cb
     return [expr { $block >= 0 && [info exists cb($block)] ? $cb($block) : 0 }]
 }
 
-proc cookfs::fsindex::handle {name cmd args} {
+proc cookfs::tcl::fsindex::handle {name cmd args} {
     switch -- $cmd {
          export {
              return [export $name]

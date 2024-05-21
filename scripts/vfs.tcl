@@ -52,7 +52,6 @@ proc cookfs::tcl::Mount {args} {
 	{smallfilebuffer.arg	    4194304	 {Maximum buffer for optimizing small files}}
 	{nodirectorymtime				{Do not initialize mtime for new directories to current date and time}}
     }
-    lappend options [list tempfilename.arg "" {Temporary file name to keep index in}]
 
     if { [::cookfs::pkgconfig get c-pages] || ![catch { package require md5 2 }] } {
         lappend options {pagehash.arg "md5" {Hash algorithm to use for page hashing}}
@@ -248,7 +247,7 @@ proc cookfs::tcl::Mount {args} {
     lappend mountcommand $local [list cookfs::tcl::vfs::handler $fsid]
     if {!$fs(noregister)} {
 	eval $mountcommand
-	set unmountcmd [list ::cookfs::tcl::Unmount $fsid]
+	set unmountcmd [list ::cookfs::tcl::Unmount -unregister $fsid]
 	if {[info commands ::vfs::RegisterMount] != ""} {
 	    vfs::RegisterMount $local $unmountcmd
 	}  else  {
@@ -263,7 +262,27 @@ proc cookfs::tcl::Mount {args} {
     return $fsid
 }
 
-proc cookfs::tcl::Unmount {fsid args} {
+proc cookfs::tcl::Unmount {args} {
+
+    if { [lindex $args 0] eq "-unregister" } {
+        # If the first argument is "-unregister", then we called from
+        # vfs::unmount. fsid is the 2nd argument.
+        set fsid [lindex $args 1]
+    } else {
+        if { [string match {*cookfs::tcl::vfs::mount*} [lindex $args 0]] && [info exists [lindex $args 0]] } {
+            # If the first argument looks like *cookfs::tcl::vfs::mount*
+            # and this variable exists, consider it fsid
+            set fsid [lindex $args 0]
+            upvar #0 $fsid fs
+            set mount_point $fs(local)
+        } else {
+            # In other cases, treat it as a mount path and call vfs::unmount to unmount it
+            set mount_point [lindex $args 0]
+        }
+        # call vfs::unmount to properly unmount the vfs
+        return [vfs::unmount $mount_point]
+    }
+
     upvar #0 $fsid fs
 
     # finalize any small files pending write
@@ -405,6 +424,20 @@ proc cookfs::tcl::vfs::mountHandler {fsid args} {
 		set ei "wrong # args: should be \"$fsid compression ?type?\""
 		error $ei $ei
 	    }
+	}
+	getpages {
+	    if {[llength $args] != 1} {
+		set ei "wrong # args: should be \"$fsid getpages\""
+		error $ei $ei
+	    }
+	    return $fs(pages)
+	}
+	getindex {
+	    if {[llength $args] != 1} {
+		set ei "wrong # args: should be \"$fsid getindex\""
+		error $ei $ei
+	    }
+	    return $fs(index)
 	}
 	default {
 	    set ei "unknown subcommand \"[lindex $args 0]\": must be one of aside, compression, filesize, flush, getmetadata, optimizelist, setmetadata, smallfilebuffersize, writeFiles or writetomemory."

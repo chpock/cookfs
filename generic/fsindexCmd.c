@@ -9,9 +9,6 @@
 
 #include "cookfs.h"
 
-/* counter for all fsindex objects */
-static int deprecatedCounter = 0;
-
 /* declarations of static and/or internal functions */
 static int CookfsRegisterFsindexObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static void CookfsFsindexDeleteProc(ClientData clientData);
@@ -24,12 +21,14 @@ static int CookfsFsindexCmdUnset(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, in
 static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdDelete(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
-static int CookfsFsindexCmdSetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdUnsetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
-static int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdGetBlockUsage(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdChangeCount(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdImport(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+
+// These functions are in header
+//static int CookfsFsindexCmdSetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+//static int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
 /*
  *----------------------------------------------------------------------
@@ -59,6 +58,33 @@ int Cookfs_InitFsindexCmd(Tcl_Interp *interp) {
 /*
  *----------------------------------------------------------------------
  *
+ * CookfsGetFsindexObjectCmd --
+ *
+ *      Returns a Tcl command for existing fsindex object
+ *
+ * Results:
+ *      Tcl_Obj with zero refcount that contains Tcl command for
+ *      the fsindex object or NULL on failure.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Tcl_Obj *CookfsGetFsindexObjectCmd(Tcl_Interp *interp, Cookfs_Fsindex *i) {
+    if (i == NULL) {
+        return NULL;
+    }
+    CookfsRegisterExistingFsindexObjectCmd(interp, i);
+    Tcl_Obj *rc = Tcl_NewObj();
+    Tcl_GetCommandFullName(interp, i->commandToken, rc);
+    return rc;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
  * CookfsRegisterExistingFsindexObjectCmd --
  *
  *      Creates a Tcl command for existing fsindex object
@@ -79,7 +105,7 @@ void CookfsRegisterExistingFsindexObjectCmd(Tcl_Interp *interp, Cookfs_Fsindex *
     }
     char buf[128];
     /* create Tcl command and return its name */
-    sprintf(buf, "::cookfs::c::fsindexhandle%p", (void *)i);
+    sprintf(buf, "::cookfs::c::fsindex::handle%p", (void *)i);
     i->commandToken = Tcl_CreateObjCommand(interp, buf, CookfsFsindexCmd,
         (ClientData) i, CookfsFsindexDeleteProc);
     i->interp = interp;
@@ -115,19 +141,13 @@ void CookfsRegisterExistingFsindexObjectCmd(Tcl_Interp *interp, Cookfs_Fsindex *
 /* command for creating new objects that deal with pages */
 static int CookfsRegisterFsindexObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     UNUSED(clientData);
-    char buf[64];
-    int idx;
     Cookfs_Fsindex *i;
-
-    idx = ++deprecatedCounter;
-    sprintf(buf, "::cookfs::c::fsindexhandle%d", idx);
 
     /* we only accept no or 1 argument - if more specified, return usage information */
     if (objc > 2) {
         goto ERROR;
     }
 
-    CookfsLog(printf("CookfsRegisterFsindexObjectCmd: create new command [%s]", buf));
     /* import fsindex from specified data if specified, otherwise create new fsindex */
     if (objc == 2) {
         i = Cookfs_FsindexFromObject(NULL, objv[1]);
@@ -172,8 +192,11 @@ ERROR:
 
 static void CookfsFsindexDeleteProc(ClientData clientData) {
     Cookfs_Fsindex *fsindex = (Cookfs_Fsindex *) clientData;
-    CookfsLog(printf("DELETING FSINDEX COMMAND"))
     fsindex->commandToken = NULL;
+    if (fsindex->isDead) {
+        return;
+    }
+    CookfsLog(printf("DELETING FSINDEX COMMAND"))
     Cookfs_FsindexFini(fsindex);
     CookfsLog(printf("DELETED FSINDEX COMMAND"))
 }
@@ -840,7 +863,7 @@ static int CookfsFsindexCmdDelete(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, i
  *----------------------------------------------------------------------
  */
 
-static int CookfsFsindexCmdSetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+int CookfsFsindexCmdSetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     const char *paramName;
 
     /* check number of arguments */
@@ -910,7 +933,7 @@ static int CookfsFsindexCmdUnsetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *in
  *----------------------------------------------------------------------
  */
 
-static int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     Tcl_Obj *value;
     const char *paramName;
 

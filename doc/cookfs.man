@@ -33,7 +33,14 @@ The command returns a cookfs handle which is also a command that can be used to 
 For definition of available options, see [sectref {MOUNT OPTIONS}].
 
 [call [cmd ::cookfs::Unmount] [method fsid]]
-Unmounts a cookfs archive. This is called internally by tclvfs. Command [cmd vfs::unmount] should be used to unmount Tcl archives, not [cmd cookfs::Unmount] directly.
+[call [cmd ::cookfs::Unmount] [method local]]
+Unmounts a cookfs archive.
+
+[para]
+The [cmd vfs::unmount] command can also be used to unmount archives,
+but it is only available if the tclvfs package was loaded at mount time.
+Thus, it is not recommended to unmount archives using the [cmd vfs::unmount] command,
+and this feature is only present for backward compatibility.
 
 [para]
 For cookfs archives it is very important to properly unmount them after performing all operations as many changes are only stored on unmount operation.

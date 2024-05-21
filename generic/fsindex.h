@@ -48,6 +48,7 @@ typedef struct Cookfs_Fsindex {
     Tcl_WideInt changeCount;
     Tcl_Interp *interp;
     Tcl_Command commandToken;
+    int isDead;
 } Cookfs_Fsindex;
 
 Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName);
@@ -80,6 +81,9 @@ Cookfs_FsindexEntry *CookfsFsindexFindElement(Cookfs_Fsindex *i, Tcl_Obj *pathLi
 
 Tcl_WideInt Cookfs_FsindexIncrChangeCount(Cookfs_Fsindex *i, int count);
 void Cookfs_FsindexResetChangeCount(Cookfs_Fsindex *i);
+
+int Cookfs_FsindexEntryIsPending(Cookfs_FsindexEntry *e);
+int Cookfs_FsindexEntryIsDirectory(Cookfs_FsindexEntry *e);
 
 #endif /* COOKFS_USECFSINDEX */
 

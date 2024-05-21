@@ -108,7 +108,7 @@ See [sectref-external cookfs] for more details on caching in cookfs.
 Returns size of file up to last stored page.
 The size only includes page sizes and does not include overhead for index and additional information used by cookfs.
 
-[call [arg pagesHandle] [method hash]]
+[call [arg pagesHandle] [method hash] [opt [arg hashname]]]
 Hash function to use for comparing if pages are equal. This is mainly used as pre-check and entire page is still checked for.
 Defaults to [const md5], can also be [const crc32]. Mainly for internal/testing at this moment. Do not use.
 

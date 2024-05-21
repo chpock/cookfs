@@ -76,6 +76,56 @@ Tcl_Obj *Cookfs_FsindexToObject(Cookfs_Fsindex *fsIndex) {
     return result;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexFromPages --
+ *
+ *	Imports fsindex information from pages object
+ *
+ * Results:
+ *	Pointer to imported Cookfs_Fsindex; NULL in case of import error
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Cookfs_Fsindex *Cookfs_FsindexFromPages(Cookfs_Fsindex *fsindex, Cookfs_Pages *pages) {
+
+    CookfsLog(printf("Cookfs_FsindexFromPages: fsindex [%p] pages [%p]",
+        (void *)fsindex, (void *)pages));
+
+    Cookfs_Fsindex *rc;
+
+    CookfsLog(printf("Cookfs_FsindexFromPages: get index data from pages..."));
+    Tcl_Obj *indexDataObj = Cookfs_PagesGetIndex(pages);
+    Tcl_IncrRefCount(indexDataObj);
+
+    int indexDataLen;
+    Tcl_GetByteArrayFromObj(indexDataObj, &indexDataLen);
+    CookfsLog(printf("Cookfs_FsindexFromPages: got index data %d bytes",
+        indexDataLen));
+
+    if (indexDataLen) {
+        CookfsLog(printf("Cookfs_FsindexFromPages: import from the object..."));
+        rc = Cookfs_FsindexFromObject(fsindex, indexDataObj);
+    } else {
+        if (fsindex == NULL) {
+            CookfsLog(printf("Cookfs_FsindexFromPages: create a new clean index"));
+            rc = Cookfs_FsindexInit(NULL);
+        } else {
+            rc = fsindex;
+            Cookfs_FsindexCleanup(rc);
+            CookfsLog(printf("Cookfs_FsindexFromPages: cleanup the old index"));
+        }
+    }
+
+    Tcl_DecrRefCount(indexDataObj);
+    CookfsLog(printf("Cookfs_FsindexFromPages: return [%p]", (void *)rc));
+    return rc;
+}
 
 /*
  *----------------------------------------------------------------------

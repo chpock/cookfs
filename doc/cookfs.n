@@ -285,6 +285,8 @@ package require \fBvfs::cookfs ?1\&.6\&.0?\fR
 .sp
 \fB::cookfs::Unmount\fR \fBfsid\fR
 .sp
+\fB::cookfs::Unmount\fR \fBlocal\fR
+.sp
 \fIcookfsHandle\fR \fBaside\fR \fIfilename\fR
 .sp
 \fIcookfsHandle\fR \fBwritetomemory\fR
@@ -322,7 +324,14 @@ The command returns a cookfs handle which is also a command that can be used to 
 For definition of available options, see \fBMOUNT OPTIONS\fR\&.
 .TP
 \fB::cookfs::Unmount\fR \fBfsid\fR
-Unmounts a cookfs archive\&. This is called internally by tclvfs\&. Command \fBvfs::unmount\fR should be used to unmount Tcl archives, not \fBcookfs::Unmount\fR directly\&.
+.TP
+\fB::cookfs::Unmount\fR \fBlocal\fR
+Unmounts a cookfs archive\&.
+.sp
+The \fBvfs::unmount\fR command can also be used to unmount archives,
+but it is only available if the tclvfs package was loaded at mount time\&.
+Thus, it is not recommended to unmount archives using the \fBvfs::unmount\fR command,
+and this feature is only present for backward compatibility\&.
 .sp
 For cookfs archives it is very important to properly unmount them after performing all operations as many changes are only stored on unmount operation\&.
 .TP

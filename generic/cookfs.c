@@ -71,7 +71,7 @@ Cookfs_Init(Tcl_Interp *interp)
     }
 
 #ifdef COOKFS_USECVFS
-    if (Cookfs_InitMountCmd(interp) != TCL_OK) {
+    if (Cookfs_InitVfsMountCmd(interp) != TCL_OK) {
         return TCL_ERROR;
     }
 #endif

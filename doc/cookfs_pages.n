@@ -311,7 +311,7 @@ package require \fBvfs::cookfs ?1\&.6\&.0?\fR
 .sp
 \fIpagesHandle\fR \fBfilesize\fR
 .sp
-\fIpagesHandle\fR \fBhash\fR
+\fIpagesHandle\fR \fBhash\fR ?\fIhashname\fR?
 .sp
 \fIpagesHandle\fR \fBclose\fR
 .sp
@@ -404,7 +404,7 @@ See \fBcookfs\fR for more details on caching in cookfs\&.
 Returns size of file up to last stored page\&.
 The size only includes page sizes and does not include overhead for index and additional information used by cookfs\&.
 .TP
-\fIpagesHandle\fR \fBhash\fR
+\fIpagesHandle\fR \fBhash\fR ?\fIhashname\fR?
 Hash function to use for comparing if pages are equal\&. This is mainly used as pre-check and entire page is still checked for\&.
 Defaults to \fBmd5\fR, can also be \fBcrc32\fR\&. Mainly for internal/testing at this moment\&. Do not use\&.
 .TP

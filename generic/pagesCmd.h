@@ -10,6 +10,10 @@
 
 int Cookfs_InitPagesCmd(Tcl_Interp *interp);
 void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p);
+Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p);
+
+int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+int CookfsPagesCmdAside(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
 #endif /* COOKFS_USECPAGES */
 

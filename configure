@@ -1438,7 +1438,7 @@ Optional Features:
   --disable-c-readerchannel Use reader handler written in C. Defaults to true
   --disable-c-writerchannel Use writer handler written in C. Defaults to true
   --disable-c-pkgconfig     Use pkgconfig written in C. Defaults to true
-  --enable-c-vfs            Use VFS support written in C. Defaults to false
+  --disable-c-vfs           Use VFS support written in C. Defaults to true
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -8647,7 +8647,7 @@ if test ${enable_c_vfs+y}
 then :
   enableval=$enable_c_vfs; USECVFS=${enableval}
 else $as_nop
-  USECVFS=no
+  USECVFS=yes
 fi
 
 
@@ -9079,12 +9079,11 @@ else
 fi
 
 if test ${USECVFS} = yes; then
-    as_fn_error $? "support for c-vfs is not ready yet" "$LINENO" 5
     printf "%s\n" "#define COOKFS_USECVFS 1" >>confdefs.h
 
     COOKFS_PKGCONFIG_USECVFS=1
 
-    vars="vfs.c vfsCmd.c"
+    vars="writer.c vfsDriver.c vfsVfs.c vfs.c vfsCmd.c"
     for i in $vars; do
 	case $i in
 	    \$*)

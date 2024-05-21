@@ -44,6 +44,33 @@ int Cookfs_InitPagesCmd(Tcl_Interp *interp) {
 /*
  *----------------------------------------------------------------------
  *
+ * CookfsGetPagesObjectCmd --
+ *
+ *      Returns a Tcl command for existing pages object
+ *
+ * Results:
+ *      Tcl_Obj with zero refcount that contains Tcl command for
+ *      the pages object or NULL on failure.
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p) {
+    if (p == NULL) {
+        return NULL;
+    }
+    CookfsRegisterExistingPagesObjectCmd(interp, p);
+    Tcl_Obj *rc = Tcl_NewObj();
+    Tcl_GetCommandFullName(interp, p->commandToken, rc);
+    return rc;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
  * CookfsRegisterExistingPagesObjectCmd --
  *
  *      Creates a Tcl command for existing pages object
@@ -511,32 +538,7 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
         }
         case cmdAside:
         {
-            Cookfs_Pages *asidePages;
-            int fileNameSize;
-            if (objc != 3) {
-                Tcl_WrongNumArgs(interp, 2, objv, "fileName");
-                return TCL_ERROR;
-            }
-
-            Tcl_GetStringFromObj(objv[2], &fileNameSize);
-            if (fileNameSize > 0) {
-                /* TODO: copy compression objects from original pages object in aside operations */
-                asidePages = Cookfs_PagesInit(p->interp, objv[2], 0, p->fileCompression, NULL, 0, 0, 1, 0, NULL, NULL, NULL, NULL);
-                if (asidePages == NULL) {
-                    CookfsLog(printf("Failed to create add-aside pages object"))
-                    Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create Cookfs object", -1));
-                    return TCL_ERROR;
-                }  else  {
-                    CookfsLog(printf("Created add-aside pages object"))
-                }
-            }  else  {
-                CookfsLog(printf("Removing aside page connection"))
-                asidePages = NULL;
-            }
-
-            Cookfs_PagesSetAside(p, asidePages);
-
-            break;
+            return CookfsPagesCmdAside(p, interp, objc, objv);
         }
         case cmdCachesize:
         {
@@ -565,23 +567,7 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
         }
         case cmdCompression:
         {
-            int oCompression;
-            /* TODO: handle getting */
-            if (objc == 2) {
-                oCompression = Cookfs_PagesGetCompression(p);
-                Tcl_SetObjResult(interp, Tcl_NewStringObj(cookfsCompressionNames[oCompression], -1));
-            }  else if (objc == 3) {
-                if (Tcl_GetIndexFromObj(interp, objv[2], (const char **) cookfsCompressionOptions, "compression", 0, &oCompression) != TCL_OK) {
-                    return TCL_ERROR;
-                }
-                /* map compression from cookfsCompressionOptionMap */
-                oCompression = cookfsCompressionOptionMap[oCompression];
-                Cookfs_PagesSetCompression(p, oCompression);
-            }  else  {
-                Tcl_WrongNumArgs(interp, 2, objv, "?type?");
-                return TCL_ERROR;
-            }
-            break;
+            return CookfsPagesCmdCompression(p, interp, objc, objv);
         }
         case cmdGetCache:
         {
@@ -638,6 +624,71 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
     return TCL_OK;
 }
 
+int CookfsPagesCmdAside(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 2, objv, "fileName");
+        return TCL_ERROR;
+    }
+
+    Cookfs_Pages *asidePages;
+    int fileNameSize;
+
+    Tcl_GetStringFromObj(objv[2], &fileNameSize);
+
+    if (fileNameSize > 0) {
+
+        /* TODO: copy compression objects from original pages object in aside
+           operations */
+        asidePages = Cookfs_PagesInit(pages->interp, objv[2], 0,
+            pages->fileCompression, NULL, 0, 0, 1, 0, NULL, NULL, NULL, NULL);
+
+        if (asidePages == NULL) {
+            CookfsLog(printf("Failed to create add-aside pages object"))
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create Cookfs object", -1));
+            return TCL_ERROR;
+        }  else  {
+            CookfsLog(printf("Created add-aside pages object"))
+        }
+
+    }  else  {
+        CookfsLog(printf("Removing aside page connection"))
+        asidePages = NULL;
+    }
+
+    Cookfs_PagesSetAside(pages, asidePages);
+
+    return TCL_OK;
+
+}
+
+int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+
+    if (objc > 3) {
+        Tcl_WrongNumArgs(interp, 2, objv, "?type?");
+        return TCL_ERROR;
+    }
+
+    int oCompression;
+
+    if (objc == 2) {
+        oCompression = Cookfs_PagesGetCompression(pages);
+    } else {
+        if (Tcl_GetIndexFromObj(interp, objv[2], (const char **) cookfsCompressionOptions,
+            "compression", 0, &oCompression) != TCL_OK)
+        {
+            return TCL_ERROR;
+        }
+        /* map compression from cookfsCompressionOptionMap */
+        oCompression = cookfsCompressionOptionMap[oCompression];
+        Cookfs_PagesSetCompression(pages, oCompression);
+    }
+
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(cookfsCompressionNames[oCompression], -1));
+
+    return TCL_OK;
+
+}
 
 /*
  *----------------------------------------------------------------------
@@ -657,20 +708,16 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
  */
 
 static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    static char *commands[] = { "md5", "crc32", NULL };
-    int idx;
-
-    if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 2, objv, "hash");
+    if (objc < 2 || objc > 3) {
+        Tcl_WrongNumArgs(interp, 2, objv, "?hash?");
         return TCL_ERROR;
     }
-
-    if (Tcl_GetIndexFromObj(interp, objv[2], (const char **) commands, "hash", 0, &idx) != TCL_OK) {
-        return TCL_ERROR;
+    if (objc == 3) {
+        if (Cookfs_PagesSetHashByObj(pages, objv[2], interp) != TCL_OK) {
+            return TCL_ERROR;
+        }
     }
-
-    pages->pageHash = idx;
-
+    Tcl_SetObjResult(interp, Cookfs_PagesGetHashAsObj(pages));
     return TCL_OK;
 }
 
@@ -693,7 +740,10 @@ static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc,
 
 static void CookfsPagesDeleteProc(ClientData clientData) {
     Cookfs_Pages *pages = (Cookfs_Pages *) clientData;
-    CookfsLog(printf("DELETING PAGES COMMAND"))
     pages->commandToken = NULL;
+    if (pages->isDead) {
+        return;
+    }
+    CookfsLog(printf("DELETING PAGES COMMAND"))
     Cookfs_PagesFini(pages);
 }

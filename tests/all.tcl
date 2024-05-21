@@ -9,6 +9,7 @@ tcltest::temporaryDirectory $tmpdir
 tcltest::testsDirectory [file dirname [info script]]
 
 package require vfs::cookfs
+package require vfs
 
 if {[info tclversion] == "8.5"} {
     package require rechan
@@ -35,6 +36,13 @@ tcltest::testConstraint cookfsCompressionNone 1
 tcltest::testConstraint cookfsCompressionZlib 1
 tcltest::testConstraint cookfsCompressionBz2  [cookfs::pkgconfig get feature-bzip2]
 tcltest::testConstraint cookfsCompressionXz   [cookfs::pkgconfig get feature-xz]
+
+tcltest::testConstraint enabledCVfs    [cookfs::pkgconfig get c-vfs]
+tcltest::testConstraint disabledCVfs   [expr { ![cookfs::pkgconfig get c-vfs] }]
+tcltest::testConstraint enabledCPages  [cookfs::pkgconfig get c-pages]
+tcltest::testConstraint disabledCPages [expr { ![cookfs::pkgconfig get c-pages] }]
+
+tcltest::testConstraint packageTclvfs [expr { ![catch { package present vfs }] }]
 
 tcltest::configure -constraints $constraints
 

@@ -1,3 +1,9 @@
+2024-05-21 Konstantin Kushnir <chpock@gmail.com>
+	* Add support for vfs in C
+	* Make the writer object available for C functions
+	* Make the ::cookfs::Unmount command preferred over vfs::unmount
+	* Make the ::cookfs::Unmount command accept both fsid and mount point
+
 2024-05-18 Konstantin Kushnir <chpock@gmail.com>
 	* Provide successful operation when tcl files unavailable. CookFS should
 	work when readerchannel.tcl memchan.tcl pages.tcl fsindex.tcl unavailable,

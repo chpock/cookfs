@@ -69,6 +69,15 @@ static void Cookfs_Writerchannel_CloseHandler(ClientData clientData) {
     Cookfs_WriterChannelInstData *instData =
         (Cookfs_WriterChannelInstData *)clientData;
 
+    // We don't need to do anything if channel is in RO mode (when pathObj
+    // is NULL)
+    if (instData->pathObj == NULL) {
+        CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: channel [%s]"
+            " at [%p] is in RO mode", Tcl_GetChannelName(instData->channel),
+            (void *)instData));
+        return;
+    }
+
     CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: channel [%s] at [%p]",
         Tcl_GetChannelName(instData->channel), (void *)instData));
 
@@ -217,7 +226,9 @@ static Cookfs_WriterChannelInstData *Cookfs_CreateWriterchannelAlloc(
     Tcl_IncrRefCount(writerObjCmd);
     instData->pathObjLen = pathObjLen;
     instData->pathObj = pathObj;
-    Tcl_IncrRefCount(pathObj);
+    if (pathObj != NULL) {
+        Tcl_IncrRefCount(pathObj);
+    }
 
     instData->currentOffset = 0;
     instData->currentSize = 0;
@@ -246,7 +257,9 @@ static void Cookfs_CreateWriterchannelFree(Cookfs_WriterChannelInstData *instDat
     if (instData->buffer != NULL) {
         ckfree(instData->buffer);
     }
-    Tcl_DecrRefCount(instData->pathObj);
+    if (instData->pathObj != NULL) {
+        Tcl_DecrRefCount(instData->pathObj);
+    }
     Tcl_DecrRefCount(instData->writerObjCmd);
 
     ckfree((void *)instData);

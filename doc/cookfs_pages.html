@@ -139,7 +139,7 @@
 <li><a href="#14"><i class="arg">pagesHandle</i> <b class="method">getcache</b> <span class="opt">?<i class="arg">pageIdx</i>?</span></a></li>
 <li><a href="#15"><i class="arg">pagesHandle</i> <b class="method">ticktock</b> <span class="opt">?<i class="arg">maxAge</i>?</span></a></li>
 <li><a href="#16"><i class="arg">pagesHandle</i> <b class="method">filesize</b></a></li>
-<li><a href="#17"><i class="arg">pagesHandle</i> <b class="method">hash</b></a></li>
+<li><a href="#17"><i class="arg">pagesHandle</i> <b class="method">hash</b> <span class="opt">?<i class="arg">hashname</i>?</span></a></li>
 <li><a href="#18"><i class="arg">pagesHandle</i> <b class="method">close</b></a></li>
 </ul>
 </div>
@@ -208,7 +208,7 @@ set previously, its weight will be reset to 0.</p>
 <dt><a name="16"><i class="arg">pagesHandle</i> <b class="method">filesize</b></a></dt>
 <dd><p>Returns size of file up to last stored page.
 The size only includes page sizes and does not include overhead for index and additional information used by cookfs.</p></dd>
-<dt><a name="17"><i class="arg">pagesHandle</i> <b class="method">hash</b></a></dt>
+<dt><a name="17"><i class="arg">pagesHandle</i> <b class="method">hash</b> <span class="opt">?<i class="arg">hashname</i>?</span></a></dt>
 <dd><p>Hash function to use for comparing if pages are equal. This is mainly used as pre-check and entire page is still checked for.
 Defaults to <b class="const">md5</b>, can also be <b class="const">crc32</b>. Mainly for internal/testing at this moment. Do not use.</p></dd>
 <dt><a name="18"><i class="arg">pagesHandle</i> <b class="method">close</b></a></dt>

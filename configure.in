@@ -122,7 +122,7 @@ AC_ARG_ENABLE(c-fsindex,       [  --disable-c-fsindex       Use index handling w
 AC_ARG_ENABLE(c-readerchannel, [  --disable-c-readerchannel Use reader handler written in C. Defaults to true],     USECREADERCHAN=${enableval},   USECREADERCHAN=yes)
 AC_ARG_ENABLE(c-writerchannel, [  --disable-c-writerchannel Use writer handler written in C. Defaults to true],     USECWRITERCHAN=${enableval},   USECWRITERCHAN=yes)
 AC_ARG_ENABLE(c-pkgconfig,     [  --disable-c-pkgconfig     Use pkgconfig written in C. Defaults to true],          USECPKGCONFIG=${enableval},    USECPKGCONFIG=yes)
-AC_ARG_ENABLE(c-vfs,           [  --enable-c-vfs            Use VFS support written in C. Defaults to false],       USECVFS=${enableval},          USECVFS=no)
+AC_ARG_ENABLE(c-vfs,           [  --disable-c-vfs           Use VFS support written in C. Defaults to true],        USECVFS=${enableval},          USECVFS=yes)
 
 if test ${INTERNALDEBUG} = yes; then
     AC_DEFINE(COOKFS_INTERNAL_DEBUG)
@@ -229,10 +229,9 @@ else
 fi
 
 if test ${USECVFS} = yes; then
-    AC_MSG_ERROR([support for c-vfs is not ready yet])
     AC_DEFINE(COOKFS_USECVFS)
     COOKFS_PKGCONFIG_USECVFS=1
-    TEA_ADD_SOURCES([vfs.c vfsCmd.c])
+    TEA_ADD_SOURCES([writer.c vfsDriver.c vfsVfs.c vfs.c vfsCmd.c])
 else
     COOKFS_PKGCONFIG_USECVFS=0
 fi
