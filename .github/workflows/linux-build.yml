@@ -10,9 +10,21 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        compiler:
-          - "gcc"
-          - "clang"
+        compiler: ["gcc", "clang"]
+        configure: [""]
+        include:
+          - compiler: gcc
+            configure: "--disable-c-pkgconfig --disable-c-pages --disable-c-fsindex --disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
+          - compiler: gcc
+            configure: "--disable-c-pages --disable-c-fsindex --disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
+          - compiler: gcc
+            configure: "--disable-c-fsindex --disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
+          - compiler: gcc
+            configure: "--disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
+          - compiler: gcc
+            configure: "--disable-c-writerchannel --disable-c-vfs"
+          - compiler: gcc
+            configure: "--disable-c-vfs"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,14 +34,16 @@ jobs:
         run: |
           sudo apt-get install tcl8.6-dev tcl-vfs
           mkdir "$HOME/install dir"
-          echo "CFGOPT=--with-tcl=/usr/lib/tcl8.6" >> $GITHUB_ENV
+          echo "CFGOPT_COMMON=--with-tcl=/usr/lib/tcl8.6" >> $GITHUB_ENV
+          echo "CFGOPT_CUSTOM=\"$CONFIGURE\"" >> $GITHUB_ENV
           echo "CC=$COMPILER" >> $GITHUB_ENV
         env:
           COMPILER: ${{ matrix.compiler }}
           OPTS: ${{ matrix.compiler }}
+          CONFIGURE: ${{ matrix.configure }}
       - name: Configure
         run: |
-          ./configure $CFGOPT "--prefix=$HOME/install dir" "--exec-prefix=$HOME/install dir" --enable-xz || {
+          ./configure $CFGOPT_COMMON $CFGOPT_CUSTOM "--prefix=$HOME/install dir" "--exec-prefix=$HOME/install dir" || {
             cat config.log
             echo "::error::Failure during Configure"
             exit 1
