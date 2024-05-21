@@ -376,7 +376,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         } else {
             Tcl_IncrRefCount(pagehashActual);
             CookfsLog(printf("CookfsMountCmd: got pagehash from metadata [%s]",
-                Tcl_GetString(archiveActual)));
+                Tcl_GetString(pagehashActual)));
             CookfsLog(printf("CookfsMountCmd: set pagehash for pages"));
             // Don't set an error message in interp, we will set our own
             // to avoid confusion as this pagehash comes not from
@@ -386,7 +386,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
             int ret = Cookfs_PagesSetHashByObj(pages, pagehashActual, NULL);
             if (ret != TCL_OK) {
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unable to set pagehash"
-                    " [%s] in pages object", Tcl_GetString(archiveActual)));
+                    " [%s] in pages object", Tcl_GetString(pagehashActual)));
             }
             Tcl_DecrRefCount(pagehashActual);
             if (ret != TCL_OK) {
