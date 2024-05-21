@@ -43,6 +43,7 @@ jobs:
           CONFIGURE: ${{ matrix.configure }}
       - name: Configure
         run: |
+          set -x
           ./configure $CFGOPT_COMMON $CFGOPT_CUSTOM "--prefix=$HOME/install dir" "--exec-prefix=$HOME/install dir" || {
             cat config.log
             echo "::error::Failure during Configure"
