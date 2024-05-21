@@ -13,18 +13,26 @@ jobs:
         compiler: ["gcc", "clang"]
         configure: [""]
         include:
+          - description: "default"
           - compiler: gcc
             configure: "--disable-c-pkgconfig --disable-c-pages --disable-c-fsindex --disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
+            description: "without pkgconfig, pages, fsindex, readedchannel, writerchannel, vfs"
           - compiler: gcc
             configure: "--disable-c-pages --disable-c-fsindex --disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
+            description: "without pages, fsindex, readedchannel, writerchannel, vfs"
           - compiler: gcc
             configure: "--disable-c-fsindex --disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
+            description: "without fsindex, readedchannel, writerchannel, vfs"
           - compiler: gcc
             configure: "--disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
+            description: "without readedchannel, writerchannel, vfs"
           - compiler: gcc
             configure: "--disable-c-writerchannel --disable-c-vfs"
+            description: "without writerchannel, vfs"
           - compiler: gcc
             configure: "--disable-c-vfs"
+            description: "without vfs"
+    name: build (${{ matrix.compiler }}, ${{ matrix.description }})
     steps:
       - name: Checkout
         uses: actions/checkout@v4
