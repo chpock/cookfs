@@ -487,6 +487,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
             goto error;
         }
         Cookfs_FsindexUpdateEntryFileSize(entry, dataSize);
+        entry->fileTime = mtime;
 
         Tcl_WideInt currentOffset = 0;
         int currentBlockNumber = 0;
