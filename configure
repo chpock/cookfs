@@ -9048,7 +9048,12 @@ else
     USECVFS="no"
 fi
 
-if test ${USECWRITER} = yes; then
+# c-writer / c-writerchan / c-vfs must be enabled together
+if test ${USECWRITER} = yes \
+    && test ${USECWRITERCHAN} = yes \
+    && test ${USECVFS} = yes
+then
+
     printf "%s\n" "#define COOKFS_USECWRITER 1" >>confdefs.h
 
     COOKFS_PKGCONFIG_USECWRITER=1
@@ -9087,15 +9092,7 @@ if test ${USECWRITER} = yes; then
 
 
 
-else
-    COOKFS_PKGCONFIG_USECWRITER=0
-    # c-vfs requires c-writer
-    USECVFS="no"
-    # c-writerchan requires c-writer
-    USECWRITERCHAN="no"
-fi
 
-if test ${USECWRITERCHAN} = yes; then
     printf "%s\n" "#define COOKFS_USECWRITERCHAN 1" >>confdefs.h
 
     COOKFS_PKGCONFIG_USECWRITERCHAN=1
@@ -9134,13 +9131,7 @@ if test ${USECWRITERCHAN} = yes; then
 
 
 
-else
-    COOKFS_PKGCONFIG_USECWRITERCHAN=0
-    # c-vfs requires c-writerchannel
-    USECVFS="no"
-fi
 
-if test ${USECVFS} = yes; then
     printf "%s\n" "#define COOKFS_USECVFS 1" >>confdefs.h
 
     COOKFS_PKGCONFIG_USECVFS=1
@@ -9179,7 +9170,10 @@ if test ${USECVFS} = yes; then
 
 
 
+
 else
+    COOKFS_PKGCONFIG_USECWRITER=0
+    COOKFS_PKGCONFIG_USECWRITERCHAN=0
     COOKFS_PKGCONFIG_USECVFS=0
 fi
 

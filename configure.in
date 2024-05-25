@@ -223,33 +223,27 @@ else
     USECVFS="no"
 fi
 
-if test ${USECWRITER} = yes; then
+# c-writer / c-writerchan / c-vfs must be enabled together
+if test ${USECWRITER} = yes \
+    && test ${USECWRITERCHAN} = yes \
+    && test ${USECVFS} = yes
+then
+
     AC_DEFINE(COOKFS_USECWRITER)
     COOKFS_PKGCONFIG_USECWRITER=1
     TEA_ADD_SOURCES([writer.c writerCmd.c])
-else
-    COOKFS_PKGCONFIG_USECWRITER=0
-    # c-vfs requires c-writer
-    USECVFS="no"
-    # c-writerchan requires c-writer
-    USECWRITERCHAN="no"
-fi
 
-if test ${USECWRITERCHAN} = yes; then
     AC_DEFINE(COOKFS_USECWRITERCHAN)
     COOKFS_PKGCONFIG_USECWRITERCHAN=1
     TEA_ADD_SOURCES([writerchannel.c writerchannelIO.c])
-else
-    COOKFS_PKGCONFIG_USECWRITERCHAN=0
-    # c-vfs requires c-writerchannel
-    USECVFS="no"
-fi
 
-if test ${USECVFS} = yes; then
     AC_DEFINE(COOKFS_USECVFS)
     COOKFS_PKGCONFIG_USECVFS=1
     TEA_ADD_SOURCES([vfsDriver.c vfsVfs.c vfs.c vfsCmd.c])
+
 else
+    COOKFS_PKGCONFIG_USECWRITER=0
+    COOKFS_PKGCONFIG_USECWRITERCHAN=0
     COOKFS_PKGCONFIG_USECVFS=0
 fi
 

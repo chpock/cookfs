@@ -258,7 +258,8 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
     // Check if a fatal error has occurred previously
     if (w->fatalError) {
         CookfsLog(printf("Cookfs_WriterAddFile: ERROR: writer in a fatal"
-            " error state"));
+            " error state: [%s]",
+            Tcl_GetString(Cookfs_WriterGetLastError(w))));
         return TCL_ERROR;
     }
 
@@ -960,6 +961,7 @@ fatalErrorCantHappened:
 fatalError:
 
 
+    CookfsLog(printf("Cookfs_WriterPurge: !!! SET FATAL ERROR STATE !!!"));
     w->fatalError = 1;
     result = TCL_ERROR;
 

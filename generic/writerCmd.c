@@ -8,7 +8,9 @@
 
 #include "cookfs.h"
 
-static Tcl_ObjCmdProc CookfsWriterCmd;
+// Creating a writer object from Tcl is not supported as for now
+// static Tcl_ObjCmdProc CookfsWriterCmd;
+
 static Tcl_ObjCmdProc CookfsWriterHandlerCmd;
 static Tcl_CmdDeleteProc CookfsWriterHandlerCmdDeleteProc;
 
@@ -16,11 +18,16 @@ int Cookfs_InitWriterCmd(Tcl_Interp *interp) {
 
     Tcl_CreateNamespace(interp, "::cookfs::c::writer", NULL, NULL);
 
+    // Creating a writer object from Tcl is not supported as for now
+
+    /*
     Tcl_CreateObjCommand(interp, "::cookfs::c::writer", CookfsWriterCmd,
         (ClientData) NULL, NULL);
 
     Tcl_CreateAlias(interp, "::cookfs::writer", interp, "::cookfs::c::writer",
         0, NULL);
+
+    */
 
     return TCL_OK;
 
@@ -47,6 +54,8 @@ Tcl_Obj *CookfsGetWriterObjectCmd(Tcl_Interp *interp, Cookfs_Writer *w) {
     return rc;
 }
 
+// Creating a writer object from Tcl is not supported as for now
+/*
 static int CookfsWriterCmd(ClientData clientData, Tcl_Interp *interp,
     int objc, Tcl_Obj *const objv[])
 {
@@ -65,6 +74,7 @@ static int CookfsWriterCmd(ClientData clientData, Tcl_Interp *interp,
 
     return TCL_ERROR;
 }
+*/
 
 static void CookfsWriterHandlerCmdDeleteProc(ClientData clientData) {
     Cookfs_Writer *w = (Cookfs_Writer *)clientData;
@@ -72,7 +82,6 @@ static void CookfsWriterHandlerCmdDeleteProc(ClientData clientData) {
 }
 
 static Cookfs_WriterHandleCommandProc CookfsWriterHandleCommandGetbuf;
-
 // In headers:
 // Cookfs_WriterHandleCommandProc CookfsWriterHandleCommandWrite;
 
@@ -99,6 +108,8 @@ static int CookfsWriterHandlerCmd(ClientData clientData, Tcl_Interp *interp,
     if (Tcl_GetIndexFromObj(interp, objv[1], commands, "command", 0,
             &command) != TCL_OK)
     {
+        CookfsLog(printf("CookfsWriterHandlerCmd: ERROR: unknown command [%s]",
+            Tcl_GetString(objv[1])));
         return TCL_ERROR;
     }
 

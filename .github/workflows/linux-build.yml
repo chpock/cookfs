@@ -29,12 +29,6 @@ jobs:
           - compiler: gcc
             configure: " --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
             description: "no writer, writerchannel, vfs"
-          - compiler: gcc
-            configure: "--disable-c-writerchannel --disable-c-vfs"
-            description: "no writerchannel, vfs"
-          - compiler: gcc
-            configure: "--disable-c-vfs"
-            description: "no vfs"
     name: build (${{ matrix.compiler }}, ${{ matrix.description }})
     steps:
       - name: Checkout
