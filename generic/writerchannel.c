@@ -32,7 +32,7 @@ static int Cookfs_CreateWriterchannelCreate(Cookfs_WriterChannelInstData
 }
 
 static Cookfs_WriterChannelInstData *Cookfs_CreateWriterchannelAlloc(
-    Cookfs_Pages *pages, Cookfs_Fsindex *index, Tcl_Obj *writerObjCmd,
+    Cookfs_Pages *pages, Cookfs_Fsindex *index, Cookfs_Writer *writer,
     Tcl_Obj *pathObj, int pathObjLen, Tcl_Interp *interp,
     Tcl_WideInt initialBufferSize)
 {
@@ -70,8 +70,8 @@ static Cookfs_WriterChannelInstData *Cookfs_CreateWriterchannelAlloc(
 
     instData->pages = pages;
     instData->index = index;
-    instData->writerObjCmd = writerObjCmd;
-    Tcl_IncrRefCount(writerObjCmd);
+    instData->writer = writer;
+
     instData->pathObjLen = pathObjLen;
     instData->pathObj = pathObj;
     if (pathObj != NULL) {
@@ -108,7 +108,6 @@ void Cookfs_CreateWriterchannelFree(Cookfs_WriterChannelInstData *instData) {
     if (instData->pathObj != NULL) {
         Tcl_DecrRefCount(instData->pathObj);
     }
-    Tcl_DecrRefCount(instData->writerObjCmd);
 
     ckfree((void *)instData);
     CookfsLog(printf("Cookfs_CreateWriterchannelFree: ok"))
@@ -116,19 +115,21 @@ void Cookfs_CreateWriterchannelFree(Cookfs_WriterChannelInstData *instData) {
 }
 
 Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
-    Cookfs_Fsindex *index, Tcl_Obj *writerObjCmd, Tcl_Obj *pathObj,
+    Cookfs_Fsindex *index, Cookfs_Writer *writer, Tcl_Obj *pathObj,
     int pathObjLen, Cookfs_FsindexEntry *entry, Tcl_Interp *interp)
 {
 
     CookfsLog(printf("Cookfs_CreateWriterchannel: start"));
 
     Cookfs_WriterChannelInstData *instData = Cookfs_CreateWriterchannelAlloc(
-        pages, index, writerObjCmd, pathObj, pathObjLen, interp,
+        pages, index, writer, pathObj, pathObjLen, interp,
         (entry == NULL ? 0 : entry->data.fileInfo.fileSize));
 
     if (instData == NULL) {
         return NULL;
     }
+
+    Tcl_Obj *blockObj = NULL;
 
     if (Cookfs_CreateWriterchannelCreate(instData, interp) != TCL_OK) {
         CookfsLog(printf("Cookfs_CreateWriterchannel: "
@@ -155,47 +156,26 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
             continue;
         }
 
-        Tcl_Obj *blockObj;
+        int blockSize;
+        const char *blockBuffer;
 
-        // If block is < 0, this block is in the writer's smallfilebuffer
         if (block < 0) {
 
-            // Create the writer command to retrieve the required block
-            Tcl_Obj *writerCmd = Tcl_NewListObj(0, NULL);
-            Tcl_IncrRefCount(writerCmd);
+            // If block is < 0, this block is in the writer's smallfilebuffer
+            CookfsLog(printf("Cookfs_CreateWriterchannel: reading the block"
+                " from writer"));
 
-            Tcl_ListObjAppendElement(interp, writerCmd, writerObjCmd);
-            Tcl_ListObjAppendElement(interp, writerCmd,
-                Tcl_NewStringObj("getbuf", -1));
-            Tcl_ListObjAppendElement(interp, writerCmd,
-                Tcl_NewIntObj(block));
+            Tcl_WideInt blockSizeWide;
+            blockBuffer = Cookfs_WriterGetBuffer(writer, block, &blockSizeWide);
 
-            // Exec the writer command
-            CookfsLog(printf("Cookfs_CreateWriterchannel: exec writer to get"
-                " block [%d]", block));
-            int ret = Tcl_EvalObjEx(instData->interp, writerCmd,
-                TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
-            CookfsLog(printf("Cookfs_CreateWriterchannel: writer"
-                " returned: %d", ret));
-
-            // We don't need the writer command anymore
-            Tcl_DecrRefCount(writerCmd);
-
-            // Returns an error if the writer was unable to retrieve the block
-            if (ret != TCL_OK) {
+            // Returns an error if the pages was unable to retrieve the block
+            if (blockBuffer == NULL) {
                 CookfsLog(printf("Cookfs_CreateWriterchannel: return an error"
                     " as writer failed"));
                 goto error;
             }
 
-            blockObj = Tcl_GetObjResult(interp);
-            if (blockObj == NULL) {
-                CookfsLog(printf("Cookfs_CreateWriterchannel: failed to get"
-                    " result from Tcl"));
-                goto error;
-            }
-
-            Tcl_IncrRefCount(blockObj);
+            blockSize = blockSizeWide;
 
         } else {
 
@@ -222,12 +202,9 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
             }
 
             Tcl_IncrRefCount(blockObj);
+            blockBuffer = (char *)Tcl_GetByteArrayFromObj(blockObj, &blockSize);
 
         }
-
-        int blockSize;
-        const char *blockBuffer = (char *)Tcl_GetByteArrayFromObj(blockObj,
-            &blockSize);
 
         CookfsLog(printf("Cookfs_CreateWriterchannel: got block size [%d]",
             blockSize));
@@ -236,7 +213,6 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
         if ((offset + size) > blockSize) {
             CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: not enough"
                 " bytes in block, return an error"));
-            Tcl_DecrRefCount(blockObj);
             goto error;
         }
 
@@ -247,14 +223,17 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
         int writtenBytes = Tcl_ChannelOutputProc(CookfsWriterChannel())(
             (ClientData)instData, blockBuffer + offset, size, &errorCode);
 
-        // We don't need the blockObj object anymore
-        Tcl_DecrRefCount(blockObj);
-
         if (writtenBytes != size) {
             CookfsLog(printf("Cookfs_CreateWriterchannel: only [%d]"
                 " bytes were written to the channel, consider this"
                 " an error", writtenBytes));
             goto error;
+        }
+
+        // We don't need the blockObj object anymore
+        if (blockObj != NULL) {
+            Tcl_DecrRefCount(blockObj);
+            blockObj = NULL;
         }
 
     }
@@ -271,6 +250,10 @@ done:
     return instData->channel;
 
 error:
+
+    if (blockObj != NULL) {
+        Tcl_DecrRefCount(blockObj);
+    }
 
     if (instData != NULL) {
         Cookfs_CreateWriterchannelFree(instData);
@@ -318,9 +301,16 @@ static int CookfsCreateWriterchannelCmd(ClientData clientData,
         return TCL_ERROR;
     }
 
-    // TODO: Validate somehow the specified writer object? May be try to execute
-    // some known method?
-    Tcl_Obj *writerObjCmd = objv[3];
+    Cookfs_Writer *writer = Cookfs_WriterGetHandle(interp,
+        Tcl_GetStringFromObj(objv[3], NULL));
+    CookfsLog(printf("CookfsCreateWriterchannelCmd: writer [%p]",
+        (void *)writer));
+
+    if (writer == NULL) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to find"
+            " writer object", -1));
+        return TCL_ERROR;
+    }
 
     int pathObjLen;
     Tcl_Obj *pathObj = Tcl_FSSplitPath(objv[4], &pathObjLen);
@@ -345,9 +335,7 @@ static int CookfsCreateWriterchannelCmd(ClientData clientData,
 
     // If entry exists, make sure it is not a directory
     if (entry != NULL) {
-        int isDirectory = entry->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY ?
-            1 : 0;
-        if (isDirectory) {
+        if (Cookfs_FsindexEntryIsDirectory(entry)) {
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("file \"%s\" exists"
                 " and it is a directory", Tcl_GetString(objv[4])));
             goto error;
@@ -364,7 +352,7 @@ static int CookfsCreateWriterchannelCmd(ClientData clientData,
         }
 
         // Check if parent is a directory
-        if (entryParent->fileBlocks != COOKFS_NUMBLOCKS_DIRECTORY) {
+        if (!Cookfs_FsindexEntryIsDirectory(entryParent)) {
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unable to open"
                 " file \"%s\" for writing, since its parent"
                 " is not a directory", Tcl_GetString(objv[4])));
@@ -376,9 +364,8 @@ static int CookfsCreateWriterchannelCmd(ClientData clientData,
     // to read previous data from the file and it should be created
     // from scratch, then pass NULL as entry.
 
-    Tcl_Channel channel = Cookfs_CreateWriterchannel(pages, index,
-        writerObjCmd, pathObj, pathObjLen, (wantToRead ? entry : NULL),
-        interp);
+    Tcl_Channel channel = Cookfs_CreateWriterchannel(pages, index, writer,
+        pathObj, pathObjLen, (wantToRead ? entry : NULL), interp);
 
     if (channel == NULL) {
         goto error;

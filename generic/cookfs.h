@@ -52,6 +52,11 @@
 #include "readerchannelIO.h"
 #endif /* COOKFS_USECREADERCHAN */
 
+#ifdef COOKFS_USECWRITER
+#include "writer.h"
+#include "writerCmd.h"
+#endif /* COOKFS_USECWRITER */
+
 #ifdef COOKFS_USECVFS
 #include "writer.h"
 #include "vfs.h"
@@ -65,7 +70,7 @@
 #include "writerchannelIO.h"
 #endif /* COOKFS_USECWRITERCHAN */
 
-#ifdef COOKFS_USEPKGCONFIG
+#ifdef COOKFS_USECPKGCONFIG
 static Tcl_Config const cookfs_pkgconfig[] = {
     {"package-version",  PACKAGE_VERSION},
     {"c-pages",          STRINGIFY(COOKFS_PKGCONFIG_USECPAGES)},
@@ -73,12 +78,13 @@ static Tcl_Config const cookfs_pkgconfig[] = {
     {"c-readerchannel",  STRINGIFY(COOKFS_PKGCONFIG_USECREADERCHAN)},
     {"c-writerchannel",  STRINGIFY(COOKFS_PKGCONFIG_USECWRITERCHAN)},
     {"c-vfs",            STRINGIFY(COOKFS_PKGCONFIG_USECVFS)},
+    {"c-writer",         STRINGIFY(COOKFS_PKGCONFIG_USECWRITER)},
     {"feature-aside",    STRINGIFY(COOKFS_PKGCONFIG_FEATURE_ASIDE)},
     {"feature-bzip2",    STRINGIFY(COOKFS_PKGCONFIG_USEBZ2)},
     {"feature-xz",       STRINGIFY(COOKFS_PKGCONFIG_USEXZ)},
     {"feature-metadata", STRINGIFY(COOKFS_PKGCONFIG_FEATURE_METADATA)},
     {NULL, NULL}
 };
-#endif /* COOKFS_USEPKGCONFIG */
+#endif /* COOKFS_USECPKGCONFIG */
 
 #endif /* COOKFS_H */

@@ -42,10 +42,11 @@ void Cookfs_PagesFiniCompr(Cookfs_Pages *rc);
 int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand, Tcl_Obj *asyncDecompressCommand);
 
 void Cookfs_SeekToPage(Cookfs_Pages *p, int idx);
-int Cookfs_WritePage(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compressedData);
+int Cookfs_WritePage(Cookfs_Pages *p, int idx, unsigned char *bytes, int origSize, Tcl_Obj *compressedData);
+int Cookfs_WritePageObj(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compressedData);
 Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompress, int compressionType);
 Tcl_Obj *Cookfs_AsyncPageGet(Cookfs_Pages *p, int idx);
-int Cookfs_AsyncPageAdd(Cookfs_Pages *p, int idx, Tcl_Obj *data);
+int Cookfs_AsyncPageAdd(Cookfs_Pages *p, int idx, unsigned char *bytes, int dataSize);
 void Cookfs_AsyncDecompressWaitIfLoading(Cookfs_Pages *p, int idx);
 int Cookfs_AsyncCompressWait(Cookfs_Pages *p, int require);
 void Cookfs_AsyncCompressFinalize(Cookfs_Pages *p);

@@ -7,12 +7,12 @@
 
 namespace eval cookfs {}
 namespace eval cookfs::tcl {}
-namespace eval cookfs::tcl::writer {}
-
-set ::cookfs::writerhandleIdx 0
+namespace eval cookfs::tcl::writer {
+    variable writerhandleIdx 0
+}
 
 proc cookfs::tcl::writer {args} {
-    set name ::cookfs::tcl::writer::handle[incr ::cookfs::writerhandleIdx]
+    set name ::cookfs::tcl::writer::handle[incr writer::writerhandleIdx]
     upvar #0 $name c
     array set c {
         pages ""

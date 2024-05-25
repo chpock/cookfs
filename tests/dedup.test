@@ -27,7 +27,7 @@ tcltest::test cookfsDedup-1.2 "Small file deduplication for same resulting pages
         -pagesize 16384 -smallfilesize 16384 -smallfilebuffer 16384]
     set i 0
     foreach d [concat $datas $datas $datas $datas] {
-        set fh [open $file/d[incr i] w]
+        set fh [open $file/d[format "%02i" [incr i]] w]
         fconfigure $fh -translation binary
         puts -nonewline $fh $d
         close $fh

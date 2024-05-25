@@ -657,6 +657,7 @@ MAKE_LIB
 EGREP
 GREP
 COOKFS_PKGCONFIG_USECPKGCONFIG
+COOKFS_PKGCONFIG_USECWRITER
 COOKFS_PKGCONFIG_USECVFS
 COOKFS_PKGCONFIG_FEATURE_METADATA
 COOKFS_PKGCONFIG_USECFSINDEX
@@ -793,6 +794,7 @@ enable_c_readerchannel
 enable_c_writerchannel
 enable_c_pkgconfig
 enable_c_vfs
+enable_c_writer
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1439,6 +1441,7 @@ Optional Features:
   --disable-c-writerchannel Use writer handler written in C. Defaults to true
   --disable-c-pkgconfig     Use pkgconfig written in C. Defaults to true
   --disable-c-vfs           Use VFS support written in C. Defaults to true
+  --disable-c-writer        Use writer handler written in C. Defaults to true
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -8650,6 +8653,14 @@ else $as_nop
   USECVFS=yes
 fi
 
+# Check whether --enable-c-writer was given.
+if test ${enable_c_writer+y}
+then :
+  enableval=$enable_c_writer; USECWRITER=${enableval}
+else $as_nop
+  USECWRITER=yes
+fi
+
 
 if test ${INTERNALDEBUG} = yes; then
     printf "%s\n" "#define COOKFS_INTERNAL_DEBUG 1" >>confdefs.h
@@ -8935,6 +8946,8 @@ else
     USECREADERCHAN="no"
     # c-writerchannel requires c-pages
     USECWRITERCHAN="no"
+    # c-writer requires c-pages
+    USECWRITER="no"
 fi
 
 if test ${USECFSINDEX} = yes; then
@@ -8984,6 +8997,8 @@ else
     USECREADERCHAN="no"
     # c-writerchannel requires c-fsindex
     USECWRITERCHAN="no"
+    # c-writer requires c-pages
+    USECWRITER="no"
 fi
 
 COOKFS_PKGCONFIG_FEATURE_METADATA=1
@@ -9033,7 +9048,51 @@ else
     USECVFS="no"
 fi
 
-if test ${USECWRITERCHAN} = yes; then
+# c-writer / c-writerchan / c-vfs must be enabled together
+if test ${USECWRITER} = yes \
+    && test ${USECWRITERCHAN} = yes \
+    && test ${USECVFS} = yes
+then
+
+    printf "%s\n" "#define COOKFS_USECWRITER 1" >>confdefs.h
+
+    COOKFS_PKGCONFIG_USECWRITER=1
+
+    vars="writer.c writerCmd.c"
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
+		    ; then
+		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+
     printf "%s\n" "#define COOKFS_USECWRITERCHAN 1" >>confdefs.h
 
     COOKFS_PKGCONFIG_USECWRITERCHAN=1
@@ -9072,18 +9131,12 @@ if test ${USECWRITERCHAN} = yes; then
 
 
 
-else
-    COOKFS_PKGCONFIG_USECWRITERCHAN=0
-    # c-vfs requires c-writerchannel
-    USECVFS="no"
-fi
 
-if test ${USECVFS} = yes; then
     printf "%s\n" "#define COOKFS_USECVFS 1" >>confdefs.h
 
     COOKFS_PKGCONFIG_USECVFS=1
 
-    vars="writer.c vfsDriver.c vfsVfs.c vfs.c vfsCmd.c"
+    vars="vfsDriver.c vfsVfs.c vfs.c vfsCmd.c"
     for i in $vars; do
 	case $i in
 	    \$*)
@@ -9117,9 +9170,13 @@ if test ${USECVFS} = yes; then
 
 
 
+
 else
+    COOKFS_PKGCONFIG_USECWRITER=0
+    COOKFS_PKGCONFIG_USECWRITERCHAN=0
     COOKFS_PKGCONFIG_USECVFS=0
 fi
+
 
 
 
@@ -9153,8 +9210,10 @@ if test ${USECPKGCONFIG} = yes; then
 
     printf "%s\n" "#define COOKFS_PKGCONFIG_USECVFS $COOKFS_PKGCONFIG_USECVFS" >>confdefs.h
 
+    printf "%s\n" "#define COOKFS_PKGCONFIG_USECWRITER $COOKFS_PKGCONFIG_USECWRITER" >>confdefs.h
 
-    printf "%s\n" "#define COOKFS_USEPKGCONFIG 1" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_USECPKGCONFIG 1" >>confdefs.h
 
 else
     COOKFS_PKGCONFIG_USECPKGCONFIG=0

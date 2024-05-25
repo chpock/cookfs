@@ -11,11 +11,11 @@
 typedef int (Cookfs_MountHandleCommandProc)(Cookfs_Vfs *vfs,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
-
 // Forward declarations
 static Tcl_ObjCmdProc CookfsMountCmd;
 static Tcl_ObjCmdProc CookfsUnmountCmd;
 static Tcl_ObjCmdProc CookfsMountHandleCmd;
+static Tcl_CmdDeleteProc CookfsMountHandleCmdDeleteProc;
 
 int Cookfs_InitVfsMountCmd(Tcl_Interp *interp) {
 
@@ -228,6 +228,14 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
     if (archive == NULL || local == NULL) {
         Tcl_WrongNumArgs(interp, 1, objv, "?-option value ...? archive"
             " local ?-option value ...?");
+        return TCL_ERROR;
+    }
+
+    if (smallfilesize > pagesize) {
+        CookfsLog(printf("CookfsMountCmd: ERROR: smallfilesize [%ld]"
+            " > pagesize [%ld]", smallfilesize, pagesize));
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("smallfilesize cannot be"
+            " larger than pagesize", -1));
         return TCL_ERROR;
     }
 
@@ -536,7 +544,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
     if (!nocommand) {
         CookfsLog(printf("CookfsMountCmd: creating vfs command handler..."));
         vfs->commandToken = Tcl_CreateObjCommand(interp, cmd,
-            CookfsMountHandleCmd, vfs, NULL);
+            CookfsMountHandleCmd, vfs, CookfsMountHandleCmdDeleteProc);
     } else {
         CookfsLog(printf("CookfsMountCmd: no need to create vfs"
             " command handler"));
@@ -712,8 +720,15 @@ static int CookfsUnmountCmd(ClientData clientData, Tcl_Interp *interp,
     return TCL_OK;
 }
 
+
+static void CookfsMountHandleCmdDeleteProc(ClientData clientData) {
+    Cookfs_Vfs *vfs = (Cookfs_Vfs *)clientData;
+    vfs->commandToken = NULL;
+}
+
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandGetpages;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandGetindex;
+static Cookfs_MountHandleCommandProc CookfsMountHandleCommandGetwriter;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandGetmetadata;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandSetmetadata;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandAside;
@@ -721,6 +736,7 @@ static Cookfs_MountHandleCommandProc CookfsMountHandleCommandWritetomemory;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandFilesize;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandSmallfilebuffersize;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandCompression;
+static Cookfs_MountHandleCommandProc CookfsMountHandleCommandWritefiles;
 
 static int CookfsMountHandleCmd(ClientData clientData, Tcl_Interp *interp,
     int objc, Tcl_Obj *const objv[])
@@ -729,13 +745,15 @@ static int CookfsMountHandleCmd(ClientData clientData, Tcl_Interp *interp,
     Cookfs_Vfs *vfs = (Cookfs_Vfs *)clientData;
 
     static const char *const commands[] = {
-        "getpages", "getindex", "getmetadata", "setmetadata", "aside",
-        "writetomemory", "filesize", "smallfilebuffersize", "compression",
+        "getpages", "getindex", "getwriter", "getmetadata", "setmetadata",
+        "aside", "writetomemory", "filesize", "smallfilebuffersize",
+        "compression", "writeFiles",
         NULL
     };
     enum commands {
-        cmdGetpages, cmdGetindex, cmdGetmetadata, cmdSetmetadata, cmdAside,
-        cmdWritetomemory, cmdFilesize, cmdSmallfilebuffersize, cmdCompression
+        cmdGetpages, cmdGetindex, cmdGetwriter, cmdGetmetadata, cmdSetmetadata,
+        cmdAside, cmdWritetomemory, cmdFilesize, cmdSmallfilebuffersize,
+        cmdCompression, cmdWritefiles
     };
 
     if (objc < 2) {
@@ -755,6 +773,8 @@ static int CookfsMountHandleCmd(ClientData clientData, Tcl_Interp *interp,
         return CookfsMountHandleCommandGetpages(vfs, interp, objc, objv);
     case cmdGetindex:
         return CookfsMountHandleCommandGetindex(vfs, interp, objc, objv);
+    case cmdGetwriter:
+        return CookfsMountHandleCommandGetwriter(vfs, interp, objc, objv);
     case cmdGetmetadata:
         return CookfsMountHandleCommandGetmetadata(vfs, interp, objc, objv);
     case cmdSetmetadata:
@@ -769,6 +789,8 @@ static int CookfsMountHandleCmd(ClientData clientData, Tcl_Interp *interp,
         return CookfsMountHandleCommandSmallfilebuffersize(vfs, interp, objc, objv);
     case cmdCompression:
         return CookfsMountHandleCommandCompression(vfs, interp, objc, objv);
+    case cmdWritefiles:
+        return CookfsMountHandleCommandWritefiles(vfs, interp, objc, objv);
     }
 
     return TCL_OK;
@@ -793,6 +815,17 @@ static int CookfsMountHandleCommandGetindex(Cookfs_Vfs *vfs, Tcl_Interp *interp,
         return TCL_ERROR;
     }
     Tcl_SetObjResult(interp, CookfsGetFsindexObjectCmd(interp, vfs->index));
+    return TCL_OK;
+}
+
+static int CookfsMountHandleCommandGetwriter(Cookfs_Vfs *vfs, Tcl_Interp *interp,
+    int objc, Tcl_Obj *const objv[])
+{
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 2, objv, NULL);
+        return TCL_ERROR;
+    }
+    Tcl_SetObjResult(interp, CookfsGetWriterObjectCmd(interp, vfs->writer));
     return TCL_OK;
 }
 
@@ -824,16 +857,15 @@ static int CookfsMountHandleCommandAside(Cookfs_Vfs *vfs, Tcl_Interp *interp,
         return TCL_ERROR;
     }
 
-    CookfsLog(printf("CookfsMountHandleCommandAside: check writetomemory in"
-        " writer..."));
-    int writetomemory = 0;
-    Cookfs_WriterGetWritetomemory(vfs->writer, &writetomemory);
-    if (writetomemory) {
-        CookfsLog(printf("CookfsMountHandleCommandAside: ERROR: rite to memory"
+    if (Cookfs_WriterGetWritetomemory(vfs->writer)) {
+        CookfsLog(printf("CookfsMountHandleCommandAside: ERROR: write to memory"
             " option enabled"));
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Write to memory option"
             " enabled; not creating add-aside archive", -1));
         return TCL_ERROR;
+    } else {
+        CookfsLog(printf("CookfsMountHandleCommandAside: writer"
+            " writetomemory: false"));
     }
 
     CookfsLog(printf("CookfsMountHandleCommandAside: purge writer..."));
@@ -865,11 +897,9 @@ static int CookfsMountHandleCommandWritetomemory(Cookfs_Vfs *vfs,
         Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
-    int ret = Cookfs_WriterSetWritetomemory(vfs->writer, 1);
-    if (ret == TCL_OK) {
-        Cookfs_VfsSetReadonly(vfs, 0);
-    }
-    return ret;
+    Cookfs_WriterSetWritetomemory(vfs->writer, 1);
+    Cookfs_VfsSetReadonly(vfs, 0);
+    return TCL_OK;
 }
 
 static int CookfsMountHandleCommandFilesize(Cookfs_Vfs *vfs,
@@ -891,12 +921,9 @@ static int CookfsMountHandleCommandSmallfilebuffersize(Cookfs_Vfs *vfs,
         Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
-    Tcl_WideInt size;
-    int ret = Cookfs_WriterGetSmallfilebuffersize(vfs->writer, &size);
-    if (ret == TCL_OK) {
-        Tcl_SetObjResult(interp, Tcl_NewWideIntObj(size));
-    }
-    return ret;
+    Tcl_WideInt size = Cookfs_WriterGetSmallfilebuffersize(vfs->writer);
+    Tcl_SetObjResult(interp, Tcl_NewWideIntObj(size));
+    return TCL_OK;
 }
 
 static int CookfsMountHandleCommandCompression(Cookfs_Vfs *vfs,
@@ -916,4 +943,10 @@ static int CookfsMountHandleCommandCompression(Cookfs_Vfs *vfs,
     }
 
     return CookfsPagesCmdCompression(vfs->pages, interp, objc, objv);
+}
+
+static int CookfsMountHandleCommandWritefiles(Cookfs_Vfs *vfs,
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{
+    return CookfsWriterHandleCommandWrite(vfs->writer, interp, objc, objv);
 }

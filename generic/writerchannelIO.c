@@ -136,24 +136,6 @@ done:
     return 1;
 }
 
-/*
- *
- * Warning from tclvfs:
- *
- * IMPORTANT: This procedure must *not* modify the interpreter's result
- * this leads to the objResultPtr being corrupted (somehow), and curious
- * crashes in the future (which are very hard to debug ;-).
- *
- * This is particularly important since we are evaluating arbitrary
- * Tcl code in the callback.
- *
- * Also note we are relying on the close-callback to occur just before
- * the channel is about to be properly closed, but after all output
- * has been flushed.  That way we can, in the callback, read in the
- * entire contents of the channel and, say, compress it for storage
- * into a tclkit or zip archive.
- */
-
 void Cookfs_Writerchannel_CloseHandler(ClientData clientData) {
     Cookfs_WriterChannelInstData *instData =
         (Cookfs_WriterChannelInstData *)clientData;
@@ -170,83 +152,30 @@ void Cookfs_Writerchannel_CloseHandler(ClientData clientData) {
     CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: channel [%s] at [%p]",
         Tcl_GetChannelName(instData->channel), (void *)instData));
 
-    // Move current offset to the start of channel. instData->currentOffset
-    // should not be used here. The channel can be buffered, and the Tcl core
-    // must reset the internal buffer before we change the current position.
-    // If we do it hacky way by directly changing the position, the Tcl core
-    // will push data from the buffer into the channel via Output(), and this
-    // will break the current position.
-    CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: move current offset"
-        " to the start"));
-    Tcl_Seek(instData->channel, 0, SEEK_SET);
+    CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: flush channel"));
+    Tcl_Flush(instData->channel);
 
-    // Save interp result, see the notice before this function
-    Tcl_SavedResult savedResult;
-    Tcl_SaveResult(instData->interp, &savedResult);
-
-    // Construct the writer command
-    Tcl_Obj *writerCmd = Tcl_NewListObj(0, NULL);
-    Tcl_IncrRefCount(writerCmd);
-
-    Tcl_ListObjAppendElement(instData->interp, writerCmd,
-        instData->writerObjCmd);
-    Tcl_ListObjAppendElement(instData->interp, writerCmd,
-        Tcl_NewStringObj("write", -1));
-    Tcl_ListObjAppendElement(instData->interp, writerCmd,
-        Tcl_FSJoinPath(instData->pathObj, instData->pathObjLen));
-    Tcl_ListObjAppendElement(instData->interp, writerCmd,
-        Tcl_NewStringObj("channel", -1));
-    Tcl_ListObjAppendElement(instData->interp, writerCmd,
-        Tcl_NewStringObj(Tcl_GetChannelName(instData->channel), -1));
-    Tcl_ListObjAppendElement(instData->interp, writerCmd, Tcl_NewObj());
-
-    /*
-     * Another magic from tclvfs:
-     *
-     * The interpreter needs to know about the channel, else the Tcl
-     * callback will fail, so we register the channel (this allows
-     * the Tcl code to use the channel's string-name).
-     */
-    Tcl_RegisterChannel(instData->interp, instData->channel);
-
-    // The channel must be in raw mode before saving
-    Tcl_SetChannelOption(instData->interp, instData->channel,
-        "-translation", "binary");
-
-    // Exec the writer command
-    CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: exec writer..."));
-    int ret = Tcl_EvalObjEx(instData->interp, writerCmd,
-        TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
-    CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: writer"
-        " returned: %d", ret));
-
-    /*
-     * One more magic from tclvfs:
-     *
-     * More complications; we can't just unregister the channel,
-     * because it is in the middle of being cleaned up, and the cleanup
-     * code doesn't like a channel to be closed again while it is
-     * already being closed.  So, we do the same trick as above to
-     * unregister it without cleanup.
-     */
-    Tcl_DetachChannel(instData->interp, instData->channel);
-
+    // Release the closeResult if it exists
     if (instData->closeResult != NULL) {
         Tcl_DecrRefCount(instData->closeResult);
-    }
-
-    if (ret != TCL_OK) {
-        instData->closeResult = Tcl_GetObjResult(instData->interp);
-        Tcl_IncrRefCount(instData->closeResult);
-    } else {
         instData->closeResult = NULL;
     }
 
-    // Restore interp result
-    Tcl_RestoreResult(instData->interp, &savedResult);
+    CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: write file..."));
+    if (Cookfs_WriterAddFile(instData->writer, instData->pathObj,
+        COOKFS_WRITER_SOURCE_BUFFER, instData->buffer, instData->currentSize)
+        == TCL_OK)
+    {
+        // buffer is owned by writer now. Set to null to avoid releasing it.
+        instData->buffer = NULL;
+        instData->bufferSize = 0;
+    } else {
+        instData->closeResult = Cookfs_WriterGetLastError(instData->writer);
+        if (instData->closeResult != NULL) {
+            Tcl_IncrRefCount(instData->closeResult);
+        }
+    }
 
-    // We don't need the writer command anymore
-    Tcl_DecrRefCount(writerCmd);
 }
 
 static int Cookfs_Writerchannel_Close(ClientData instanceData,

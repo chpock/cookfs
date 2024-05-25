@@ -123,6 +123,7 @@ AC_ARG_ENABLE(c-readerchannel, [  --disable-c-readerchannel Use reader handler w
 AC_ARG_ENABLE(c-writerchannel, [  --disable-c-writerchannel Use writer handler written in C. Defaults to true],     USECWRITERCHAN=${enableval},   USECWRITERCHAN=yes)
 AC_ARG_ENABLE(c-pkgconfig,     [  --disable-c-pkgconfig     Use pkgconfig written in C. Defaults to true],          USECPKGCONFIG=${enableval},    USECPKGCONFIG=yes)
 AC_ARG_ENABLE(c-vfs,           [  --disable-c-vfs           Use VFS support written in C. Defaults to true],        USECVFS=${enableval},          USECVFS=yes)
+AC_ARG_ENABLE(c-writer,        [  --disable-c-writer        Use writer handler written in C. Defaults to true],     USECWRITER=${enableval},       USECWRITER=yes)
 
 if test ${INTERNALDEBUG} = yes; then
     AC_DEFINE(COOKFS_INTERNAL_DEBUG)
@@ -190,6 +191,8 @@ else
     USECREADERCHAN="no"
     # c-writerchannel requires c-pages
     USECWRITERCHAN="no"
+    # c-writer requires c-pages
+    USECWRITER="no"
 fi
 
 if test ${USECFSINDEX} = yes; then
@@ -204,6 +207,8 @@ else
     USECREADERCHAN="no"
     # c-writerchannel requires c-fsindex
     USECWRITERCHAN="no"
+    # c-writer requires c-pages
+    USECWRITER="no"
 fi
 
 COOKFS_PKGCONFIG_FEATURE_METADATA=1
@@ -218,21 +223,27 @@ else
     USECVFS="no"
 fi
 
-if test ${USECWRITERCHAN} = yes; then
+# c-writer / c-writerchan / c-vfs must be enabled together
+if test ${USECWRITER} = yes \
+    && test ${USECWRITERCHAN} = yes \
+    && test ${USECVFS} = yes
+then
+
+    AC_DEFINE(COOKFS_USECWRITER)
+    COOKFS_PKGCONFIG_USECWRITER=1
+    TEA_ADD_SOURCES([writer.c writerCmd.c])
+
     AC_DEFINE(COOKFS_USECWRITERCHAN)
     COOKFS_PKGCONFIG_USECWRITERCHAN=1
     TEA_ADD_SOURCES([writerchannel.c writerchannelIO.c])
-else
-    COOKFS_PKGCONFIG_USECWRITERCHAN=0
-    # c-vfs requires c-writerchannel
-    USECVFS="no"
-fi
 
-if test ${USECVFS} = yes; then
     AC_DEFINE(COOKFS_USECVFS)
     COOKFS_PKGCONFIG_USECVFS=1
-    TEA_ADD_SOURCES([writer.c vfsDriver.c vfsVfs.c vfs.c vfsCmd.c])
+    TEA_ADD_SOURCES([vfsDriver.c vfsVfs.c vfs.c vfsCmd.c])
+
 else
+    COOKFS_PKGCONFIG_USECWRITER=0
+    COOKFS_PKGCONFIG_USECWRITERCHAN=0
     COOKFS_PKGCONFIG_USECVFS=0
 fi
 
@@ -245,6 +256,7 @@ AC_SUBST(COOKFS_PKGCONFIG_USEXZ)
 AC_SUBST(COOKFS_PKGCONFIG_USECFSINDEX)
 AC_SUBST(COOKFS_PKGCONFIG_FEATURE_METADATA)
 AC_SUBST(COOKFS_PKGCONFIG_USECVFS)
+AC_SUBST(COOKFS_PKGCONFIG_USECWRITER)
 
 if test ${USECPKGCONFIG} = yes; then
     COOKFS_PKGCONFIG_USECPKGCONFIG=1
@@ -258,8 +270,9 @@ if test ${USECPKGCONFIG} = yes; then
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECFSINDEX, $COOKFS_PKGCONFIG_USECFSINDEX)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_FEATURE_METADATA, $COOKFS_PKGCONFIG_FEATURE_METADATA)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECVFS, $COOKFS_PKGCONFIG_USECVFS)
+    AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECWRITER, $COOKFS_PKGCONFIG_USECWRITER)
 
-    AC_DEFINE(COOKFS_USEPKGCONFIG)
+    AC_DEFINE(COOKFS_USECPKGCONFIG)
 else
     COOKFS_PKGCONFIG_USECPKGCONFIG=0
 fi

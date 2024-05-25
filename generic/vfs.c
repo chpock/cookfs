@@ -90,8 +90,6 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
         return TCL_OK;
     }
 
-    int ret;
-
     // Let's purge writer first
     CookfsLog(printf("Cookfs_VfsFini: purge writer..."));
     if (Cookfs_WriterPurge(vfs->writer) != TCL_OK) {
@@ -113,21 +111,11 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
         CookfsLog(printf("Cookfs_VfsFini: pages readonly: false"));
     }
 
-    int writetomemory;
-    CookfsLog(printf("Cookfs_VfsFini: check writetomemory"
-        " in writer..."));
-    ret = Cookfs_WriterGetWritetomemory(vfs->writer, &writetomemory);
-    if (ret != TCL_OK) {
-        CookfsLog(printf("Cookfs_VfsFini: failed to get integer result"
-            " from writer"));
-        Tcl_SetObjResult(interp, Tcl_NewStringObj("unable to get writetomemory"
-            " status from writer", -1));
-        return TCL_ERROR;
-    }
-    CookfsLog(printf("Cookfs_VfsFini: writer writetomemory: %d",
-        writetomemory));
-    if (writetomemory) {
+    if (Cookfs_WriterGetWritetomemory(vfs->writer)) {
+        CookfsLog(printf("Cookfs_VfsFini: writer writetomemory: true"));
         goto skipSavingIndex;
+    } else {
+        CookfsLog(printf("Cookfs_VfsFini: writer writetomemory: false"));
     }
 
     // If we are here, then we need to store index

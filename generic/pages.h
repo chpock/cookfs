@@ -141,6 +141,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
 Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p);
 Tcl_WideInt Cookfs_GetFilesize(Cookfs_Pages *p);
 void Cookfs_PagesFini(Cookfs_Pages *p);
+int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength);
 int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj);
 Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index, int weight);
 Tcl_Obj *Cookfs_PageCacheGet(Cookfs_Pages *p, int index, int update, int weight);

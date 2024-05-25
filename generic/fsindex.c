@@ -23,6 +23,87 @@ static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e);
 /*
  *----------------------------------------------------------------------
  *
+ * Cookfs_FsindexUpdateEntryFileSize --
+ *
+ *      Updates the filesize field for specified entry
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_FsindexUpdateEntryFileSize(Cookfs_FsindexEntry *e,
+    Tcl_WideInt fileSize)
+{
+    e->data.fileInfo.fileSize = fileSize;
+    return ;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexUpdateEntryBlock --
+ *
+ *      Updates the block data for specified entry
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_FsindexUpdateEntryBlock(Cookfs_Fsindex *i, Cookfs_FsindexEntry *e,
+    int blockNumber, int blockIndex, int blockOffset, int blockSize)
+{
+    int blockIndexOffset = blockNumber * 3 + 0;
+    // Reducing block utilization for an already set block index
+    Cookfs_FsindexModifyBlockUsage(i, e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 0], -1);
+    e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 0] = blockIndex;
+    e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 1] = blockOffset;
+    if (blockSize >= 0) {
+        e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 2] = blockSize;
+    }
+    // Increase block utilization for the new block index
+    Cookfs_FsindexModifyBlockUsage(i, blockIndex, 1);
+    // Register new change in the change counter
+    Cookfs_FsindexIncrChangeCount(i, 1);
+    return ;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_FsindexUpdatePendingEntry --
+ *
+ *      Updates the block index on an entry that was previously registered
+ *      as being in the small file buffer
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_FsindexUpdatePendingEntry(Cookfs_Fsindex *i, Cookfs_FsindexEntry *e,
+    int blockIndex, int blockOffset)
+{
+    Cookfs_FsindexUpdateEntryBlock(i, e, 0, blockIndex, blockOffset, -1);
+    return ;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Cookfs_FsindexEntryIsPending --
  *
  *      Checks if the specified entry contains data that is not yet in
@@ -729,6 +810,12 @@ Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks,
         e->data.dirInfo.childCount = 0;
     }  else  {
 	/* for files, block information is filled by caller */
+
+	// Set block index to dummy value -1 so that its block usage counter is
+	// not touched when the entry is updated.
+	for (int i = 0; i < numBlocks; i++) {
+	    e->data.fileInfo.fileBlockOffsetSize[i*3 + 0] = -1;
+	}
     }
 
     //CookfsLog(printf("Cookfs_FsindexEntryAlloc: allocated entry %p", e));
