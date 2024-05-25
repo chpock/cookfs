@@ -1,3 +1,6 @@
+2024-05-25 Konstantin Kushnir <chpock@gmail.com>
+	* Add support for writer in C
+
 2024-05-21 Konstantin Kushnir <chpock@gmail.com>
 	* Add support for vfs in C
 	* Make the writer object available for C functions

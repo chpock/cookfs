@@ -15,17 +15,20 @@ jobs:
         include:
           - description: "default"
           - compiler: gcc
-            configure: "--disable-c-pkgconfig --disable-c-pages --disable-c-fsindex --disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
-            description: "no pkgcfg, pages, fsindex, readedchannel, writerchannel, vfs"
+            configure: "--disable-c-pkgconfig --disable-c-pages --disable-c-fsindex --disable-c-readerchannel --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
+            description: "no pkgcfg, pages, fsindex, readedchannel, writer, writerchannel, vfs"
           - compiler: gcc
-            configure: "--disable-c-pages --disable-c-fsindex --disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
-            description: "no pages, fsindex, readedchannel, writerchannel, vfs"
+            configure: "--disable-c-pages --disable-c-fsindex --disable-c-readerchannel  --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
+            description: "no pages, fsindex, readedchannel, writer, writerchannel, vfs"
           - compiler: gcc
-            configure: "--disable-c-fsindex --disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
-            description: "no fsindex, readedchannel, writerchannel, vfs"
+            configure: "--disable-c-fsindex --disable-c-readerchannel  --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
+            description: "no fsindex, readedchannel, writer, writerchannel, vfs"
           - compiler: gcc
-            configure: "--disable-c-readerchannel --disable-c-writerchannel --disable-c-vfs"
-            description: "no readedchannel, writerchannel, vfs"
+            configure: "--disable-c-readerchannel  --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
+            description: "no readedchannel, writer, writerchannel, vfs"
+          - compiler: gcc
+            configure: " --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
+            description: "no writer, writerchannel, vfs"
           - compiler: gcc
             configure: "--disable-c-writerchannel --disable-c-vfs"
             description: "no writerchannel, vfs"

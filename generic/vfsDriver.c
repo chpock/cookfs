@@ -348,7 +348,7 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
                 CookfsLog(printf("CookfsOpenFileChannel: the file is in"
                     " a pending state, open it using writerchannel"));
                 channel = Cookfs_CreateWriterchannel(pages, index,
-                    vfs->writer->commandObj, NULL, 0, entry, interp);
+                    vfs->writer, NULL, 0, entry, interp);
             } else {
                 CookfsLog(printf("CookfsOpenFileChannel: the file is NOT in"
                     " a pending state, open it using readerchannel"));
@@ -412,9 +412,9 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
         entry = NULL;
     }
 
-    channel = Cookfs_CreateWriterchannel(pages, index,
-        vfs->writer->commandObj, internalRep->relativePathObj,
-        internalRep->relativePathObjLen, entry, interp);
+    channel = Cookfs_CreateWriterchannel(pages, index, vfs->writer,
+        internalRep->relativePathObj, internalRep->relativePathObjLen, entry,
+        interp);
 
     if (channel == NULL) {
         CookfsLog(printf("CookfsOpenFileChannel: got NULL from"

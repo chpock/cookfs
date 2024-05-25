@@ -56,6 +56,12 @@ Cookfs_Init(Tcl_Interp *interp)
     }
 #endif
 
+#ifdef COOKFS_USECWRITER
+    if (Cookfs_InitWriterCmd(interp) != TCL_OK) {
+        return TCL_ERROR;
+    }
+#endif
+
 #ifdef COOKFS_USECWRITERCHAN
     if (Cookfs_InitWriterchannelCmd(interp) != TCL_OK) {
         return TCL_ERROR;
@@ -76,7 +82,7 @@ Cookfs_Init(Tcl_Interp *interp)
     }
 #endif
 
-#ifdef COOKFS_USEPKGCONFIG
+#ifdef COOKFS_USECPKGCONFIG
     Tcl_RegisterConfig(interp, PACKAGE_NAME, cookfs_pkgconfig, "iso8859-1");
 
     if (Tcl_PkgProvide(interp, PACKAGE_NAME "::pkgconfig", PACKAGE_VERSION) != TCL_OK) {

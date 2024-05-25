@@ -85,6 +85,14 @@ void Cookfs_FsindexResetChangeCount(Cookfs_Fsindex *i);
 int Cookfs_FsindexEntryIsPending(Cookfs_FsindexEntry *e);
 int Cookfs_FsindexEntryIsDirectory(Cookfs_FsindexEntry *e);
 
+void Cookfs_FsindexUpdateEntryBlock(Cookfs_Fsindex *i, Cookfs_FsindexEntry *e,
+    int blockNumber, int blockIndex, int blockOffset, int blockSize);
+void Cookfs_FsindexUpdateEntryFileSize(Cookfs_FsindexEntry *e,
+    Tcl_WideInt fileSize);
+
+void Cookfs_FsindexUpdatePendingEntry(Cookfs_Fsindex *i, Cookfs_FsindexEntry *e,
+    int blockIndex, int blockOffset);
+
 #endif /* COOKFS_USECFSINDEX */
 
 #endif /* COOKFS_FSINDEX_H */

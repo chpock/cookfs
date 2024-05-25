@@ -28,7 +28,6 @@ proc cookfs::tcl::Mount {args} {
 	{noregister				     {Do not register this filesystem (for temporary writes)}}
 	{nocommand				      {Do not create command for managing cookfs archive}}
 	{bootstrap.arg		  ""	      {Bootstrap code to add in the beginning}}
-	{compression.arg		"zlib"	  {Compression type to use}}
 	{alwayscompress				 {Always compress}}
 	{compresscommand.arg	    ""	      {Command to use for custom compression}}
 	{asynccompresscommand.arg       ""	      {Command to use for custom, async compression}}
@@ -51,6 +50,12 @@ proc cookfs::tcl::Mount {args} {
 	{smallfilesize.arg	      32768	   {Maximum size of small files}}
 	{smallfilebuffer.arg	    4194304	 {Maximum buffer for optimizing small files}}
 	{nodirectorymtime				{Do not initialize mtime for new directories to current date and time}}
+    }
+
+    if { [::cookfs::pkgconfig get feature-xz] } {
+        lappend options {compression.arg "xz" {Compression type to use}}
+    } else {
+        lappend options {compression.arg "zlib" {Compression type to use}}
     }
 
     if { [::cookfs::pkgconfig get c-pages] || ![catch { package require md5 2 }] } {
@@ -438,6 +443,13 @@ proc cookfs::tcl::vfs::mountHandler {fsid args} {
 		error $ei $ei
 	    }
 	    return $fs(index)
+	}
+	getwriter {
+	    if {[llength $args] != 1} {
+		set ei "wrong # args: should be \"$fsid getwriter\""
+		error $ei $ei
+	    }
+	    return $fs(writer)
 	}
 	default {
 	    set ei "unknown subcommand \"[lindex $args 0]\": must be one of aside, compression, filesize, flush, getmetadata, optimizelist, setmetadata, smallfilebuffersize, writeFiles or writetomemory."

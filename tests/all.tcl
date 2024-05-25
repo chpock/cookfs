@@ -17,6 +17,10 @@ if {[info tclversion] == "8.5"} {
 
 source [file join [tcltest::testsDirectory] common.tcl]
 
+if {[info exists ::env(MEMDEBUG)]} {
+    source [file join [tcltest::testsDirectory] memdebug.tcl]
+}
+
 set constraints [tcltest::configure -constraints]
 
 if {[file exists [file join [tcltest::testsDirectory] .. cookfswriter cookfswriter.tcl]]} {

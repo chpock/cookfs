@@ -437,7 +437,7 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
         }
 
         /* write index */
-        indexSize = Cookfs_WritePage(p, -1, p->dataIndex, NULL);
+        indexSize = Cookfs_WritePageObj(p, -1, p->dataIndex, NULL);
         if (indexSize < 0) {
             /* TODO: handle index writing issues better */
             Tcl_Panic("Unable to compress index");
@@ -561,11 +561,33 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     Tcl_Free((void *) p);
 }
 
-
 /*
  *----------------------------------------------------------------------
  *
  * Cookfs_PageAdd --
+ *
+ *      Same as Cookfs_PageAddRaw, but uses Tcl_Obj as the page data source.
+ *
+ * Results:
+ *      Index that can be used in subsequent calls to Cookfs_PageGet()
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
+    int objLength;
+    unsigned char *bytes = Tcl_GetByteArrayFromObj(dataObj, &objLength);
+    return Cookfs_PageAddRaw(p, bytes, objLength);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PageAddRaw --
  *
  *	Add new page or return index of existing page, if page with
  *	same content already exists
@@ -579,15 +601,11 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
  *----------------------------------------------------------------------
  */
 
-int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
+int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength) {
     int idx;
     int dataSize;
     unsigned char md5sum[16];
-    unsigned char *bytes;
-    int objLength;
     unsigned char *pageMD5 = p->dataPagesMD5;
-
-    bytes = Tcl_GetByteArrayFromObj(dataObj, &objLength);
 
     CookfsLog(printf("Cookfs_PageAdd: new page with [%d] bytes", objLength))
 
@@ -597,6 +615,7 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
 	Tcl_Obj *data;
 	Tcl_Obj *prevResult;
 
+	Tcl_Obj *dataObj = Tcl_NewByteArrayObj(bytes, objLength);
 	Tcl_IncrRefCount(dataObj);
 	p->zipCmdCrc[1] = dataObj;
 
@@ -672,7 +691,7 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
     /* if this page has an aside page set up, ask it to add new page */
     if (p->dataAsidePages != NULL) {
 	CookfsLog(printf("Cookfs_PageAdd: Sending add command to asidePages"))
-	return Cookfs_PageAdd(p->dataAsidePages, dataObj);
+	return Cookfs_PageAddRaw(p->dataAsidePages, bytes, objLength);
     }
 
     /* if file is read only, return page can't be added */
@@ -691,11 +710,11 @@ int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
 
     CookfsLog(printf("MD5sum is %08x%08x%08x%08x\n", ((int *) md5sum)[0], ((int *) md5sum)[1], ((int *) md5sum)[2], ((int *) md5sum)[3]))
 
-    if (Cookfs_AsyncPageAdd(p, idx, dataObj)) {
+    if (Cookfs_AsyncPageAdd(p, idx, bytes, objLength)) {
 	p->pagesUptodate = 0;
 	p->dataPagesSize[idx] = -1;
     }  else  {
-	dataSize = Cookfs_WritePage(p, idx, dataObj, NULL);
+	dataSize = Cookfs_WritePage(p, idx, bytes, objLength, NULL);
 	if (dataSize < 0) {
 	    /* TODO: if writing failed, we can't be certain of archive state - need to handle this at vfs layer somehow */
 	    CookfsLog(printf("Unable to compress page"))
