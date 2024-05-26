@@ -1,4 +1,4 @@
-package require tcltest
+source [file join [file dirname [info script]] tcltestex.tcl]
 
 #lappend auto_path [pwd]
 

@@ -92,6 +92,9 @@ proc cookfs::tcl::writer::handle { name cmd args } {
         write {
             tailcall write $name {*}$args
         }
+        deleteFile {
+            tailcall deleteFile $name {*}$args
+        }
         writetomemory {
             if { [llength $args] > 1 } {
                 error "wrong # args: should be \"$name\
@@ -210,12 +213,46 @@ proc cookfs::tcl::writer::purge {wrid} {
     }
 }
 
+proc cookfs::tcl::writer::deleteFile {wrid args} {
+    upvar #0 $wrid c
+    # args - path type data size
+    foreach path_to_delete $args {
+        set idx 0
+        set deleted 0
+        set newsmallfilepaths [list]
+        foreach { path size clk } $c(smallfilepaths) {
+            if { !$deleted } {
+                if { $path eq $path_to_delete } {
+                    set c(smallfilebuf) [lreplace $c(smallfilebuf) $idx $idx]
+                    set c(smallfilebufsize) [expr { $c(smallfilebufsize) - $size }]
+                    set deleted 1
+                } else {
+                    lappend newsmallfilepaths $path $size $clk
+                    incr idx
+                }
+            } else {
+                # shift buffer number for other files
+                set entry [$c(index) get $path]
+                set chunklist [lindex $entry 2]
+                set chunklist [lreplace $chunklist 0 0 [expr { [lindex $chunklist 0] + 1 }]]
+                $c(index) set $path [lindex $entry 0] $chunklist
+                set entry [$c(index) get $path]
+                lappend newsmallfilepaths $path $size $clk
+            }
+        }
+        if { $deleted } {
+            set c(smallfilepaths) $newsmallfilepaths
+        }
+    }
+}
+
 proc cookfs::tcl::writer::write {wrid args} {
     upvar #0 $wrid c
     # args - path type data size
 
     # iterate over arguments
     foreach {path datatype data size} $args {
+        deleteFile $wrid $path
         if {$size == ""} {
             # read actual size, from file or channel
             switch -- $datatype {
@@ -249,6 +286,8 @@ proc cookfs::tcl::writer::write {wrid args} {
             channel {
                 set clk [clock seconds]
                 set chan $data
+                set translation [fconfigure $chan -translation]
+                set encoding [fconfigure $chan -encoding]
                 fconfigure $chan -translation binary
                 set doclose 0
                 set rawdata 0
@@ -274,11 +313,21 @@ proc cookfs::tcl::writer::write {wrid args} {
             }
 
             set sfidx [llength $c(smallfilebuf)]
+
+            if { [catch {
+                $c(index) set $path $clk [list [expr {-$sfidx - 1}] 0 $size]
+            } res opts] } {
+                if { $doclose } {
+                    close $chan
+                } elseif { $datatype eq "channel" } {
+                    fconfigure $chan -translation $translation -encoding $encoding
+                }
+                return -options $opts "unable to add \"$path\": $res"
+            }
+
             lappend c(smallfilebuf) $fc
             lappend c(smallfilepaths) $path $size $clk
             incr c(smallfilebufsize) [string length $fc]
-
-            $c(index) set $path $clk [list [expr {-$sfidx - 1}] 0 $size]
 
             # if current buffer exceeds maximum, write small files to clean it
             # but only if not writing to memory
@@ -316,7 +365,11 @@ proc cookfs::tcl::writer::write {wrid args} {
 
             $c(index) set $path $clk $chunklist
         }
-        if {$doclose} {close $chan}
+        if { $doclose } {
+            close $chan
+        } elseif { $datatype eq "channel" } {
+            fconfigure $chan -translation $translation -encoding $encoding
+        }
     }
 }
 
