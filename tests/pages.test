@@ -67,7 +67,7 @@ tcltest::test cookfsPages-1.5 "Check dataoffset command reporting properly for e
 } -cleanup {
     $pg delete
     file delete -force $file
-} -returnCodes {ok} -result 0,0,5
+} -returnCodes {ok} -result 15,15,20
 
 tcltest::test cookfsPages-1.6 "Check dataoffset command reporting properly for files with prefix" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -86,7 +86,7 @@ tcltest::test cookfsPages-1.6 "Check dataoffset command reporting properly for f
 } -cleanup {
     $pg delete
     file delete -force $file
-} -returnCodes {ok} -result 4096,4096,4101
+} -returnCodes {ok} -result 4111,4111,4116
 
 tcltest::test cookfsPages-1.7 "Check filesize command reporting properly for empty archives" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -100,8 +100,8 @@ tcltest::test cookfsPages-1.7 "Check filesize command reporting properly for emp
 } -cleanup {
     $pg delete
     file delete -force $file
-    # -result is 4097 - 4096+1 byte for page prefix
-} -returnCodes {ok} -result 4097
+    # -result is 4108 - 4096+1 byte for page prefix+15 bytes for stamp
+} -returnCodes {ok} -result 4112
 
 tcltest::test cookfsPages-1.8 "Check filesize command reporting properly for files with prefix" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -117,8 +117,8 @@ tcltest::test cookfsPages-1.8 "Check filesize command reporting properly for fil
 } -cleanup {
     $pg delete
     file delete -force $file
-    # -result is 8193 - 4096+4096+1 byte for page prefix
-} -returnCodes {ok} -result 8193
+    # -result is 8208 - 4096+4096+1 byte for page prefix+15 bytes for stamp
+} -returnCodes {ok} -result 8208
 
 tcltest::test cookfsPages-2.1 "Test that different pages get different indexes" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -416,7 +416,7 @@ tcltest::test cookfsPages-5.2.1 "Check searching for end of archive if endoffset
 } -cleanup {
     $pg delete
     file delete -force $file
-} -returnCodes {ok} -result 0
+} -returnCodes {ok} -result 15; # 15 is the size of stamp
 
 tcltest::test cookfsPages-5.2.2 "Check searching for end of archive if endoffset not specified for small file, 65500 bytes of garbage at the end of the file" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -438,7 +438,7 @@ tcltest::test cookfsPages-5.2.2 "Check searching for end of archive if endoffset
 } -cleanup {
     $pg delete
     file delete -force $file
-} -returnCodes {ok} -result 0
+} -returnCodes {ok} -result 15; # 15 is the size of stamp
 
 tcltest::test cookfsPages-5.3.1 "Check searching for end of archive if endoffset not specified for large file, 256 bytes of garbage at the end of the file" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -460,7 +460,7 @@ tcltest::test cookfsPages-5.3.1 "Check searching for end of archive if endoffset
 } -cleanup {
     $pg delete
     file delete -force $file
-} -returnCodes {ok} -result 0
+} -returnCodes {ok} -result 15; # 15 is the size of stamp
 
 tcltest::test cookfsPages-5.3.2 "Check searching for end of archive if endoffset not specified for large file, 65500 bytes of garbage at the end of the file" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -482,7 +482,7 @@ tcltest::test cookfsPages-5.3.2 "Check searching for end of archive if endoffset
 } -cleanup {
     $pg delete
     file delete -force $file
-} -returnCodes {ok} -result 0
+} -returnCodes {ok} -result 15; # 15 is the size of stamp
 
 tcltest::test cookfsPages-6.1 "Test multiple compression algorithms" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -705,7 +705,7 @@ tcltest::test cookfsPages-8.4 "Test returning offset when overwriting appended d
     file delete -force $file
 } -returnCodes {ok} -result 1025
 
-tcltest::test cookfsPages-9.1 "Test only changing index information" -setup {
+tcltest::test cookfsPages-9.1.1 "Test only changing index information" -setup {
     set file [tcltest::makeFile {TESTTEST} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -724,6 +724,28 @@ tcltest::test cookfsPages-9.1 "Test only changing index information" -setup {
     catch {$pg delete}
     file delete -force $file
 } -returnCodes {ok} -result IDX1
+
+tcltest::test cookfsPages-9.1.2 "Test only changing index information without pages" -setup {
+    set file [tcltest::makeFile {TESTTEST} pages.cfs]
+} -body {
+    set result [list]
+
+    set pg [cookfs::pages $file]
+    $pg index IDX0
+    set offset [$pg close]
+    $pg delete
+
+    set pg [cookfs::pages $file]
+    lappend result [$pg index]
+    $pg index IDX1
+    $pg delete
+
+    set pg [cookfs::pages $file]
+    lappend result [$pg index]
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -returnCodes {ok} -result {IDX0 IDX1}
 
 tcltest::test cookfsPages-10.1 "Test crc32 checksum algorithm" -setup {
     set file [tcltest::makeFile {TESTTEST} pages.cfs]
@@ -906,8 +928,8 @@ tcltest::test cookfsPages-13.1 "Error message when index not found" -setup {
     file delete -force $file
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object: index not found}
 
-tcltest::test cookfsPages-13.2 "Error message when invalid signature found" -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+tcltest::test cookfsPages-13.2.1 "Error message when invalid signature found" -setup {
+    set file [tcltest::makeBinFile {} pages.cfs]
     set pg [cookfs::pages -compression none $file]
     $pg add [string repeat TEST 32]
     $pg delete
@@ -926,7 +948,89 @@ tcltest::test cookfsPages-13.2 "Error message when invalid signature found" -set
 } -cleanup {
     catch {$pg delete}
     file delete -force $file
+} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 180 bytes or larger.}
+
+tcltest::test cookfsPages-13.2.2 "Error message for truncated file with 100 bytes before archive" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set fp [open $file wb]
+    seek $fp 99 start
+    puts -nonewline $fp x
+    close $fp
+    set pg [cookfs::pages -compression none $file]
+    $pg add [string repeat x 1024]
+    $pg delete
+
+    set fh [open $file rb+]
+    chan truncate $fh 128
+    close $fh
+} -body {
+    set pg [cookfs::pages -readonly $file]
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 1176 bytes or larger.}
+
+tcltest::test cookfsPages-13.2.3 "Error message for truncated file with 9MB bytes before archive" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set fp [open $file wb]
+    seek $fp [expr { 1024 * 1024 * 9  - 1}] start
+    puts -nonewline $fp x
+    close $fp
+    set pg [cookfs::pages -compression none $file]
+    $pg add [string repeat x 1024]
+    $pg delete
+
+    set fh [open $file rb+]
+    chan truncate $fh [expr { 1024 * 1024 * 9 + 128 }]
+    close $fh
+} -body {
+    set pg [cookfs::pages -readonly $file]
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 9438260 bytes or larger.}
+
+# We are looking for no more than 10 mb, so this test should not find the stamp
+# and give a generic "invalid file signature" error message.
+tcltest::test cookfsPages-13.2.4 "Error message for truncated file with 10MB bytes before archive" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set fp [open $file wb]
+    seek $fp [expr { 1024 * 1024 * 10  - 1}] start
+    puts -nonewline $fp x
+    close $fp
+    set pg [cookfs::pages -compression none $file]
+    $pg add [string repeat x 1024]
+    $pg delete
+
+    set fh [open $file rb+]
+    chan truncate $fh [expr { 1024 * 1024 * 10 + 128 }]
+    close $fh
+} -body {
+    set pg [cookfs::pages -readonly $file]
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object: invalid file signature}
+
+tcltest::test cookfsPages-13.2.5 "Error message for truncated file with 1024 bytes before archive, without pages and updated fsindex" -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set fp [open $file wb]
+    seek $fp 1023 start
+    puts -nonewline $fp x
+    close $fp
+    set pg [cookfs::pages -compression none $file]
+    $pg index [string repeat x 1024]
+    $pg delete
+
+    set fh [open $file rb+]
+    chan truncate $fh [expr { 1024 + 128 }]
+    close $fh
+} -body {
+    set pg [cookfs::pages -readonly $file]
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 2080 bytes or larger.}
 
 tcltest::test cookfsPages-13.3 "Error message when unable to seek to pages" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -934,7 +1038,9 @@ tcltest::test cookfsPages-13.3 "Error message when unable to seek to pages" -set
     $pg add 1
     $pg add 2
     $pg add 3
-    set size [file size $file]
+    # [file size $file] should not be used here because the page channel
+    # may be buffered, and the above pages are not yet written to disk
+    set size [$pg filesize]
     $pg delete
 
     set fh [open $file r]

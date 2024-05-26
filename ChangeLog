@@ -1,6 +1,7 @@
 2024-05-26 Konstantin Kushnir <chpock@gmail.com>
 	* Add tests for writer
 	* Fix build without c-pages, but with c-fsindex
+	* Add the ability to detect truncated archives
 
 2024-05-25 Konstantin Kushnir <chpock@gmail.com>
 	* Add support for writer in C

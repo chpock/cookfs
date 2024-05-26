@@ -84,6 +84,8 @@ typedef struct Cookfs_Pages {
     int fileCompression;
     int fileCompressionLevel;
     char fileSignature[COOKFS_SIGNATURE_LENGTH];
+    int isFirstWrite;
+    char fileStamp[COOKFS_SIGNATURE_LENGTH];
     Tcl_Channel fileChannel;
     int fileLastOp;
     int useFoffset;
@@ -175,6 +177,8 @@ Tcl_Obj *Cookfs_PagesGetLastError(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PagesGetHashAsObj(Cookfs_Pages *p);
 int Cookfs_PagesSetHashByObj(Cookfs_Pages *p, Tcl_Obj *pagehash,
     Tcl_Interp *interp);
+
+int Cookfs_PageAddStamp(Cookfs_Pages *p, Tcl_WideInt size);
 
 #endif /* COOKFS_USECPAGES */
 

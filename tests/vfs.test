@@ -422,9 +422,9 @@ tcltest::test cookfsVfs-7.1 "Test filesize command" -setup {
 } -cleanup {
     catch {vfs::unmount $file}
     tcltest::removeFile $file
-} -returnCodes {ok} -result 69634
+} -returnCodes {ok} -result 69649
 
-tcltest::test cookfsVfs-7.2 "Test filesize command" -setup {
+tcltest::test cookfsVfs-7.2 "Test smallfilebuffersize command" -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]

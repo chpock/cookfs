@@ -518,6 +518,9 @@ void Cookfs_SeekToPage(Cookfs_Pages *p, int idx) {
 int Cookfs_WritePage(Cookfs_Pages *p, int idx, unsigned char *bytes, int origSize, Tcl_Obj *compressedData) {
     int size = -1;
 
+    // Add initial stamp if needed
+    Cookfs_PageAddStamp(p, 0);
+
     /* if last operation was not write, we need to seek
      * to make sure we're at location where we should be writing */
     if ((idx >= 0) && (p->fileLastOp != COOKFS_LASTOP_WRITE)) {

@@ -11,6 +11,11 @@
 
 #define COOKFS_SUFFIX_BYTES 16
 
+// read by 512kb chunks
+#define COOKFS_SEARCH_STAMP_CHUNK 524288
+// max read 10mb
+#define COOKFS_SEARCH_STAMP_MAX_READ 10485760
+
 #define COOKFS_PAGES_ERRORMSG "Unable to create Cookfs object"
 
 /* declarations of static and/or internal functions */
@@ -19,6 +24,7 @@ static void CookfsPagesPageCacheMoveToTop(Cookfs_Pages *p, int index);
 static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p);
 static void CookfsPagesPageExtendIfNeeded(Cookfs_Pages *p, int count);
 static void CookfsTruncateFileIfNeeded(Cookfs_Pages *p, Tcl_WideInt targetOffset);
+static Tcl_WideInt Cookfs_PageSearchStamp(Cookfs_Pages *p);
 
 static const char *const pagehashNames[] = { "md5", "crc32", NULL };
 
@@ -232,16 +238,24 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     }
 
     /* initialize structure */
+    rc->isFirstWrite = 0;
     rc->useFoffset = useFoffset;
     rc->foffset = foffset;
     rc->fileReadOnly = fileReadOnly;
     rc->fileCompression = fileCompression;
     rc->alwaysCompress = 0;
-    if (fileSignature != NULL)
-	memcpy(rc->fileSignature, fileSignature, 7);
-    else
-	memcpy(rc->fileSignature, "CFS0002", 7);
-
+    if (fileSignature != NULL) {
+        memcpy(rc->fileSignature, fileSignature, 7);
+    } else {
+        // Split the signature into 2 strings so we don't find that whole string
+        // when searching for the signature
+        memcpy(rc->fileSignature, "CFS", 3);
+        memcpy(rc->fileSignature + 3, "0002", 4);
+    }
+    // Split the stamp into 2 strings so we don't find that whole string
+    // when searching for the stamp
+    memcpy(rc->fileStamp, "CFS", 3);
+    memcpy(rc->fileStamp + 3, "S002", 4);
 
     /* initialize parameters */
     rc->fileLastOp = COOKFS_LASTOP_UNKNOWN;
@@ -346,12 +360,24 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     /* read index or fail */
     if (!CookfsReadIndex(interp, rc)) {
 	if (rc->fileReadOnly) {
+	    // Detecting a corrupted file only if no endoffset is specified and we
+	    // tried to automatically detect the contents of the archive.
+	    if (!useFoffset) {
+	        Tcl_WideInt expectedSize = Cookfs_PageSearchStamp(rc);
+	        if (expectedSize != -1) {
+                    Tcl_SetObjResult(interp, Tcl_ObjPrintf("The archive \"%s\""
+                        " appears to be corrupted or truncated. Expected"
+                        " archive size is %" TCL_LL_MODIFIER "d bytes or"
+                        " larger.", Tcl_GetString(fileName), expectedSize));
+	        }
+	    }
 	    rc->pagesUptodate = 1;
 	    rc->indexChanged = 0;
 	    rc->shouldTruncate = 0;
 	    Cookfs_PagesFini(rc);
 	    return NULL;
 	}  else  {
+	    rc->isFirstWrite = 1;
 	    rc->dataInitialOffset = Tcl_Seek(rc->fileChannel, 0, SEEK_END);
 	    rc->dataAllPagesSize = 0;
 	    rc->dataNumPages = 0;
@@ -416,6 +442,9 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
         Cookfs_AsyncCompressFinalize(p);
         Cookfs_AsyncDecompressFinalize(p);
 
+        // Add initial stamp if needed
+        Cookfs_PageAddStamp(p, 0);
+
         /* seek to proper position */
         Cookfs_SeekToPage(p, p->dataNumPages);
 
@@ -460,6 +489,9 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
         p->foffset = Tcl_Tell(p->fileChannel);
 
         CookfsTruncateFileIfNeeded(p, p->foffset);
+
+        // Add final stamp if needed
+        Cookfs_PageAddStamp(p, p->foffset);
 
     }
 
@@ -559,6 +591,195 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     CookfsLog(printf("Cleaning up pages"))
     /* clean up storage */
     Tcl_Free((void *) p);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PageSearchStamp --
+ *
+ *      Trying to find the cookfs stamp that should be located in front of the archive
+ *
+ * Results:
+ *      Expected file size if the stamp is found, or -1 otherwise
+ *
+ * Side effects:
+ *      Changing the current offset in the channel
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Tcl_WideInt Cookfs_PageSearchStamp(Cookfs_Pages *p) {
+
+    CookfsLog(printf("Cookfs_PageSearchStamp: enter"));
+
+    unsigned char *buf = NULL;
+    Tcl_WideInt size = -1;
+
+    buf = ckalloc(COOKFS_SEARCH_STAMP_CHUNK);
+    if (buf == NULL) {
+        CookfsLog(printf("Cookfs_PageSearchStamp: failed to alloc"));
+        goto error;
+    }
+
+    if (Tcl_Seek(p->fileChannel, 0, SEEK_SET) == -1) {
+        CookfsLog(printf("Cookfs_PageSearchStamp: failed to seek"));
+        goto error;
+    }
+
+    Tcl_WideInt read = 0;
+    int bufSize = 0;
+    int i;
+
+    while (!Tcl_Eof(p->fileChannel) && (read < COOKFS_SEARCH_STAMP_MAX_READ)) {
+
+        int wantToRead = COOKFS_SEARCH_STAMP_CHUNK - bufSize;
+
+        if ((wantToRead + read) > COOKFS_SEARCH_STAMP_MAX_READ) {
+            wantToRead = COOKFS_SEARCH_STAMP_MAX_READ - read;
+        }
+
+        CookfsLog(printf("Cookfs_PageSearchStamp: try to read %d bytes",
+            wantToRead));
+
+        int readCount = Tcl_Read(p->fileChannel, (char *)buf + bufSize,
+            wantToRead);
+
+        if (!readCount) {
+            CookfsLog(printf("Cookfs_PageSearchStamp: got zero bytes,"
+                " continue"));
+            continue;
+        }
+
+        // A negative value of bytes read indicates an error. Stop processing
+        // in this case.
+        if (readCount < 0) {
+            goto error;
+        }
+
+        CookfsLog(printf("Cookfs_PageSearchStamp: got %d bytes", readCount));
+
+        read += readCount;
+        bufSize += readCount;
+
+        // Do not look for the last 20 bytes, as a situation may arise where
+        // the stamp byte is at the very end of the buffer and the WideInt
+        // that should come after the stamp is not read.
+        int bytesToLookup = bufSize - 20;
+
+        for (i = 0; i < bytesToLookup; i++) {
+            if (buf[i] != p->fileStamp[0]) {
+                continue;
+            }
+            if (memcmp(&buf[i], p->fileStamp, COOKFS_SIGNATURE_LENGTH) != 0) {
+                continue;
+            }
+            goto found;
+        }
+
+        CookfsLog(printf("Cookfs_PageSearchStamp: stamp is not found yet"));
+
+        // Leave the last 20 bytes in the buffer
+        if (bufSize > 20) {
+            memcpy(buf, &buf[bufSize - 20], 20);
+            bufSize = 20;
+        }
+
+    }
+
+    CookfsLog(printf("Cookfs_PageSearchStamp: read total %ld bytes and"
+        " could not find the stamp", read));
+
+    goto error;
+
+found:
+
+
+    Cookfs_Binary2WideInt(&buf[i + COOKFS_SIGNATURE_LENGTH], &size, 1);
+    CookfsLog(printf("Cookfs_PageSearchStamp: return the size: %ld", size));
+
+error:
+
+    if (buf != NULL) {
+        ckfree(buf);
+    }
+
+    return size;
+
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PageAddStamp --
+ *
+ *      Adds a stamp before archive
+ *
+ * Results:
+ *      TCL_OK on success or TCL_ERROR on failure
+ *
+ * Side effects:
+ *      Sets the current offset in the channel immediately following the stamp
+ *
+ *----------------------------------------------------------------------
+ */
+
+int Cookfs_PageAddStamp(Cookfs_Pages *p, Tcl_WideInt size) {
+
+    CookfsLog(printf("Cookfs_PageAddStamp: enter, size: %ld", size));
+
+    unsigned char sizeBin[8]; // 64-bit WideInt
+    Cookfs_WideInt2Binary(&size, sizeBin, 1);
+
+    if (size == 0) {
+        if (!p->isFirstWrite) {
+            CookfsLog(printf("Cookfs_PageAddStamp: return:"
+                " is not the first write"));
+            return TCL_OK;
+        }
+        CookfsLog(printf("Cookfs_PageAddStamp: write initial stamp"));
+        if (Tcl_Seek(p->fileChannel, 0, SEEK_END) == -1) {
+            CookfsLog(printf("Cookfs_PageAddStamp: return error,"
+                " failed to seek"));
+            return TCL_ERROR;
+        }
+        if (Tcl_Write(p->fileChannel, p->fileStamp, COOKFS_SIGNATURE_LENGTH)
+            != COOKFS_SIGNATURE_LENGTH)
+        {
+            CookfsLog(printf("Cookfs_PageAddStamp: return error,"
+                " failed to write signature"));
+            return TCL_ERROR;
+        }
+        if (Tcl_Write(p->fileChannel, (const char *)sizeBin, 8) != 8)
+        {
+            CookfsLog(printf("Cookfs_PageAddStamp: return error,"
+                " failed to write size"));
+            return TCL_ERROR;
+        }
+        p->dataInitialOffset += COOKFS_SIGNATURE_LENGTH + 8; // 7+8 = 15
+        p->isFirstWrite = 0;
+        // We're already in position for the next file write
+        p->fileLastOp = COOKFS_LASTOP_WRITE;
+    } else {
+        CookfsLog(printf("Cookfs_PageAddStamp: write final stamp"));
+        if (Tcl_Seek(p->fileChannel, p->dataInitialOffset - 8, SEEK_SET)
+            == -1)
+        {
+            CookfsLog(printf("Cookfs_PageAddStamp: return error,"
+                " failed to seek"));
+            return TCL_ERROR;
+        }
+        if (Tcl_Write(p->fileChannel, (const char *)sizeBin, 8) != 8)
+        {
+            CookfsLog(printf("Cookfs_PageAddStamp: return error,"
+                " failed to write size"));
+            return TCL_ERROR;
+        }
+    }
+
+    CookfsLog(printf("Cookfs_PageAddStamp: ok"));
+    return TCL_OK;
+
 }
 
 /*
