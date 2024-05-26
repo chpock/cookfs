@@ -18,13 +18,16 @@ jobs:
             configure: "--disable-c-pkgconfig --disable-c-pages --disable-c-fsindex --disable-c-readerchannel --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
             description: "no pkgcfg, pages, fsindex, readedchannel, writer, writerchannel, vfs"
           - compiler: gcc
-            configure: "--disable-c-pages --disable-c-fsindex --disable-c-readerchannel  --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
+            configure: "--disable-c-pages --disable-c-fsindex --disable-c-readerchannel --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
             description: "no pages, fsindex, readedchannel, writer, writerchannel, vfs"
           - compiler: gcc
-            configure: "--disable-c-fsindex --disable-c-readerchannel  --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
+            configure: "--disable-c-pages --disable-c-readerchannel --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
+            description: "no pages, readedchannel, writer, writerchannel, vfs"
+          - compiler: gcc
+            configure: "--disable-c-fsindex --disable-c-readerchannel --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
             description: "no fsindex, readedchannel, writer, writerchannel, vfs"
           - compiler: gcc
-            configure: "--disable-c-readerchannel  --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
+            configure: "--disable-c-readerchannel --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
             description: "no readedchannel, writer, writerchannel, vfs"
           - compiler: gcc
             configure: " --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
