@@ -244,14 +244,22 @@ void Cookfs_FsindexModifyBlockUsage(Cookfs_Fsindex *i, int idx, int count) {
     if (idx < 0)
         return;
 
-    CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: increase block index [%d] by [%d]", idx, count));
+    CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: increase block"
+        " index [%d] by [%d]", idx, count));
     // check if we have enough space in the block index
     if (i->blockIndexSize <= idx) {
-        CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: expand block index buffer from [%d] to [%d]", i->blockIndexSize, idx + 1));
+        // Increase blockIndexSize by idx+100 to reduce memory reallocations
+        // when filling the index and modifying block statistics
+        // block by block.
+        int maxBlockIndexSize = idx + 100;
+        CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: expand block index"
+            " buffer from [%d] to [%d]", i->blockIndexSize,
+            maxBlockIndexSize));
         // expand our block index
-        i->blockIndex = (int *)ckrealloc(i->blockIndex, sizeof(int) * (idx + 1));
+        i->blockIndex = (int *)ckrealloc(i->blockIndex,
+            sizeof(int) * maxBlockIndexSize);
         // initialize newly allocated block indexes with zeros
-        for (; i->blockIndexSize <= idx; i->blockIndexSize++) {
+        for (; i->blockIndexSize < maxBlockIndexSize; i->blockIndexSize++) {
             i->blockIndex[i->blockIndexSize] = 0;
         }
     } else {
