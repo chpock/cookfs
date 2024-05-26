@@ -178,7 +178,7 @@ int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w, Tcl_Obj *pathObj,
     if (wb->entry == NULL) {
         CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: failed to create"
             " the entry"));
-        Cookfs_WriterSetLastError(w, "unable to create entry");
+        Cookfs_WriterSetLastError(w, "Unable to create entry");
         Cookfs_WriterWriterBufferFree(wb);
         return TCL_ERROR;
     }
@@ -241,6 +241,43 @@ static Tcl_WideInt Cookfs_WriterReadChannel(char *buffer,
 
 }
 
+int Cookfs_WriterRemoveFile(Cookfs_Writer *w, Cookfs_FsindexEntry *entry) {
+    CookfsLog(printf("Cookfs_WriterRemoveFile: enter"));
+    Cookfs_WriterBuffer *wbPrev = NULL;
+    Cookfs_WriterBuffer *wb = w->bufferFirst;
+    while (wb != NULL) {
+        if (wb->entry == entry) {
+
+            CookfsLog(printf("Cookfs_WriterRemoveFile: found the buffer"
+                " to remove [%p]", (void *)wb));
+            Cookfs_WriterBuffer *next = wb->next;
+            if (wbPrev == NULL) {
+                w->bufferFirst = next;
+            } else {
+                wbPrev->next = next;
+            }
+            w->bufferCount--;
+            w->bufferSize -= wb->bufferSize;
+            Cookfs_WriterWriterBufferFree(wb);
+
+            // Shift block number for the following files and their entries
+            while (next != NULL) {
+                CookfsLog(printf("Cookfs_WriterRemoveFile: shift buffer number"
+                    " for buffer [%p]", (void *)next));
+                next->entry->data.fileInfo.fileBlockOffsetSize[0]++;
+                next = next->next;
+            }
+
+            return 1;
+        }
+        wbPrev = wb;
+        wb = wb->next;
+    }
+    CookfsLog(printf("Cookfs_WriterRemoveFile: could not find the buffer"
+        " to remove"));
+    return 0;
+}
+
 #define DATA_FILE    (Tcl_Obj *)data
 #define DATA_CHANNEL (Tcl_Channel)data
 #define DATA_OBJECT  (Tcl_Obj *)data
@@ -268,6 +305,24 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
     Tcl_WideInt mtime = -1;
     Tcl_DString chanTranslation, chanEncoding;
     Cookfs_FsindexEntry *entry = NULL;
+
+    // Check if we have the file in the small file buffer. We will try to get
+    // the fsindex entry for this file and see if it is a pending file.
+    entry = Cookfs_FsindexGet(w->index, pathObj);
+    if (entry != NULL) {
+        CookfsLog(printf("Cookfs_WriterAddFile: an existing entry for the file"
+            " was found"));
+        if (Cookfs_FsindexEntryIsPending(entry)) {
+            CookfsLog(printf("Cookfs_WriterAddFile: the entry is pending,"
+                " remove it from small file buffer"));
+            Cookfs_WriterRemoveFile(w, entry);
+        } else {
+            CookfsLog(printf("Cookfs_WriterAddFile: the entry is"
+                " not pending"));
+        }
+        entry = NULL;
+    }
+
 
     switch (dataType) {
 
@@ -349,7 +404,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
     case COOKFS_WRITER_SOURCE_OBJECT: ; // an empty statement
 
         int length;
-        data = (void *)Tcl_GetStringFromObj(DATA_OBJECT, &length);
+        data = (void *)Tcl_GetByteArrayFromObj(DATA_OBJECT, &length);
 
         if (dataSize < 0) {
             CookfsLog(printf("Cookfs_WriterAddFile: get datasize from"
@@ -386,7 +441,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
         if (entry == NULL) {
             CookfsLog(printf("Cookfs_WriterAddFile: failed to create"
                 " the entry"));
-            Cookfs_WriterSetLastError(w, "unable to create entry");
+            Cookfs_WriterSetLastError(w, "Unable to create entry");
             goto error;
         }
         // Set entry block information
@@ -474,7 +529,10 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
         }
 
         // Calculate number of blocks
-        int numBlocks = (dataSize / w->pageSize) + 1;
+        int numBlocks = dataSize / w->pageSize;
+        if (dataSize % w->pageSize) {
+            numBlocks++;
+        }
 
         // Create an entry
         CookfsLog(printf("Cookfs_WriterAddFile: create an entry"
@@ -483,7 +541,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
         if (entry == NULL) {
             CookfsLog(printf("Cookfs_WriterAddFile: failed to create"
                 " the entry"));
-            Cookfs_WriterSetLastError(w, "unable to create entry");
+            Cookfs_WriterSetLastError(w, "Unable to create entry");
             goto error;
         }
         Cookfs_FsindexUpdateEntryFileSize(entry, dataSize);
@@ -640,7 +698,8 @@ int Cookfs_WriterPurge(Cookfs_Writer *w) {
     // To solve this problem, we will check the buffers and if they are
     // identical, then we will use the same sort key for those buffers.
 
-    CookfsLog(printf("Cookfs_WriterPurge: sort %d entries", w->bufferCount));
+    CookfsLog(printf("Cookfs_WriterPurge: have total %d entries",
+        w->bufferCount));
     // Create array for all our entries
     sortedWB = ckalloc(w->bufferCount * sizeof(Cookfs_WriterBuffer *));
     if (sortedWB == NULL) {

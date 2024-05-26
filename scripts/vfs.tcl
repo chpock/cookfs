@@ -689,7 +689,9 @@ proc cookfs::tcl::vfs::delete {fsid root relative actualpath type recursive} {
         }  else  {
             vfs::filesystem posixerror $::cookfs::posix(ENOTDIR)
         }
-    }  elseif {$type == "directory" && $recursive} {
+    } elseif {$type eq "file"} {
+        $fs(writer) deleteFile $relative
+    } elseif {$type == "directory" && $recursive} {
         if {[catch {
             foreach ch [$fs(index) list $relative] {
                 # check type and delete appropriately

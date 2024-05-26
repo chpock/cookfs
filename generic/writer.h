@@ -72,6 +72,8 @@ const void *Cookfs_WriterGetBuffer(Cookfs_Writer *w, int blockNumber,
 int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
     Cookfs_WriterDataSource dataType, void *data, Tcl_WideInt dataSize);
 
+int Cookfs_WriterRemoveFile(Cookfs_Writer *w, Cookfs_FsindexEntry *entry);
+
 int Cookfs_WriterGetWritetomemory(Cookfs_Writer *w);
 void Cookfs_WriterSetWritetomemory(Cookfs_Writer *w, int status);
 

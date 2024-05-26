@@ -823,6 +823,12 @@ static int CookfsDeleteFile(Tcl_Obj *pathPtr) {
         return TCL_ERROR;
     }
 
+    if (Cookfs_FsindexEntryIsPending(entry)) {
+        CookfsLog(printf("CookfsDeleteFile: the entry is pending,"
+            " remove it from small file buffer"));
+        Cookfs_WriterRemoveFile(vfs->writer, entry);
+    }
+
     int result = Cookfs_FsindexUnset(index, internalRep->relativePathObj);
 
     // Check to see if anything's wrong
