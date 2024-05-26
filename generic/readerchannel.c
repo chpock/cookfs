@@ -128,7 +128,7 @@ int Cookfs_CreateReaderchannelCreate(Cookfs_ReaderChannelInstData *instData, Tcl
 Cookfs_ReaderChannelInstData *Cookfs_CreateReaderchannelAlloc(Cookfs_Pages *pages, Cookfs_Fsindex *fsindex, int bufSize) {
     Cookfs_ReaderChannelInstData *result;
 
-    result = (Cookfs_ReaderChannelInstData *) Tcl_Alloc(sizeof(Cookfs_ReaderChannelInstData) + bufSize * sizeof(int));
+    result = (Cookfs_ReaderChannelInstData *) ckalloc(sizeof(Cookfs_ReaderChannelInstData) + bufSize * sizeof(int));
     result->channel = NULL;
     result->watchTimer = NULL;
 
@@ -155,7 +155,7 @@ void Cookfs_CreateReaderchannelFree(Cookfs_ReaderChannelInstData *instData) {
 	Tcl_DeleteTimerHandler(instData->watchTimer);
     }
     CookfsLog(printf("Cookfs_CreateReaderchannelFree: before free"))
-    Tcl_Free((void *) instData);
+    ckfree((void *) instData);
     CookfsLog(printf("Cookfs_CreateReaderchannelFree: after free"))
 }
 

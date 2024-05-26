@@ -218,7 +218,7 @@ Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName) {
  *----------------------------------------------------------------------
  */
 Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, int asyncDecompressQueueSize, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand, Tcl_Obj *asyncDecompressCommand) {
-    Cookfs_Pages *rc = (Cookfs_Pages *) Tcl_Alloc(sizeof(Cookfs_Pages));
+    Cookfs_Pages *rc = (Cookfs_Pages *) ckalloc(sizeof(Cookfs_Pages));
     int i;
 
     /* initialize basic information */
@@ -233,7 +233,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
 	if (interp != NULL) {
 	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to initialize compression", -1));
 	}
-	Tcl_Free((void *) rc);
+	ckfree((void *) rc);
 	return NULL;
     }
 
@@ -263,8 +263,8 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     rc->fileCompressionLevel = 9;
     rc->dataNumPages = 0;
     rc->dataPagesDataSize = 256;
-    rc->dataPagesSize = (int *) Tcl_Alloc(rc->dataPagesDataSize * sizeof(int));
-    rc->dataPagesMD5 = (unsigned char *) Tcl_Alloc(rc->dataPagesDataSize * 16);
+    rc->dataPagesSize = (int *) ckalloc(rc->dataPagesDataSize * sizeof(int));
+    rc->dataPagesMD5 = (unsigned char *) ckalloc(rc->dataPagesDataSize * 16);
     rc->dataAsidePages = NULL;
     rc->dataPagesIsAside = isAside;
 
@@ -456,13 +456,13 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
             Tcl_DecrRefCount(obj);
 
             /* add page size information */
-            bufSizes = (unsigned char *) Tcl_Alloc(p->dataNumPages * 4);
+            bufSizes = (unsigned char *) ckalloc(p->dataNumPages * 4);
             Cookfs_Int2Binary(p->dataPagesSize, bufSizes, p->dataNumPages);
             obj = Tcl_NewByteArrayObj(bufSizes, p->dataNumPages * 4);
             Tcl_IncrRefCount(obj);
             Tcl_WriteObj(p->fileChannel, obj);
             Tcl_DecrRefCount(obj);
-            Tcl_Free((void *) bufSizes);
+            ckfree((void *) bufSizes);
         }
 
         /* write index */
@@ -574,8 +574,8 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
 
     /* clean up pages data */
     CookfsLog(printf("Cleaning up pages MD5/size"))
-    Tcl_Free((void *) p->dataPagesSize);
-    Tcl_Free((void *) p->dataPagesMD5);
+    ckfree((void *) p->dataPagesSize);
+    ckfree((void *) p->dataPagesMD5);
 
     if (p->commandToken != NULL) {
         CookfsLog(printf("Cleaning tcl command"));
@@ -590,7 +590,7 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
 
     CookfsLog(printf("Cleaning up pages"))
     /* clean up storage */
-    Tcl_Free((void *) p);
+    ckfree((void *) p);
 }
 
 /*
@@ -1981,9 +1981,9 @@ static void CookfsPagesPageExtendIfNeeded(Cookfs_Pages *p, int count) {
     /* if changed, reallocate both structures */
     CookfsLog(printf("CookfsPagesPageExtendIfNeeded(%d vs %d) -> %d", p->dataPagesDataSize, count, changed))
     if (changed) {
-	p->dataPagesSize = (int *) Tcl_Realloc((void *) p->dataPagesSize,
+	p->dataPagesSize = (int *) ckrealloc((void *) p->dataPagesSize,
 	    p->dataPagesDataSize * sizeof(int));
-	p->dataPagesMD5 = (unsigned char *) Tcl_Realloc((void *) p->dataPagesMD5,
+	p->dataPagesMD5 = (unsigned char *) ckrealloc((void *) p->dataPagesMD5,
 	    p->dataPagesDataSize * 16);
     }
 }

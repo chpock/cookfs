@@ -267,21 +267,21 @@ void Cookfs_PagesFiniCompr(Cookfs_Pages *rc) {
 	    for (ptr = rc->compressCommandPtr; *ptr; ptr++) {
 		Tcl_DecrRefCount(*ptr);
 	    }
-	    Tcl_Free((void *) rc->compressCommandPtr);
+	    ckfree((void *) rc->compressCommandPtr);
 	}
 	if (rc->decompressCommandPtr != NULL) {
 	    Tcl_Obj **ptr;
 	    for (ptr = rc->decompressCommandPtr; *ptr; ptr++) {
 		Tcl_DecrRefCount(*ptr);
 	    }
-	    Tcl_Free((void *) rc->decompressCommandPtr);
+	    ckfree((void *) rc->decompressCommandPtr);
 	}
 	if (rc->asyncCompressCommandPtr != NULL) {
 	    Tcl_Obj **ptr;
 	    for (ptr = rc->asyncCompressCommandPtr; *ptr; ptr++) {
 		Tcl_DecrRefCount(*ptr);
 	    }
-	    Tcl_Free((void *) rc->asyncCompressCommandPtr);
+	    ckfree((void *) rc->asyncCompressCommandPtr);
 	}
     }
 #ifdef COOKFS_USEXZ
@@ -981,7 +981,7 @@ static Tcl_Obj **CookfsCreateCompressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd
 	return NULL;
     }
 
-    rc = (Tcl_Obj **) Tcl_Alloc(sizeof(Tcl_Obj *) * (listObjc + additionalElements));
+    rc = (Tcl_Obj **) ckalloc(sizeof(Tcl_Obj *) * (listObjc + additionalElements));
     for (i = 0; i < listObjc; i++) {
 	rc[i] = listObjv[i];
 	Tcl_IncrRefCount(rc[i]);

@@ -315,7 +315,7 @@ Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName)
 Cookfs_Fsindex *Cookfs_FsindexInit(Cookfs_Fsindex *i) {
     Cookfs_Fsindex *rc;
     if (i == NULL) {
-        rc = (Cookfs_Fsindex *) Tcl_Alloc(sizeof(Cookfs_Fsindex));
+        rc = (Cookfs_Fsindex *) ckalloc(sizeof(Cookfs_Fsindex));
         rc->commandToken = NULL;
         rc->interp = NULL;
         rc->isDead = 0;
@@ -399,7 +399,7 @@ void Cookfs_FsindexFini(Cookfs_Fsindex *i) {
     } else {
         CookfsLog(printf("No tcl command"));
     }
-    Tcl_Free((void *) i);
+    ckfree((void *) i);
 }
 
 
@@ -670,7 +670,7 @@ Cookfs_FsindexEntry **Cookfs_FsindexListEntry(Cookfs_FsindexEntry *dirNode, int 
     }
 
     CookfsLog(printf("Cookfs_FsindexListEntry - childCount = %d", dirNode->data.dirInfo.childCount))
-    result = (Cookfs_FsindexEntry **) Tcl_Alloc((dirNode->data.dirInfo.childCount + 1) * sizeof(Cookfs_FsindexEntry *));
+    result = (Cookfs_FsindexEntry **) ckalloc((dirNode->data.dirInfo.childCount + 1) * sizeof(Cookfs_FsindexEntry *));
 
     CookfsLog(printf("Cookfs_FsindexListEntry - isHash=%d", dirNode->data.dirInfo.isHash))
     if (dirNode->data.dirInfo.isHash) {
@@ -747,7 +747,7 @@ Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Tcl_Obj *pathList, i
  */
 
 void Cookfs_FsindexListFree(Cookfs_FsindexEntry **items) {
-    Tcl_Free((void *) items);
+    ckfree((void *) items);
 }
 
 
@@ -789,7 +789,7 @@ Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks,
     fileNameBytes = (fileNameLength + 8) & 0xf8;
 
     /* use single alloc for everything to limit number of memory allocations */
-    e = (Cookfs_FsindexEntry *) Tcl_Alloc(size0 + fileNameBytes);
+    e = (Cookfs_FsindexEntry *) ckalloc(size0 + fileNameBytes);
     e->fileName = ((char *) e) + size0;
     e->fileBlocks = numBlocks;
     e->fileNameLen = fileNameLength;
@@ -875,7 +875,7 @@ void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
     }
 
     /* free entry structure itself */
-    Tcl_Free((void *) e);
+    ckfree((void *) e);
 }
 
 

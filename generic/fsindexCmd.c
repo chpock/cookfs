@@ -742,13 +742,13 @@ static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
 
 	/* for files, store file size and create a sublist with block-offset-size triplets */
 	resultObjects[1] = Tcl_NewWideIntObj(entry->data.fileInfo.fileSize);
-	resultList = (Tcl_Obj **) Tcl_Alloc(sizeof(Tcl_Obj *) * (entry->fileBlocks * 3));
+	resultList = (Tcl_Obj **) ckalloc(sizeof(Tcl_Obj *) * (entry->fileBlocks * 3));
 	for (i = 0; i < (entry->fileBlocks * 3); i++) {
 	    resultList[i] = Tcl_NewIntObj(entry->data.fileInfo.fileBlockOffsetSize[i]);
 	}
 	/* create new list from newly created array, free temporary memory and return 3 element list */
 	resultObjects[2] = Tcl_NewListObj(entry->fileBlocks * 3, resultList);
-	Tcl_Free((void *) resultList);
+	ckfree((void *) resultList);
 	Tcl_SetObjResult(interp, Tcl_NewListObj(3, resultObjects));
     }
     return TCL_OK;
@@ -804,7 +804,7 @@ static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int
     }
 
     /* create a file list from result of Cookfs_FsindexList() */
-    resultList = (Tcl_Obj **) Tcl_Alloc(sizeof(Tcl_Obj *) * itemCount);
+    resultList = (Tcl_Obj **) ckalloc(sizeof(Tcl_Obj *) * itemCount);
     for (idx = 0; idx < itemCount; idx++) {
 	resultList[idx] = Tcl_NewStringObj(results[idx]->fileName, -1);
     }
@@ -813,7 +813,7 @@ static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int
     Cookfs_FsindexListFree(results);
 
     Tcl_SetObjResult(interp, Tcl_NewListObj(itemCount, resultList));
-    Tcl_Free((void *) resultList);
+    ckfree((void *) resultList);
 
     return TCL_OK;
 }

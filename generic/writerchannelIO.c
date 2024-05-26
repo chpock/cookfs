@@ -422,7 +422,7 @@ static void Cookfs_Writerchannel_Watch(ClientData instanceData, int mask) {
     }
 
     if (instData->event == NULL) {
-        instData->event = (ChannelEvent*)Tcl_Alloc(sizeof(ChannelEvent));
+        instData->event = (ChannelEvent*)ckalloc(sizeof(ChannelEvent));
         if (instData->event == NULL) {
             return;
         }
