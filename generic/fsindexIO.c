@@ -76,6 +76,8 @@ Tcl_Obj *Cookfs_FsindexToObject(Cookfs_Fsindex *fsIndex) {
     return result;
 }
 
+#ifdef COOKFS_USECPAGES
+
 /*
  *----------------------------------------------------------------------
  *
@@ -126,6 +128,8 @@ Cookfs_Fsindex *Cookfs_FsindexFromPages(Cookfs_Fsindex *fsindex, Cookfs_Pages *p
     CookfsLog(printf("Cookfs_FsindexFromPages: return [%p]", (void *)rc));
     return rc;
 }
+
+#endif /* COOKFS_USECPAGES */
 
 /*
  *----------------------------------------------------------------------
