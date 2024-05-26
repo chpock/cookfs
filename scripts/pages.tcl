@@ -21,6 +21,7 @@ proc cookfs::tcl::pages {args} {
     set name ::cookfs::tcl::pages::handle[incr pages::pageshandleIdx]
     upvar #0 $name c
     array set c {
+        firstwrite 0
         readonly 0
         cachelist {}
         compression zlib
@@ -32,6 +33,7 @@ proc cookfs::tcl::pages {args} {
         indexdata ""
         endoffset ""
         cfsname "CFS0002"
+        cfsstamp "CFSS002"
         lastop read
         hash crc32
         alwayscompress 0
@@ -150,9 +152,17 @@ proc cookfs::tcl::pages {args} {
         set c(indexChanged) 0
     }  else  {
         if {$c(readonly)} {
+            if { [catch { pages::searchstamp $name } size] } {
+                set size -1
+            }
             catch {close $c(fh)}
+            if { $size > 0 } {
+                set msg "The archive \"[lindex $args 0]\" appears to be corrupted\
+                    or truncated. Expected archive size is $size bytes or larger."
+            }
             error $msg $msg
         }
+        set c(firstwrite) 1
         set c(startoffset) $c(endoffset)
         set c(haschanged) 1
         set c(indexChanged) 1
@@ -351,6 +361,47 @@ proc cookfs::tcl::pages::readIndex {name msgVariable} {
     return 1
 }
 
+proc cookfs::tcl::pages::searchstamp {name} {
+    upvar #0 $name c
+    set buffer ""
+    # read by 512kb chunks
+    set chunk 524288
+    # max read 10mb
+    set maxread 10485760
+    set read 0
+    seek $c(fh) 0 start
+    while { ![eof $c(fh)] && $read < $maxread } {
+        set initialbufsize [string length $buffer]
+        append buffer [read $c(fh) $chunk]
+        incr read [expr { [string length $buffer] - $initialbufsize }]
+        if { [set pos [string first $c(cfsstamp) $buffer]] == -1 } {
+            set buffer [string range $buffer end-20 end]
+            continue
+        }
+        incr pos [string length $c(cfsstamp)]
+        binary scan [string range $buffer $pos $pos+8] W size
+        return $size
+    }
+    return -1
+}
+
+proc cookfs::tcl::pages::addstamp {name size} {
+    upvar #0 $name c
+    set stamp "$c(cfsstamp)[binary format W $size]"
+    if { $size == 0 } {
+        if { !$c(firstwrite) } {
+            return
+        }
+        seek $c(fh) 0 end
+        puts -nonewline $c(fh) $stamp
+        incr c(startoffset) [string length $stamp]
+        set c(firstwrite) 0
+    } else {
+        seek $c(fh) [expr { $c(startoffset) - [string length $stamp] }] start
+        puts -nonewline $c(fh) $stamp
+    }
+}
+
 proc cookfs::tcl::pages::pagewrite {name contents} {
     upvar #0 $name c
 
@@ -363,6 +414,7 @@ proc cookfs::tcl::pages::pagewrite {name contents} {
         seek $c(fh) 0 end
     }
     if {[catch {
+        addstamp $name 0
         puts -nonewline $c(fh) $contents
     }]} {
         error "Unable to add page"
@@ -416,6 +468,7 @@ proc cookfs::tcl::pages::cleanup {name} {
     asyncDecompressFinalize $name
 
     if {$c(haschanged) || $c(indexChanged)} {
+        addstamp $name 0
         set offset $c(startoffset)
         foreach i $c(idx.sizelist) {
             incr offset $i
@@ -432,6 +485,7 @@ proc cookfs::tcl::pages::cleanup {name} {
         if {$eo < $c(endoffset)} {
             catch {chan truncate $c(fh)}
         }
+        addstamp $name $eo
         set c(endoffset) $eo
         set c(haschanged) 0
         set c(indexChanged) 0
