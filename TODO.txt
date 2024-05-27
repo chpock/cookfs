@@ -1,0 +1,2 @@
+* Add support for Tcl9
+* Add ability to disable Tcl commands for pages/index. This should reduce binary size.
