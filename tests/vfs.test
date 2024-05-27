@@ -999,3 +999,38 @@ tcltest::test cookfsVfs-14.8 "Test unknown hash value" -setup {
     tcltest::removeFile $file
 } -returnCodes error -result {bad hash "foo": must be md5 or crc32}
 
+tcltest::test cookfsVfs-15.1 "Test optimizelist with empty base" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [vfs::cookfs::Mount $file $file -compression none \
+        -smallfilesize 0x10 -smallfilebuffer 0x30 -pagesize 0x10]
+    makeSimpleTree2 $file
+    makeSimpleTree2 $file/subtree1
+    tcltest::makeBinFile "ABCD" diff $file/subtree1
+    vfs::unmount $file
+} -body {
+    set h [vfs::cookfs::Mount $file $file]
+    set files [$h optimizelist "" [getFilesRelative $file]]
+    # Verify the result.
+    join [testOptimizedList "" $files [$h getindex]] \n
+} -cleanup {
+    catch { vfs::unmount $file }
+    tcltest::removeFile $file
+} -result {}
+
+tcltest::test cookfsVfs-15.2 "Test optimizelist with non-empty base" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [vfs::cookfs::Mount $file $file -compression none \
+        -smallfilesize 0x10 -smallfilebuffer 0x30 -pagesize 0x10]
+    makeSimpleTree2 $file
+    makeSimpleTree2 $file/subtree1
+    tcltest::makeBinFile "ABCD" diff $file/subtree1
+    vfs::unmount $file
+} -body {
+    set h [vfs::cookfs::Mount $file $file]
+    set files [$h optimizelist "subtree1" [getFilesRelative $file/subtree1]]
+    # Verify the result.
+    join [testOptimizedList "subtree1" $files [$h getindex]] \n
+} -cleanup {
+    catch { vfs::unmount $file }
+    tcltest::removeFile $file
+} -result {}

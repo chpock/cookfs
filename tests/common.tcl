@@ -16,9 +16,15 @@ proc makeTree { dir tree } {
     foreach { type name data } $tree {
         switch -glob -- $type {
             f* {
+                if { [string index $name end] eq "%" } {
+                    set name [string range $name 0 end-1]
+                    set filler [randomData $data]
+                } else {
+                    set filler [string repeat "a" $data]
+                }
                 set fp [open [file join $dir $name] w]
                 fconfigure $fp -translation binary
-                puts -nonewline $fp [string repeat "a" $data]
+                puts -nonewline $fp $filler
                 close $fp
             }
             d* {
@@ -51,10 +57,53 @@ proc makeSimpleTree { dir } {
     }
 }
 
+# expects -smallfilesize 0x10 -smallfilebuffer 0x30 -pagesize 0x10
+proc makeSimpleTree2 { dir } {
+    makeTree $dir {
+        file big-two-pages.a% 0x20
+        file medium-one-page.a% 0x10
+        file rootfile 3
+        file small-half-page.a% 0x8
+        file very-bigfile% 0x100
+        dir onedir {
+            file empty-file 0
+            file big-two-pages.b% 0x20
+            dir twodir {
+                file very-small-one% 1
+                file very-small-two% 2
+                file "with spaces.txt" 2
+                dir "with spaces" {
+                    file null 0
+                    file very-small-one.f% 1
+                }
+                dir emptydir {
+                }
+                file very-small-three% 3
+                file small-half-page.c% 0x8
+            }
+            file small-half-page.b% 0x8
+        }
+        file medium-one-page.b% 0x10
+        dir anotherdir {
+            file foobar 1
+        }
+        file emptyfile 0
+        file medium-one-page.c% 0x10
+    }
+}
+
 proc randomData {bytes} {
     set rc {}
-    for {set i 0} {$i < $bytes} {incr i 4} {
-        append rc [binary format I [expr {wide(rand()*0x100000000)}]]
+    # speed up random data generation by duplicating one random fragment
+    if { $bytes > 512 } {
+        set fragment [randomData 508]
+        for {set i 0} {$i < $bytes} {incr i 512} {
+            append rc $fragment [binary format I [expr {wide(rand()*0x100000000)}]]
+        }
+    } else {
+        for {set i 0} {$i < $bytes} {incr i 4} {
+            append rc [binary format I [expr {wide(rand()*0x100000000)}]]
+        }
     }
     incr bytes -1
     return [string range $rc 0 $bytes]
@@ -66,6 +115,45 @@ proc randomDatas {count bytes} {
         lappend rc [randomData $bytes]
     }
     return $rc
+}
+
+proc getFilesRelative { dir } {
+    set files [lsort [glob -nocomplain -tails -type f -directory $dir *]]
+    foreach subdir [lsort [glob -nocomplain -type d -directory $dir *]] {
+        foreach f [getFilesRelative $subdir] {
+            lappend files [file join [file tail $subdir] $f]
+        }
+    }
+    return $files
+}
+
+proc testOptimizedList { base files fsindex } {
+    # We expect small files with increasing block number to go first.
+    # Then the large files will follow.
+    set result [list]
+    set lastPage 0
+    set lastSmall 1
+
+    foreach { file } $files {
+        set file [file join $base $file]
+        set chunklist [lindex [$fsindex get $file] 2]
+        set isSmall [expr { [llength $chunklist] == 3 }]
+        set onPage [lindex $chunklist 0]
+        if { $isSmall } {
+            # puts "small $file on $onPage"
+            if { $onPage < $lastPage } {
+                lappend result "Unexpected file \"$file\" on page #$onPage when previous page was $lastPage"
+            }
+            if { !$lastSmall } {
+                lappend result "Unexpected small file \"$file\" when lage files are expected"
+            }
+            set lastPage $onPage
+        } else {
+            # puts "large $file on $onPage"
+            set lastSmall 0
+        }
+    }
+
 }
 
 proc testIfEqual {a b} {

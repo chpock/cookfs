@@ -737,6 +737,7 @@ static Cookfs_MountHandleCommandProc CookfsMountHandleCommandFilesize;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandSmallfilebuffersize;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandCompression;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandWritefiles;
+static Cookfs_MountHandleCommandProc CookfsMountHandleCommandOptimizelist;
 
 static int CookfsMountHandleCmd(ClientData clientData, Tcl_Interp *interp,
     int objc, Tcl_Obj *const objv[])
@@ -747,13 +748,13 @@ static int CookfsMountHandleCmd(ClientData clientData, Tcl_Interp *interp,
     static const char *const commands[] = {
         "getpages", "getindex", "getwriter", "getmetadata", "setmetadata",
         "aside", "writetomemory", "filesize", "smallfilebuffersize",
-        "compression", "writeFiles",
+        "compression", "writeFiles", "optimizelist",
         NULL
     };
     enum commands {
         cmdGetpages, cmdGetindex, cmdGetwriter, cmdGetmetadata, cmdSetmetadata,
         cmdAside, cmdWritetomemory, cmdFilesize, cmdSmallfilebuffersize,
-        cmdCompression, cmdWritefiles
+        cmdCompression, cmdWritefiles, cmdOptimizelist
     };
 
     if (objc < 2) {
@@ -791,6 +792,8 @@ static int CookfsMountHandleCmd(ClientData clientData, Tcl_Interp *interp,
         return CookfsMountHandleCommandCompression(vfs, interp, objc, objv);
     case cmdWritefiles:
         return CookfsMountHandleCommandWritefiles(vfs, interp, objc, objv);
+    case cmdOptimizelist:
+        return CookfsMountHandleCommandOptimizelist(vfs, interp, objc, objv);
     }
 
     return TCL_OK;
@@ -949,4 +952,153 @@ static int CookfsMountHandleCommandWritefiles(Cookfs_Vfs *vfs,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
     return CookfsWriterHandleCommandWrite(vfs->writer, interp, objc, objv);
+}
+
+static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{
+
+    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: enter;"
+        " objc: %d", objc));
+
+    if (objc != 4) {
+        Tcl_WrongNumArgs(interp, 2, objv, "base filelist");
+        return TCL_ERROR;
+    }
+
+    int i;
+
+    Tcl_Obj **fileTails;
+    int fileCount;
+    if (Tcl_ListObjGetElements(interp, objv[3], &fileCount, &fileTails)
+        != TCL_OK)
+    {
+        return TCL_ERROR;
+    }
+
+    Cookfs_Pages *pages = vfs->pages;
+
+    if (!pages->dataNumPages) {
+        CookfsLog(printf("CookfsMountHandleCommandOptimizelist: there is"
+            " no pages, return the list as is"));
+        Tcl_SetObjResult(interp, objv[2]);
+        return TCL_OK;
+    }
+
+    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: alloc pageFiles"));
+    Tcl_Obj **pageFiles = ckalloc(sizeof(Tcl_Obj *) * pages->dataNumPages);
+    if (pageFiles == NULL) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to alloc"
+            " pageFiles", -1));
+        return TCL_ERROR;
+    }
+
+    for (i = 0; i < pages->dataNumPages; i++) {
+        pageFiles[i] = NULL;
+    }
+
+    Tcl_Obj *largeFiles = Tcl_NewListObj(0, NULL);
+    Tcl_IncrRefCount(largeFiles);
+
+    Tcl_Obj *baseTemplate = Tcl_NewListObj(1, &objv[2]);
+    Tcl_IncrRefCount(baseTemplate);
+
+    Cookfs_Fsindex *index = vfs->index;
+
+    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: checking %d files",
+        fileCount));
+    for (i = 0; i < fileCount; i++) {
+
+        Tcl_Obj *fileTail = fileTails[i];
+        CookfsLog(printf("CookfsMountHandleCommandOptimizelist: checking"
+            " file [%s]", Tcl_GetString(fileTail)));
+
+        // Construct full path
+        Tcl_Obj *fullName = Tcl_DuplicateObj(baseTemplate);
+        Tcl_IncrRefCount(fullName);
+
+        Tcl_ListObjAppendElement(NULL, fullName, fileTail);
+
+        Tcl_Obj *fullNameJoined = Tcl_FSJoinPath(fullName, -1);
+        Tcl_IncrRefCount(fullNameJoined);
+
+        CookfsLog(printf("CookfsMountHandleCommandOptimizelist: full path:"
+            " [%s]", Tcl_GetString(fullNameJoined)));
+
+        Tcl_Obj *fullNameSplit = Tcl_FSSplitPath(fullNameJoined, NULL);
+        Tcl_IncrRefCount(fullNameSplit);
+
+        Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(index, fullNameSplit);
+
+        Tcl_Obj *listToAdd = NULL;
+        int pageNum = -1;
+
+        if (entry == NULL) {
+            CookfsLog(printf("CookfsMountHandleCommandOptimizelist: got NULL"
+                " entry"));
+            listToAdd = largeFiles;
+        } else if (entry->fileBlocks != 1) {
+            CookfsLog(printf("CookfsMountHandleCommandOptimizelist: fileBlocks"
+                " [%d] is not 1", entry->fileBlocks));
+            listToAdd = largeFiles;
+        } else {
+            // Check if the file has correct page number
+            pageNum = entry->data.fileInfo.fileBlockOffsetSize[0];
+            if (pageNum < 0 || pageNum >= pages->dataNumPages) {
+                CookfsLog(printf("CookfsMountHandleCommandOptimizelist:"
+                    " incorrect page number: %d", pageNum));
+                listToAdd = largeFiles;
+            }
+        }
+
+        if (listToAdd == NULL) {
+            if (pageFiles[pageNum] == NULL) {
+                pageFiles[pageNum] = Tcl_NewListObj(0, NULL);
+                Tcl_IncrRefCount(pageFiles[pageNum]);
+            }
+            listToAdd = pageFiles[pageNum];
+            CookfsLog(printf("CookfsMountHandleCommandOptimizelist: add to"
+                " small file list, page: %d", pageNum));
+        } else {
+            CookfsLog(printf("CookfsMountHandleCommandOptimizelist: add to"
+                " large file list"));
+        }
+
+        Tcl_ListObjAppendElement(NULL, listToAdd, fileTail);
+
+        // Cleanup
+        Tcl_DecrRefCount(fullNameSplit);
+        Tcl_DecrRefCount(fullNameJoined);
+        Tcl_DecrRefCount(fullName);
+
+    }
+
+    Tcl_DecrRefCount(baseTemplate);
+
+    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: create a small"
+        " file list"));
+    Tcl_Obj *smallFiles = Tcl_NewListObj(0, NULL);
+    Tcl_IncrRefCount(smallFiles);
+
+    for (i = 0; i < pages->dataNumPages; i++) {
+        if (pageFiles[i] != NULL) {
+            CookfsLog(printf("CookfsMountHandleCommandOptimizelist: add files"
+                " from page %d to small file list", i));
+            Tcl_ListObjAppendList(interp, smallFiles, pageFiles[i]);
+            Tcl_DecrRefCount(pageFiles[i]);
+        }
+    }
+
+    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: add the large"
+        " files to the small files"));
+    Tcl_ListObjAppendList(interp, smallFiles, largeFiles);
+    Tcl_DecrRefCount(largeFiles);
+
+    Tcl_SetObjResult(interp, smallFiles);
+    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: ok [%s]",
+        Tcl_GetString(smallFiles)));
+    Tcl_DecrRefCount(smallFiles);
+
+    return TCL_OK;
+
 }
