@@ -388,8 +388,6 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
  */
 
 Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompress, int compressionType) {
-    int count;
-    int compression = p->fileCompression;
 
     if (idx >= p->dataNumPages) {
 	return NULL;
@@ -420,7 +418,7 @@ Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompress, int
 	    Tcl_DecrRefCount(byteObj);
 	    return NULL;
 	}
-	compression = Tcl_GetByteArrayFromObj(byteObj, NULL)[0];
+	int compression = Tcl_GetByteArrayFromObj(byteObj, NULL)[0];
 	Tcl_IncrRefCount(byteObj);
 	Tcl_DecrRefCount(byteObj);
 
@@ -444,7 +442,7 @@ Tcl_Obj *Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompress, int
 		/* simply read raw data */
                 Tcl_Obj *data;
                 data = Tcl_NewObj();
-                count = Tcl_ReadChars(p->fileChannel, data, size, 0);
+                int count = Tcl_ReadChars(p->fileChannel, data, size, 0);
                 if (count != size) {
                     CookfsLog(printf("Unable to read - %d != %d", count, size))
                     Tcl_IncrRefCount(data);
@@ -691,7 +689,7 @@ int Cookfs_AsyncCompressWait(Cookfs_Pages *p, int require) {
     // TODO: properly throw errors here?
     if ((p->fileCompression == COOKFS_COMPRESSION_CUSTOM) && (p->asyncCompressCommandPtr != NULL) && (p->asyncCompressCommandLen > 3)) {
 	Tcl_Obj *result, *resObj;
-	int resultLength, size;
+	int resultLength;
 	int i = 0;
 	int idx = -1;
 
@@ -704,30 +702,37 @@ int Cookfs_AsyncCompressWait(Cookfs_Pages *p, int require) {
 	}
 
 	result = CookfsRunAsyncCompressCommand(p, p->asyncCommandWait, idx, Tcl_NewIntObj(require));
-	if ((result == NULL) || (Tcl_ListObjLength(NULL, result, &resultLength) != TCL_OK)) {
+	if (result == NULL) {
+	    resultLength = 0;
+	} else if (Tcl_ListObjLength(NULL, result, &resultLength) != TCL_OK) {
+	    Tcl_DecrRefCount(result);
 	    resultLength = 0;
 	}
 
 	if (resultLength > 0) {
 	    if (Tcl_ListObjIndex(NULL, result, 0, &resObj) != TCL_OK) {
+	        Tcl_DecrRefCount(result);
 		return 0;
 	    }
 
 	    if (Tcl_GetIntFromObj(NULL, resObj, &i) != TCL_OK) {
+	        Tcl_DecrRefCount(result);
 		return 0;
 	    }
 
 	    // TODO: throw error?
 	    if (i != idx) {
+	        Tcl_DecrRefCount(result);
 		return 1;
 	    }
 
 	    if (Tcl_ListObjIndex(NULL, result, 1, &resObj) != TCL_OK) {
+	        Tcl_DecrRefCount(result);
 		return 0;
 	    }
 
 	    Tcl_IncrRefCount(resObj);
-	    size = Cookfs_WritePageObj(p, idx, p->asyncPage[0].pageContents, resObj);
+	    int size = Cookfs_WritePageObj(p, idx, p->asyncPage[0].pageContents, resObj);
 	    p->dataPagesSize[idx] = size;
 	    Tcl_DecrRefCount(resObj);
 	    Tcl_DecrRefCount(result);
@@ -741,7 +746,6 @@ int Cookfs_AsyncCompressWait(Cookfs_Pages *p, int require) {
 
 	    return (p->asyncPageSize > 0);
 	}  else  {
-	    Tcl_DecrRefCount(result);
 	    if (p->asyncPageSize > 0) {
 		return require;
 	    }  else  {
@@ -1331,16 +1335,20 @@ static int CookfsWritePageXz(Cookfs_Pages *p, unsigned char *bytes, int origSize
 
     CookfsLog(printf("CookfsWritePageXz: start. Want to write %d bytes.", origSize));
 
+    // cppcheck-suppress unreadVariable
     istream.source = bytes;
 
     bufObj = Tcl_NewByteArrayObj(NULL, 0);
     Tcl_IncrRefCount(bufObj);
 
     istream.funcTable.Read = XzInStreamRead;
+    // cppcheck-suppress unreadVariable
     istream.size = origSize;
+    // cppcheck-suppress unreadVariable
     istream.offset = 0;
     ostream.funcTable.Write = XzOutStreamWrite;
     ostream.size = 0;
+    // cppcheck-suppress unreadVariable
     ostream.destObj = bufObj;
 
     CookfsLog(printf("CookfsWritePageXz: Xz_Encode..."));
@@ -1403,11 +1411,15 @@ static Tcl_Obj *CookfsReadPageXz(Cookfs_Pages *p, int size) {
     Tcl_IncrRefCount(resultObj);
 
     istream.funcTable.Read = XzInStreamRead;
+    // cppcheck-suppress unreadVariable
     istream.size = size;
+    // cppcheck-suppress unreadVariable
     istream.chan = p->fileChannel;
     istream.source = NULL;
     ostream.funcTable.Write = XzOutStreamWrite;
+    // cppcheck-suppress unreadVariable
     ostream.size = 0;
+    // cppcheck-suppress unreadVariable
     ostream.destObj = resultObj;
 
     CookfsLog(printf("CookfsReadPageXz: call XzDecMt_Decode ..."));

@@ -26,7 +26,7 @@
  */
 
 DLLEXPORT int
-Cookfs_Init(Tcl_Interp *interp)
+Cookfs_Init(Tcl_Interp *interp) // cppcheck-suppress unusedFunction
 {
     char buf[256];
     if (Tcl_InitStubs(interp, "8.5", 0) == NULL) {

@@ -19,8 +19,6 @@ static int CookfsMd5Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
     Tcl_Obj *obj;
     unsigned char *bytes;
     unsigned char md5[MD5_DIGEST_SIZE];
-    char hex[MD5_DIGEST_SIZE*2+1];
-    int i;
     int size;
 
     if (objc < 2 || objc > 3) {
@@ -34,7 +32,7 @@ static int CookfsMd5Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
             Tcl_SetObjResult(interp, Tcl_ObjPrintf(
                 "bad option \"%s\": must be -bin", opt));
             Tcl_SetErrorCode(interp, "TCL", "LOOKUP", "INDEX", "option",
-                opt, NULL);
+                opt, (const char *)NULL);
             return TCL_ERROR;
         }
         obj = objv[2];
@@ -48,7 +46,8 @@ static int CookfsMd5Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
     if (objc == 3) {
         obj = Tcl_NewByteArrayObj(md5, MD5_DIGEST_SIZE);
     } else {
-        for (i = 0; i < MD5_DIGEST_SIZE; i++) {
+        char hex[MD5_DIGEST_SIZE*2+1];
+        for (int i = 0; i < MD5_DIGEST_SIZE; i++) {
             sprintf(hex + i*2, "%02X", ((int) md5[i]));
         }
         hex[MD5_DIGEST_SIZE*2] = 0;
@@ -69,7 +68,6 @@ static int CookfsSha256Cmd(ClientData clientData, Tcl_Interp *interp, int objc, 
     unsigned char *bytes;
     unsigned char sha256[SHA256_DIGEST_SIZE];
     char hex[SHA256_DIGEST_SIZE*2+1];
-    int i;
     int size;
 
     if (objc < 2 || objc > 3) {
@@ -83,7 +81,7 @@ static int CookfsSha256Cmd(ClientData clientData, Tcl_Interp *interp, int objc, 
             Tcl_SetObjResult(interp, Tcl_ObjPrintf(
                 "bad option \"%s\": must be -bin", opt));
             Tcl_SetErrorCode(interp, "TCL", "LOOKUP", "INDEX", "option",
-                opt, NULL);
+                opt, (const char *)NULL);
             return TCL_ERROR;
         }
         obj = objv[2];
@@ -99,7 +97,7 @@ static int CookfsSha256Cmd(ClientData clientData, Tcl_Interp *interp, int objc, 
     if (objc == 3) {
         obj = Tcl_NewByteArrayObj(sha256, SHA256_DIGEST_SIZE);
     } else {
-        for (i = 0; i < SHA256_DIGEST_SIZE; i++) {
+        for (int i = 0; i < SHA256_DIGEST_SIZE; i++) {
             sprintf(hex + i*2, "%02X", ((int) sha256[i]));
         }
         hex[SHA256_DIGEST_SIZE*2] = 0;
@@ -118,7 +116,6 @@ static int CookfsSha1Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tc
     unsigned char *bytes;
     unsigned char sha1[SHA1_DIGEST_SIZE];
     char hex[SHA1_DIGEST_SIZE*2+1];
-    int i;
     int size;
 
     if (objc < 2 || objc > 3) {
@@ -132,7 +129,7 @@ static int CookfsSha1Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tc
             Tcl_SetObjResult(interp, Tcl_ObjPrintf(
                 "bad option \"%s\": must be -bin", opt));
             Tcl_SetErrorCode(interp, "TCL", "LOOKUP", "INDEX", "option",
-                opt, NULL);
+                opt, (const char *)NULL);
             return TCL_ERROR;
         }
         obj = objv[2];
@@ -148,7 +145,7 @@ static int CookfsSha1Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tc
     if (objc == 3) {
         obj = Tcl_NewByteArrayObj(sha1, SHA1_DIGEST_SIZE);
     } else {
-        for (i = 0; i < SHA1_DIGEST_SIZE; i++) {
+        for (int i = 0; i < SHA1_DIGEST_SIZE; i++) {
             sprintf(hex + i*2, "%02X", ((int) sha1[i]));
         }
         hex[SHA1_DIGEST_SIZE*2] = 0;

@@ -184,6 +184,11 @@ static Tcl_Obj *CookfsFilesystemSeparator(Tcl_Obj *pathPtr) {
     UNUSED(pathPtr);
     CookfsLog(printf("CookfsFilesystemSeparator: return [/]"));
     char sep = VFS_SEPARATOR;
+    // Due to unknown reason, cppcheck gives here the following:
+    //     Argument '&sep,1' to function tcl_NewStringObj is always 1.
+    //     It does not matter what value 'sep' has. [knownArgument]
+    // This sounds like a bug in cppcheck.
+    // cppcheck-suppress knownArgument
     return Tcl_NewStringObj(&sep, 1);
 }
 
@@ -442,9 +447,11 @@ posixerror:
     return NULL;
 }
 
+// cppcheck-suppress-begin constParameterCallback
 static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
     Tcl_Obj *pathPtr, CONST char *pattern, Tcl_GlobTypeData *types)
 {
+// cppcheck-suppress-end constParameterCallback
 
     UNUSED(interp);
 
@@ -548,10 +555,10 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
         Cookfs_FsindexEntry *entryCur = foundList[i];
 
         // First check for child entry type
-        int isDirectory = Cookfs_FsindexEntryIsDirectory(entryCur);
+        int isChildDirectory = Cookfs_FsindexEntryIsDirectory(entryCur);
         if (
-            !(((wanted & TCL_GLOB_TYPE_DIR) && isDirectory) ||
-            ((wanted & TCL_GLOB_TYPE_FILE) && !isDirectory)))
+            !(((wanted & TCL_GLOB_TYPE_DIR) && isChildDirectory) ||
+            ((wanted & TCL_GLOB_TYPE_FILE) && !isChildDirectory)))
         {
             CookfsLog(printf("CookfsMatchInDirectory: child entry [%s]"
                 " has wrong type", entryCur->fileName));
@@ -591,6 +598,7 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
     return TCL_OK;
 }
 
+// cppcheck-suppress constParameterCallback
 static int CookfsUtime(Tcl_Obj *pathPtr, struct utimbuf *tval) {
     CookfsLog(printf("CookfsUtime: path [%s] time [%ld]",
         Tcl_GetString(pathPtr), tval->modtime));

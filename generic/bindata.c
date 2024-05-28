@@ -91,7 +91,6 @@ static int CookfsBinaryDataParseAddress(Tcl_Interp *interp, Tcl_Obj *address, vo
     }
 }
 
-
 static Tcl_Obj *CookfsBinaryDataCreateAddress(void *address) {
     char buf[128];
     sprintf(buf, "%p", address);

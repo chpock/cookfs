@@ -126,7 +126,6 @@ void Cookfs_PagesSetLastError(Cookfs_Pages *p, const char *msg) {
     }
 }
 
-
 /*
  *----------------------------------------------------------------------
  *
@@ -144,9 +143,13 @@ void Cookfs_PagesSetLastError(Cookfs_Pages *p, const char *msg) {
  *----------------------------------------------------------------------
  */
 
+/* Not used as for now
+
 int Cookfs_PagesIsReadonly(Cookfs_Pages *p) {
     return p->fileReadOnly;
 }
+
+*/
 
 /*
  *----------------------------------------------------------------------
@@ -427,14 +430,12 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
         goto done;
     }
 
-    Tcl_Obj *obj;
-
     CookfsLog(printf("Cookfs_PagesClose - Pages up to date = %d, Index changed = %d", p->pagesUptodate, p->indexChanged))
     /* if changes were made, save them to disk */
     if ((!p->pagesUptodate) || (p->indexChanged)) {
         int indexSize;
         unsigned char buf[COOKFS_SUFFIX_BYTES];
-        unsigned char *bufSizes;
+        Tcl_Obj *obj;
 
         /* ensure all async pages are written */
         while(Cookfs_AsyncCompressWait(p, 1)) {};
@@ -449,6 +450,7 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
         Cookfs_SeekToPage(p, p->dataNumPages);
 
         if (p->dataNumPages > 0) {
+            unsigned char *bufSizes;
             /* add MD5 information */
             obj = Tcl_NewByteArrayObj(p->dataPagesMD5, p->dataNumPages * 16);
             Tcl_IncrRefCount(obj);
@@ -743,8 +745,8 @@ int Cookfs_PageAddStamp(Cookfs_Pages *p, Tcl_WideInt size) {
                 " failed to seek"));
             return TCL_ERROR;
         }
-        if (Tcl_Write(p->fileChannel, p->fileStamp, COOKFS_SIGNATURE_LENGTH)
-            != COOKFS_SIGNATURE_LENGTH)
+        if (Tcl_Write(p->fileChannel, (const char *)p->fileStamp,
+            COOKFS_SIGNATURE_LENGTH) != COOKFS_SIGNATURE_LENGTH)
         {
             CookfsLog(printf("Cookfs_PageAddStamp: return error,"
                 " failed to write signature"));
@@ -1287,13 +1289,12 @@ int Cookfs_PagesIsCached(Cookfs_Pages *p, int index) {
  */
 
 Tcl_Obj *Cookfs_PageGetHead(Cookfs_Pages *p) {
-    int count;
     Tcl_Obj *data;
     data = Tcl_NewByteArrayObj((unsigned char *) "", 0);
     if (p->dataInitialOffset > 0) {
 	p->fileLastOp = COOKFS_LASTOP_UNKNOWN;
 	Tcl_Seek(p->fileChannel, 0, SEEK_SET);
-	count = Tcl_ReadChars(p->fileChannel, data, p->dataInitialOffset, 0);
+	int count = Tcl_ReadChars(p->fileChannel, data, p->dataInitialOffset, 0);
 	if (count != p->dataInitialOffset) {
 	    Tcl_IncrRefCount(data);
 	    Tcl_DecrRefCount(data);
@@ -1344,13 +1345,12 @@ Tcl_Obj *Cookfs_PageGetHeadMD5(Cookfs_Pages *p) {
  */
 
 Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p) {
-    int count;
     Tcl_Obj *data;
     data = Tcl_NewByteArrayObj((unsigned char *) "", 0);
     if (p->dataInitialOffset > 0) {
 	p->fileLastOp = COOKFS_LASTOP_UNKNOWN;
 	Tcl_Seek(p->fileChannel, p->dataInitialOffset, SEEK_SET);
-	count = Tcl_ReadChars(p->fileChannel, data, -1, 0);
+	int count = Tcl_ReadChars(p->fileChannel, data, -1, 0);
 	if (count < 0) {
 	    Tcl_IncrRefCount(data);
 	    Tcl_DecrRefCount(data);
@@ -1410,14 +1410,14 @@ Tcl_Obj *Cookfs_PageGetTailMD5(Cookfs_Pages *p) {
  */
 
 void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside) {
-    Tcl_Obj *asideIndex;
-    int asideIndexLength;
     if (p->dataAsidePages != NULL) {
 	Cookfs_PagesFini(p->dataAsidePages);
     }
     p->dataAsidePages = aside;
     if (aside != NULL) {
 	CookfsLog(printf("Cookfs_PagesSetAside: Checking if index in add-aside archive should be overwritten."))
+	Tcl_Obj *asideIndex;
+	int asideIndexLength;
 	asideIndex = Cookfs_PagesGetIndex(aside);
 	Tcl_GetByteArrayFromObj(asideIndex, &asideIndexLength);
 	if (asideIndexLength == 0) {
@@ -1570,10 +1570,13 @@ Tcl_WideInt Cookfs_GetFilesize(Cookfs_Pages *p) {
  *----------------------------------------------------------------------
  */
 
+/* Not used as for now
+
 int Cookfs_PagesGetAlwaysCompress(Cookfs_Pages *p) {
     return p->alwaysCompress;
 }
 
+*/
 
 /*
  *----------------------------------------------------------------------
@@ -1634,12 +1637,12 @@ int Cookfs_PagesGetCompression(Cookfs_Pages *p) {
  *----------------------------------------------------------------------
  */
 
-void Cookfs_PagesSetCompression(Cookfs_Pages *p, int compression) {
-    if (p->fileCompression != compression) {
+void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression) {
+    if (p->fileCompression != fileCompression) {
 	// ensure all async pages are written
 	while(Cookfs_AsyncCompressWait(p, 1)) {};
+        p->fileCompression = fileCompression;
     }
-    p->fileCompression = compression;
 }
 
 
@@ -1786,7 +1789,7 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p) {
     }  else  {
         /* if endoffset not specified, read last 64k of file and find last occurrence of signature */
         Tcl_Obj *byteObj = NULL;
-        char *lastMatch = NULL;
+        unsigned char *lastMatch = NULL;
 	seekOffset = Tcl_Seek(p->fileChannel, 0, SEEK_END);
         if (seekOffset > 65536) {
             seekOffset -= 65536;
@@ -1797,10 +1800,8 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p) {
         Tcl_Seek(p->fileChannel, seekOffset, SEEK_SET);
 	byteObj = Tcl_NewObj();
 	if (Tcl_ReadChars(p->fileChannel, byteObj, 65536, 0) > 0) {
-            int i;
             int size;
-            char *bytes;
-            bytes = (char *) Tcl_GetByteArrayFromObj(byteObj, &size);
+            bytes = Tcl_GetByteArrayFromObj(byteObj, &size);
             for (i = 0 ; i <= (size - COOKFS_SIGNATURE_LENGTH) ; i++) {
                 if (bytes[i] == p->fileSignature[0]) {
                     if (memcmp(bytes + i, p->fileSignature, COOKFS_SIGNATURE_LENGTH) == 0) {
@@ -1822,7 +1823,9 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p) {
             CookfsLog(printf("CookfsReadIndex lookup failed"))
         }
     }
-    seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES, SEEK_CUR);
+    if (seekOffset >= 0) {
+        seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES, SEEK_CUR);
+    }
 
     /* if seeking fails, we assume no index exists */
     if (seekOffset < 0) {
@@ -1870,19 +1873,29 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p) {
     /* read files index */
 
     /* seek to beginning of index, depending on if foffset was specified */
-    Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
-    seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - indexLength, SEEK_CUR);
+    if (Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET) < 0) {
+        goto indexReadError;
+    }
+    if (Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - indexLength, SEEK_CUR) < 0) {
+        goto indexReadError;
+    }
     CookfsLog(printf("IndexOffset Read = %d", (int) seekOffset))
 
     buffer = Cookfs_ReadPage(p, -1, indexLength, 1, COOKFS_COMPRESSION_ANY);
 
-    if (buffer == NULL) {
-	CookfsLog(printf("Unable to read index"))
-	if (interp != NULL) {
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to read index", -1));
-	}
-	return 0;
+    if (buffer != NULL) {
+        goto indexReadOk;
     }
+
+indexReadError:
+
+    CookfsLog(printf("Unable to read index"))
+    if (interp != NULL) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to read index", -1));
+    }
+    return 0;
+
+indexReadOk:
 
     /* read page MD5 checksums and pages */
     p->dataIndex = buffer;
@@ -1907,7 +1920,16 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p) {
     /* read MD5 checksums */
     buffer = Tcl_NewObj();
     Tcl_IncrRefCount(buffer);
+
     count = Tcl_ReadChars(p->fileChannel, buffer, 16 * pageCount, 0);
+    if (count != (16 * pageCount)) {
+	Tcl_DecrRefCount(buffer);
+	CookfsLog(printf("Failed to read md5 checksums"))
+	if (interp != NULL) {
+	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to read page checksums", -1));
+	}
+	return 0;
+    }
     bytes = Tcl_GetByteArrayFromObj(buffer, NULL);
     memcpy(p->dataPagesMD5, bytes, 16 * pageCount);
     Tcl_DecrRefCount(buffer);

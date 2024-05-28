@@ -83,9 +83,9 @@ typedef struct Cookfs_Pages {
     int fileReadOnly;
     int fileCompression;
     int fileCompressionLevel;
-    char fileSignature[COOKFS_SIGNATURE_LENGTH];
+    unsigned char fileSignature[COOKFS_SIGNATURE_LENGTH];
     int isFirstWrite;
-    char fileStamp[COOKFS_SIGNATURE_LENGTH];
+    unsigned char fileStamp[COOKFS_SIGNATURE_LENGTH];
     Tcl_Channel fileChannel;
     int fileLastOp;
     int useFoffset;
@@ -153,12 +153,16 @@ Tcl_Obj *Cookfs_PageGetHeadMD5(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetTailMD5(Cookfs_Pages *p);
 void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size);
+/* Not used as for now
 int Cookfs_PagesGetAlwaysCompress(Cookfs_Pages *p);
+*/
 void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress);
 int Cookfs_PagesGetCompression(Cookfs_Pages *p);
 void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression);
 
+/* Not used as for now
 int Cookfs_PagesIsReadonly(Cookfs_Pages *p);
+*/
 
 void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside);
 

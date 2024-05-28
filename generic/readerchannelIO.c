@@ -172,7 +172,6 @@ Tcl_WideInt Cookfs_Readerchannel_WideSeek(ClientData instanceData, Tcl_WideInt o
 	    }  else  {
 		instData->currentBlockOffset += bytesLeft;
 		instData->currentOffset += bytesLeft;
-		bytesLeft = 0;
 		break;
 	    }
 	}

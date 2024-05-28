@@ -42,6 +42,10 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Cookfs_Fsindex *fsin
 
     CookfsLog(printf("Cookfs_CreateReaderchannel: welcome"))
 
+    if (entry == NULL) {
+        return NULL;
+    }
+
     if (listObj != NULL) {
 
         if (Tcl_ListObjGetElements(interp, listObj, &listObjc, &listObjv) != TCL_OK) {

@@ -1,0 +1,32 @@
+name: cppcheck
+on: [push]
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Setup Environment
+        run: |
+          sudo apt-get install tcl8.6-dev tcl-vfs cppcheck
+          echo "CFGOPT_COMMON=--with-tcl=/usr/lib/tcl8.6" >> $GITHUB_ENV
+      - name: Configure
+        run: |
+          ./configure $CFGOPT_COMMON || {
+            cat config.log
+            echo "::error::Failure during Configure"
+            exit 1
+          }
+      - name: Run cppcheck
+        run: |
+          make cppcheck || {
+            echo "::error::Failure during cppcheck"
+            exit 1
+          }

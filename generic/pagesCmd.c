@@ -375,7 +375,6 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
         }
         case cmdGet:
         {
-            int idx;
             int weight = 0;
             Tcl_Obj *rc;
             if (objc != 3 && objc != 5) {
@@ -522,7 +521,6 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             }
 	    if (objc == 3) {
-		int idx;
                 if (Tcl_GetIntFromObj(interp, objv[2], &idx) != TCL_OK) {
                     return TCL_ERROR;
                 }

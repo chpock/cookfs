@@ -545,7 +545,6 @@ static int CookfsFsindexCmdSetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
  */
 
 static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    int i;
     int numBlocks;
     int fileBlockData;
     Tcl_Obj *splitPath;
@@ -598,6 +597,7 @@ static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
 	}
 	entry->data.fileInfo.fileSize = 0;
 
+	int i;
 	/* copy all integers from filedata into newly created entry */
 	for (i = 0; i < numBlocks * 3; i++) {
 	    if (Tcl_GetIntFromObj(interp, listElements[i], &fileBlockData) != TCL_OK) {
@@ -704,7 +704,6 @@ static int CookfsFsindexCmdUnset(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, in
 static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     Tcl_Obj *splitPath;
     Tcl_Obj *resultObjects[3];
-    Tcl_Obj **resultList;
     Cookfs_FsindexEntry *entry;
 
     /* check arguments */
@@ -739,6 +738,7 @@ static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
 	Tcl_SetObjResult(interp, Tcl_NewListObj(1, resultObjects));
     }  else  {
 	int i;
+	Tcl_Obj **resultList;
 
 	/* for files, store file size and create a sublist with block-offset-size triplets */
 	resultObjects[1] = Tcl_NewWideIntObj(entry->data.fileInfo.fileSize);
@@ -806,6 +806,12 @@ static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int
     /* create a file list from result of Cookfs_FsindexList() */
     resultList = (Tcl_Obj **) ckalloc(sizeof(Tcl_Obj *) * itemCount);
     for (idx = 0; idx < itemCount; idx++) {
+        // Due to unknown reason, cppcheck gives here the following:
+        //     Argument 'results[idx]->fileName,-1' to function tcl_NewStringObj
+        //     is always -1. It does not matter what value 'idx'
+        //     has. [knownArgument]
+        // This sounds like a bug in cppcheck.
+        // cppcheck-suppress knownArgument
 	resultList[idx] = Tcl_NewStringObj(results[idx]->fileName, -1);
     }
 

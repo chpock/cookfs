@@ -34,7 +34,7 @@ typedef struct Cookfs_WriterChannelInstData {
 int Cookfs_InitWriterchannelCmd(Tcl_Interp *interp);
 
 Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
-    Cookfs_Fsindex *fsindex, Cookfs_Writer *writer, Tcl_Obj *pathObj,
+    Cookfs_Fsindex *index, Cookfs_Writer *writer, Tcl_Obj *pathObj,
     int pathObjLen, Cookfs_FsindexEntry *entry, Tcl_Interp *interp);
 
 void Cookfs_CreateWriterchannelFree(Cookfs_WriterChannelInstData *instData);
