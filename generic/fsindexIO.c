@@ -53,7 +53,7 @@ static int CookfsFsindexImportMetadata(Cookfs_Fsindex *fsIndex, unsigned char *b
  *----------------------------------------------------------------------
  */
 
-Tcl_Obj *Cookfs_FsindexToObject(Cookfs_Fsindex *fsIndex) {
+Tcl_Obj *Cookfs_FsindexToObject(Cookfs_Fsindex *fsindex) {
     Tcl_Obj *result;
     int objSize;
 
@@ -64,14 +64,14 @@ Tcl_Obj *Cookfs_FsindexToObject(Cookfs_Fsindex *fsIndex) {
 
     /* export root entry into newly created object; all subdirectories
      * are created recursively */
-    objSize = CookfsFsindexExportDirectory(fsIndex, fsIndex->rootItem, result, COOKFS_FSINDEX_HEADERLENGTH);
+    objSize = CookfsFsindexExportDirectory(fsindex, fsindex->rootItem, result, COOKFS_FSINDEX_HEADERLENGTH);
     Tcl_SetByteArrayLength(result, objSize);
 
     /* export metadata */
-    objSize = CookfsFsindexExportMetadata(fsIndex, result, objSize);
+    objSize = CookfsFsindexExportMetadata(fsindex, result, objSize);
     Tcl_SetByteArrayLength(result, objSize);
 
-    Cookfs_FsindexResetChangeCount(fsIndex);
+    Cookfs_FsindexResetChangeCount(fsindex);
 
     return result;
 }
@@ -186,6 +186,7 @@ Cookfs_Fsindex *Cookfs_FsindexFromObject(Cookfs_Fsindex *fsindex, Tcl_Obj *o) {
 
     CookfsLog(printf("Cookfs_FsindexFromObject - Import directory done - %d vs %d", i, objLength))
     if (i < objLength) {
+        // cppcheck-suppress unreadVariable symbolName=i
         i = CookfsFsindexImportMetadata(result, bytes, objLength, i);
     }
 
@@ -222,8 +223,6 @@ Cookfs_Fsindex *Cookfs_FsindexFromObject(Cookfs_Fsindex *fsindex, Tcl_Obj *o) {
  */
 
 static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexEntry *entry, Tcl_Obj *result, int objOffset) {
-    Tcl_HashSearch hashSearch;
-    Tcl_HashEntry *hashEntry;
     Cookfs_FsindexEntry *itemNode;
 
     unsigned char *bytes;
@@ -236,8 +235,9 @@ static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
     objOffset += 4;
 
     if (entry->data.dirInfo.isHash) {
+	Tcl_HashSearch hashSearch;
 	/* iterate using hash table */
-	hashEntry = Tcl_FirstHashEntry(&entry->data.dirInfo.dirData.children, &hashSearch);
+	Tcl_HashEntry *hashEntry = Tcl_FirstHashEntry(&entry->data.dirInfo.dirData.children, &hashSearch);
 	while (hashEntry != NULL) {
 	    /* get next item in hash table */
 	    itemNode = (Cookfs_FsindexEntry *) Tcl_GetHashValue(hashEntry);
@@ -289,7 +289,6 @@ static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
 	    CookfsLog(printf("DEBUG 4 - %d", objOffset))
 	}
     }  else  {
-	Cookfs_FsindexEntry *itemNode;
 	int i;
 	for (i = 0 ; i < COOKFS_FSINDEX_TABLE_MAXENTRIES; i++) {
 	    itemNode = entry->data.dirInfo.dirData.childTable[i];
@@ -369,14 +368,7 @@ static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
 
 static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexEntry *entry, unsigned char *bytes, int objLength, int objOffset) {
     /*  */
-    int fileId;
-    int fileBlocks;
-    char *fileName;
-    int fileNameLength;
     int childCount;
-    Tcl_WideInt fileTime;
-    Tcl_WideInt fileSize;
-    Cookfs_FsindexEntry *itemNode;
 
     /* get number of children */
     Cookfs_Binary2Int(bytes + objOffset, &childCount, 1);
@@ -387,7 +379,13 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
 
     /* import all children in current directory */
     CookfsLog(printf("CookfsFsindexImportDirectory - IMPORT BEGIN (%d childCount)", childCount))
-    for (fileId = 0; fileId < childCount; fileId++) {
+    for (int fileId = 0; fileId < childCount; fileId++) {
+	char *fileName;
+	int fileNameLength;
+	int fileBlocks;
+	Tcl_WideInt fileTime;
+	Cookfs_FsindexEntry *itemNode;
+
 	CookfsLog(printf("CookfsFsindexImportDirectory - IMPORT ITER %d/%d", fileId, childCount))
 	/* get file name from binary data */
         fileNameLength = bytes[objOffset];
@@ -417,10 +415,10 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
             }
         }  else  {
 	    /* copy all block-offset-size triplets from binary data to newly created entry */
-            int i;
+	    Tcl_WideInt fileSize = 0;
             Cookfs_Binary2Int(bytes + objOffset, itemNode->data.fileInfo.fileBlockOffsetSize, fileBlocks * 3);
             objOffset += fileBlocks * 12;
-            for (i = 0, fileSize = 0; i < fileBlocks; i++) {
+            for (int i = 0; i < fileBlocks; i++) {
                 fileSize += itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 2];
 		Cookfs_FsindexModifyBlockUsage(fsIndex, itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 0], 1);
 		CookfsLog(printf("CookfsFsindexImportDirectory - %d/%d/%d",
@@ -467,13 +465,7 @@ static int CookfsFsindexExportMetadata(Cookfs_Fsindex *fsIndex, Tcl_Obj *result,
     int objSize;
     int objInitialOffset = objOffset;
     int objSizeChanged;
-    const char *paramName;
-    Tcl_Obj *valueObj;
-    unsigned char *valueData;
     unsigned char *resultData;
-    unsigned int keySize;
-    int valueSize;
-    int size;
     int count = 0;
 
     resultData = Tcl_GetByteArrayFromObj(result, &objSize);
@@ -486,16 +478,20 @@ static int CookfsFsindexExportMetadata(Cookfs_Fsindex *fsIndex, Tcl_Obj *result,
     if (objSizeChanged)
         resultData = Tcl_SetByteArrayLength(result, objSize);
 
-    objInitialOffset = objOffset;
     objOffset += 4;
 
     for (hashEntry = Tcl_FirstHashEntry(&fsIndex->metadataHash, &hashSearch); hashEntry != NULL; hashEntry = Tcl_NextHashEntry(&hashSearch)) {
-        paramName = Tcl_GetHashKey(&fsIndex->metadataHash, hashEntry);
+
+        const char *paramName = Tcl_GetHashKey(&fsIndex->metadataHash, hashEntry);
         CookfsLog(printf("CookfsFsindexExportMetadata - exporting key %s", paramName))
-        keySize = strlen(paramName);
-        valueObj = Tcl_GetHashValue(hashEntry);
-        valueData = Tcl_GetByteArrayFromObj(valueObj, &valueSize);
-        size = keySize + 1 + valueSize;
+
+        unsigned int keySize = strlen(paramName);
+
+        Tcl_Obj *valueObj = Tcl_GetHashValue(hashEntry);
+        int valueSize;
+        unsigned char *valueData = Tcl_GetByteArrayFromObj(valueObj, &valueSize);
+
+        int size = keySize + 1 + valueSize;
         count++;
 
         /* calculate target object size, set new size if needed */
@@ -553,12 +549,6 @@ static int CookfsFsindexExportMetadata(Cookfs_Fsindex *fsIndex, Tcl_Obj *result,
 
 static int CookfsFsindexImportMetadata(Cookfs_Fsindex *fsIndex, unsigned char *bytes, int objLength, int objOffset) {
     int count;
-    int size;
-    int keySize;
-    int valueSize;
-    const char *paramName;
-    const unsigned char *valueData;
-    int i;
 
     if ((objOffset + 4) > objLength) {
         return objLength;
@@ -567,7 +557,12 @@ static int CookfsFsindexImportMetadata(Cookfs_Fsindex *fsIndex, unsigned char *b
     CookfsLog(printf("CookfsFsindexImportMetadata - Number of keys: %d", count))
     objOffset += 4;
 
-    for (i = 0; i < count; i++) {
+    for (int i = 0; i < count; i++) {
+        int keySize;
+        int valueSize;
+        const char *paramName;
+        const unsigned char *valueData;
+        int size;
         /* check if we are not reading out of bounds */
         if ((objOffset + 4) > objLength) {
             return -1;

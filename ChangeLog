@@ -1,3 +1,6 @@
+2024-05-28 Konstantin Kushnir <chpock@gmail.com>
+	* Add cppcheck
+
 2024-05-27 Konstantin Kushnir <chpock@gmail.com>
 	* Fix a bug when deleting the last entry from small file buffer
 	* Add support for optimize list command for c-vfs

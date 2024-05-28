@@ -248,9 +248,11 @@ static int Cookfs_Writerchannel_Input(ClientData instanceData, char *buf,
     return toRead;
 }
 
+// cppcheck-suppress-begin constParameterCallback
 static int Cookfs_Writerchannel_Output(ClientData instanceData,
     const char *buf, int toWrite, int *errorCodePtr)
 {
+// cppcheck-suppress-end constParameterCallback
     Cookfs_WriterChannelInstData *instData =
         (Cookfs_WriterChannelInstData *) instanceData;
     *errorCodePtr = 0;

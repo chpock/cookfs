@@ -29,7 +29,6 @@
  */
 
 unsigned char *Cookfs_Binary2Int(unsigned char *input, int *output, int count) {
-    int b;
     while (count > 0) {
         /*
             Avoid undefined behaviour warning:
@@ -37,7 +36,7 @@ unsigned char *Cookfs_Binary2Int(unsigned char *input, int *output, int count) {
             because even if input[0] is an unsigned char, it is still promoted
             to a normal signed int.
         */
-        b = ((unsigned int)input[0] << 24)
+        int b = ((unsigned int)input[0] << 24)
             | (input[1] << 16)
             | (input[2] << 8)
             | input[3];
@@ -103,9 +102,8 @@ unsigned char *Cookfs_Int2Binary(int *input, unsigned char *output, int count) {
  */
 
 unsigned char *Cookfs_Binary2WideInt(unsigned char *input, Tcl_WideInt *output, int count) {
-    Tcl_WideInt v;
     while (count > 0) {
-        v = input[0]; v = v << 8;
+        Tcl_WideInt v = input[0]; v = v << 8;
         v |= input[1]; v = v << 8;
         v |= input[2]; v = v << 8;
         v |= input[3]; v = v << 8;
@@ -142,9 +140,8 @@ unsigned char *Cookfs_Binary2WideInt(unsigned char *input, Tcl_WideInt *output, 
  */
 
 unsigned char *Cookfs_WideInt2Binary(Tcl_WideInt *input, unsigned char *output, int count) {
-    Tcl_WideInt v;
     while (count > 0) {
-        v = *input;
+        Tcl_WideInt v = *input;
         output[7] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
         output[6] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;
         output[5] = v & ((Tcl_WideInt) 0x000000ff); v = v >> 8;

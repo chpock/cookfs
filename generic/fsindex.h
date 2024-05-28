@@ -77,7 +77,7 @@ int Cookfs_FsindexUnsetMetadata(Cookfs_Fsindex *i, const char *paramName);
 int Cookfs_FsindexGetBlockUsage(Cookfs_Fsindex *i, int idx);
 void Cookfs_FsindexModifyBlockUsage(Cookfs_Fsindex *i, int idx, int count);
 
-Cookfs_FsindexEntry *CookfsFsindexFindElement(Cookfs_Fsindex *i, Tcl_Obj *pathList, int listSize);
+Cookfs_FsindexEntry *CookfsFsindexFindElement(const Cookfs_Fsindex *i, Tcl_Obj *pathList, int listSize);
 
 Tcl_WideInt Cookfs_FsindexIncrChangeCount(Cookfs_Fsindex *i, int count);
 void Cookfs_FsindexResetChangeCount(Cookfs_Fsindex *i);

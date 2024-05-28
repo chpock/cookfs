@@ -256,7 +256,7 @@ int Cookfs_WriterRemoveFile(Cookfs_Writer *w, Cookfs_FsindexEntry *entry) {
             } else {
                 wbPrev->next = next;
             }
-            if (w->bufferLast = wb) {
+            if (w->bufferLast == wb) {
                 w->bufferLast = wbPrev;
             }
             w->bufferCount--;

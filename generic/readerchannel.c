@@ -57,9 +57,11 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Cookfs_Fsindex *fsin
             return NULL;
         }
 
-    } else {
+    } else if (entry != NULL) {
         CookfsLog(printf("Cookfs_CreateReaderchannel: init by fsindex entry [%p]", (void *)entry));
         listObjc = entry->fileBlocks * 3;
+    } else {
+        return NULL;
     }
 
     instData = Cookfs_CreateReaderchannelAlloc(pages, fsindex, listObjc);

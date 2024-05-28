@@ -330,6 +330,15 @@ $(srcdir)/doc/%.n: $(srcdir)/doc/%.man
 	cd "$(dir $@)" && echo 'package require dtplite; dtplite::do [list -o $(notdir $@) nroff $(notdir $<)]' | \
 	    $(TCLSH)
 
+.PHONY: cppcheck
+cppcheck:
+	cppcheck -q -j$(shell nproc) --enable=all --inconclusive --inline-suppr --force --error-exitcode=1 \
+	    $(INCLUDES) \
+	    --suppress=missingIncludeSystem \
+	    --suppress=constParameterPointer \
+	    --suppress=constVariablePointer \
+	    "$(srcdir)/generic"
+
 ifeq ($(CFLAGS_DEFAULT),-g)
     PACKAGE_ARCHIVE = $(PACKAGE_NAME)-debug-$(PACKAGE_VERSION)
 else
