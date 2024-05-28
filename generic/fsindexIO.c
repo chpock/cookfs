@@ -186,6 +186,7 @@ Cookfs_Fsindex *Cookfs_FsindexFromObject(Cookfs_Fsindex *fsindex, Tcl_Obj *o) {
 
     CookfsLog(printf("Cookfs_FsindexFromObject - Import directory done - %d vs %d", i, objLength))
     if (i < objLength) {
+        // cppcheck-suppress unreadVariable symbolName=i
         i = CookfsFsindexImportMetadata(result, bytes, objLength, i);
     }
 
