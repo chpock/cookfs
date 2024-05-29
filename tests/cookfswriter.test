@@ -7,6 +7,7 @@ tcltest::test cookfsWriter-1.1 "Create empty archive" -constraints runCookfsWrit
 } -cleanup {
     catch {vfs::unmount $file}
     catch {file delete -force $file}
+    unset -nocomplain file
 } -returnCodes {ok}
 
 tcltest::test cookfsWriter-1.2 "Create empty archive with bootstrap" -constraints runCookfsWriter -setup {
@@ -22,6 +23,7 @@ tcltest::test cookfsWriter-1.2 "Create empty archive with bootstrap" -constraint
 } -cleanup {
     catch {vfs::unmount $file}
     catch {file delete -force $file}
+    unset -nocomplain file p fsid
 } -returnCodes {ok}
 
 tcltest::test cookfsWriter-1.3 "Create non-empty archive with bootstrap" -constraints runCookfsWriter -setup {
@@ -53,4 +55,5 @@ tcltest::test cookfsWriter-1.3 "Create non-empty archive with bootstrap" -constr
     catch {close $fh}
     catch {vfs::unmount $file}
     catch {file delete -force $file}
+    unset -nocomplain file files fsid p fh
 } -returnCodes {ok}

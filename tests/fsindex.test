@@ -3,6 +3,7 @@ tcltest::test cookfsFsindex-1.1 "Create empty fsindex" -setup {
     set fsidx [cookfs::fsindex]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -returnCodes {ok} -match glob -result {::cookfs::*::fsindex::handle*}
 
 tcltest::test cookfsFsindex-1.2 "Create empty fsindex and create file" -setup {
@@ -14,6 +15,7 @@ tcltest::test cookfsFsindex-1.2 "Create empty fsindex and create file" -setup {
     }
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -returnCodes {ok}
 
 tcltest::test cookfsFsindex-1.3 "Create empty fsindex and create directory and files" -setup {
@@ -40,6 +42,7 @@ tcltest::test cookfsFsindex-1.3 "Create empty fsindex and create directory and f
     }
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -returnCodes {ok}
 
 tcltest::test cookfsFsindex-2.1 "Create fsindex based on other fsindex" -setup {
@@ -56,6 +59,7 @@ tcltest::test cookfsFsindex-2.1 "Create fsindex based on other fsindex" -setup {
 } -cleanup {
     $fsidx delete
     $fsidx2 delete
+    unset -nocomplain fsidx fsidx2
 } -returnCodes {ok} -result 1,0
 
 tcltest::test cookfsFsindex-2.2 "Test handling of entries in non-existing paths" -setup {
@@ -65,6 +69,7 @@ tcltest::test cookfsFsindex-2.2 "Test handling of entries in non-existing paths"
     $fsidx set test1/test2 0
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -returnCodes {error} -result {Unable to create entry}
 
 tcltest::test cookfsFsindex-3.1 "Create small number of entries in single directory" -setup {
@@ -87,6 +92,7 @@ tcltest::test cookfsFsindex-3.1 "Create small number of entries in single direct
     }
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx i j d
 } -returnCodes {ok}
 
 tcltest::test cookfsFsindex-3.2 "Create medium number of entries in single directory" -setup {
@@ -109,6 +115,7 @@ tcltest::test cookfsFsindex-3.2 "Create medium number of entries in single direc
     }
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx i j d
 } -returnCodes {ok}
 
 tcltest::test cookfsFsindex-3.3 "Create large number of entries in single directory" -setup {
@@ -131,6 +138,7 @@ tcltest::test cookfsFsindex-3.3 "Create large number of entries in single direct
     }
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx i j d
 } -returnCodes {ok}
 
 tcltest::test cookfsFsindex-4.1 "Create filename outside iso8859-1 encoding" -setup {
@@ -141,6 +149,7 @@ tcltest::test cookfsFsindex-4.1 "Create filename outside iso8859-1 encoding" -se
     lindex [$fsidx get $fn] 0
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx fn
 } -returnCodes {ok} -result 1
 
 tcltest::test cookfsFsindex-4.2 "Create filename outside iso8859-1 encoding after export/import" -setup {
@@ -154,6 +163,7 @@ tcltest::test cookfsFsindex-4.2 "Create filename outside iso8859-1 encoding afte
     lindex [$fsidx get $fn] 0
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx fn d
 } -returnCodes {ok} -result 1
 
 tcltest::test cookfsFsindex-5.1 "Test metadata setting" -constraints cookfsMetadata -setup {
@@ -165,6 +175,7 @@ tcltest::test cookfsFsindex-5.1 "Test metadata setting" -constraints cookfsMetad
     format %s,%s [$fsidx getmetadata test1] [$fsidx getmetadata test2]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -returnCodes {ok} -result t1,t2
 
 tcltest::test cookfsFsindex-5.2 "Test metadata setting across export/import" -constraints cookfsMetadata -setup {
@@ -180,6 +191,7 @@ tcltest::test cookfsFsindex-5.2 "Test metadata setting across export/import" -co
     format %s,%s [$fsidx getmetadata test1] [$fsidx getmetadata test2]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx fh d
 } -returnCodes {ok} -result t1,t2
 
 tcltest::test cookfsFsindex-6.1 "Test setmtime" -setup {
@@ -190,6 +202,7 @@ tcltest::test cookfsFsindex-6.1 "Test setmtime" -setup {
     join [$fsidx get testdir] \n
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -returnCodes {ok} -result 3
 
 tcltest::test cookfsFsindex-6.1 "Test unset for empty directory" -setup {
@@ -202,6 +215,7 @@ tcltest::test cookfsFsindex-6.1 "Test unset for empty directory" -setup {
     join [lsort [$fsidx list {}]] ,
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -returnCodes {ok} -result testdir1,testdir3
 
 tcltest::test cookfsFsindex-6.2 "Test unset for empty directory after export and import" -setup {
@@ -217,6 +231,7 @@ tcltest::test cookfsFsindex-6.2 "Test unset for empty directory after export and
     join [lsort [$fsidx list {}]] ,
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx d
 } -returnCodes {ok} -result testdir1,testdir3
 
 tcltest::test cookfsFsindex-6.3 "Test unset for file" -setup {
@@ -232,6 +247,7 @@ tcltest::test cookfsFsindex-6.3 "Test unset for file" -setup {
     join [lsort [$fsidx list {}]] ,
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx d
 } -returnCodes {ok} -result testdir1,testdir3
 
 tcltest::test cookfsFsindex-6.4 "Test unset for non-empty directory" -setup {
@@ -244,6 +260,7 @@ tcltest::test cookfsFsindex-6.4 "Test unset for non-empty directory" -setup {
     $fsidx unset testdir2
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -returnCodes {error} -result {Unable to unset item}
 
 tcltest::test cookfsFsindex-7.1 "Test getblockusage, without arguments" -body {
@@ -251,6 +268,7 @@ tcltest::test cookfsFsindex-7.1 "Test getblockusage, without arguments" -body {
     $fsidx getblockusage
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::fsindex::handle* getblockusage block"}
 
 tcltest::test cookfsFsindex-7.2 "Test getblockusage, wrong block number" -body {
@@ -258,6 +276,7 @@ tcltest::test cookfsFsindex-7.2 "Test getblockusage, wrong block number" -body {
     $fsidx getblockusage 0
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -result 0
 
 tcltest::test cookfsFsindex-7.3 "Test getblockusage, after set" -body {
@@ -271,6 +290,7 @@ tcltest::test cookfsFsindex-7.3 "Test getblockusage, after set" -body {
         [$fsidx getblockusage 3]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -result [list 1 0 0 1]
 
 tcltest::test cookfsFsindex-7.4 "Test getblockusage, after set and unset" -body {
@@ -285,6 +305,7 @@ tcltest::test cookfsFsindex-7.4 "Test getblockusage, after set and unset" -body 
         [$fsidx getblockusage 3]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -result [list 0 0 0 0]
 
 tcltest::test cookfsFsindex-7.5 "Test getblockusage, after set, wrong block number" -body {
@@ -293,6 +314,7 @@ tcltest::test cookfsFsindex-7.5 "Test getblockusage, after set, wrong block numb
     $fsidx getblockusage 4
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -result 0
 
 tcltest::test cookfsFsindex-7.6 "Test getblockusage, after import" -body {
@@ -308,6 +330,7 @@ tcltest::test cookfsFsindex-7.6 "Test getblockusage, after import" -body {
         [$fsidx getblockusage 3]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx d
 } -result [list 1 0 0 1]
 
 tcltest::test cookfsFsindex-7.7 "Test getblockusage, multiple set" -body {
@@ -325,6 +348,7 @@ tcltest::test cookfsFsindex-7.7 "Test getblockusage, multiple set" -body {
         [$fsidx getblockusage 3]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -result [list 1 0 1 3]
 
 tcltest::test cookfsFsindex-7.8 "Test getblockusage, multiple set/unset" -body {
@@ -346,6 +370,7 @@ tcltest::test cookfsFsindex-7.8 "Test getblockusage, multiple set/unset" -body {
         [$fsidx getblockusage 4]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -result [list 1 0 1 2 1]
 
 tcltest::test cookfsFsindex-7.9 "Test getblockusage, set with override" -body {
@@ -361,6 +386,7 @@ tcltest::test cookfsFsindex-7.9 "Test getblockusage, set with override" -body {
         [$fsidx getblockusage 4]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -result [list 0 0 0 1 1]
 
 tcltest::test cookfsFsindex-8.1 "Test changecount, wrong args" -body {
@@ -368,6 +394,7 @@ tcltest::test cookfsFsindex-8.1 "Test changecount, wrong args" -body {
     $fsidx changecount 1
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx
 } -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::fsindex::handle* changecount"}
 
 tcltest::test cookfsFsindex-8.2 "Test changecount, set/unset increments" -body {
@@ -392,6 +419,7 @@ tcltest::test cookfsFsindex-8.2 "Test changecount, set/unset increments" -body {
     lappend res [$fsidx changecount]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx res
 } -result {0 1 2 3 4 5 6 7 8}
 
 tcltest::test cookfsFsindex-8.3 "Test changecount, set/unset metadata increments" -body {
@@ -404,6 +432,7 @@ tcltest::test cookfsFsindex-8.3 "Test changecount, set/unset metadata increments
     lappend res [$fsidx changecount]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx res
 } -result {0 1 2}
 
 tcltest::test cookfsFsindex-8.4 "Test changecount, don't increase the counter on unset errors" -body {
@@ -423,6 +452,7 @@ tcltest::test cookfsFsindex-8.4 "Test changecount, don't increase the counter on
     lappend res [$fsidx changecount]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx res
 } -result {0 1 2 2 3 4}
 
 tcltest::test cookfsFsindex-8.5 "Test changecount, reset the change counter on import/export" -body {
@@ -441,6 +471,7 @@ tcltest::test cookfsFsindex-8.5 "Test changecount, reset the change counter on i
     lappend res [$fsidx changecount]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx res exp
 } -result {0 1 0 1 0 1}
 
 tcltest::test cookfsFsindex-8.6 "Test changecount, setmtime increment" -body {
@@ -453,6 +484,7 @@ tcltest::test cookfsFsindex-8.6 "Test changecount, setmtime increment" -body {
     lappend res [$fsidx changecount]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx res
 } -result {0 1 2}
 
 tcltest::test cookfsFsindex-8.7 "Test changecount, non-incremental operations" -body {
@@ -475,6 +507,7 @@ tcltest::test cookfsFsindex-8.7 "Test changecount, non-incremental operations" -
     lappend res [$fsidx changecount]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx res
 } -result {0 1 2 2 2 2 2 2}
 
 tcltest::test cookfsFsindex-8.8 "Test changecount, don't increment on errors" -body {
@@ -506,5 +539,6 @@ tcltest::test cookfsFsindex-8.8 "Test changecount, don't increment on errors" -b
     lappend res [$fsidx changecount]
 } -cleanup {
     $fsidx delete
+    unset -nocomplain fsidx res
 } -result {0 1 2 2 2 2 2 2 2 2 2}
 

@@ -14,6 +14,8 @@ tcltest::test cookfsPkgconfig-1 "Check pkgconfig fields and their types" -body {
     }
     lappend result {}
     join $result \n
+} -cleanup {
+    unset -nocomplain result f v
 } -result {
 c-fsindex bool
 c-pages bool

@@ -31,8 +31,7 @@ tcltest::test cookfsReaderChannel-1 {read from multiple pages} -setup {
 } -result {5 4001 15 1 1} -cleanup {
     catch { vfs::unmount $vfs }
     file delete -force $vfs
-    unset vfs file
-    unset -nocomplain pg fs fp
+    unset -nocomplain pg fs fp result vfs file data
 }
 
 tcltest::test cookfsReaderChannel-2 {full read with multiple pages} -setup {
@@ -57,8 +56,7 @@ tcltest::test cookfsReaderChannel-2 {full read with multiple pages} -setup {
 } -result {4001 1} -cleanup {
     catch { vfs::unmount $vfs }
     file delete -force $vfs
-    unset vfs file
-    unset -nocomplain result fp
+    unset -nocomplain result fp vfs file data
 }
 
 tcltest::test cookfsReaderChannel-3 {position when reading a file sequentially over several pages} -setup {
@@ -91,8 +89,7 @@ tcltest::test cookfsReaderChannel-3 {position when reading a file sequentially o
 4001 4001} -cleanup {
     catch { vfs::unmount $vfs }
     file delete -force $vfs
-    unset vfs file
-    unset -nocomplain result expected fp
+    unset -nocomplain result expected fp vfs file data
 }
 
 tcltest::test cookfsReaderChannel-4 {position when reading a file randomly over several pages} -setup {
@@ -152,7 +149,7 @@ tcltest::test cookfsReaderChannel-4 {position when reading a file randomly over 
     catch { vfs::unmount $vfs }
     file delete -force $vfs
     unset vfs file
-    unset -nocomplain result expected fp
+    unset -nocomplain result expected fp x data
     unset -nocomplain offset size
 }
 
@@ -185,6 +182,7 @@ tcltest::test cookfsReaderChannel-5.1 {readable fileevent works for file in page
     catch { vfs::unmount $vfs }
     file delete -force $vfs
     catch { after cancel $timer }
+    unset -nocomplain vfs data file result fp chan timer wait
 }
 
 tcltest::test cookfsReaderChannel-5.2 {readable fileevent works for file in smallfilebuffer} -setup {
@@ -219,6 +217,7 @@ tcltest::test cookfsReaderChannel-5.2 {readable fileevent works for file in smal
     catch { vfs::unmount $vfs }
     file delete -force $vfs
     catch { after cancel $timer }
+    unset -nocomplain vfs data file result fp chan timer wait
 }
 
 tcltest::test cookfsReaderChannel-6.1 {channel options for file in pages} -setup {
@@ -250,6 +249,7 @@ tcltest::test cookfsReaderChannel-6.1 {channel options for file in pages} -setup
     catch { close $fp }
     catch { vfs::unmount $vfs }
     file delete -force $vfs
+    unset -nocomplain vfs file fp expected result opt actual
 }
 
 tcltest::test cookfsReaderChannel-6.2 {channel options for file in smallfilebuffer} -setup {
@@ -284,4 +284,5 @@ tcltest::test cookfsReaderChannel-6.2 {channel options for file in smallfilebuff
     catch { close $fp }
     catch { vfs::unmount $vfs }
     file delete -force $vfs
+    unset -nocomplain vfs file fp data expected result opt actual
 }
