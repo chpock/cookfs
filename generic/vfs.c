@@ -193,7 +193,8 @@ void Cookfs_VfsUnregisterInTclvfs(Cookfs_Vfs *vfs) {
     objv[1] = vfs->mountObj;
     Tcl_Obj *cmd = Tcl_NewListObj(2, objv);
     Tcl_IncrRefCount(cmd);
-    CookfsLog(printf("Cookfs_VfsUnregisterInTclvfs: call tclvfs..."));
+    CookfsLog(printf("Cookfs_VfsUnregisterInTclvfs: call tclvfs: [%s]",
+        Tcl_GetString(cmd)));
     int ret = Tcl_EvalObjEx(vfs->interp, cmd, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
     Tcl_DecrRefCount(cmd);
     CookfsLog(printf("Cookfs_VfsUnregisterInTclvfs: tclvfs returned: %d",
@@ -249,7 +250,8 @@ int Cookfs_VfsRegisterInTclvfs(Cookfs_Vfs *vfs) {
     Tcl_Obj *cmd = Tcl_NewListObj(3, objv);
 
     Tcl_IncrRefCount(cmd);
-    CookfsLog(printf("Cookfs_VfsRegisterInTclvfs: call tclvfs..."));
+    CookfsLog(printf("Cookfs_VfsRegisterInTclvfs: call tclvfs: [%s]",
+        Tcl_GetString(cmd)));
     int ret = Tcl_EvalObjEx(vfs->interp, cmd, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
     Tcl_DecrRefCount(cmd);
     CookfsLog(printf("Cookfs_VfsRegisterInTclvfs: tclvfs returned: %d",

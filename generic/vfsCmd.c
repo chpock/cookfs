@@ -519,9 +519,17 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
     Tcl_DecrRefCount(localActual);
     localActual = NULL;
 
+    CookfsLog(printf("CookfsMountCmd: add mount point..."));
+    if (!Cookfs_CookfsAddVfs(interp, vfs)) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to add"
+            " the mount point", -1));
+        goto error;
+    }
+
     if (!noregister) {
         CookfsLog(printf("CookfsMountCmd: registering the vfs in tclvfs..."));
         if (Cookfs_VfsRegisterInTclvfs(vfs) != TCL_OK) {
+            Cookfs_CookfsRemoveVfs(interp, NULL, vfs);
             // We have an error message from Tclvfs in interp result
             CookfsLog(printf("CookfsMountCmd: failed to register vfs"
                 " in tclvfs"));
@@ -530,13 +538,6 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
     } else {
         CookfsLog(printf("CookfsMountCmd: no need to register the vfs"
             " in tclvfs"));
-    }
-
-    CookfsLog(printf("CookfsMountCmd: add mount point..."));
-    if (!Cookfs_CookfsAddVfs(interp, vfs)) {
-        Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to add"
-            " the mount point", -1));
-        goto error;
     }
 
     char cmd[128];

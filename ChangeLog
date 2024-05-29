@@ -1,3 +1,6 @@
+2024-05-29 Konstantin Kushnir <chpock@gmail.com>
+	* Fix a regression when register volume and unregister with vfs::unmount
+
 2024-05-28 Konstantin Kushnir <chpock@gmail.com>
 	* Add cppcheck
 
