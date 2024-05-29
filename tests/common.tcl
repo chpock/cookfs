@@ -207,9 +207,9 @@ proc testIfEqual {a b} {
     return "1"
 }
 
-set testcompresscount 0
-set testdecompresscount 0
-set testasynccompresscount 0
+proc testcompresscleanup {} {
+    unset -nocomplain ::testcompresscount ::testdecompresscount
+}
 
 proc testcompress {d {count 1}} {
     incr ::testcompresscount $count
@@ -220,6 +220,15 @@ proc testdecompress {d {count 1}} {
     incr ::testdecompresscount $count
     set rc [vfs::zip -mode decompress [binary format H* [string range $d 8 end]]]
     return $rc
+}
+
+proc testasynccleanup {} {
+    unset -nocomplain ::testasynccompressqueue ::testasynccompressqueuesize ::testasynccompressfinalized
+    unset -nocomplain ::testasyncdecompressqueue ::testasyncdecompressqueuesize ::testasyncdecompressfinalized
+    unset -nocomplain ::testasynccompresscount ::testasyncdecompresscount
+    unset -nocomplain ::testasyncdecompresswaitcount
+    unset -nocomplain ::testasyncdecompressprocesscount
+    testcompresscleanup
 }
 
 proc testasynccompress {cmd idx arg} {
@@ -305,8 +314,9 @@ proc testasyncdecompressrandom {cmd idx arg} {
     return $rc
 }
 
-set testcompresscountraw 0
-set testdecompresscountraw 0
+proc testrawcleanup {} {
+    unset -nocomplain ::testcompresscountraw ::testdecompresscountraw
+}
 
 proc testcompressraw {d} {
     incr ::testcompresscountraw
@@ -318,4 +328,3 @@ proc testdecompressraw {d} {
     set rc [binary format H* [string range $d 8 end]]
     return $rc
 }
-

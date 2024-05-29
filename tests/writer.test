@@ -30,6 +30,7 @@ tcltest::test cookfsWriter-1.1 "Add small files" -setup {
     tcltest::removeFile $vfs
     tcltest::removeFile $file1
     tcltest::removeFile $file2
+    unset -nocomplain vfs datas file1 file2 h channel result
 }  -result {
 file1 1
 file2 1
@@ -69,6 +70,7 @@ tcltest::test cookfsWriter-1.2 "Add big files" -setup {
     tcltest::removeFile $vfs
     tcltest::removeFile $file1
     tcltest::removeFile $file2
+    unset -nocomplain vfs datas file1 file2 h channel result
 } -result {
 file1 1
 file2 1
@@ -86,6 +88,7 @@ tcltest::test cookfsWriter-2.1 "Error while adding files without parent director
 } -cleanup {
     vfs::unmount $vfs
     tcltest::removeFile $vfs
+    unset -nocomplain vfs h
 } -returnCodes error -result {unable to add "somedirectory/file2": Unable to create entry}
 
 tcltest::test cookfsWriter-3.1 "Add the same file while previous file is in small buffer" -setup {
@@ -111,6 +114,7 @@ tcltest::test cookfsWriter-3.1 "Add the same file while previous file is in smal
 } -cleanup {
     catch { vfs::unmount $vfs }
     tcltest::removeFile $vfs
+    unset -nocomplain vfs datas h result fs
 } -returnCodes ok -result {
 file1 1
 1
@@ -140,6 +144,7 @@ tcltest::test cookfsWriter-3.2 "Add the same file while previous file in in page
 } -cleanup {
     catch { vfs::unmount $vfs }
     tcltest::removeFile $vfs
+    unset -nocomplain vfs datas h result fs
 } -returnCodes ok -result {
 file1 1
 1
@@ -154,6 +159,7 @@ tcltest::test cookfsWriter-4.1 "Error while adding file by absolute name" -setup
 } -cleanup {
     vfs::unmount $vfs
     tcltest::removeFile $vfs
+    unset -nocomplain vfs h
 } -returnCodes error -result {unable to add "/file1": Unable to create entry}
 
 tcltest::test cookfsWriter-5.1 "Channel options for added channels are preserved" -setup {
@@ -208,6 +214,7 @@ tcltest::test cookfsWriter-5.1 "Channel options for added channels are preserved
     tcltest::removeFile $vfs
     tcltest::removeFile $file1
     tcltest::removeFile $file2
+    unset -nocomplain vfs file1 file2 data2 data1 h result channel
 } -result {
 -encoding 1
 -translation 1
@@ -250,6 +257,7 @@ tcltest::test cookfsWriter-5.2 "Channel options are preserved when error occurs"
     catch { close $channel }
     tcltest::removeFile $vfs
     tcltest::removeFile $file1
+    unset -nocomplain vfs data1 file1 h channel result
 } -result {
 1
 -encoding 1
@@ -286,6 +294,7 @@ tcltest::test cookfsWriter-6.1 "Deleting files in a small file buffer" -setup {
 } -cleanup {
     catch { vfs::unmount $vfs }
     tcltest::removeFile $vfs
+    unset -nocomplain vfs result data1 data2 h fs
 } -result {1 0 1 0 1}
 
 tcltest::test cookfsWriter-6.2 "Deleting files doesn't corrupt following files in small file buffer" -setup {
@@ -317,6 +326,7 @@ tcltest::test cookfsWriter-6.2 "Deleting files doesn't corrupt following files i
 } -cleanup {
     catch { vfs::unmount $vfs }
     tcltest::removeFile $vfs
+    unset -nocomplain vfs result h data2 data1 fs
 } -result {1 1 match=1 0 1 match=1 1 0 1 match=1}
 
 

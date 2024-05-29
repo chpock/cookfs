@@ -153,6 +153,7 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -se
     catch { close $fd }
     catch { vfs::unmount $file }
     file delete -force $file
+    unset -nocomplain file result fd fsid x
 } -result {
 {0 0 101} {1 0 4} {1 4 4} {2 0 101} {3 0 4} {3 4 4} {4 0 150 5 0 51} {6 0 4} {6 4 4}
 

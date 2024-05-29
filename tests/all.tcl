@@ -18,7 +18,7 @@ if {[info tclversion] == "8.5"} {
 source [file join [tcltest::testsDirectory] common.tcl]
 
 if {[info exists ::env(MEMDEBUG)]} {
-    source [file join [tcltest::testsDirectory] memdebug.tcl]
+    source [file join [tcltest::testsDirectory] memleakhunter.tcl]
 }
 
 set constraints [tcltest::configure -constraints]

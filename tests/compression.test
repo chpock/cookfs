@@ -27,6 +27,7 @@ foreach { cid } { none zlib bz2 xz } {
     } -result 1 -cleanup {
         catch { vfs::unmount $file }
         file delete -force $file $dir
+        unset -nocomplain ok file dir
     }
 
     tcltest::test "${test_title}-2" {store uncompressed small data} -constraints $constraint -setup {
@@ -52,6 +53,7 @@ foreach { cid } { none zlib bz2 xz } {
         catch { vfs::unmount $file }
         catch { $pg delete }
         file delete -force $file $dir
+        unset -nocomplain pg page_size ok file dir
     }
 
     tcltest::test "${test_title}-3" {store uncompressed large data} -constraints $constraint -setup {
@@ -86,6 +88,7 @@ foreach { cid } { none zlib bz2 xz } {
         catch { vfs::unmount $file }
         catch { $pg delete }
         file delete -force $file $dir
+        unset -nocomplain pg page_size ok file file1 dir fp data
     }
 
     tcltest::test "${test_title}-4" {store compressed} -constraints $constraint -setup {
@@ -119,6 +122,7 @@ foreach { cid } { none zlib bz2 xz } {
         catch { vfs::unmount $file }
         catch { $pg delete }
         file delete -force $file $dir
+        unset -nocomplain pg page_size ok file dir
     }
 
 }
