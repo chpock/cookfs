@@ -6,6 +6,15 @@
  * (c) 2024 Konstantin Kushnir
  */
 
+// This will make statbuf from Tcl compatible with our statbuf.
+// The details and related links are here:
+// https://core.tcl-lang.org/tclvfs/tktview/685c6eb3d5
+#if defined(_WIN32) && !defined(_WIN64) && !defined(__MINGW_USE_VC2005_COMPAT)
+#define __MINGW_USE_VC2005_COMPAT
+#elif defined(_WIN64) && !defined(__stat64)
+#define __stat64 _stat64
+#endif
+
 #include "cookfs.h"
 #include <unistd.h>
 #include <sys/stat.h>
@@ -438,6 +447,11 @@ done:
     // Detach the channel from the current interp as it should be
     // a pristine channel
     Tcl_DetachChannel(interp, channel);
+    // In Windows, native OpenFileChannel() sets -eofchar. Let's simulate
+    //the same behaviour.
+#ifdef _WIN32
+    Tcl_SetChannelOption(NULL, channel, "-eofchar", "\032 {}");
+#endif
     CookfsLog(printf("CookfsOpenFileChannel: ok"));
     return channel;
 
