@@ -479,8 +479,8 @@ Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Tcl_Obj *pathList, int
     const Cookfs_FsindexEntry *foundFileNode;
     Tcl_Obj *pathTail = NULL;
     char *pathTailStr;
-    int pathTailLen;
-    int listSize;
+    Tcl_Size pathTailLen;
+    Tcl_Size listSize;
 
     CookfsLog(printf("Cookfs_FsindexSet - start"))
 
@@ -490,7 +490,8 @@ Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Tcl_Obj *pathList, int
         return NULL;
     }
 
-    CookfsLog(printf("Cookfs_FsindexSet - listSize=%d", listSize))
+    CookfsLog(printf("Cookfs_FsindexSet - listSize=%" TCL_SIZE_MODIFIER "d",
+        listSize));
 
     if (listSize == 0) {
         return NULL;
@@ -1083,7 +1084,7 @@ Cookfs_FsindexEntry *CookfsFsindexFindElement(const Cookfs_Fsindex *i, Tcl_Obj *
 
 static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexEntry **dirPtr, Tcl_Obj *pathList, int command, Cookfs_FsindexEntry *newFileNode) {
     Cookfs_FsindexEntry *currentNode;
-    int listSize;
+    Tcl_Size listSize;
     Tcl_Obj *pathTail;
     char *pathTailStr;
 
@@ -1099,7 +1100,8 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
 	}
     }
 
-    CookfsLog(printf("CookfsFsindexCreateHashElement - LS=%d", listSize))
+    CookfsLog(printf("CookfsFsindexCreateHashElement - LS=%" TCL_SIZE_MODIFIER
+        "d", listSize))
 
     /* find parent element */
     currentNode = CookfsFsindexFindElement(i, pathList, listSize - 1);

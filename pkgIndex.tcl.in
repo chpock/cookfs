@@ -1,4 +1,10 @@
-package ifneeded @PACKAGE_NAME@::c @PACKAGE_VERSION@ [list load [file join $dir @PKG_LIB_FILE@] @PACKAGE_NAME@]
+if { [package vsatisfies [package provide Tcl] 9.0-] } {
+    package ifneeded @PACKAGE_NAME@::c @PACKAGE_VERSION@ \
+        [list load [file join $dir @PKG_LIB_FILE9@] [string totitle @PACKAGE_NAME@]]
+} else {
+    package ifneeded @PACKAGE_NAME@::c @PACKAGE_VERSION@ \
+        [list load [file join $dir @PKG_LIB_FILE8@] [string totitle @PACKAGE_NAME@]]
+}
 
 package ifneeded @PACKAGE_NAME@::tcl::pkgconfig @PACKAGE_VERSION@ [list source [file join $dir pkgconfig.tcl]]
 package ifneeded @PACKAGE_NAME@::tcl::writerchannel @PACKAGE_VERSION@ [list source [file join $dir writerchannel.tcl]]

@@ -16,7 +16,7 @@
 typedef struct cookfsInternalRep {
     Cookfs_Vfs *vfs;
     Tcl_Obj *relativePathObj;
-    int relativePathObjLen;
+    Tcl_Size relativePathObjLen;
 } cookfsInternalRep;
 
 static Tcl_FSPathInFilesystemProc CookfsPathInFilesystem;
@@ -88,14 +88,14 @@ static int CookfsPathInFilesystem(Tcl_Obj *pathPtr,
         return -1;
     }
 
-    int normPathLen;
+    Tcl_Size normPathLen;
     char *normPathStr = Tcl_GetStringFromObj(normPathObj, &normPathLen);
     if (normPathLen == 0) {
     //    CookfsLog(printf("CookfsPathInFilesystem: an empty path given."));
         return -1;
     }
 
-    int normPathCut = normPathLen;
+    Tcl_Size normPathCut = normPathLen;
     Cookfs_Vfs *vfs;
 
     while (normPathCut) {
@@ -449,7 +449,7 @@ posixerror:
 
 // cppcheck-suppress-begin constParameterCallback
 static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
-    Tcl_Obj *pathPtr, CONST char *pattern, Tcl_GlobTypeData *types)
+    Tcl_Obj *pathPtr, const char *pattern, Tcl_GlobTypeData *types)
 {
 // cppcheck-suppress-end constParameterCallback
 

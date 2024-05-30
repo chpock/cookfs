@@ -521,7 +521,7 @@ void Cookfs_SeekToPage(Cookfs_Pages *p, int idx) {
  */
 
 int Cookfs_WritePage(Cookfs_Pages *p, int idx, unsigned char *bytes, int origSize, Tcl_Obj *compressedData) {
-    int size = -1;
+    Tcl_Size size = -1;
 
     // Add initial stamp if needed
     Cookfs_PageAddStamp(p, 0);
@@ -585,7 +585,7 @@ int Cookfs_WritePage(Cookfs_Pages *p, int idx, unsigned char *bytes, int origSiz
 
 
 int Cookfs_WritePageObj(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compressedData) {
-    int dataSize;
+    Tcl_Size dataSize;
     unsigned char *bytes = Tcl_GetByteArrayFromObj(data, &dataSize);
     return Cookfs_WritePage(p, idx, bytes, dataSize, compressedData);
 }
@@ -696,7 +696,7 @@ int Cookfs_AsyncCompressWait(Cookfs_Pages *p, int require) {
     // TODO: properly throw errors here?
     if ((p->fileCompression == COOKFS_COMPRESSION_CUSTOM) && (p->asyncCompressCommandPtr != NULL) && (p->asyncCompressCommandLen > 3)) {
 	Tcl_Obj *result, *resObj;
-	int resultLength;
+	Tcl_Size resultLength;
 	int i = 0;
 	int idx = -1;
 
@@ -854,7 +854,7 @@ void Cookfs_AsyncDecompressWaitIfLoading(Cookfs_Pages *p, int idx) {
 int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require) {
     if ((p->asyncDecompressQueueSize > 0) && (p->asyncDecompressCommandPtr != NULL) && (p->asyncDecompressCommandLen > 3)) {
 	Tcl_Obj *result, *resObj;
-	int resultLength;
+	Tcl_Size resultLength;
 	int i = 0;
 
 	if (p->asyncDecompressQueue == 0) {
@@ -984,8 +984,8 @@ static void CookfsWriteCompression(Cookfs_Pages *p, int compression) {
 static Tcl_Obj **CookfsCreateCompressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd, int *lenPtr, int additionalElements) {
     Tcl_Obj **rc;
     Tcl_Obj **listObjv;
-    int listObjc;
-    int i;
+    Tcl_Size listObjc;
+    Tcl_Size i;
 
     /* get command as list of attributes */
     if (Tcl_ListObjGetElements(interp, cmd, &listObjc, &listObjv) != TCL_OK) {
@@ -1122,7 +1122,7 @@ static Tcl_Obj *CookfsReadPageZlib(Cookfs_Pages *p, int size) {
 
 static int CookfsWritePageZlib(Cookfs_Pages *p, unsigned char *bytes, int origSize) {
 #ifdef USE_ZLIB_TCL86
-    int size = origSize;
+    Tcl_Size size = origSize;
     /* use Tcl 8.6 API for zlib compression */
     Tcl_Obj *cobj;
     Tcl_ZlibStream zshandle;
@@ -1173,8 +1173,8 @@ static int CookfsWritePageZlib(Cookfs_Pages *p, unsigned char *bytes, int origSi
     prevResult = Tcl_GetObjResult(p->interp);
     Tcl_IncrRefCount(prevResult);
     if (Tcl_EvalObjv(p->interp, p->zipCmdLength, p->zipCmdCompress, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
+	CookfsLog(printf("Unable to compress: %s", Tcl_GetString(Tcl_GetObjResult(p->interp))));
 	Tcl_SetObjResult(p->interp, prevResult);
-	CookfsLog(printf("Unable to compress"))
 	Tcl_DecrRefCount(data);
 	return -1;
     }
@@ -1655,7 +1655,7 @@ static Tcl_Obj *CookfsReadPageCustom(Cookfs_Pages *p, int size) {
  */
 
 static int CookfsWritePageCustom(Cookfs_Pages *p, unsigned char *bytes, int origSize) {
-    int size = origSize;
+    Tcl_Size size = origSize;
     /* use vfs::zip command for compression */
     Tcl_Obj *prevResult;
     Tcl_Obj *compressed;
@@ -1670,9 +1670,9 @@ static int CookfsWritePageCustom(Cookfs_Pages *p, unsigned char *bytes, int orig
     prevResult = Tcl_GetObjResult(p->interp);
     Tcl_IncrRefCount(prevResult);
     if (Tcl_EvalObjv(p->interp, p->compressCommandLen, p->compressCommandPtr, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
+	CookfsLog(printf("Unable to compress: %s", Tcl_GetString(Tcl_GetObjResult(p->interp))));
 	p->compressCommandPtr[p->compressCommandLen - 1] = NULL;
 	Tcl_SetObjResult(p->interp, prevResult);
-	CookfsLog(printf("Unable to compress"))
 	Tcl_DecrRefCount(data);
 	return -1;
     }

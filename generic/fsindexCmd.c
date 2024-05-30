@@ -546,7 +546,7 @@ static int CookfsFsindexCmdSetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
  */
 
 static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    int numBlocks;
+    Tcl_Size numBlocks;
     int fileBlockData;
     Tcl_Obj *splitPath;
     Tcl_Obj **listElements;

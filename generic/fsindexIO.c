@@ -105,10 +105,10 @@ Cookfs_Fsindex *Cookfs_FsindexFromPages(Cookfs_Fsindex *fsindex, Cookfs_Pages *p
     Tcl_Obj *indexDataObj = Cookfs_PagesGetIndex(pages);
     Tcl_IncrRefCount(indexDataObj);
 
-    int indexDataLen;
+    Tcl_Size indexDataLen;
     Tcl_GetByteArrayFromObj(indexDataObj, &indexDataLen);
-    CookfsLog(printf("Cookfs_FsindexFromPages: got index data %d bytes",
-        indexDataLen));
+    CookfsLog(printf("Cookfs_FsindexFromPages: got index data %"
+        TCL_SIZE_MODIFIER "d bytes", indexDataLen));
 
     if (indexDataLen) {
         CookfsLog(printf("Cookfs_FsindexFromPages: import from the object..."));
@@ -149,7 +149,7 @@ Cookfs_Fsindex *Cookfs_FsindexFromPages(Cookfs_Fsindex *fsindex, Cookfs_Pages *p
  */
 
 Cookfs_Fsindex *Cookfs_FsindexFromObject(Cookfs_Fsindex *fsindex, Tcl_Obj *o) {
-    int objLength;
+    Tcl_Size objLength;
     int i;
     unsigned char *bytes;
     Cookfs_Fsindex *result;
@@ -184,13 +184,15 @@ Cookfs_Fsindex *Cookfs_FsindexFromObject(Cookfs_Fsindex *fsindex, Tcl_Obj *o) {
     /* import root entry; import of subdirectories happens recursively */
     i = CookfsFsindexImportDirectory(result, result->rootItem, bytes, objLength, 8);
 
-    CookfsLog(printf("Cookfs_FsindexFromObject - Import directory done - %d vs %d", i, objLength))
+    CookfsLog(printf("Cookfs_FsindexFromObject - Import directory done -"
+        " %d vs %" TCL_SIZE_MODIFIER "d", i, objLength))
     if (i < objLength) {
         // cppcheck-suppress unreadVariable symbolName=i
         i = CookfsFsindexImportMetadata(result, bytes, objLength, i);
     }
 
-    CookfsLog(printf("Cookfs_FsindexFromObject - Import metadata done - %d vs %d", i, objLength))
+    CookfsLog(printf("Cookfs_FsindexFromObject - Import metadata done -"
+        " %d vs %" TCL_SIZE_MODIFIER "d", i, objLength))
 
     Cookfs_FsindexResetChangeCount(result);
 
@@ -226,7 +228,7 @@ static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
     Cookfs_FsindexEntry *itemNode;
 
     unsigned char *bytes;
-    int objLength;
+    Tcl_Size objLength;
 
     /* get pointer to bytes in memory */
     bytes = Tcl_GetByteArrayFromObj(result, &objLength);
@@ -462,7 +464,7 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
 static int CookfsFsindexExportMetadata(Cookfs_Fsindex *fsIndex, Tcl_Obj *result, int objOffset) {
     Tcl_HashEntry *hashEntry;
     Tcl_HashSearch hashSearch;
-    int objSize;
+    Tcl_Size objSize;
     int objInitialOffset = objOffset;
     int objSizeChanged;
     unsigned char *resultData;
@@ -488,7 +490,7 @@ static int CookfsFsindexExportMetadata(Cookfs_Fsindex *fsIndex, Tcl_Obj *result,
         unsigned int keySize = strlen(paramName);
 
         Tcl_Obj *valueObj = Tcl_GetHashValue(hashEntry);
-        int valueSize;
+        Tcl_Size valueSize;
         unsigned char *valueData = Tcl_GetByteArrayFromObj(valueObj, &valueSize);
 
         int size = keySize + 1 + valueSize;

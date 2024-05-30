@@ -1,7 +1,7 @@
 
 tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
-    vfs::cookfs::Mount $file $file -smallfilesize 50 -smallfilebuffer 5 -pagesize 150
+    cookfs::Mount $file $file -smallfilesize 50 -smallfilebuffer 5 -pagesize 150
     tcltest::makeFile [string repeat 1 100] test1 $file
     tcltest::makeFile 2.1 test2.1 $file
     tcltest::makeFile 2.2 test2.2 $file
@@ -11,7 +11,7 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -co
     tcltest::makeFile [string repeat 5 200] test5 $file
     tcltest::makeFile 6.1 test6.1 $file
     tcltest::makeFile 6.2 test6.2 $file
-    vfs::unmount $file
+    cookfs::Unmount $file
 } -body {
     set result [list {}]
     # The test VFS contains the following pages with the corresponding number of files:
@@ -21,7 +21,7 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -co
     # page#3        - 2 files (test4.1 test4.2)
     # page#4+page#5 - 1 file  (test5)
     # page#6        - 2 files (test6.1 test6.2)
-    set fsid [vfs::cookfs::Mount -readonly -pagecachesize 3 $file $file]
+    set fsid [cookfs::Mount -readonly -pagecachesize 3 $file $file]
     # set expected ticktock age - 5 to not depend on the default value and to make this test fully reproducible
     [$fsid getpages] ticktock 4
     # Make sure we have the expected set of pages. Everything below won't work if it's not true.
@@ -151,7 +151,7 @@ tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -co
     join $result \n
 } -cleanup {
     catch { close $fd }
-    catch { vfs::unmount $file }
+    catch { cookfs::Unmount $file }
     file delete -force $file
     unset -nocomplain file result fd fsid x
 } -result {

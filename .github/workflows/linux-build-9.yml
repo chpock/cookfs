@@ -1,0 +1,65 @@
+name: Linux (with Tcl 9.0)
+on: [push]
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+
+      - name: Checkout Tcl
+        uses: actions/checkout@v4
+        with:
+          repository: tcltk/tcl
+          ref: core-9-0-b2-rc
+          path: tcl
+      - name: Configure Tcl
+        working-directory: tcl/unix
+        run: |
+          ./configure --prefix=$HOME/tcl_install || {
+            cat config.log
+            echo "::error::Failure during Configure Tcl"
+            exit 1
+          }
+      - name: Build Tcl
+        working-directory: tcl/unix
+        run: |
+          make -j || {
+            echo "::error::Failure during Build Tcl"
+            exit 1
+          }
+      - name: Install Tcl
+        working-directory: tcl/unix
+        run: |
+          make install || {
+            echo "::error::Failure during Install Tcl"
+            exit 1
+          }
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Configure
+        run: |
+          ./configure --with-tcl=$HOME/tcl_install/lib || {
+            cat config.log
+            echo "::error::Failure during Configure"
+            exit 1
+          }
+      - name: Build
+        run: |
+          make -j || {
+            echo "::error::Failure during Build"
+            exit 1
+          }
+      - name: Run Tests
+        run: |
+          make test || {
+            echo "::error::Failure during Test"
+            exit 1
+          }

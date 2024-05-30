@@ -2,11 +2,11 @@
 tcltest::test cookfsReaderChannel-1 {read from multiple pages} -constraints {enabledTclCmds} -setup {
     set vfs  [tcltest::makeFile {} cookfs.cfs]
     # page size is 899 bytes
-    vfs::cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
+    cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
     set data "[string repeat "TEST" 1000]\n"
     # 4x1000+<newline> = 4001 bytes
     set file [tcltest::makeFile $data test $vfs]
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
 } -body {
     set pg [cookfs::pages $vfs]
     set fs [cookfs::fsindex [$pg index]]
@@ -17,7 +17,7 @@ tcltest::test cookfsReaderChannel-1 {read from multiple pages} -constraints {ena
     lappend result [lindex [$fs get test] 1]
     # page records = 5*3 = 15
     lappend result [llength [lindex [$fs get test] 2]]
-    vfs::cookfs::Mount -readonly $vfs $vfs -pagesobject $pg -fsindexobject $fs
+    cookfs::Mount -readonly $vfs $vfs -pagesobject $pg -fsindexobject $fs
     set fp [open $file r]
     fconfigure $fp -translation binary -encoding binary
     # read the first 1000 bytes
@@ -26,10 +26,10 @@ tcltest::test cookfsReaderChannel-1 {read from multiple pages} -constraints {ena
     seek $fp -1000 end
     lappend result [expr { [read $fp 1000] eq [string range $data end-999 end] }]
     close $fp
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     set result
 } -result {5 4001 15 1 1} -cleanup {
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     file delete -force $vfs
     unset -nocomplain pg fs fp result vfs file data
 }

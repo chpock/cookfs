@@ -213,12 +213,12 @@ proc testcompresscleanup {} {
 
 proc testcompress {d {count 1}} {
     incr ::testcompresscount $count
-    binary scan [vfs::zip -mode compress $d] H* rc
+    binary scan [zlib compress $d] H* rc
     return "HEXTEST-$rc"
 }
 proc testdecompress {d {count 1}} {
     incr ::testdecompresscount $count
-    set rc [vfs::zip -mode decompress [binary format H* [string range $d 8 end]]]
+    set rc [zlib decompress [binary format H* [string range $d 8 end]]]
     return $rc
 }
 

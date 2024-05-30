@@ -19,14 +19,10 @@ int Cookfs_Readerchannel_Close(ClientData instanceData, Tcl_Interp *interp) {
 
 int Cookfs_Readerchannel_Close2(ClientData instanceData, Tcl_Interp *interp, int flags) {
     CookfsLog(printf("Cookfs_Readerchannel_Close2: flags=%d", flags))
-    if (flags == 0) {
+    if ((flags & (TCL_CLOSE_READ|TCL_CLOSE_WRITE)) == 0) {
         return Cookfs_Readerchannel_Close(instanceData, interp);
-    }  else  {
-        if (interp != NULL) {
-            Tcl_SetObjResult(interp, Tcl_NewStringObj("Invalid operation", -1));
-        }
-	return EINVAL;
     }
+    return EINVAL;
 }
 
 int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, int *errorCodePtr) {
@@ -37,9 +33,10 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
     int blockLeft;
     int blockRead;
     char *pageBuf;
-    int pageBufSize;
+    Tcl_Size pageBufSize;
 
-    CookfsLog(printf("Cookfs_Readerchannel_Input: read %d, current offset: %ld", bufSize, instData->currentOffset))
+    CookfsLog(printf("Cookfs_Readerchannel_Input: read %d, current offset: %"
+        TCL_LL_MODIFIER "d", bufSize, instData->currentOffset))
 
     if (instData->currentBlock >= instData->bufSize) {
 	CookfsLog(printf("Cookfs_Readerchannel_Input: EOF reached"))
@@ -108,7 +105,8 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	instData->currentBlockOffset += blockRead;
 	bytesRead += blockRead;
 	instData->currentOffset += blockRead;
-	CookfsLog(printf("Cookfs_Readerchannel_Input: currentOffset: %ld", instData->currentOffset))
+	CookfsLog(printf("Cookfs_Readerchannel_Input: currentOffset: %"
+	    TCL_LL_MODIFIER "d", instData->currentOffset));
     }
 
     CookfsLog(printf("Cookfs_Readerchannel_Input: bytesRead=%d", bytesRead))

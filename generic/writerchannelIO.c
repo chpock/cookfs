@@ -9,15 +9,17 @@
 #include "cookfs.h"
 #include <errno.h>
 
+#if TCL_MAJOR_VERSION < 9
 static Tcl_DriverCloseProc Cookfs_Writerchannel_Close;
+static Tcl_DriverSeekProc Cookfs_Writerchannel_Seek;
+#endif
 static Tcl_DriverInputProc Cookfs_Writerchannel_Input;
 static Tcl_DriverOutputProc Cookfs_Writerchannel_Output;
-static Tcl_DriverSeekProc Cookfs_Writerchannel_Seek;
 // Tcl_DriverSetOptionProc *Cookfs_Writerchannel_SetOptionProc;
 // Tcl_DriverGetOptionProc *Cookfs_Writerchannel_GetOptionProc;
 static Tcl_DriverWatchProc Cookfs_Writerchannel_Watch;
 // Tcl_DriverGetHandleProc *Cookfs_Writerchannel_GetHandleProc;
-// static Tcl_DriverClose2Proc Cookfs_Writerchannel_Close2;
+static Tcl_DriverClose2Proc Cookfs_Writerchannel_Close2;
 static Tcl_DriverBlockModeProc Cookfs_Writerchannel_BlockMode;
 // Tcl_DriverFlushProc *Cookfs_Writerchannel_FlushProc;
 // Tcl_DriverHandlerProc *Cookfs_Writerchannel_HandlerProc;
@@ -28,15 +30,23 @@ static Tcl_DriverTruncateProc Cookfs_Writerchannel_Truncate;
 static Tcl_ChannelType cookfsWriterChannel = {
     "cookfswriter",
     TCL_CHANNEL_VERSION_5,
+#if TCL_MAJOR_VERSION < 9
     Cookfs_Writerchannel_Close,
+#else
+    NULL,
+#endif
     Cookfs_Writerchannel_Input,
     Cookfs_Writerchannel_Output,
+#if TCL_MAJOR_VERSION < 9
     Cookfs_Writerchannel_Seek,
+#else
+    NULL,
+#endif
     NULL,
     NULL,
     Cookfs_Writerchannel_Watch,
     NULL,
-    NULL,
+    Cookfs_Writerchannel_Close2,
     Cookfs_Writerchannel_BlockMode,
     NULL,
     NULL,
@@ -53,8 +63,8 @@ static int Cookfs_Writerchannel_Realloc(Cookfs_WriterChannelInstData *instData,
     Tcl_WideInt newBufferSize, int clear)
 {
     CookfsLog(printf("Cookfs_Writerchannel_Realloc: channel [%s] at [%p]"
-        " resize buffer from [%ld] to [%ld] clear?%d",
-        Tcl_GetChannelName(instData->channel), (void *)instData,
+        " resize buffer from [%" TCL_LL_MODIFIER "d] to [%" TCL_LL_MODIFIER
+        "d] clear?%d", Tcl_GetChannelName(instData->channel), (void *)instData,
         instData->bufferSize, newBufferSize, clear));
 
     void *newBuffer;
@@ -103,8 +113,8 @@ static int Cookfs_Writerchannel_Realloc(Cookfs_WriterChannelInstData *instData,
         clear = 1;
     }
 
-    CookfsLog(printf("Cookfs_Writerchannel_Realloc: try to realloc to [%ld]",
-        newBufferSize));
+    CookfsLog(printf("Cookfs_Writerchannel_Realloc: try to realloc to [%"
+        TCL_LL_MODIFIER "d]", newBufferSize));
 
     if (instData->buffer == NULL) {
         newBuffer = ckalloc(newBufferSize);
@@ -119,13 +129,14 @@ static int Cookfs_Writerchannel_Realloc(Cookfs_WriterChannelInstData *instData,
 
     if (clear == 0) {
         CookfsLog(printf("Cookfs_Writerchannel_Realloc: cleanup from offset"
-            " [%ld] count bytes [%ld]", instData->bufferSize + diff,
-            diffActual - diff));
+            " [%" TCL_LL_MODIFIER "d] count bytes [%" TCL_LL_MODIFIER "d]",
+            instData->bufferSize + diff, diffActual - diff));
         memset((void *)((char *)newBuffer + instData->bufferSize + diff),
             0, diffActual - diff);
     } else if (diffActual != diff) {
         CookfsLog(printf("Cookfs_Writerchannel_Realloc: cleanup from offset"
-            " [%ld] count bytes [%ld]", instData->bufferSize, diffActual));
+            " [%" TCL_LL_MODIFIER "d] count bytes [%" TCL_LL_MODIFIER "d]",
+            instData->bufferSize, diffActual));
         memset((void *)((char *)newBuffer + instData->bufferSize),
             0, diffActual);
     }
@@ -204,6 +215,15 @@ static int Cookfs_Writerchannel_Close(ClientData instanceData,
     return closeResult;
 }
 
+static int Cookfs_Writerchannel_Close2(ClientData instanceData,
+    Tcl_Interp *interp, int flags)
+{
+    if ((flags & (TCL_CLOSE_READ|TCL_CLOSE_WRITE)) == 0) {
+        return Cookfs_Writerchannel_Close(instanceData, interp);
+    }
+    return EINVAL;
+}
+
 static int Cookfs_Writerchannel_BlockMode(ClientData instanceData, int mode) {
     UNUSED(instanceData);
     UNUSED(mode);
@@ -227,8 +247,8 @@ static int Cookfs_Writerchannel_Input(ClientData instanceData, char *buf,
     }
 
     Tcl_WideInt available = instData->currentSize - instData->currentOffset;
-    CookfsLog(printf("Cookfs_Writerchannel_Input: have [%ld] data available",
-        available));
+    CookfsLog(printf("Cookfs_Writerchannel_Input: have [%" TCL_LL_MODIFIER "d]"
+        " data available", available));
 
     if (available <= 0) {
         CookfsLog(printf("Cookfs_Writerchannel_Input: return EOF"));
@@ -282,7 +302,7 @@ static int Cookfs_Writerchannel_Output(ClientData instanceData,
     if (endOffset > instData->currentSize) {
         instData->currentSize = endOffset;
         CookfsLog(printf("Cookfs_Writerchannel_Output: set current"
-            " size as [%ld]", instData->currentSize));
+            " size as [%" TCL_LL_MODIFIER "d]", instData->currentSize));
     }
 
 done:
@@ -297,7 +317,8 @@ static Tcl_WideInt Cookfs_Writerchannel_WideSeek(ClientData instanceData,
         (Cookfs_WriterChannelInstData *) instanceData;
 
     CookfsLog(printf("Cookfs_Writerchannel_WideSeek: channel [%s] at [%p]"
-        " seek to [%ld] mode %s(%d)", Tcl_GetChannelName(instData->channel),
+        " seek to [%" TCL_LL_MODIFIER "d] mode %s(%d)",
+        Tcl_GetChannelName(instData->channel),
         (void *)instData, offset, (seekMode == SEEK_SET ? "SEEK_SET" :
         (seekMode == SEEK_CUR ? "SEEK_CUR" :
         (seekMode == SEEK_END ? "SEEK_END" : "???"))), seekMode));
@@ -320,7 +341,7 @@ static Tcl_WideInt Cookfs_Writerchannel_WideSeek(ClientData instanceData,
 
     if (offset < 0) {
         CookfsLog(printf("Cookfs_Writerchannel_WideSeek: incorrect"
-            " offset [%ld]", offset));
+            " offset [%" TCL_LL_MODIFIER "d]", offset));
         *errorCodePtr = EINVAL;
         return -1;
     }
@@ -335,21 +356,23 @@ static Tcl_WideInt Cookfs_Writerchannel_WideSeek(ClientData instanceData,
     if (instData->currentSize < offset) {
         instData->currentSize = offset;
         CookfsLog(printf("Cookfs_Writerchannel_WideSeek: set current"
-            " size as [%ld]", instData->currentSize));
+            " size as [%" TCL_LL_MODIFIER "d]", instData->currentSize));
     }
 
     instData->currentOffset = offset;
     CookfsLog(printf("Cookfs_Writerchannel_WideSeek: set current"
-        " offset as [%ld]", instData->currentOffset));
+        " offset as [%" TCL_LL_MODIFIER "d]", instData->currentOffset));
     return offset;
 }
 
+#if TCL_MAJOR_VERSION < 9
 static int Cookfs_Writerchannel_Seek(ClientData instanceData, long offset,
     int seekMode, int *errorCodePtr)
 {
     return Cookfs_Writerchannel_WideSeek(instanceData, offset, seekMode,
         errorCodePtr);
 }
+#endif
 
 static void Cookfs_Writerchannel_ThreadAction(ClientData instanceData,
     int action)
@@ -440,7 +463,7 @@ static int Cookfs_Writerchannel_Truncate(ClientData instanceData, Tcl_WideInt le
         (Cookfs_WriterChannelInstData *) instanceData;
 
     CookfsLog(printf("Cookfs_Writerchannel_Truncate: channel [%s] at [%p]"
-        " to [%ld]", Tcl_GetChannelName(instData->channel),
+        " to [%" TCL_LL_MODIFIER "d]", Tcl_GetChannelName(instData->channel),
         (void *)instData, length));
 
     if (length < 0) {

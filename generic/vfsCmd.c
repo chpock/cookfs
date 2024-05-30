@@ -242,8 +242,9 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
     }
 
     if (smallfilesize > pagesize) {
-        CookfsLog(printf("CookfsMountCmd: ERROR: smallfilesize [%ld]"
-            " > pagesize [%ld]", smallfilesize, pagesize));
+        CookfsLog(printf("CookfsMountCmd: ERROR: smallfilesize [%"
+            TCL_LL_MODIFIER "d] > pagesize [%" TCL_LL_MODIFIER "d]",
+            smallfilesize, pagesize));
         Tcl_SetObjResult(interp, Tcl_NewStringObj("smallfilesize cannot be"
             " larger than pagesize", -1));
         return TCL_ERROR;
@@ -426,7 +427,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 #ifdef COOKFS_USETCLCMDS
         if (bootstrap != NULL) {
             CookfsLog(printf("CookfsMountCmd: bootstrap is specified"));
-            int bootstrapLength;
+            Tcl_Size bootstrapLength;
             Tcl_GetByteArrayFromObj(bootstrap, &bootstrapLength);
             if (!bootstrapLength) {
                 CookfsLog(printf("CookfsMountCmd: bootstrap is empty"));
@@ -486,7 +487,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
     if (setmetadata != NULL) {
         CookfsLog(printf("CookfsMountCmd: setmetadata is specified"));
         Tcl_Obj **metadataKeyVal;
-        int metadataCount;
+        Tcl_Size metadataCount;
         if (Tcl_ListObjGetElements(interp, setmetadata, &metadataCount,
             &metadataKeyVal) != TCL_OK)
         {
@@ -498,7 +499,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
             goto error;
         }
         CookfsLog(printf("CookfsMountCmd: setmetadata was converted to list"
-            " with %d length", metadataCount));
+            " with %" TCL_SIZE_MODIFIER "d length", metadataCount));
         if ((metadataCount % 2) != 0) {
             CookfsLog(printf("CookfsMountCmd: setmetadata list size is"
                 " not even"));
@@ -507,7 +508,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
                 Tcl_GetString(setmetadata)));
             goto error;
         }
-        for (int i = 0; i < metadataCount; i++) {
+        for (Tcl_Size i = 0; i < metadataCount; i++) {
             Tcl_Obj *key = metadataKeyVal[i++];
             Tcl_Obj *val = metadataKeyVal[i];
             CookfsLog(printf("CookfsMountCmd: setmetadata [%s] = [%s]",
@@ -575,12 +576,12 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 
         Tcl_SetObjResult(interp, Tcl_NewStringObj(cmd, -1));
 
+        CookfsLog(printf("CookfsMountCmd: ok [%s]", cmd));
+
     } else {
-        CookfsLog(printf("CookfsMountCmd: no need to create vfs"
-            " command handler"));
+        CookfsLog(printf("CookfsMountCmd: ok (no cmd)"));
     }
 
-    CookfsLog(printf("CookfsMountCmd: ok [%s]", cmd));
     return TCL_OK;
 
 error:
@@ -759,7 +760,7 @@ static int CookfsUnmountCmd(ClientData clientData, Tcl_Interp *interp,
 
     Tcl_SetObjResult(interp, Tcl_NewWideIntObj(pagesCloseOffset));
 
-    CookfsLog(printf("CookfsUnmountCmd: return ok and [%ld]",
+    CookfsLog(printf("CookfsUnmountCmd: return ok and [%" TCL_LL_MODIFIER "d]",
         pagesCloseOffset));
     return TCL_OK;
 }
@@ -1022,10 +1023,10 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
         return TCL_ERROR;
     }
 
-    int i;
+    Tcl_Size i;
 
     Tcl_Obj **fileTails;
-    int fileCount;
+    Tcl_Size fileCount;
     if (Tcl_ListObjGetElements(interp, objv[3], &fileCount, &fileTails)
         != TCL_OK)
     {
@@ -1061,8 +1062,8 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
 
     Cookfs_Fsindex *index = vfs->index;
 
-    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: checking %d files",
-        fileCount));
+    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: checking %"
+        TCL_SIZE_MODIFIER "d files", fileCount));
     for (i = 0; i < fileCount; i++) {
 
         Tcl_Obj *fileTail = fileTails[i];
@@ -1139,7 +1140,7 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
     for (i = 0; i < pages->dataNumPages; i++) {
         if (pageFiles[i] != NULL) {
             CookfsLog(printf("CookfsMountHandleCommandOptimizelist: add files"
-                " from page %d to small file list", i));
+                " from page %" TCL_SIZE_MODIFIER "d to small file list", i));
             Tcl_ListObjAppendList(interp, smallFiles, pageFiles[i]);
             Tcl_DecrRefCount(pageFiles[i]);
         }

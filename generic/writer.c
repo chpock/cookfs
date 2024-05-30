@@ -69,7 +69,8 @@ Cookfs_Writer *Cookfs_WriterInit(Tcl_Interp* interp,
 {
 
     CookfsLog(printf("Cookfs_WriterInit: init mount in interp [%p];"
-        " pages:%p index:%p smbuf:%ld sms:%ld pagesize:%ld writetomem:%d",
+        " pages:%p index:%p smbuf:%" TCL_LL_MODIFIER "d sms:%" TCL_LL_MODIFIER
+        "d pagesize:%" TCL_LL_MODIFIER "d writetomem:%d",
         (void *)interp, (void *)pages, (void *)index,
         smallfilebuffer, smallfilesize, pagesize, writetomemory));
 
@@ -160,7 +161,7 @@ int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w, Tcl_Obj *pathObj,
     Tcl_WideInt mtime, void *buffer, Tcl_WideInt bufferSize)
 {
     CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: add buf [%p],"
-        " size: %ld", buffer, bufferSize));
+        " size: %" TCL_LL_MODIFIER "d", buffer, bufferSize));
 
     CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: alloc"
         " WriterBuffer"));
@@ -208,7 +209,8 @@ int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w, Tcl_Obj *pathObj,
     w->bufferSize += bufferSize;
 
     CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: currently have"
-        " %d buffers, total size: %ld", w->bufferCount, w->bufferSize));
+        " %d buffers, total size: %" TCL_LL_MODIFIER "d", w->bufferCount,
+        w->bufferSize));
     CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: ok"));
     return TCL_OK;
 }
@@ -217,8 +219,8 @@ static Tcl_WideInt Cookfs_WriterReadChannel(char *buffer,
     Tcl_WideInt bufferSize, Tcl_Channel channel)
 {
 
-    CookfsLog(printf("Cookfs_WriterReadChannel: want to read %ld bytes from"
-        " channel %p", bufferSize, (void *)channel));
+    CookfsLog(printf("Cookfs_WriterReadChannel: want to read %" TCL_LL_MODIFIER
+        "d bytes from channel %p", bufferSize, (void *)channel));
 
     Tcl_WideInt readSize = 0;
 
@@ -231,11 +233,11 @@ static Tcl_WideInt Cookfs_WriterReadChannel(char *buffer,
             " the channel"));
         readSize += Tcl_Read(channel, buffer + readSize,
             bufferSize - readSize);
-        CookfsLog(printf("Cookfs_WriterReadChannel: got %ld bytes from"
-            " the channel", readSize));
+        CookfsLog(printf("Cookfs_WriterReadChannel: got %" TCL_LL_MODIFIER "d"
+            " bytes from the channel", readSize));
     }
-    CookfsLog(printf("Cookfs_WriterReadChannel: return %ld bytes from"
-            " the channel", readSize));
+    CookfsLog(printf("Cookfs_WriterReadChannel: return %" TCL_LL_MODIFIER "d"
+        " bytes from the channel", readSize));
 
     return readSize;
 
@@ -288,7 +290,8 @@ int Cookfs_WriterRemoveFile(Cookfs_Writer *w, Cookfs_FsindexEntry *entry) {
 int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
     Cookfs_WriterDataSource dataType, void *data, Tcl_WideInt dataSize)
 {
-    CookfsLog(printf("Cookfs_WriterAddFile: enter [%p] [%s] size: %ld", data,
+    CookfsLog(printf("Cookfs_WriterAddFile: enter [%p] [%s] size: %"
+        TCL_LL_MODIFIER "d", data,
         (dataType == COOKFS_WRITER_SOURCE_BUFFER ? "buffer" :
         (dataType == COOKFS_WRITER_SOURCE_FILE ? "file" :
         (dataType == COOKFS_WRITER_SOURCE_CHANNEL ? "channel" :
@@ -356,15 +359,15 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
 
         if (dataSize < 0) {
             dataSize = Tcl_GetSizeFromStat(sb);
-            CookfsLog(printf("Cookfs_WriterAddFile: got file size: %ld",
-                dataSize));
+            CookfsLog(printf("Cookfs_WriterAddFile: got file size: %"
+                TCL_LL_MODIFIER "d", dataSize));
         } else {
             CookfsLog(printf("Cookfs_WriterAddFile: use specified size"));
         }
 
         mtime = Tcl_GetModificationTimeFromStat(sb);
-        CookfsLog(printf("Cookfs_WriterAddFile: got mtime from the file: %ld",
-            mtime));
+        CookfsLog(printf("Cookfs_WriterAddFile: got mtime from the file: %"
+            TCL_LL_MODIFIER "d", mtime));
 
         ckfree(sb);
 
@@ -389,8 +392,8 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
             Tcl_WideInt pos = Tcl_Tell(DATA_CHANNEL);
             dataSize = Tcl_Seek(DATA_CHANNEL, 0, SEEK_END);
             Tcl_Seek(DATA_CHANNEL, pos, SEEK_SET);
-            CookfsLog(printf("Cookfs_WriterAddFile: got data size: %ld",
-                dataSize));
+            CookfsLog(printf("Cookfs_WriterAddFile: got data size: %"
+                TCL_LL_MODIFIER "d", dataSize));
         } else {
             CookfsLog(printf("Cookfs_WriterAddFile: use specified size"));
         }
@@ -406,19 +409,20 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
 
     case COOKFS_WRITER_SOURCE_OBJECT: ; // an empty statement
 
-        int length;
+        Tcl_Size length;
         data = (void *)Tcl_GetByteArrayFromObj(DATA_OBJECT, &length);
 
         if (dataSize < 0) {
             CookfsLog(printf("Cookfs_WriterAddFile: get datasize from"
                 " the object"));
             dataSize = length;
-            CookfsLog(printf("Cookfs_WriterAddFile: got data size: %ld",
-                dataSize));
+            CookfsLog(printf("Cookfs_WriterAddFile: got data size: %"
+                TCL_LL_MODIFIER "d", dataSize));
         } else if (dataSize > length) {
             dataSize = length;
             CookfsLog(printf("Cookfs_WriterAddFile: WARNING: data size was"
-                " corrected to %ld avoid overflow", dataSize));
+                " corrected to %" TCL_LL_MODIFIER "d avoid overflow",
+                dataSize));
         } else {
             CookfsLog(printf("Cookfs_WriterAddFile: use specified size"));
         }
@@ -431,7 +435,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
         Tcl_GetTime(&now);
         mtime = now.sec;
         CookfsLog(printf("Cookfs_WriterAddFile: use current time for"
-            " mtime: %ld", mtime));
+            " mtime: %" TCL_LL_MODIFIER "d", mtime));
     }
 
     // If the file is empty, then just add it to the index and skip
@@ -559,8 +563,8 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
             Tcl_WideInt bytesToWrite = (bytesLeft > w->pageSize ?
                 w->pageSize : bytesLeft);
 
-            CookfsLog(printf("Cookfs_WriterAddFile: want to write %ld bytes...",
-                bytesToWrite));
+            CookfsLog(printf("Cookfs_WriterAddFile: want to write %"
+                TCL_LL_MODIFIER "d bytes...", bytesToWrite));
 
             if (dataType == COOKFS_WRITER_SOURCE_CHANNEL ||
                 dataType == COOKFS_WRITER_SOURCE_FILE)
@@ -723,9 +727,9 @@ int Cookfs_WriterPurge(Cookfs_Writer *w) {
     // Fill the buffer
     for (i = 0, wb = w->bufferFirst; wb != NULL; i++, wb = wb->next) {
 
-        CookfsLog(printf("Cookfs_WriterPurge: add buffer [%p] size %ld"
-                " to sort buffer at #%d", (void *)wb->buffer,
-                wb->bufferSize, i));
+        CookfsLog(printf("Cookfs_WriterPurge: add buffer [%p] size %"
+            TCL_LL_MODIFIER "d to sort buffer at #%d", (void *)wb->buffer,
+            wb->bufferSize, i));
         sortedWB[i] = wb;
 
         // If we have less than 3 buffers, then we will not sort them
@@ -767,7 +771,7 @@ int Cookfs_WriterPurge(Cookfs_Writer *w) {
         }
 
         // Let's generate a sort key for the file
-        int pathLength;
+        Tcl_Size pathLength;
         if (Tcl_ListObjLength(NULL, wb->pathObj, &pathLength) != TCL_OK ||
             pathLength < 1
         ) {
@@ -787,7 +791,7 @@ int Cookfs_WriterPurge(Cookfs_Writer *w) {
         Tcl_IncrRefCount(pathTail);
 
         // Let's move extension to front of filename
-        int pathTailLength;
+        Tcl_Size pathTailLength;
         char *pathTailStr = Tcl_GetStringFromObj(pathTail, &pathTailLength);
         // Check to see if we have an empty filename, this shouldn't
         // happen, but who knows?
@@ -888,7 +892,8 @@ generateSortKey: ; // empty statement
     // If our small buffer has fewer bytes than the page size, we will
     // allocate in the page buffer only what is needed to store all
     // the small buffer files.
-    CookfsLog(printf("Cookfs_WriterPurge: alloc page buffer for %ld bytes",
+    CookfsLog(printf("Cookfs_WriterPurge: alloc page buffer for %"
+        TCL_LL_MODIFIER "d bytes",
         w->bufferSize < w->pageSize ? w->bufferSize : w->pageSize));
     pageBuffer = ckalloc(w->bufferSize < w->pageSize ?
         w->bufferSize : w->pageSize);
@@ -902,8 +907,9 @@ generateSortKey: ; // empty statement
         wb = sortedWB[bufferIdx];
         while (1) {
 
-            CookfsLog(printf("Cookfs_WriterPurge: add buffer [%p] size %ld"
-                " to page buffer", (void *)wb->buffer, wb->bufferSize));
+            CookfsLog(printf("Cookfs_WriterPurge: add buffer [%p] size %"
+                TCL_LL_MODIFIER "d to page buffer", (void *)wb->buffer,
+                wb->bufferSize));
 
             // Check to see if the exact same block has already been added
             // before
@@ -1083,8 +1089,8 @@ const void *Cookfs_WriterGetBuffer(Cookfs_Writer *w, int blockNumber,
     }
 
     CookfsLog(printf("Cookfs_WriterGetBuffer: the block has been found [%p]"
-        " data [%p] size [%ld]", (void *)wb, (void *)wb->buffer,
-        wb->bufferSize));
+        " data [%p] size [%" TCL_LL_MODIFIER "d]", (void *)wb,
+        (void *)wb->buffer, wb->bufferSize));
 
     *blockSize = wb->bufferSize;
     return wb->buffer;

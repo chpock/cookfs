@@ -15,10 +15,18 @@ static int cookfsChannelId = 0;
 static Tcl_ChannelType cookfsReaderChannel = {
     "cookfsreader",
     TCL_CHANNEL_VERSION_5,
+#if TCL_MAJOR_VERSION < 9
     Cookfs_Readerchannel_Close,
+#else
+    NULL,
+#endif
     Cookfs_Readerchannel_Input,
     Cookfs_Readerchannel_Output,
+#if TCL_MAJOR_VERSION < 9
     Cookfs_Readerchannel_Seek,
+#else
+    NULL,
+#endif
     NULL,
     NULL,
     Cookfs_Readerchannel_Watch,
@@ -36,9 +44,9 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Cookfs_Fsindex *fsin
 {
     Tcl_WideInt fileSize = 0;
     Tcl_Obj **listObjv;
-    int listObjc;
+    Tcl_Size listObjc;
     Cookfs_ReaderChannelInstData *instData = NULL;
-    int i;
+    Tcl_Size i;
 
     CookfsLog(printf("Cookfs_CreateReaderchannel: welcome"))
 
@@ -48,7 +56,8 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Cookfs_Fsindex *fsin
             return NULL;
         }
 
-        CookfsLog(printf("Cookfs_CreateReaderchannel: listObjc = %d", listObjc))
+        CookfsLog(printf("Cookfs_CreateReaderchannel: listObjc = %"
+            TCL_SIZE_MODIFIER "d", listObjc))
 
         if ((listObjc % 3) != 0) {
             if (interp != NULL) {
@@ -75,11 +84,13 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Cookfs_Fsindex *fsin
     if (listObj != NULL) {
         for (i = 0; i < listObjc; i++) {
             if (Tcl_GetIntFromObj(interp, listObjv[i], &instData->buf[i]) != TCL_OK) {
-                CookfsLog(printf("Cookfs_CreateReaderchannel: buf[%d] failed", i))
+                CookfsLog(printf("Cookfs_CreateReaderchannel: buf[%"
+                    TCL_SIZE_MODIFIER "d] failed", i))
                 Cookfs_CreateReaderchannelFree(instData);
                 return NULL;
             }
-            CookfsLog(printf("Cookfs_CreateReaderchannel: buf[%d] = %d", i, instData->buf[i]))
+            CookfsLog(printf("Cookfs_CreateReaderchannel: buf[%"
+                TCL_SIZE_MODIFIER "d] = %d", i, instData->buf[i]))
         }
 
         for (i = 2; i < listObjc; i += 3) {

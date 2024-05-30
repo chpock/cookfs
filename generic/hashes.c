@@ -19,7 +19,7 @@ static int CookfsMd5Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
     Tcl_Obj *obj;
     unsigned char *bytes;
     unsigned char md5[MD5_DIGEST_SIZE];
-    int size;
+    Tcl_Size size;
 
     if (objc < 2 || objc > 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "?-bin? data");
@@ -68,7 +68,7 @@ static int CookfsSha256Cmd(ClientData clientData, Tcl_Interp *interp, int objc, 
     unsigned char *bytes;
     unsigned char sha256[SHA256_DIGEST_SIZE];
     char hex[SHA256_DIGEST_SIZE*2+1];
-    int size;
+    Tcl_Size size;
 
     if (objc < 2 || objc > 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "?-bin? data");
@@ -116,7 +116,7 @@ static int CookfsSha1Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tc
     unsigned char *bytes;
     unsigned char sha1[SHA1_DIGEST_SIZE];
     char hex[SHA1_DIGEST_SIZE*2+1];
-    int size;
+    Tcl_Size size;
 
     if (objc < 2 || objc > 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "?-bin? data");

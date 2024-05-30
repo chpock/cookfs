@@ -128,7 +128,7 @@ static void MD5Init (MD5_CTX *mdContext)
    account for the presence of each of the characters inBuf[0..inLen-1]
    in the message whose digest is being computed.
  */
-static void MD5Update (register MD5_CTX *mdContext, unsigned char *inBuf, unsigned int inLen)
+static void MD5Update (register MD5_CTX *mdContext, unsigned char *inBuf, Tcl_Size inLen)
 {
   register int i, ii;
   int mdi;
@@ -318,7 +318,7 @@ static void Transform(register UINT4 *buf, register UINT4 *in)
  *----------------------------------------------------------------------
  */
 
-void Cookfs_MD5(unsigned char *buf, unsigned int len, unsigned char digest[16]) {
+void Cookfs_MD5(unsigned char *buf, Tcl_Size len, unsigned char digest[16]) {
     MD5_CTX ctx;
     MD5Init(&ctx);
     MD5Update(&ctx, buf, len);
@@ -348,11 +348,11 @@ Tcl_Obj *Cookfs_MD5FromObj(Tcl_Obj *obj) {
     unsigned char md5sum[16];
     char hex[36];
     int i;
-    int size;
+    Tcl_Size size;
 
     bytes = Tcl_GetByteArrayFromObj(obj, &size);
 
-    Cookfs_MD5(bytes, (unsigned int) size, md5sum);
+    Cookfs_MD5(bytes, size, md5sum);
 
     for (i = 0; i < 16; i++) {
         sprintf(hex + i + i, "%02X", ((int) md5sum[i]));

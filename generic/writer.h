@@ -21,7 +21,7 @@ typedef struct Cookfs_WriterBuffer {
 
     Tcl_Obj *sortKey;
     const void *sortKeyStr;
-    int sortKeyLen;
+    Tcl_Size sortKeyLen;
 
     int pageBlock;
     int pageOffset;

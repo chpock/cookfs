@@ -633,7 +633,7 @@ int CookfsPagesCmdAside(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_O
     }
 
     Cookfs_Pages *asidePages;
-    int fileNameSize;
+    Tcl_Size fileNameSize;
 
     Tcl_GetStringFromObj(objv[2], &fileNameSize);
 

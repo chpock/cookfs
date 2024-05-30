@@ -14,17 +14,17 @@ tcltest::test cookfsWriter-1.2 "Create empty archive with bootstrap" -constraint
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     cookfs::createArchive $file {} {SAMPLE BOOTSTRAP}
-    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    set fsid [cookfs::Mount -readonly $file $file]
     set p [$fsid getpages]
     if {![string equal [$p get 0] {SAMPLE BOOTSTRAP}]} {
 	error "Bootstraps differ"
     }
-    vfs::unmount $file
+    cookfs::Unmount $file
 } -cleanup {
-    catch {vfs::unmount $file}
+    catch {cookfs::Unmount $file}
     catch {file delete -force $file}
     unset -nocomplain file p fsid
-} -returnCodes {ok}
+} -returnCodes {ok} -match glob -result  *
 
 tcltest::test cookfsWriter-1.3 "Create non-empty archive with bootstrap" -constraints {runCookfsWriter enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -36,7 +36,7 @@ tcltest::test cookfsWriter-1.3 "Create non-empty archive with bootstrap" -constr
 
     cookfs::createArchive $file $files {SAMPLE BOOTSTRAP}
 
-    set fsid [vfs::cookfs::Mount -readonly $file $file]
+    set fsid [cookfs::Mount -readonly $file $file]
 
     set p [$fsid getpages]
     if {![string equal [$p get 0] {SAMPLE BOOTSTRAP}]} {
@@ -50,10 +50,10 @@ tcltest::test cookfsWriter-1.3 "Create non-empty archive with bootstrap" -constr
     }
     close $fh
 
-    vfs::unmount $file
+    cookfs::Unmount $file
 } -cleanup {
     catch {close $fh}
-    catch {vfs::unmount $file}
+    catch {cookfs::Unmount $file}
     catch {file delete -force $file}
     unset -nocomplain file files fsid p fh
-} -returnCodes {ok}
+} -returnCodes {ok} -match glob -result *

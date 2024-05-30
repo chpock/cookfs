@@ -13,7 +13,7 @@ unsigned char *Cookfs_Int2Binary(int *input, unsigned char *output, int count);
 unsigned char *Cookfs_Binary2WideInt(unsigned char *input, Tcl_WideInt *output, int count);
 unsigned char *Cookfs_WideInt2Binary(Tcl_WideInt *input, unsigned char *output, int count);
 
-void Cookfs_MD5(unsigned char *buf, unsigned int len, unsigned char digest[16]);
+void Cookfs_MD5(unsigned char *buf, Tcl_Size len, unsigned char digest[16]);
 Tcl_Obj *Cookfs_MD5FromObj(Tcl_Obj *obj);
 
 #endif /* COOKFS_COMMON_H */
