@@ -1,4 +1,4 @@
-tcltest::test cookfsPagesAsync-1.1 "Ensure asynccompresscommand is called when no pages are created" -setup {
+tcltest::test cookfsPagesAsync-1.1 "Ensure asynccompresscommand is called when no pages are created" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     testasynccompress init 4 {}
 } -body {
@@ -14,7 +14,7 @@ tcltest::test cookfsPagesAsync-1.1 "Ensure asynccompresscommand is called when n
     testasynccleanup
 } -returnCodes {ok} -result 1
 
-tcltest::test cookfsPagesAsync-1.2 "Ensure asynccompresscommand finalize is called when no pages are created" -setup {
+tcltest::test cookfsPagesAsync-1.2 "Ensure asynccompresscommand finalize is called when no pages are created" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set ::testasynccompressfinalized 0
     testasynccompress init 4 {}
@@ -31,7 +31,7 @@ tcltest::test cookfsPagesAsync-1.2 "Ensure asynccompresscommand finalize is call
     testasynccleanup
 } -returnCodes {ok} -result 1
 
-tcltest::test cookfsPagesAsync-1.3 "Create single page using async approach" -setup {
+tcltest::test cookfsPagesAsync-1.3 "Create single page using async approach" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     testasynccompress init 4 {}
 } -body {
@@ -47,7 +47,7 @@ tcltest::test cookfsPagesAsync-1.3 "Create single page using async approach" -se
     testasynccleanup
 } -returnCodes {ok} -result 1
 
-tcltest::test cookfsPagesAsync-1.4 "Create single page and delete pages object using async approach" -setup {
+tcltest::test cookfsPagesAsync-1.4 "Create single page and delete pages object using async approach" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     testasynccompress init 4 {}
 } -body {
@@ -64,7 +64,7 @@ tcltest::test cookfsPagesAsync-1.4 "Create single page and delete pages object u
     testasynccleanup
 } -returnCodes {ok} -result 2
 
-tcltest::test cookfsPagesAsync-1.5 "Verify async page can be read" -setup {
+tcltest::test cookfsPagesAsync-1.5 "Verify async page can be read" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     testasynccompress init 4 {}
 } -body {
@@ -83,7 +83,7 @@ tcltest::test cookfsPagesAsync-1.5 "Verify async page can be read" -setup {
     testasynccleanup
 } -returnCodes {ok} -result "SAMPLE DATA SAMPLE DATA SAMPLE DATA"
 
-tcltest::test cookfsPagesAsync-1.6 "Verify multiple async pages can be read" -setup {
+tcltest::test cookfsPagesAsync-1.6 "Verify multiple async pages can be read" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     testasynccompress init 4 {}
 } -body {
@@ -111,7 +111,7 @@ tcltest::test cookfsPagesAsync-1.6 "Verify multiple async pages can be read" -se
     testasynccleanup
 } -returnCodes {ok} -result 1024
 
-tcltest::test cookfsPagesAsync-1.7 "Verify multiple async pages with repetitions can be read" -setup {
+tcltest::test cookfsPagesAsync-1.7 "Verify multiple async pages with repetitions can be read" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     testasynccompress init 4 {}
 } -body {
@@ -139,7 +139,7 @@ tcltest::test cookfsPagesAsync-1.7 "Verify multiple async pages with repetitions
     testasynccleanup
 } -returnCodes {ok} -result 512
 
-tcltest::test cookfsPagesAsync-2.1 "Test custom async compression algorithm not used when size would not be smaller" -setup {
+tcltest::test cookfsPagesAsync-2.1 "Test custom async compression algorithm not used when size would not be smaller" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     testasynccompress init 4 {}
 } -body {
@@ -170,7 +170,7 @@ tcltest::test cookfsPagesAsync-2.1 "Test custom async compression algorithm not 
     testasynccleanup
 } -returnCodes {ok}
 
-tcltest::test cookfsPagesAsync-2.2 "Test custom async compression algorithm used when size would not be smaller with -alwayscompress" -setup {
+tcltest::test cookfsPagesAsync-2.2 "Test custom async compression algorithm used when size would not be smaller with -alwayscompress" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     testasynccompress init 4 {}
 } -body {
@@ -202,7 +202,7 @@ tcltest::test cookfsPagesAsync-2.2 "Test custom async compression algorithm used
     testasynccleanup
 } -returnCodes {ok}
 
-tcltest::test cookfsPagesAsync-3.1 "Test correctness of async pages writing with adding same pages" -setup {
+tcltest::test cookfsPagesAsync-3.1 "Test correctness of async pages writing with adding same pages" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     testasynccompress init 4 {}
     set idxlist {}
@@ -237,7 +237,7 @@ tcltest::test cookfsPagesAsync-3.1 "Test correctness of async pages writing with
     testasynccleanup
 } -returnCodes {ok}
 
-tcltest::test cookfsPagesAsync-4.1 "Verify async decompression does not call decompress command for subsequent pages" -setup {
+tcltest::test cookfsPagesAsync-4.1 "Verify async decompression does not call decompress command for subsequent pages" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set idxlist {}
     testasyncdecompress init 4 {}
@@ -272,7 +272,7 @@ tcltest::test cookfsPagesAsync-4.1 "Verify async decompression does not call dec
     testasynccleanup
 } -returnCodes {ok} -result 0
 
-tcltest::test cookfsPagesAsync-4.2 "Verify async decompression does not call decompress command for subsequent pages with random return order" -setup {
+tcltest::test cookfsPagesAsync-4.2 "Verify async decompression does not call decompress command for subsequent pages with random return order" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set idxlist {}
     testasyncdecompress init 4 {}
@@ -307,7 +307,7 @@ tcltest::test cookfsPagesAsync-4.2 "Verify async decompression does not call dec
     testasynccleanup
 } -returnCodes {ok} -result 0
 
-tcltest::test cookfsPagesAsync-4.3 "Verify async decompression does not async decompress multiple times" -setup {
+tcltest::test cookfsPagesAsync-4.3 "Verify async decompression does not async decompress multiple times" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set idxlist {}
     testasyncdecompress init 4 {}

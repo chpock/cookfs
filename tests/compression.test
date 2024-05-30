@@ -16,21 +16,21 @@ foreach { cid } { none zlib bz2 xz } {
         tcltest::makeFile [string repeat "TEST" 1000] \
             test4 $dir
     } -body {
-        vfs::cookfs::Mount -compression $cid $file $file
+        cookfs::Mount -compression $cid $file $file
         file copy -force $dir [file join $file vfs]
         # remount
-        vfs::unmount $file
-        vfs::cookfs::Mount $file $file
+        cookfs::Unmount $file
+        cookfs::Mount $file $file
         set ok [testIfEqual $dir [file join $file vfs]]
-        vfs::unmount $file
+        cookfs::Unmount $file
         set ok
     } -result 1 -cleanup {
-        catch { vfs::unmount $file }
+        catch { cookfs::Unmount $file }
         file delete -force $file $dir
         unset -nocomplain ok file dir
     }
 
-    tcltest::test "${test_title}-2" {store uncompressed small data} -constraints $constraint -setup {
+    tcltest::test "${test_title}-2" {store uncompressed small data} -constraints "$constraint enabledTclCmds" -setup {
         set file [tcltest::makeFile {} cookfs.cfs]
         set dir  [tcltest::makeDirectory test]
         tcltest::makeFile "X" test1 $dir
@@ -56,7 +56,7 @@ foreach { cid } { none zlib bz2 xz } {
         unset -nocomplain pg page_size ok file dir
     }
 
-    tcltest::test "${test_title}-3" {store uncompressed large data} -constraints $constraint -setup {
+    tcltest::test "${test_title}-3" {store uncompressed large data} -constraints "$constraint enabledTclCmds" -setup {
         set file [tcltest::makeFile {} cookfs.cfs]
         set dir  [tcltest::makeDirectory test]
         # 128 bytes of random and high entropy data. Any compression should be inefficient with it.
@@ -91,7 +91,7 @@ foreach { cid } { none zlib bz2 xz } {
         unset -nocomplain pg page_size ok file file1 dir fp data
     }
 
-    tcltest::test "${test_title}-4" {store compressed} -constraints $constraint -setup {
+    tcltest::test "${test_title}-4" {store compressed} -constraints "$constraint enabledTclCmds" -setup {
         set file [tcltest::makeFile {} cookfs.cfs]
         set dir  [tcltest::makeDirectory test]
         tcltest::makeFile [string repeat "X" 1024] test1 $dir

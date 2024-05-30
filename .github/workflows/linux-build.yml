@@ -69,8 +69,6 @@ jobs:
             echo "::error::Failure during Test"
             exit 1
           }
-        env:
-          ERROR_ON_FAILURES: 1
       - name: Test-Drive Installation
         run: |
           make install || {

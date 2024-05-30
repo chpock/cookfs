@@ -14,7 +14,9 @@ typedef struct Cookfs_Vfs {
     Tcl_Command commandToken;
 
     int isDead;
+#ifdef COOKFS_USETCLCMDS
     int isRegistered;
+#endif
 
     int isCurrentDirTime;
     int isVolume;
@@ -38,7 +40,9 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
 int Cookfs_VfsIsReadonly(Cookfs_Vfs *vfs);
 void Cookfs_VfsSetReadonly(Cookfs_Vfs *vfs, int status);
 
+#ifdef COOKFS_USETCLCMDS
 void Cookfs_VfsUnregisterInTclvfs(Cookfs_Vfs *vfs);
 int Cookfs_VfsRegisterInTclvfs(Cookfs_Vfs *vfs);
+#endif
 
 #endif /* COOKFS_VFS_H */

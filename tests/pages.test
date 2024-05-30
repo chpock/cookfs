@@ -1,5 +1,5 @@
 
-tcltest::test cookfsPages-1.1 "Create empty pages as read-write" -setup {
+tcltest::test cookfsPages-1.1 "Create empty pages as read-write" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -9,7 +9,7 @@ tcltest::test cookfsPages-1.1 "Create empty pages as read-write" -setup {
     unset -nocomplain file pg
 } -returnCodes {ok} -match glob -result {::cookfs::*::pages::handle*}
 
-tcltest::test cookfsPages-1.2 "Create pages as read-write with existing prefix" -setup {
+tcltest::test cookfsPages-1.2 "Create pages as read-write with existing prefix" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set fh [open $file w]
@@ -27,7 +27,7 @@ tcltest::test cookfsPages-1.2 "Create pages as read-write with existing prefix" 
     unset -nocomplain file pg fh fc
 } -returnCodes {ok} -match glob -result {PrefixTest01}
 
-tcltest::test cookfsPages-1.3 "Create pages as read-write with existing prefix and add page" -setup {
+tcltest::test cookfsPages-1.3 "Create pages as read-write with existing prefix and add page" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set fh [open $file w]
@@ -46,7 +46,7 @@ tcltest::test cookfsPages-1.3 "Create pages as read-write with existing prefix a
     unset -nocomplain file pg fh fc
 } -returnCodes {ok} -match glob -result {PrefixTest01}
 
-tcltest::test cookfsPages-1.4 "Create empty pages as read-only" -setup {
+tcltest::test cookfsPages-1.4 "Create empty pages as read-only" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -readonly $file]
@@ -55,7 +55,7 @@ tcltest::test cookfsPages-1.4 "Create empty pages as read-only" -setup {
     unset -nocomplain file pg
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object*}
 
-tcltest::test cookfsPages-1.5 "Check dataoffset command reporting properly for empty files" -setup {
+tcltest::test cookfsPages-1.5 "Check dataoffset command reporting properly for empty files" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]
@@ -74,7 +74,7 @@ tcltest::test cookfsPages-1.5 "Check dataoffset command reporting properly for e
     unset -nocomplain file pg fh
 } -returnCodes {ok} -result 15,15,20
 
-tcltest::test cookfsPages-1.6 "Check dataoffset command reporting properly for files with prefix" -setup {
+tcltest::test cookfsPages-1.6 "Check dataoffset command reporting properly for files with prefix" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]
@@ -94,7 +94,7 @@ tcltest::test cookfsPages-1.6 "Check dataoffset command reporting properly for f
     unset -nocomplain file pg fh
 } -returnCodes {ok} -result 4111,4111,4116
 
-tcltest::test cookfsPages-1.7 "Check filesize command reporting properly for empty archives" -setup {
+tcltest::test cookfsPages-1.7 "Check filesize command reporting properly for empty archives" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]
@@ -110,7 +110,7 @@ tcltest::test cookfsPages-1.7 "Check filesize command reporting properly for emp
     # -result is 4108 - 4096+1 byte for page prefix+15 bytes for stamp
 } -returnCodes {ok} -result 4112
 
-tcltest::test cookfsPages-1.8 "Check filesize command reporting properly for files with prefix" -setup {
+tcltest::test cookfsPages-1.8 "Check filesize command reporting properly for files with prefix" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]
@@ -128,7 +128,7 @@ tcltest::test cookfsPages-1.8 "Check filesize command reporting properly for fil
     # -result is 8208 - 4096+4096+1 byte for page prefix+15 bytes for stamp
 } -returnCodes {ok} -result 8208
 
-tcltest::test cookfsPages-2.1 "Test that different pages get different indexes" -setup {
+tcltest::test cookfsPages-2.1 "Test that different pages get different indexes" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -142,7 +142,7 @@ tcltest::test cookfsPages-2.1 "Test that different pages get different indexes" 
     unset -nocomplain file pg i0 i1
 } -returnCodes {ok} -result 0
 
-tcltest::test cookfsPages-2.2 "Test that same pages get same indexes" -setup {
+tcltest::test cookfsPages-2.2 "Test that same pages get same indexes" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -156,7 +156,7 @@ tcltest::test cookfsPages-2.2 "Test that same pages get same indexes" -setup {
     unset -nocomplain file pg i0 i1
 } -returnCodes {ok} -result 1
 
-tcltest::test cookfsPages-2.3 "Test that different pages with same MD5 checksum get different indexes" -setup {
+tcltest::test cookfsPages-2.3 "Test that different pages with same MD5 checksum get different indexes" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression none $file]
@@ -171,7 +171,7 @@ tcltest::test cookfsPages-2.3 "Test that different pages with same MD5 checksum 
     unset -nocomplain file pg i0 i1
 } -returnCodes {ok} -result 0
 
-tcltest::test cookfsPages-3.1 "Test correctness of pages after write" -setup {
+tcltest::test cookfsPages-3.1 "Test correctness of pages after write" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set idxlist {}
 } -body {
@@ -199,7 +199,7 @@ tcltest::test cookfsPages-3.1 "Test correctness of pages after write" -setup {
     unset -nocomplain file pg idxlist pages p idx
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-3.2 "Test read-only error for adding a page" -setup {
+tcltest::test cookfsPages-3.2 "Test read-only error for adding a page" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression zlib $file]
@@ -214,7 +214,7 @@ tcltest::test cookfsPages-3.2 "Test read-only error for adding a page" -setup {
     unset -nocomplain file pg i0
 } -returnCodes {error} -result {Unable to add page}
 
-tcltest::test cookfsPages-3.3 "Test correctness of pages after write - large number of pages" -setup {
+tcltest::test cookfsPages-3.3 "Test correctness of pages after write - large number of pages" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set idxlist {}
     set conlist {}
@@ -242,7 +242,7 @@ tcltest::test cookfsPages-3.3 "Test correctness of pages after write - large num
     unset -nocomplain file pg idxlist conlist i pr pi pc contents
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-3.4 "Test correctness of pages writing with same pages" -setup {
+tcltest::test cookfsPages-3.4 "Test correctness of pages writing with same pages" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set idxlist {}
 } -body {
@@ -272,7 +272,7 @@ tcltest::test cookfsPages-3.4 "Test correctness of pages writing with same pages
     unset -nocomplain file pg idxlist pages p idx
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-4.1 "Test appended file handling" -constraints cookfsAside -setup {
+tcltest::test cookfsPages-4.1 "Test appended file handling" -constraints {cookfsAside enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set file2 [tcltest::makeFile {} pages2.cfs]
 } -body {
@@ -314,7 +314,7 @@ tcltest::test cookfsPages-4.1 "Test appended file handling" -constraints cookfsA
     unset -nocomplain file pg file2 i0 i1 s1 s0
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-4.2 "Test appended file handling - adding same page to new archive" -constraints cookfsAside -setup {
+tcltest::test cookfsPages-4.2 "Test appended file handling - adding same page to new archive" -constraints {cookfsAside enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set file2 [tcltest::makeFile {} pages2.cfs]
 } -body {
@@ -371,7 +371,7 @@ tcltest::test cookfsPages-4.2 "Test appended file handling - adding same page to
     unset -nocomplain file pg file2 i0 i1 i2 i3 i4 s1 s0
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-5.1 "Test specifying -endoffset" -setup {
+tcltest::test cookfsPages-5.1 "Test specifying -endoffset" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression zlib $file]
@@ -414,7 +414,7 @@ tcltest::test cookfsPages-5.1 "Test specifying -endoffset" -setup {
     unset -nocomplain file pg i0 size fh err
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-5.2.1 "Check searching for end of archive if endoffset not specified for small file, 256 bytes of garbage at the end of the file" -setup {
+tcltest::test cookfsPages-5.2.1 "Check searching for end of archive if endoffset not specified for small file, 256 bytes of garbage at the end of the file" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]
@@ -437,7 +437,7 @@ tcltest::test cookfsPages-5.2.1 "Check searching for end of archive if endoffset
     unset -nocomplain file pg fh
 } -returnCodes {ok} -result 15; # 15 is the size of stamp
 
-tcltest::test cookfsPages-5.2.2 "Check searching for end of archive if endoffset not specified for small file, 65500 bytes of garbage at the end of the file" -setup {
+tcltest::test cookfsPages-5.2.2 "Check searching for end of archive if endoffset not specified for small file, 65500 bytes of garbage at the end of the file" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]
@@ -460,7 +460,7 @@ tcltest::test cookfsPages-5.2.2 "Check searching for end of archive if endoffset
     unset -nocomplain file pg fh
 } -returnCodes {ok} -result 15; # 15 is the size of stamp
 
-tcltest::test cookfsPages-5.3.1 "Check searching for end of archive if endoffset not specified for large file, 256 bytes of garbage at the end of the file" -setup {
+tcltest::test cookfsPages-5.3.1 "Check searching for end of archive if endoffset not specified for large file, 256 bytes of garbage at the end of the file" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]
@@ -483,7 +483,7 @@ tcltest::test cookfsPages-5.3.1 "Check searching for end of archive if endoffset
     unset -nocomplain file pg fh
 } -returnCodes {ok} -result 15; # 15 is the size of stamp
 
-tcltest::test cookfsPages-5.3.2 "Check searching for end of archive if endoffset not specified for large file, 65500 bytes of garbage at the end of the file" -setup {
+tcltest::test cookfsPages-5.3.2 "Check searching for end of archive if endoffset not specified for large file, 65500 bytes of garbage at the end of the file" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # make sure no additional data is written to file
     set fh [open $file w]
@@ -506,7 +506,7 @@ tcltest::test cookfsPages-5.3.2 "Check searching for end of archive if endoffset
     unset -nocomplain file pg fh
 } -returnCodes {ok} -result 15; # 15 is the size of stamp
 
-tcltest::test cookfsPages-6.1 "Test multiple compression algorithms" -setup {
+tcltest::test cookfsPages-6.1 "Test multiple compression algorithms" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression none $file]
@@ -558,7 +558,7 @@ tcltest::test cookfsPages-6.1 "Test multiple compression algorithms" -setup {
     unset -nocomplain file pg i0 fs0 fs1 i i1
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-7.1 "Test custom compression algorithm" -setup {
+tcltest::test cookfsPages-7.1 "Test custom compression algorithm" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
@@ -585,7 +585,7 @@ tcltest::test cookfsPages-7.1 "Test custom compression algorithm" -setup {
     testcompresscleanup
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-7.2 "Test custom compression algorithm - no decompress command error" -setup {
+tcltest::test cookfsPages-7.2 "Test custom compression algorithm - no decompress command error" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression custom -compresscommand testcompress $file]
@@ -601,7 +601,7 @@ tcltest::test cookfsPages-7.2 "Test custom compression algorithm - no decompress
     testcompresscleanup
 } -returnCodes {error} -result {Unable to retrieve chunk}
 
-tcltest::test cookfsPages-7.3 "Test custom compression algorithm - no decompress command error when adding same page" -setup {
+tcltest::test cookfsPages-7.3 "Test custom compression algorithm - no decompress command error when adding same page" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression custom -compresscommand testcompress $file]
@@ -614,7 +614,7 @@ tcltest::test cookfsPages-7.3 "Test custom compression algorithm - no decompress
     testcompresscleanup
 } -returnCodes {error} -result {No decompresscommand specified}
 
-tcltest::test cookfsPages-7.4 "Test custom compression algorithm not used when size would not be smaller" -setup {
+tcltest::test cookfsPages-7.4 "Test custom compression algorithm not used when size would not be smaller" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
@@ -642,7 +642,7 @@ tcltest::test cookfsPages-7.4 "Test custom compression algorithm not used when s
     testcompresscleanup
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-7.5 "Test custom compression algorithm not used when size would not be smaller with -alwayscompress" -setup {
+tcltest::test cookfsPages-7.5 "Test custom compression algorithm not used when size would not be smaller with -alwayscompress" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress -alwayscompress $file]
@@ -670,7 +670,7 @@ tcltest::test cookfsPages-7.5 "Test custom compression algorithm not used when s
     testcompresscleanup
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-8.1 "Test returning offset to end of file during close without changes" -setup {
+tcltest::test cookfsPages-8.1 "Test returning offset to end of file during close without changes" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {TESTTEST} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -683,25 +683,25 @@ tcltest::test cookfsPages-8.1 "Test returning offset to end of file during close
     unset -nocomplain file pg offset
 } -returnCodes {ok} -result 1
 
-tcltest::test cookfsPages-8.2 "Test returning offset to end of file during close with changes" -setup {
-    set file [tcltest::makeFile {TESTTEST} pages.cfs]
-} -body {
-    set pg [cookfs::pages $file]
-    $pg add TEST
-    set offset [$pg close]
-    $pg delete
-    expr {[file size $file] == $offset}
-} -cleanup {
-    catch {$pg delete}
-    file delete -force $file
-    unset -nocomplain file pg offset
-} -returnCodes {ok} -result 1
-
-tcltest::test cookfsPages-8.3 "Test returning offset to end of file during close without changes when remounting" -setup {
+tcltest::test cookfsPages-8.2 "Test returning offset to end of file during close with changes" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {TESTTEST} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
     $pg add TEST
+    set offset [$pg close]
+    $pg delete
+    expr {[file size $file] == $offset}
+} -cleanup {
+    catch {$pg delete}
+    file delete -force $file
+    unset -nocomplain file pg offset
+} -returnCodes {ok} -result 1
+
+tcltest::test cookfsPages-8.3 "Test returning offset to end of file during close without changes when remounting" -constraints {enabledTclCmds} -setup {
+    set file [tcltest::makeFile {TESTTEST} pages.cfs]
+} -body {
+    set pg [cookfs::pages $file]
+    $pg add TEST
     $pg delete
 
     set pg [cookfs::pages $file]
@@ -714,7 +714,7 @@ tcltest::test cookfsPages-8.3 "Test returning offset to end of file during close
     unset -nocomplain file pg offset
 } -returnCodes {ok} -result 1
 
-tcltest::test cookfsPages-8.4 "Test returning offset when overwriting appended data" -setup {
+tcltest::test cookfsPages-8.4 "Test returning offset when overwriting appended data" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {TESTTEST} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -742,7 +742,7 @@ tcltest::test cookfsPages-8.4 "Test returning offset when overwriting appended d
     unset -nocomplain file pg fh i offset idx
 } -returnCodes {ok} -result 1025
 
-tcltest::test cookfsPages-9.1.1 "Test only changing index information" -setup {
+tcltest::test cookfsPages-9.1.1 "Test only changing index information" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {TESTTEST} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -763,7 +763,7 @@ tcltest::test cookfsPages-9.1.1 "Test only changing index information" -setup {
     unset -nocomplain file pg offset
 } -returnCodes {ok} -result IDX1
 
-tcltest::test cookfsPages-9.1.2 "Test only changing index information without pages" -setup {
+tcltest::test cookfsPages-9.1.2 "Test only changing index information without pages" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {TESTTEST} pages.cfs]
 } -body {
     set result [list]
@@ -786,7 +786,7 @@ tcltest::test cookfsPages-9.1.2 "Test only changing index information without pa
     unset -nocomplain file pg result offset
 } -returnCodes {ok} -result {IDX0 IDX1}
 
-tcltest::test cookfsPages-10.1 "Test crc32 checksum algorithm" -setup {
+tcltest::test cookfsPages-10.1 "Test crc32 checksum algorithm" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {TESTTEST} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -805,7 +805,7 @@ tcltest::test cookfsPages-10.1 "Test crc32 checksum algorithm" -setup {
 # this test doesn't catch a failure. Thus, it should be disabled when
 # c-pages feature is not enabled or md5 package is not available.
 tcltest::test cookfsPages-10.2 "Test crc32 checksum algorithm fail if not re-set" -constraints {
-    [cookfs::pkgconfig get c-pages] || ![catch { package require md5 2 }]
+    ([cookfs::pkgconfig get c-pages] || ![catch { package require md5 2 }]) && [cookfs::pkgconfig get tcl-commands]
 } -setup {
     set file [tcltest::makeFile {TESTTEST} pages.cfs]
 } -body {
@@ -823,7 +823,7 @@ tcltest::test cookfsPages-10.2 "Test crc32 checksum algorithm fail if not re-set
     unset -nocomplain file pg i0 i1
 } -returnCodes {ok} -result 1
 
-tcltest::test cookfsPages-10.3 "Test crc32 checksum algorithm after re-reading" -setup {
+tcltest::test cookfsPages-10.3 "Test crc32 checksum algorithm after re-reading" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {TESTTEST} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -841,7 +841,7 @@ tcltest::test cookfsPages-10.3 "Test crc32 checksum algorithm after re-reading" 
     unset -nocomplain file pg i0 i1
 } -returnCodes {ok} -result 1
 
-tcltest::test cookfsPages-10.4 "Test crc32 with large chunks" -setup {
+tcltest::test cookfsPages-10.4 "Test crc32 with large chunks" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression custom -compresscommand testcompress $file]
@@ -855,7 +855,7 @@ tcltest::test cookfsPages-10.4 "Test crc32 with large chunks" -setup {
     testcompresscleanup
 } -returnCodes {error} -result {No decompresscommand specified}
 
-tcltest::test cookfsPages-11.1 "Test increasing page cache" -setup {
+tcltest::test cookfsPages-11.1 "Test increasing page cache" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set il {}
 } -body {
@@ -879,7 +879,7 @@ tcltest::test cookfsPages-11.1 "Test increasing page cache" -setup {
     testcompresscleanup
 } -returnCodes {ok} -result 20
 
-tcltest::test cookfsPages-11.2 "Test decreasing page cache" -setup {
+tcltest::test cookfsPages-11.2 "Test decreasing page cache" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set il {}
 } -body {
@@ -909,7 +909,7 @@ tcltest::test cookfsPages-11.2 "Test decreasing page cache" -setup {
     testcompresscleanup
 } -returnCodes {ok} -result 20
 
-tcltest::test cookfsPages-12.1 "Test changing page compression" -setup {
+tcltest::test cookfsPages-12.1 "Test changing page compression" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression zlib $file]
@@ -946,7 +946,7 @@ tcltest::test cookfsPages-12.1 "Test changing page compression" -setup {
     unset -nocomplain file pg i il fh fc
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-12.2 "Test getting current page compression" -setup {
+tcltest::test cookfsPages-12.2 "Test getting current page compression" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression zlib $file]
@@ -969,7 +969,7 @@ tcltest::test cookfsPages-12.2 "Test getting current page compression" -setup {
     unset -nocomplain file pg
 } -returnCodes {ok}
 
-tcltest::test cookfsPages-13.1 "Error message when index not found" -setup {
+tcltest::test cookfsPages-13.1 "Error message when index not found" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -readonly $file]
@@ -979,7 +979,7 @@ tcltest::test cookfsPages-13.1 "Error message when index not found" -setup {
     unset -nocomplain file pg
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object: index not found}
 
-tcltest::test cookfsPages-13.2.1 "Error message when invalid signature found" -setup {
+tcltest::test cookfsPages-13.2.1 "Error message when invalid signature found" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeBinFile {} pages.cfs]
     set pg [cookfs::pages -compression none $file]
     $pg add [string repeat TEST 32]
@@ -1002,7 +1002,7 @@ tcltest::test cookfsPages-13.2.1 "Error message when invalid signature found" -s
     unset -nocomplain file pg fh fc
 } -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 180 bytes or larger.}
 
-tcltest::test cookfsPages-13.2.2 "Error message for truncated file with 100 bytes before archive" -setup {
+tcltest::test cookfsPages-13.2.2 "Error message for truncated file with 100 bytes before archive" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set fp [open $file wb]
     seek $fp 99 start
@@ -1023,7 +1023,7 @@ tcltest::test cookfsPages-13.2.2 "Error message for truncated file with 100 byte
     unset -nocomplain file pg fh fp
 } -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 1176 bytes or larger.}
 
-tcltest::test cookfsPages-13.2.3 "Error message for truncated file with 9MB bytes before archive" -setup {
+tcltest::test cookfsPages-13.2.3 "Error message for truncated file with 9MB bytes before archive" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set fp [open $file wb]
     seek $fp [expr { 1024 * 1024 * 9  - 1}] start
@@ -1046,7 +1046,7 @@ tcltest::test cookfsPages-13.2.3 "Error message for truncated file with 9MB byte
 
 # We are looking for no more than 10 mb, so this test should not find the stamp
 # and give a generic "invalid file signature" error message.
-tcltest::test cookfsPages-13.2.4 "Error message for truncated file with 10MB bytes before archive" -setup {
+tcltest::test cookfsPages-13.2.4 "Error message for truncated file with 10MB bytes before archive" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set fp [open $file wb]
     seek $fp [expr { 1024 * 1024 * 10  - 1}] start
@@ -1067,7 +1067,7 @@ tcltest::test cookfsPages-13.2.4 "Error message for truncated file with 10MB byt
     unset -nocomplain file pg fp fh
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object: invalid file signature}
 
-tcltest::test cookfsPages-13.2.5 "Error message for truncated file with 1024 bytes before archive, without pages and updated fsindex" -setup {
+tcltest::test cookfsPages-13.2.5 "Error message for truncated file with 1024 bytes before archive, without pages and updated fsindex" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set fp [open $file wb]
     seek $fp 1023 start
@@ -1088,7 +1088,7 @@ tcltest::test cookfsPages-13.2.5 "Error message for truncated file with 1024 byt
     unset -nocomplain file pg fp fh
 } -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 2080 bytes or larger.}
 
-tcltest::test cookfsPages-13.3 "Error message when unable to seek to pages" -setup {
+tcltest::test cookfsPages-13.3 "Error message when unable to seek to pages" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set pg [cookfs::pages -compression none $file]
     $pg add 1
@@ -1116,7 +1116,7 @@ tcltest::test cookfsPages-13.3 "Error message when unable to seek to pages" -set
     unset -nocomplain file pg size fh fc
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object: page sizes not found}
 
-tcltest::test cookfsPages-13.4 "Error message when specifying invalid -endoffset" -setup {
+tcltest::test cookfsPages-13.4 "Error message when specifying invalid -endoffset" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set pg [cookfs::pages -compression none $file]
     $pg add 1
@@ -1133,7 +1133,7 @@ tcltest::test cookfsPages-13.4 "Error message when specifying invalid -endoffset
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object: index not found}
 
 # TODO: this test should generate same results in Tcl and C version of the library
-tcltest::test cookfsPages-13.5 "Error message when specifying directory" -setup {
+tcltest::test cookfsPages-13.5 "Error message when specifying directory" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeDirectory pages.cfs]
 } -body {
     set pg [cookfs::pages -readonly $file]
@@ -1143,7 +1143,7 @@ tcltest::test cookfsPages-13.5 "Error message when specifying directory" -setup 
     unset -nocomplain file pg
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object: *}
 
-tcltest::test cookfsPages-13.6.1 "Error message when specifying directory and -endoffset" -constraints unix -setup {
+tcltest::test cookfsPages-13.6.1 "Error message when specifying directory and -endoffset" -constraints {unix enabledTclCmds} -setup {
     set file [tcltest::makeDirectory pages.cfs]
 } -body {
     set pg [cookfs::pages -endoffset 1 -readonly $file]
@@ -1153,7 +1153,7 @@ tcltest::test cookfsPages-13.6.1 "Error message when specifying directory and -e
     unset -nocomplain file pg
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object: index not found}
 
-tcltest::test cookfsPages-13.6.2 "Error message when specifying directory and -endoffset" -constraints win -setup {
+tcltest::test cookfsPages-13.6.2 "Error message when specifying directory and -endoffset" -constraints {win enabledTclCmds} -setup {
     set file [tcltest::makeDirectory pages.cfs]
 } -body {
     set pg [cookfs::pages -endoffset 1 -readonly $file]
@@ -1163,7 +1163,7 @@ tcltest::test cookfsPages-13.6.2 "Error message when specifying directory and -e
     unset -nocomplain file pg
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object: couldn't open "*": permission denied}
 
-tcltest::test cookfsPages-13.7 "Error message when specifying non-existing file" -setup {
+tcltest::test cookfsPages-13.7 "Error message when specifying non-existing file" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     file delete -force $file
 } -body {
@@ -1174,7 +1174,7 @@ tcltest::test cookfsPages-13.7 "Error message when specifying non-existing file"
     unset -nocomplain file pg
 } -returnCodes {error} -match glob -result {Unable to create Cookfs object: couldn't open "*": no such file or directory}
 
-tcltest::test cookfsPages-13.8.1 "Error message when specifying wrong # arg for 'page get'" -setup {
+tcltest::test cookfsPages-13.8.1 "Error message when specifying wrong # arg for 'page get'" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -1185,7 +1185,7 @@ tcltest::test cookfsPages-13.8.1 "Error message when specifying wrong # arg for 
     unset -nocomplain file pg
 } -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pages::handle* get ?-weight weight? index"}
 
-tcltest::test cookfsPages-13.8.2 "Error message when specifying wrong # arg for 'page get'" -setup {
+tcltest::test cookfsPages-13.8.2 "Error message when specifying wrong # arg for 'page get'" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -1196,7 +1196,7 @@ tcltest::test cookfsPages-13.8.2 "Error message when specifying wrong # arg for 
     unset -nocomplain file pg
 } -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pages::handle* get ?-weight weight? index"}
 
-tcltest::test cookfsPages-13.8.3 "Error message when specifying wrong # arg for 'page get'" -setup {
+tcltest::test cookfsPages-13.8.3 "Error message when specifying wrong # arg for 'page get'" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -1207,7 +1207,7 @@ tcltest::test cookfsPages-13.8.3 "Error message when specifying wrong # arg for 
     unset -nocomplain file pg
 } -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pages::handle* get ?-weight weight? index"}
 
-tcltest::test cookfsPages-13.8.4 "Error message when specifying wrong arg format for 'page get'" -setup {
+tcltest::test cookfsPages-13.8.4 "Error message when specifying wrong arg format for 'page get'" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -1218,7 +1218,7 @@ tcltest::test cookfsPages-13.8.4 "Error message when specifying wrong arg format
     unset -nocomplain file pg
 } -returnCodes {error} -result {expected integer but got "not-a-num1"}
 
-tcltest::test cookfsPages-13.8.5 "Error message when specifying wrong arg format for 'page get'" -setup {
+tcltest::test cookfsPages-13.8.5 "Error message when specifying wrong arg format for 'page get'" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -1229,7 +1229,7 @@ tcltest::test cookfsPages-13.8.5 "Error message when specifying wrong arg format
     unset -nocomplain file pg
 } -returnCodes {error} -result {expected integer but got "not-a-num2"}
 
-tcltest::test cookfsPages-13.9.1 "Error message when specifying wrong # args for 'page ticktock'" -setup {
+tcltest::test cookfsPages-13.9.1 "Error message when specifying wrong # args for 'page ticktock'" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -1240,7 +1240,7 @@ tcltest::test cookfsPages-13.9.1 "Error message when specifying wrong # args for
     unset -nocomplain file pg
 } -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pages::handle* ticktock ?maxAge?"}
 
-tcltest::test cookfsPages-13.9.2 "Error message when specifying wrong arg format for 'page ticktock'" -setup {
+tcltest::test cookfsPages-13.9.2 "Error message when specifying wrong arg format for 'page ticktock'" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -1251,7 +1251,7 @@ tcltest::test cookfsPages-13.9.2 "Error message when specifying wrong arg format
     unset -nocomplain file pg
 } -returnCodes {error} -result {expected integer but got "not-a-num3"}
 
-tcltest::test cookfsPages-13.10.1 "Error message when specifying wrong # args for 'page getcache'" -setup {
+tcltest::test cookfsPages-13.10.1 "Error message when specifying wrong # args for 'page getcache'" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -1262,7 +1262,7 @@ tcltest::test cookfsPages-13.10.1 "Error message when specifying wrong # args fo
     unset -nocomplain file pg
 } -returnCodes {error} -match glob -result {wrong # args: should be "::cookfs::*::pages::handle* getcache ?index?"}
 
-tcltest::test cookfsPages-13.10.2 "Error message when specifying wrong arg format for 'page getcache'" -setup {
+tcltest::test cookfsPages-13.10.2 "Error message when specifying wrong arg format for 'page getcache'" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -1273,7 +1273,7 @@ tcltest::test cookfsPages-13.10.2 "Error message when specifying wrong arg forma
     unset -nocomplain file pg
 } -returnCodes {error} -result {expected integer but got "not-a-num4"}
 
-tcltest::test cookfsPages-14.1 "Cache is empty on open" -setup {
+tcltest::test cookfsPages-14.1 "Cache is empty on open" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages $file]
@@ -1284,7 +1284,7 @@ tcltest::test cookfsPages-14.1 "Cache is empty on open" -setup {
     unset -nocomplain file pg
 } -result ""
 
-tcltest::test cookfsPages-14.2 "Check that getcache returns a dict value with expected keys" -setup {
+tcltest::test cookfsPages-14.2 "Check that getcache returns a dict value with expected keys" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set pg [cookfs::pages -compression none $file]
     $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
@@ -1306,7 +1306,7 @@ tcltest::test cookfsPages-14.2 "Check that getcache returns a dict value with ex
     unset -nocomplain file pg x k v
 } -result {{age-0 index-0 weight-0}}
 
-tcltest::test cookfsPages-14.3 "Cache contains exactly the 2nd page" -setup {
+tcltest::test cookfsPages-14.3 "Cache contains exactly the 2nd page" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set pg [cookfs::pages -compression none $file]
     $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
@@ -1326,7 +1326,7 @@ tcltest::test cookfsPages-14.3 "Cache contains exactly the 2nd page" -setup {
     unset -nocomplain file pg x
 } -result "1"
 
-tcltest::test cookfsPages-14.4 "Cache contains exactly two pages" -setup {
+tcltest::test cookfsPages-14.4 "Cache contains exactly two pages" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set pg [cookfs::pages -compression none $file]
     $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
@@ -1342,7 +1342,7 @@ tcltest::test cookfsPages-14.4 "Cache contains exactly two pages" -setup {
     unset -nocomplain file pg x
 } -result "1 0"
 
-tcltest::test cookfsPages-14.5 "Cache contains exactly three pages in specific order" -setup {
+tcltest::test cookfsPages-14.5 "Cache contains exactly three pages in specific order" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set pg [cookfs::pages -compression none $file]
     $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
@@ -1363,7 +1363,7 @@ tcltest::test cookfsPages-14.5 "Cache contains exactly three pages in specific o
     unset -nocomplain file pg x
 } -result "3 0 4"
 
-tcltest::test cookfsPages-15.1 "Check if the cache weight is stored correctly" -setup {
+tcltest::test cookfsPages-15.1 "Check if the cache weight is stored correctly" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set pg [cookfs::pages -compression none $file]
     $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
@@ -1385,7 +1385,7 @@ tcltest::test cookfsPages-15.1 "Check if the cache weight is stored correctly" -
     unset -nocomplain file pg x
 } -result {{3 0} {0 -5} {4 20} {1 0}}
 
-tcltest::test cookfsPages-15.2 "Check if the cache entry with minimum weight is evicted" -setup {
+tcltest::test cookfsPages-15.2 "Check if the cache entry with minimum weight is evicted" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set pg [cookfs::pages -compression none $file]
     $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
@@ -1460,7 +1460,7 @@ tcltest::test cookfsPages-15.2 "Check if the cache entry with minimum weight is 
 {1 -1} {3 0} {0 5} {4 20}
 {2 0} {3 0} {0 5} {4 20}}
 
-tcltest::test cookfsPages-16.1 "Check if the cache age is stored correctly" -setup {
+tcltest::test cookfsPages-16.1 "Check if the cache age is stored correctly" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set pg [cookfs::pages -compression none $file]
     $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4
@@ -1547,7 +1547,7 @@ tcltest::test cookfsPages-16.1 "Check if the cache age is stored correctly" -set
 {4 1 0} {3 1 0} {2 2 0} {0 5 0}
 {1 0 0} {4 1 0} {3 1 0} {2 2 0}}
 
-tcltest::test cookfsPages-17.1 "Check if cache checking is working properly" -setup {
+tcltest::test cookfsPages-17.1 "Check if cache checking is working properly" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     set pg [cookfs::pages -compression none $file]
     $pg add 0; $pg add 1; $pg add 2; $pg add 3; $pg add 4

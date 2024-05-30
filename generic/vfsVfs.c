@@ -150,11 +150,13 @@ Cookfs_Vfs *Cookfs_CookfsRemoveVfs(Tcl_Interp *interp, Tcl_Obj* mountPoint,
         CookfsLog(printf("Cookfs_CookfsRemoveVfs: the vfs for deletion"
             " was found"));
 
+#ifdef COOKFS_USETCLCMDS
         // Unregister the Cookfs from Tclvfs. Tclvfs will call our
         // Unmount command. It should be able find this mount point and
         // terminate without error. Thus, this mount point must be in
         // the mounted state during unregistration in Tclvfs.
         Cookfs_VfsUnregisterInTclvfs(vfs);
+#endif
 
         // Remove the mount from the mount chain
         if (vfsPrev == NULL) {

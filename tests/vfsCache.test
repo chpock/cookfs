@@ -1,5 +1,5 @@
 
-tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -setup {
+tcltest::test cookfsVfsCache-1 "Test cache eviction based on weight and age" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
     vfs::cookfs::Mount $file $file -smallfilesize 50 -smallfilebuffer 5 -pagesize 150
     tcltest::makeFile [string repeat 1 100] test1 $file
