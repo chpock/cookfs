@@ -1,5 +1,5 @@
 
-tcltest::test cookfsReaderChannel-1 {read from multiple pages} -setup {
+tcltest::test cookfsReaderChannel-1 {read from multiple pages} -constraints {enabledTclCmds} -setup {
     set vfs  [tcltest::makeFile {} cookfs.cfs]
     # page size is 899 bytes
     vfs::cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
@@ -37,13 +37,13 @@ tcltest::test cookfsReaderChannel-1 {read from multiple pages} -setup {
 tcltest::test cookfsReaderChannel-2 {full read with multiple pages} -setup {
     set vfs  [tcltest::makeFile {} cookfs.cfs]
     # page size is 899 bytes
-    vfs::cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
+    cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
     set data "[string repeat "TEST" 1000]\n"
     # 4x1000+<newline> = 4001 bytes
     set file [tcltest::makeFile $data test $vfs]
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
 } -body {
-    vfs::cookfs::Mount -readonly $vfs $vfs
+    cookfs::Mount -readonly $vfs $vfs
     set result ""
     set fp [open $file r]
     fconfigure $fp -translation binary -encoding binary
@@ -51,10 +51,10 @@ tcltest::test cookfsReaderChannel-2 {full read with multiple pages} -setup {
         append result [read $fp 11]
     }
     close $fp
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     list [string length $result] [expr { $result eq $data }]
 } -result {4001 1} -cleanup {
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     file delete -force $vfs
     unset -nocomplain result fp vfs file data
 }
@@ -62,13 +62,13 @@ tcltest::test cookfsReaderChannel-2 {full read with multiple pages} -setup {
 tcltest::test cookfsReaderChannel-3 {position when reading a file sequentially over several pages} -setup {
     set vfs  [tcltest::makeFile {} cookfs.cfs]
     # page size is 899 bytes
-    vfs::cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
+    cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
     set data "[string repeat "TEST" 1000]\n"
     # 4x1000+<newline> = 4001 bytes
     set file [tcltest::makeFile $data test $vfs]
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
 } -body {
-    vfs::cookfs::Mount -readonly $vfs $vfs
+    cookfs::Mount -readonly $vfs $vfs
     set result [list]
     set expected 0
     set fp [open $file r]
@@ -79,7 +79,7 @@ tcltest::test cookfsReaderChannel-3 {position when reading a file sequentially o
         lappend result "[tell $fp] $expected"
     }
     close $fp
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     join $result \n
 } -result {800 800
 1600 1600
@@ -87,7 +87,7 @@ tcltest::test cookfsReaderChannel-3 {position when reading a file sequentially o
 3200 3200
 4000 4000
 4001 4001} -cleanup {
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     file delete -force $vfs
     unset -nocomplain result expected fp vfs file data
 }
@@ -95,13 +95,13 @@ tcltest::test cookfsReaderChannel-3 {position when reading a file sequentially o
 tcltest::test cookfsReaderChannel-4 {position when reading a file randomly over several pages} -setup {
     set vfs  [tcltest::makeFile {} cookfs.cfs]
     # page size is 899 bytes
-    vfs::cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
+    cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
     set data "[string repeat "TEST" 1000]\n"
     # 4x1000+<newline> = 4001 bytes
     set file [tcltest::makeFile $data test $vfs]
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
 } -body {
-    vfs::cookfs::Mount -readonly $vfs $vfs
+    cookfs::Mount -readonly $vfs $vfs
     set result [list]
     set fp [open $file r]
     fconfigure $fp -translation binary -encoding binary
@@ -129,7 +129,7 @@ tcltest::test cookfsReaderChannel-4 {position when reading a file randomly over 
         lappend result [list $offset $size [expr { $x eq [string range $data $offset [expr { $offset+$size }]-1] }] [tell $fp] $expected]
     }
     close $fp
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     join $result \n
 } -result {0 1 1 1 1
 0 10 1 10 10
@@ -146,7 +146,7 @@ tcltest::test cookfsReaderChannel-4 {position when reading a file randomly over 
 4000 1 1 4001 4001
 4000 10 1 4001 4001
 4000 1500 1 4001 4001} -cleanup {
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     file delete -force $vfs
     unset vfs file
     unset -nocomplain result expected fp x data
@@ -155,14 +155,14 @@ tcltest::test cookfsReaderChannel-4 {position when reading a file randomly over 
 
 tcltest::test cookfsReaderChannel-5.1 {readable fileevent works for file in pages} -setup {
     set vfs  [tcltest::makeFile {} cookfs.cfs]
-    vfs::cookfs::Mount $vfs $vfs
+    cookfs::Mount $vfs $vfs
     set data "[string repeat "TEST" 1000]\n"
     set file [tcltest::makeFile $data test $vfs]
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
 } -body {
     set ::result ""
     set ::wait 0
-    vfs::cookfs::Mount -readonly $vfs $vfs
+    cookfs::Mount -readonly $vfs $vfs
     set fp [open $file rb]
     fileevent $fp readable [list apply {{ chan } {
         if {[eof $chan]} {
@@ -175,11 +175,11 @@ tcltest::test cookfsReaderChannel-5.1 {readable fileevent works for file in page
     vwait ::wait
     catch { after cancel $timer }
     close $fp
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     list [string equal $::result $::data] $::wait
 } -result [list 1 "eof"] -cleanup {
     catch { close $fp }
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     file delete -force $vfs
     catch { after cancel $timer }
     unset -nocomplain vfs data file result fp chan timer wait
@@ -194,7 +194,7 @@ tcltest::test cookfsReaderChannel-5.2 {readable fileevent works for file in smal
     # 4x1000+<newline> = 4001 bytes
     set data "[string repeat "TEST" 1000]\n"
     # ensure that files below 64kb will be stored in the smallfilebuffer
-    vfs::cookfs::Mount $vfs $vfs -smallfilesize 65536 -smallfilebuffer 65536
+    cookfs::Mount $vfs $vfs -smallfilesize 65536 -smallfilebuffer 65536
     set fp [open $file wb]
     puts -nonewline $fp $data
     close $fp
@@ -210,11 +210,11 @@ tcltest::test cookfsReaderChannel-5.2 {readable fileevent works for file in smal
     vwait ::wait
     catch { after cancel $timer }
     close $fp
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     list [string equal $::result $::data] $::wait
 } -result [list 1 "eof"] -cleanup {
     catch { close $fp }
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     file delete -force $vfs
     catch { after cancel $timer }
     unset -nocomplain vfs data file result fp chan timer wait
@@ -222,20 +222,20 @@ tcltest::test cookfsReaderChannel-5.2 {readable fileevent works for file in smal
 
 tcltest::test cookfsReaderChannel-6.1 {channel options for file in pages} -setup {
     set vfs [tcltest::makeFile {} cookfs.cfs]
-    vfs::cookfs::Mount $vfs $vfs
+    cookfs::Mount $vfs $vfs
     set file [tcltest::makeFile {} test $vfs]
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
 } -body {
     # get default channel options for native filesystem, don't use "rb" here
     set fp [open $vfs r]
     set expected [fconfigure $fp]
     close $fp
-    vfs::cookfs::Mount -readonly $vfs $vfs
+    cookfs::Mount -readonly $vfs $vfs
     # don't use "rb" here
     set fp [open $file r]
     set actual [fconfigure $fp]
     close $fp
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     set result [list]
     foreach opt {-translation -encoding -eofchar} {
         if { [dict get $expected $opt] eq [dict get $actual $opt] } {
@@ -247,7 +247,7 @@ tcltest::test cookfsReaderChannel-6.1 {channel options for file in pages} -setup
     set result
 } -result [list -translation ok -encoding ok -eofchar ok] -cleanup {
     catch { close $fp }
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     file delete -force $vfs
     unset -nocomplain vfs file fp expected result opt actual
 }
@@ -262,7 +262,7 @@ tcltest::test cookfsReaderChannel-6.2 {channel options for file in smallfilebuff
     close $fp
     set data "123"
     # ensure that files below 64kb will be stored in the smallfilebuffer
-    vfs::cookfs::Mount $vfs $vfs -smallfilesize 65536 -smallfilebuffer 65536
+    cookfs::Mount $vfs $vfs -smallfilesize 65536 -smallfilebuffer 65536
     set fp [open $file wb]
     puts -nonewline $fp $data
     close $fp
@@ -270,7 +270,7 @@ tcltest::test cookfsReaderChannel-6.2 {channel options for file in smallfilebuff
     set fp [open $file r]
     set actual [fconfigure $fp]
     close $fp
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     set result [list]
     foreach opt {-translation -encoding -eofchar} {
         if { [dict get $expected $opt] eq [dict get $actual $opt] } {
@@ -282,7 +282,7 @@ tcltest::test cookfsReaderChannel-6.2 {channel options for file in smallfilebuff
     set result
 } -result [list -translation ok -encoding ok -eofchar ok] -cleanup {
     catch { close $fp }
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     file delete -force $vfs
     unset -nocomplain vfs file fp data expected result opt actual
 }

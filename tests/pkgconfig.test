@@ -28,4 +28,5 @@ feature-bzip2 bool
 feature-metadata bool
 feature-xz bool
 package-version version
+tcl-commands bool
 }

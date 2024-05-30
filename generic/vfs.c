@@ -47,7 +47,9 @@ Cookfs_Vfs *Cookfs_VfsInit(Tcl_Interp* interp, Tcl_Obj* mountPoint,
     vfs->commandToken = NULL;
     vfs->interp = interp;
     vfs->isDead = 0;
+#ifdef COOKFS_USETCLCMDS
     vfs->isRegistered = 0;
+#endif
     vfs->isVolume = isVolume;
     vfs->isCurrentDirTime = isCurrentDirTime;
     vfs->isReadonly = isReadonly;
@@ -174,6 +176,8 @@ skipSavingIndex:
     return TCL_OK;
 }
 
+#ifdef COOKFS_USETCLCMDS
+
 void Cookfs_VfsUnregisterInTclvfs(Cookfs_Vfs *vfs) {
 
     if (!vfs->isRegistered) {
@@ -267,6 +271,8 @@ int Cookfs_VfsRegisterInTclvfs(Cookfs_Vfs *vfs) {
 
     return ret;
 }
+
+#endif
 
 int Cookfs_VfsIsReadonly(Cookfs_Vfs *vfs) {
     return vfs->isReadonly;

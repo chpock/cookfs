@@ -2,7 +2,7 @@ tcltest::test cookfsDedup-1.1 "Large file deduplication" -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set datas [randomDatas 4 8192]
-    set c [vfs::cookfs::Mount $file $file -compression none \
+    set c [cookfs::Mount $file $file -compression none \
         -pagesize 4096 -smallfilesize 1024]
     set i 0
     foreach d [concat $datas $datas [lrange $datas 2 14] [lrange $datas 7 15]] {
@@ -11,11 +11,11 @@ tcltest::test cookfsDedup-1.1 "Large file deduplication" -setup {
         puts -nonewline $fh $d
         close $fh
     }
-    vfs::unmount $file
+    cookfs::Unmount $file
     set fs [file size $file]
     expr {($fs > (2048 * 16)) && ($fs < (24 * 2048))}
 } -cleanup {
-    catch {vfs::unmount $file}
+    catch {cookfs::Unmount $file}
     tcltest::removeFile $file
     unset -nocomplain file datas c i fh fs d
 } -result 1
@@ -24,7 +24,7 @@ tcltest::test cookfsDedup-1.2 "Small file deduplication for same resulting pages
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set datas [randomDatas 16 2048]
-    set c [vfs::cookfs::Mount $file $file -compression none \
+    set c [cookfs::Mount $file $file -compression none \
         -pagesize 16384 -smallfilesize 16384 -smallfilebuffer 16384]
     set i 0
     foreach d [concat $datas $datas $datas $datas] {
@@ -33,16 +33,16 @@ tcltest::test cookfsDedup-1.2 "Small file deduplication for same resulting pages
         puts -nonewline $fh $d
         close $fh
     }
-    vfs::unmount $file
+    cookfs::Unmount $file
     set fs [file size $file]
     expr {($fs > (2048 * 16)) && ($fs < (24 * 2048))}
 } -cleanup {
-    catch {vfs::unmount $file}
+    catch {cookfs::Unmount $file}
     tcltest::removeFile $file
     unset -nocomplain file datas c i fh fs d
 } -result 1
 
-tcltest::test cookfsDedup-1.3 "Small file deduplication for different resulting pages" -setup {
+tcltest::test cookfsDedup-1.3 "Small file deduplication for different resulting pages" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set datas [randomDatas 4 2048]
@@ -89,7 +89,7 @@ file3 * 2048 {1 0 2048} 1
 file4 * 2048 {0 0 2048} 1
 file5 * 2048 {1 2048 2048} 1}
 
-tcltest::test cookfsDedup-1.4 "Small file deduplication for different resulting pages" -setup {
+tcltest::test cookfsDedup-1.4 "Small file deduplication for different resulting pages" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set datas [randomDatas 3 2048]

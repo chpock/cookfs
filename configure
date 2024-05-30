@@ -657,6 +657,7 @@ MAKE_LIB
 EGREP
 GREP
 COOKFS_PKGCONFIG_USECPKGCONFIG
+COOKFS_PKGCONFIG_USETCLCMDS
 COOKFS_PKGCONFIG_USECWRITER
 COOKFS_PKGCONFIG_USECVFS
 COOKFS_PKGCONFIG_FEATURE_METADATA
@@ -795,6 +796,7 @@ enable_c_writerchannel
 enable_c_pkgconfig
 enable_c_vfs
 enable_c_writer
+enable_tcl_commands
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1442,6 +1444,7 @@ Optional Features:
   --disable-c-pkgconfig     Use pkgconfig written in C. Defaults to true
   --disable-c-vfs           Use VFS support written in C. Defaults to true
   --disable-c-writer        Use writer handler written in C. Defaults to true
+  --disable-tcl-commands    Enable Tcl commands for objects. Defaults to true
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -8661,6 +8664,15 @@ else $as_nop
   USECWRITER=yes
 fi
 
+# Check whether --enable-tcl-commands was given.
+if test ${enable_tcl_commands+y}
+then :
+  enableval=$enable_tcl_commands; USETCLCMDS=${enableval}
+else $as_nop
+  USETCLCMDS=yes
+fi
+
+
 
 if test ${INTERNALDEBUG} = yes; then
     printf "%s\n" "#define COOKFS_INTERNAL_DEBUG 1" >>confdefs.h
@@ -9177,6 +9189,23 @@ else
     COOKFS_PKGCONFIG_USECVFS=0
 fi
 
+if test ${USETCLCMDS} = no \
+  && test ${USECWRITER} = yes \
+  && test ${USECWRITERCHAN} = yes \
+  && test ${USECVFS} = yes \
+  && test ${USECPAGES} = yes \
+  && test ${USECFSINDEX} = yes \
+  && test ${USECREADERCHAN} = yes
+then
+    COOKFS_PKGCONFIG_USETCLCMDS=0
+else
+    printf "%s\n" "#define COOKFS_USETCLCMDS 1" >>confdefs.h
+
+    COOKFS_PKGCONFIG_USETCLCMDS=1
+fi
+
+
+
 
 
 
@@ -9211,6 +9240,8 @@ if test ${USECPKGCONFIG} = yes; then
     printf "%s\n" "#define COOKFS_PKGCONFIG_USECVFS $COOKFS_PKGCONFIG_USECVFS" >>confdefs.h
 
     printf "%s\n" "#define COOKFS_PKGCONFIG_USECWRITER $COOKFS_PKGCONFIG_USECWRITER" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_PKGCONFIG_USETCLCMDS $COOKFS_PKGCONFIG_USETCLCMDS" >>confdefs.h
 
 
     printf "%s\n" "#define COOKFS_USECPKGCONFIG 1" >>confdefs.h

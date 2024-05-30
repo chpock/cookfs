@@ -5,7 +5,7 @@ tcltest::test cookfsWriter-1.1 "Add small files" -setup {
     set datas [randomDatas 3 1024]
     set file1 [tcltest::makeBinFile [lindex $datas 0] file1]
     set file2 [tcltest::makeBinFile [lindex $datas 1] file2]
-    set h [vfs::cookfs::Mount $vfs $vfs -pagesize 4096 -smallfilesize 4096 -smallfilebuffer 16384 -compression none]
+    set h [cookfs::Mount $vfs $vfs -pagesize 4096 -smallfilesize 4096 -smallfilebuffer 16384 -compression none]
     set channel [open $file1 rb]
     $h writeFiles file1 channel $channel "" file2 file $file2 "" file3 data [lindex $datas 2] ""
     close $channel
@@ -15,17 +15,17 @@ tcltest::test cookfsWriter-1.1 "Add small files" -setup {
     lappend result "file2 [string equal [tcltest::viewBinFile $vfs/file2] [lindex $datas 1]]"
     lappend result "file3 [string equal [tcltest::viewBinFile $vfs/file3] [lindex $datas 2]]"
     # flush the files to pages
-    vfs::unmount $vfs
-    set h [vfs::cookfs::Mount -readonly $vfs $vfs]
+    cookfs::Unmount $vfs
+    set h [cookfs::Mount -readonly $vfs $vfs]
     # read the files again
     lappend result "file1 [string equal [tcltest::viewBinFile $vfs/file1] [lindex $datas 0]]"
     lappend result "file2 [string equal [tcltest::viewBinFile $vfs/file2] [lindex $datas 1]]"
     lappend result "file3 [string equal [tcltest::viewBinFile $vfs/file3] [lindex $datas 2]]"
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     lappend result {}
     join $result \n
 } -cleanup {
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     catch { close $channel }
     tcltest::removeFile $vfs
     tcltest::removeFile $file1
@@ -46,7 +46,7 @@ tcltest::test cookfsWriter-1.2 "Add big files" -setup {
     set datas [randomDatas 3 1024]
     set file1 [tcltest::makeBinFile [lindex $datas 0] file1]
     set file2 [tcltest::makeBinFile [lindex $datas 1] file2]
-    set h [vfs::cookfs::Mount $vfs $vfs -pagesize 512 -smallfilesize 512 -smallfilebuffer 16384 -compression none]
+    set h [cookfs::Mount $vfs $vfs -pagesize 512 -smallfilesize 512 -smallfilebuffer 16384 -compression none]
     set channel [open $file1 rb]
     $h writeFiles file1 channel $channel "" file2 file $file2 "" file3 data [lindex $datas 2] ""
     close $channel
@@ -56,17 +56,17 @@ tcltest::test cookfsWriter-1.2 "Add big files" -setup {
     lappend result "file2 [string equal [tcltest::viewBinFile $vfs/file2] [lindex $datas 1]]"
     lappend result "file3 [string equal [tcltest::viewBinFile $vfs/file3] [lindex $datas 2]]"
     # flush the files to pages
-    vfs::unmount $vfs
-    set h [vfs::cookfs::Mount -readonly $vfs $vfs]
+    cookfs::Unmount $vfs
+    set h [cookfs::Mount -readonly $vfs $vfs]
     # read the files again
     lappend result "file1 [string equal [tcltest::viewBinFile $vfs/file1] [lindex $datas 0]]"
     lappend result "file2 [string equal [tcltest::viewBinFile $vfs/file2] [lindex $datas 1]]"
     lappend result "file3 [string equal [tcltest::viewBinFile $vfs/file3] [lindex $datas 2]]"
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     lappend result {}
     join $result \n
 } -cleanup {
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     tcltest::removeFile $vfs
     tcltest::removeFile $file1
     tcltest::removeFile $file2
@@ -83,10 +83,10 @@ file3 1
 tcltest::test cookfsWriter-2.1 "Error while adding files without parent directory" -setup {
     set vfs [tcltest::makeFile {} pages.cfs]
 } -body {
-    set h [vfs::cookfs::Mount $vfs $vfs -compression none]
+    set h [cookfs::Mount $vfs $vfs -compression none]
     $h writeFiles file1 data x "" somedirectory/file2 data y ""
 } -cleanup {
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     tcltest::removeFile $vfs
     unset -nocomplain vfs h
 } -returnCodes error -result {unable to add "somedirectory/file2": Unable to create entry}
@@ -95,24 +95,24 @@ tcltest::test cookfsWriter-3.1 "Add the same file while previous file is in smal
     set vfs [tcltest::makeFile {} pages.cfs]
 } -body {
     set datas [randomDatas 3 1024]
-    set h [vfs::cookfs::Mount $vfs $vfs -pagesize 4096 -smallfilesize 4096 -smallfilebuffer 16384 -compression none]
+    set h [cookfs::Mount $vfs $vfs -pagesize 4096 -smallfilesize 4096 -smallfilebuffer 16384 -compression none]
     $h writeFiles file1 data [lindex $datas 0] "" file1 data [lindex $datas 1] "" file1 data [lindex $datas 2] ""
     set result [list ""]
     # check the file in the small file buffer
     lappend result "file1 [string equal [tcltest::viewBinFile $vfs/file1] [lindex $datas 2]]"
     # flush the file to pages
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     set fs [file size $vfs]
     # the file size should be (1 data [1024 bytes] + internal data) and less than (2 datas [2048 bytes])
     lappend result [expr {($fs > 1024) && ($fs < 2048)}]
-    set h [vfs::cookfs::Mount -readonly $vfs $vfs]
+    set h [cookfs::Mount -readonly $vfs $vfs]
     # read the file again
     lappend result "file1 [string equal [tcltest::viewBinFile $vfs/file1] [lindex $datas 2]]"
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     lappend result {}
     join $result \n
 } -cleanup {
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     tcltest::removeFile $vfs
     unset -nocomplain vfs datas h result fs
 } -returnCodes ok -result {
@@ -125,24 +125,24 @@ tcltest::test cookfsWriter-3.2 "Add the same file while previous file in in page
     set vfs [tcltest::makeFile {} pages.cfs]
 } -body {
     set datas [randomDatas 3 1024]
-    set h [vfs::cookfs::Mount $vfs $vfs -pagesize 1024 -smallfilesize 1024 -smallfilebuffer 1024 -compression none]
+    set h [cookfs::Mount $vfs $vfs -pagesize 1024 -smallfilesize 1024 -smallfilebuffer 1024 -compression none]
     $h writeFiles file1 data [lindex $datas 0] "" file1 data [lindex $datas 1] "" file1 data [lindex $datas 2] ""
     set result [list ""]
     # check the file
     lappend result "file1 [string equal [tcltest::viewBinFile $vfs/file1] [lindex $datas 2]]"
     # flush the file to pages
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     set fs [file size $vfs]
     # the file size should be (3 datas [3072 bytes] + internal data)
     lappend result [expr { $fs > ( 1024 * 3 ) }]
-    set h [vfs::cookfs::Mount -readonly $vfs $vfs]
+    set h [cookfs::Mount -readonly $vfs $vfs]
     # read the files again
     lappend result "file1 [string equal [tcltest::viewBinFile $vfs/file1] [lindex $datas 2]]"
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     lappend result {}
     join $result \n
 } -cleanup {
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     tcltest::removeFile $vfs
     unset -nocomplain vfs datas h result fs
 } -returnCodes ok -result {
@@ -154,10 +154,10 @@ file1 1
 tcltest::test cookfsWriter-4.1 "Error while adding file by absolute name" -setup {
     set vfs [tcltest::makeFile {} pages.cfs]
 } -body {
-    set h [vfs::cookfs::Mount $vfs $vfs]
+    set h [cookfs::Mount $vfs $vfs]
     $h writeFiles /file1 data x ""
 } -cleanup {
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     tcltest::removeFile $vfs
     unset -nocomplain vfs h
 } -returnCodes error -result {unable to add "/file1": Unable to create entry}
@@ -171,7 +171,7 @@ tcltest::test cookfsWriter-5.1 "Channel options for added channels are preserved
 } -body {
     set result [list ""]
     # check small file
-    set h [vfs::cookfs::Mount $vfs $vfs -pagesize 2048 -smallfilesize 2048 -smallfilebuffer 16384 -compression none]
+    set h [cookfs::Mount $vfs $vfs -pagesize 2048 -smallfilesize 2048 -smallfilebuffer 16384 -compression none]
 
     set channel [open $file1 r]
     fconfigure $channel -encoding cp866 -translation cr
@@ -205,11 +205,11 @@ tcltest::test cookfsWriter-5.1 "Channel options for added channels are preserved
     lappend result "-translation [string equal lf [fconfigure $channel -translation]]"
     close $channel
 
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     lappend result {}
     join $result \n
 } -cleanup {
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     catch { close $channel }
     tcltest::removeFile $vfs
     tcltest::removeFile $file1
@@ -232,7 +232,7 @@ tcltest::test cookfsWriter-5.2 "Channel options are preserved when error occurs"
     set file1 [tcltest::makeBinFile $data1 file1]
 } -body {
     set result [list ""]
-    set h [vfs::cookfs::Mount $vfs $vfs -pagesize 2048 -smallfilesize 2048 -smallfilebuffer 16384 -compression none]
+    set h [cookfs::Mount $vfs $vfs -pagesize 2048 -smallfilesize 2048 -smallfilebuffer 16384 -compression none]
 
     set channel [open $file1 r]
     fconfigure $channel -encoding cp866 -translation cr
@@ -249,11 +249,11 @@ tcltest::test cookfsWriter-5.2 "Channel options are preserved when error occurs"
     lappend result "-translation [string equal lf [fconfigure $channel -translation]]"
     close $channel
 
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     lappend result {}
     join $result \n
 } -cleanup {
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     catch { close $channel }
     tcltest::removeFile $vfs
     tcltest::removeFile $file1
@@ -273,26 +273,26 @@ tcltest::test cookfsWriter-6.1 "Deleting files in a small file buffer" -setup {
     set result [list]
     set data1 [lindex [randomDatas 1 1024] 0]
     set data2 [lindex [randomDatas 1 4096] 0]
-    set h [vfs::cookfs::Mount $vfs $vfs -pagesize 2048 -smallfilesize 2048 -smallfilebuffer 16384 -compression none]
+    set h [cookfs::Mount $vfs $vfs -pagesize 2048 -smallfilesize 2048 -smallfilebuffer 16384 -compression none]
     $h writeFiles file1 data $data1 ""
     lappend result [file exists $vfs/file1]
     file delete $vfs/file1
     lappend result [file exists $vfs/file1]
     # add some real file
     $h writeFiles file2 data $data2 ""
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     set fs [file size $vfs]
     # the file size should be (1 big data [4096 bytes] + internal data) and less than (1 big data + 1 small data [5120 bytes])
     lappend result [expr {($fs > 4096) && ($fs < (1024 + 4096))}]
-    set h [vfs::cookfs::Mount -readonly $vfs $vfs]
+    set h [cookfs::Mount -readonly $vfs $vfs]
     # file1 doesn't exist
     lappend result [file exists $vfs/file1]
     # file2 exists
     lappend result [file exists $vfs/file2]
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     set result
 } -cleanup {
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     tcltest::removeFile $vfs
     unset -nocomplain vfs result data1 data2 h fs
 } -result {1 0 1 0 1}
@@ -302,7 +302,7 @@ tcltest::test cookfsWriter-6.2 "Deleting files doesn't corrupt following files i
 } -body {
     set result [list]
     lassign [randomDatas 2 1024] data1 data2
-    set h [vfs::cookfs::Mount $vfs $vfs -pagesize 4096 -smallfilesize 4096 -smallfilebuffer 16384 -compression none]
+    set h [cookfs::Mount $vfs $vfs -pagesize 4096 -smallfilesize 4096 -smallfilebuffer 16384 -compression none]
     $h writeFiles file1 data $data1 "" file2 data $data2 ""
     lappend result [file exists $vfs/file1]
     lappend result [file exists $vfs/file2]
@@ -311,20 +311,20 @@ tcltest::test cookfsWriter-6.2 "Deleting files doesn't corrupt following files i
     lappend result [file exists $vfs/file1]
     lappend result [file exists $vfs/file2]
     lappend result "match=[string equal [tcltest::viewBinFile $vfs/file2] $data2]"
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     set fs [file size $vfs]
     # the file size should be (1 data [1024 bytes] + internal data) and less than (2 datas [2048 bytes])
     lappend result [expr {($fs > 1024) && ($fs < (1024 * 2))}]
-    set h [vfs::cookfs::Mount -readonly $vfs $vfs]
+    set h [cookfs::Mount -readonly $vfs $vfs]
     # file1 doesn't exist
     lappend result [file exists $vfs/file1]
     # file2 exists
     lappend result [file exists $vfs/file2]
     lappend result "match=[string equal [tcltest::viewBinFile $vfs/file2] $data2]"
-    vfs::unmount $vfs
+    cookfs::Unmount $vfs
     set result
 } -cleanup {
-    catch { vfs::unmount $vfs }
+    catch { cookfs::Unmount $vfs }
     tcltest::removeFile $vfs
     unset -nocomplain vfs result h data2 data1 fs
 } -result {1 1 match=1 0 1 match=1 1 0 1 match=1}
