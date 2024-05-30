@@ -38,7 +38,7 @@ static Cookfs_WriterChannelInstData *Cookfs_CreateWriterchannelAlloc(
 {
 
     CookfsLog(printf("Cookfs_CreateWriterchannelAlloc: start,"
-        " initial buff size [%ld]", initialBufferSize));
+        " initial buff size [%" TCL_LL_MODIFIER "d]", initialBufferSize));
 
     Cookfs_WriterChannelInstData *instData =
         (Cookfs_WriterChannelInstData *)ckalloc(
@@ -156,7 +156,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
             continue;
         }
 
-        int blockSize;
+        Tcl_Size blockSize;
         const char *blockBuffer;
 
         if (block < 0) {
@@ -206,8 +206,8 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
 
         }
 
-        CookfsLog(printf("Cookfs_CreateWriterchannel: got block size [%d]",
-            blockSize));
+        CookfsLog(printf("Cookfs_CreateWriterchannel: got block size [%"
+            TCL_SIZE_MODIFIER "d]", blockSize));
 
         // Check if we have enough bytes in the block
         if ((offset + size) > blockSize) {
@@ -312,7 +312,7 @@ static int CookfsCreateWriterchannelCmd(ClientData clientData,
         return TCL_ERROR;
     }
 
-    int pathObjLen;
+    Tcl_Size pathObjLen;
     Tcl_Obj *pathObj = Tcl_FSSplitPath(objv[4], &pathObjLen);
     if (pathObj == NULL) {
         Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unable to use"

@@ -25,11 +25,17 @@
  *----------------------------------------------------------------------
  */
 
+#if TCL_MAJOR_VERSION > 8
+#define MIN_TCL_VERSION "9.0"
+#else
+#define MIN_TCL_VERSION "8.5"
+#endif
+
 DLLEXPORT int
 Cookfs_Init(Tcl_Interp *interp) // cppcheck-suppress unusedFunction
 {
 
-    if (Tcl_InitStubs(interp, "8.5", 0) == NULL) {
+    if (Tcl_InitStubs(interp, MIN_TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
 

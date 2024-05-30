@@ -68,8 +68,11 @@ static void Cookfs_CookfsUnregister(ClientData clientData,
         Cookfs_VfsFini(interp, vfs, NULL);
     }
 
-    // Remove associated data also
-    Tcl_DeleteAssocData(interp, COOKFS_ASSOC_KEY);
+    // Don't call Tcl_DeleteAssocData() here. We are in the callback
+    // of removing assocdata, so it is being removed now. It also causes
+    // a crash in Tcl9: https://core.tcl-lang.org/tcl/tktview/34870ab575
+    //
+    // Tcl_DeleteAssocData(interp, COOKFS_ASSOC_KEY);
 }
 
 static void Cookfs_CookfsExitProc(ClientData clientData) {
@@ -185,7 +188,7 @@ next:
 
 }
 
-void Cookfs_CookfsSearchVfsToListObj(Tcl_Obj *path, CONST char *pattern,
+void Cookfs_CookfsSearchVfsToListObj(Tcl_Obj *path, const char *pattern,
     Tcl_Obj *returnObj)
 {
 
@@ -193,8 +196,8 @@ void Cookfs_CookfsSearchVfsToListObj(Tcl_Obj *path, CONST char *pattern,
 
     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
 
-    int searchLen;
-    CONST char *searchStr = Tcl_GetStringFromObj(Tcl_FSGetNormalizedPath(NULL,
+    Tcl_Size searchLen;
+    const char *searchStr = Tcl_GetStringFromObj(Tcl_FSGetNormalizedPath(NULL,
         path), &searchLen);
 
     // Remove the trailing VFS path separator if it exists
@@ -256,7 +259,7 @@ int Cookfs_CookfsIsVfsExist(Cookfs_Vfs *vfsToSearch) {
     return 0;
 }
 
-Cookfs_Vfs *Cookfs_CookfsFindVfs(Tcl_Obj *path, int len) {
+Cookfs_Vfs *Cookfs_CookfsFindVfs(Tcl_Obj *path, Tcl_Size len) {
     if (path == NULL) {
         return NULL;
     }
@@ -309,20 +312,20 @@ static int Cookfs_CookfsRemoveVolume(Tcl_Obj *volume) {
         return TCL_OK;
     }
 
-    int volumeLen;
+    Tcl_Size volumeLen;
     char *volumeStr = Tcl_GetStringFromObj(volume, &volumeLen);
 
-    int volCount;
+    Tcl_Size volCount;
     Tcl_ListObjLength(NULL, tsdPtr->cookfsVolumes, &volCount);
 
-    for (int i = 0; i < volCount; i++) {
+    for (Tcl_Size i = 0; i < volCount; i++) {
 
         Tcl_Obj *obj;
         Tcl_ListObjIndex(NULL, tsdPtr->cookfsVolumes, i, &obj);
 
         Tcl_IncrRefCount(obj);
 
-        int volumeCurLen;
+        Tcl_Size volumeCurLen;
         char *volumeCurStr = Tcl_GetStringFromObj(volume, &volumeCurLen);
 
         if (volumeCurLen != volumeLen ||

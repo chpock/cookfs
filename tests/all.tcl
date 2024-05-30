@@ -10,7 +10,7 @@ tcltest::testsDirectory [file dirname [info script]]
 
 package require vfs::cookfs
 
-if { [cookfs::pkgconfig get tcl-commands] } {
+catch {
     package require vfs
 }
 
@@ -52,6 +52,9 @@ tcltest::testConstraint enabledTclCmds  [cookfs::pkgconfig get tcl-commands]
 tcltest::testConstraint disabledTclCmds [expr { ![cookfs::pkgconfig get tcl-commands] }]
 
 tcltest::testConstraint packageTclvfs [expr { ![catch { package present vfs }] }]
+
+tcltest::testConstraint tcl86 [expr { $::tcl_version < 9.0 }]
+tcltest::testConstraint tcl90 [expr { $::tcl_version >= 9.0 }]
 
 tcltest::configure -constraints $constraints
 

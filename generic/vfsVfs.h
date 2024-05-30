@@ -7,11 +7,11 @@
 
 void Cookfs_CookfsRegister(Tcl_Interp *interp);
 
-Cookfs_Vfs *Cookfs_CookfsFindVfs(Tcl_Obj *path, int len);
+Cookfs_Vfs *Cookfs_CookfsFindVfs(Tcl_Obj *path, Tcl_Size len);
 
 Tcl_Obj *Cookfs_CookfsGetVolumesList(void);
 
-void Cookfs_CookfsSearchVfsToListObj(Tcl_Obj *path, CONST char *pattern,
+void Cookfs_CookfsSearchVfsToListObj(Tcl_Obj *path, const char *pattern,
     Tcl_Obj *returnObj);
 
 int Cookfs_CookfsAddVfs(Tcl_Interp *interp, Cookfs_Vfs *vfs);

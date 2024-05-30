@@ -46,7 +46,7 @@ tcltest::test cookfsDedup-1.3 "Small file deduplication for different resulting 
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set datas [randomDatas 4 2048]
-    set c [vfs::cookfs::Mount $file $file -compression none \
+    set c [cookfs::Mount $file $file -compression none \
         -pagesize 4096 -smallfilesize 4096 -smallfilebuffer 16384]
     # datas is 4 files of 2048 bytes each
     # page has 4096 bytes
@@ -68,18 +68,18 @@ tcltest::test cookfsDedup-1.3 "Small file deduplication for different resulting 
         puts -nonewline $fh $d
         close $fh
     }
-    vfs::unmount $file
+    cookfs::Unmount $file
     set fs [file size $file]
     set result [list]
     # the file size should be (2 pages + internal data) and less than (3 pages)
     lappend result [expr {($fs > (4096 * 2)) && ($fs < (4096 * 3))}]
-    set c [vfs::cookfs::Mount -readonly $file $file]
+    set c [cookfs::Mount -readonly $file $file]
     foreach { f d } $files {
         lappend result "$f [[$c getindex] get $f] [string equal $d [read [set fh [open $file/$f rb]]][close $fh]]"
     }
     join $result \n
 } -cleanup {
-    catch {vfs::unmount $file}
+    catch {cookfs::Unmount $file}
     tcltest::removeFile $file
     unset -nocomplain file datas c files f d fh fs result
 } -match glob -result {1
@@ -93,7 +93,7 @@ tcltest::test cookfsDedup-1.4 "Small file deduplication for different resulting 
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set datas [randomDatas 3 2048]
-    set c [vfs::cookfs::Mount $file $file -compression none \
+    set c [cookfs::Mount $file $file -compression none \
         -pagesize 4096 -smallfilesize 4096 -smallfilebuffer 8192]
     # datas is 3 files of 2048 bytes each
     # page has 4096 bytes
@@ -124,18 +124,18 @@ tcltest::test cookfsDedup-1.4 "Small file deduplication for different resulting 
         puts -nonewline $fh $d
         close $fh
     }
-    vfs::unmount $file
+    cookfs::Unmount $file
     set fs [file size $file]
     set result [list]
     # the file size should be (1.5 pages + internal data) and less than (2 pages)
     lappend result [expr {($fs > (1.5 * 4096)) && ($fs < (4096 * 2))}]
-    set c [vfs::cookfs::Mount -readonly $file $file]
+    set c [cookfs::Mount -readonly $file $file]
     foreach { f d } $files {
         lappend result "$f [[$c getindex] get $f] [string equal $d [read [set fh [open $file/$f rb]]][close $fh]]"
     }
     join $result \n
 } -cleanup {
-    catch {vfs::unmount $file}
+    catch {cookfs::Unmount $file}
     tcltest::removeFile $file
     unset -nocomplain file datas c files f d fh fs result
 } -match glob -result {1
@@ -147,4 +147,5 @@ file5 * 2048 {0 0 2048} 1
 file6 * 2048 {0 2048 2048} 1
 file7 * 2048 {0 2048 2048} 1
 file8 * 2048 {1 0 2048} 1}
+
 

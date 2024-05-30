@@ -689,8 +689,8 @@ static Tcl_WideInt Cookfs_PageSearchStamp(Cookfs_Pages *p) {
 
     }
 
-    CookfsLog(printf("Cookfs_PageSearchStamp: read total %ld bytes and"
-        " could not find the stamp", read));
+    CookfsLog(printf("Cookfs_PageSearchStamp: read total %" TCL_LL_MODIFIER "d"
+        " bytes and could not find the stamp", read));
 
     goto error;
 
@@ -698,7 +698,8 @@ found:
 
 
     Cookfs_Binary2WideInt(&buf[i + COOKFS_SIGNATURE_LENGTH], &size, 1);
-    CookfsLog(printf("Cookfs_PageSearchStamp: return the size: %ld", size));
+    CookfsLog(printf("Cookfs_PageSearchStamp: return the size: %"
+        TCL_LL_MODIFIER "d", size));
 
 error:
 
@@ -728,7 +729,8 @@ error:
 
 int Cookfs_PageAddStamp(Cookfs_Pages *p, Tcl_WideInt size) {
 
-    CookfsLog(printf("Cookfs_PageAddStamp: enter, size: %ld", size));
+    CookfsLog(printf("Cookfs_PageAddStamp: enter, size: %" TCL_LL_MODIFIER "d",
+        size));
 
     unsigned char sizeBin[8]; // 64-bit WideInt
     Cookfs_WideInt2Binary(&size, sizeBin, 1);
@@ -801,7 +803,7 @@ int Cookfs_PageAddStamp(Cookfs_Pages *p, Tcl_WideInt size) {
  */
 
 int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj) {
-    int objLength;
+    Tcl_Size objLength;
     unsigned char *bytes = Tcl_GetByteArrayFromObj(dataObj, &objLength);
     return Cookfs_PageAddRaw(p, bytes, objLength);
 }
@@ -873,7 +875,7 @@ int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength) {
 	    /* even if MD5 checksums are the same, we still need to validate contents of the page */
 	    Tcl_Obj *otherPageData;
 	    unsigned char *otherBytes;
-	    int otherObjLength;
+	    Tcl_Size otherObjLength;
 	    int isMatched = 1;
 
 	    CookfsLog(printf("Cookfs_PageAdd: Comparing page %d", idx))
@@ -1424,7 +1426,7 @@ void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside) {
     if (aside != NULL) {
 	CookfsLog(printf("Cookfs_PagesSetAside: Checking if index in add-aside archive should be overwritten."))
 	Tcl_Obj *asideIndex;
-	int asideIndexLength;
+	Tcl_Size asideIndexLength;
 	asideIndex = Cookfs_PagesGetIndex(aside);
 	Tcl_GetByteArrayFromObj(asideIndex, &asideIndexLength);
 	if (asideIndexLength == 0) {
@@ -1807,7 +1809,7 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p) {
         Tcl_Seek(p->fileChannel, seekOffset, SEEK_SET);
 	byteObj = Tcl_NewObj();
 	if (Tcl_ReadChars(p->fileChannel, byteObj, 65536, 0) > 0) {
-            int size;
+            Tcl_Size size;
             bytes = Tcl_GetByteArrayFromObj(byteObj, &size);
             for (i = 0 ; i <= (size - COOKFS_SIGNATURE_LENGTH) ; i++) {
                 if (bytes[i] == p->fileSignature[0]) {

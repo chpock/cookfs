@@ -64,7 +64,7 @@ Cookfs_Vfs *Cookfs_VfsInit(Tcl_Interp* interp, Tcl_Obj* mountPoint,
 error:
     if (vfs != NULL) {
         if (vfs->mountStr != NULL) {
-            ckfree(vfs->mountStr);
+            ckfree((void *)vfs->mountStr);
         }
         ckfree(vfs);
     }
@@ -100,8 +100,8 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
     }
 
     Tcl_WideInt changecount = Cookfs_FsindexIncrChangeCount(vfs->index, 0);
-    CookfsLog(printf("Cookfs_VfsFini: changecount from index: %ld",
-        changecount));
+    CookfsLog(printf("Cookfs_VfsFini: changecount from index: %" TCL_LL_MODIFIER
+        "d", changecount));
     if (!changecount) {
         goto skipSavingIndex;
     }

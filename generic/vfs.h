@@ -6,9 +6,9 @@
 /* Tcl public API */
 
 typedef struct Cookfs_Vfs {
-    CONST char* mountStr;
+    const char* mountStr;
     Tcl_Obj *mountObj;
-    int mountLen;
+    Tcl_Size mountLen;
 
     Tcl_Interp *interp;
     Tcl_Command commandToken;
