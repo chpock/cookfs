@@ -9,7 +9,10 @@ tcltest::temporaryDirectory $tmpdir
 tcltest::testsDirectory [file dirname [info script]]
 
 package require vfs::cookfs
-package require vfs
+
+if { [cookfs::pkgconfig get tcl-commands] } {
+    package require vfs
+}
 
 if {[info tclversion] == "8.5"} {
     package require rechan
