@@ -46,6 +46,11 @@ jobs:
           repository: chpock/tclvfs
           ref: main
           path: tclvfs
+      - name: Setup environment for tclvfs
+        working-directory: tclvfs
+        run: |
+          curl https://core.tcl-lang.org/tclconfig/tarball/main/tclconfig.tar.gz >tclconfig.tar.gz
+          tar xfz tclconfig.tar.gz
       - name: Configure tclvfs
         working-directory: tclvfs
         run: |
