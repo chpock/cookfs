@@ -1090,7 +1090,7 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
         }
     }
 
-    //ckfree(pageFiles);
+    ckfree(pageFiles);
 
     CookfsLog(printf("CookfsMountHandleCommandOptimizelist: add the large"
         " files to the small files"));
