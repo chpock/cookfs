@@ -519,7 +519,7 @@ Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Tcl_Obj *pathList, int
 
     /* if finding failed (i.e. parent did not exist), return NULL */
     if ((foundFileNode == NULL) || (dirNode == NULL)) {
-        CookfsLog(printf("Cookfs_FsindexSet - NULL"))
+        CookfsLog(printf("Cookfs_FsindexSet - NULL"));
         /* the current node is already released by CookfsFsindexFind() */
         return NULL;
     }
@@ -1088,14 +1088,14 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
     char *pathTailStr;
 
     if (Tcl_ListObjLength(NULL, pathList, &listSize) != TCL_OK) {
-        return NULL;
+        goto error;
     }
     if (listSize == 0) {
 	if (command == COOKFSFSINDEX_FIND_FIND) {
             return i->rootItem;
 	}  else  {
 	    /* create or delete will not work with empty file list */
-	    return NULL;
+	    goto error;
 	}
     }
 
@@ -1112,19 +1112,19 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
     /* if parent was not found or is not a directory, return NULL */
     if (currentNode == NULL) {
         CookfsLog(printf("CookfsFsindexCreateHashElement - node not found"))
-        return NULL;
+        goto error;
     }
 
     if (currentNode->fileBlocks != COOKFS_NUMBLOCKS_DIRECTORY) {
         CookfsLog(printf("CookfsFsindexCreateHashElement - not a directory"))
-        return NULL;
+        goto error;
     }
 
     /* get information about fail of the file name
      * and invoke CookfsFsindexFindInDirectory() */
     if (Tcl_ListObjIndex(NULL, pathList, listSize - 1, &pathTail) != TCL_OK) {
         CookfsLog(printf("CookfsFsindexCreateHashElement - Unable to get element"))
-        return NULL;
+        goto error;
     }
 
     pathTailStr = Tcl_GetStringFromObj(pathTail, NULL);
@@ -1135,6 +1135,14 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
         Cookfs_FsindexIncrChangeCount(i, 1);
     }
     return rc;
+
+error:
+
+    if (newFileNode != NULL) {
+        Cookfs_FsindexEntryFree(newFileNode);
+    }
+    return NULL;
+
 }
 
 

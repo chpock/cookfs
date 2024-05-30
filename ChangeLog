@@ -1,3 +1,6 @@
+2024-05-30 Konstantin Kushnir <chpock@gmail.com>
+	* Fix multiple memory leaks
+
 2024-05-29 Konstantin Kushnir <chpock@gmail.com>
 	* Fix a regression when register volume and unregister with vfs::unmount
 	* Add memory leak hunter to tests

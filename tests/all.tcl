@@ -82,5 +82,9 @@ foreach file [lsort [::tcltest::getMatchingFiles]] {
 puts stdout "\nTests ended at [eval $timeCmd]"
 if { $::tcltest::numTests(Total) } { set r $::tcltest::numTests(Failed) } { set r 1 }
 ::tcltest::cleanupTests 1
-exit $r
 
+if {[info exists ::env(MEMDEBUG)]} {
+    incr r [check_memleaks]
+}
+
+exit $r
