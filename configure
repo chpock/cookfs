@@ -5431,7 +5431,7 @@ printf "%s\n" "#define AC_APPLE_UNIVERSAL_BUILD 1" >>confdefs.h
 
 
 
-    PKG_CFLAGS="$PKG_CFLAGS -Wall -Wextra -pedantic -Werror -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections -fvisibility=hidden"
+    PKG_CFLAGS="$PKG_CFLAGS -Wall -Wextra -pedantic -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections -fvisibility=hidden"
 
 
 
@@ -5506,6 +5506,16 @@ else
     #TEA_ADD_SOURCES([unix/unixFile.c])
     #TEA_ADD_LIBS([-lsuperfly])
 fi
+
+# Treat compiler warnings as errors on all platforms except MacOS.
+# 7z SDK has some warning on MacOS 10.12.
+if test "${TCL_SHLIB_SUFFIX}" != ".dylib"; then
+
+    PKG_CFLAGS="$PKG_CFLAGS -Werror"
+
+
+fi
+
 
 
 
