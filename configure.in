@@ -56,7 +56,7 @@ TEA_ADD_SOURCES([cookfs.c common.c md5.h bindata.c hashes.c])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/generic`\"])
 TEA_ADD_LIBS([])
-TEA_ADD_CFLAGS([-Wall -Wextra -pedantic -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections -fvisibility=hidden])
+TEA_ADD_CFLAGS([-Wall -Wextra -pedantic -Werror -fno-asynchronous-unwind-tables -ffunction-sections -fdata-sections -fvisibility=hidden])
 TEA_ADD_STUB_SOURCES([])
 TEA_ADD_TCL_SOURCES([
     scripts/writerchannel.tcl

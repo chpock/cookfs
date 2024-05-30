@@ -2,6 +2,7 @@
 	* Fix multiple memory leaks
 	* Add feature to build without Tcl commands
 	* Add support for Tcl 9.0
+	* Treat compiler warnings as errors
 
 2024-05-29 Konstantin Kushnir <chpock@gmail.com>
 	* Fix a regression when register volume and unregister with vfs::unmount
