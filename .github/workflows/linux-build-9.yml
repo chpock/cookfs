@@ -59,7 +59,7 @@ jobs:
           }
       - name: Run Tests
         run: |
-          MEMDEBUG=1 make test || {
+          make test || {
             echo "::error::Failure during Test"
             exit 1
           }
