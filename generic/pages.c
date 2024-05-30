@@ -880,13 +880,15 @@ int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength) {
 
 	    /* use -1000 weight as it is temporary page and we don't really need it in cache */
 	    otherPageData = Cookfs_PageGet(p, idx, -1000);
+	    // No need to incr refcounter on otherPageData because Cookfs_PageGet()
+	    // always returns pages with refcount=1.
+
 	    /* fail in case when decompression is not available */
 	    if (otherPageData == NULL) {
 		CookfsLog(printf("Cookfs_PageAdd: Unable to verify page with same MD5 checksum"))
 		return -1;
 	    }
 
-	    Tcl_IncrRefCount(otherPageData);
 	    otherBytes = Tcl_GetByteArrayFromObj(otherPageData, &otherObjLength);
 
 	    /* if page with same checksum was found, verify its contents as we
@@ -993,7 +995,7 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index, int weight) {
     /* if cache is disabled, immediately get page */
     if (p->cacheSize <= 0) {
 	rc = CookfsPagesPageGetInt(p, index);
-	CookfsLog(printf("Returning directly [%s]", rc == NULL ? "NULL" : "SET"))
+	CookfsLog(printf("Cookfs_PageGet: Returning directly [%p]", (void *)rc))
 	return rc;
     }
 
@@ -1007,17 +1009,21 @@ Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index, int weight) {
 
     rc = Cookfs_PageCacheGet(p, index, 1, weight);
     if (rc != NULL) {
+	CookfsLog(printf("Cookfs_PageGet: Returning from cache [%p]", (void *)rc));
+        // Increase refcount by 1 for pages from cache because
+        // CookfsPagesPageGetInt()->Cookfs_ReadPage() returns pages with
+        // refcount=1
+	Tcl_IncrRefCount(rc);
 	return rc;
     }
 
     /* get page and store it in cache */
     rc = CookfsPagesPageGetInt(p, index);
-    CookfsLog(printf("Returning and caching [%s]", rc == NULL ? "NULL" : "SET"))
-    if (rc == NULL) {
-	return NULL;
-    }
+    CookfsLog(printf("Cookfs_PageGet: Returning and caching [%p]", (void *)rc))
 
-    Cookfs_PageCacheSet(p, index, rc, weight);
+    if (rc != NULL) {
+        Cookfs_PageCacheSet(p, index, rc, weight);
+    }
 
     return rc;
 }
@@ -1156,6 +1162,7 @@ found_empty:
     p->cache[newIdx].pageIdx = idx;
     p->cache[newIdx].pageObj = obj;
     p->cache[newIdx].weight = weight;
+    Tcl_IncrRefCount(obj);
     CookfsLog(printf("Cookfs_PageCacheSet: replace entry [%d]", newIdx));
     /* age will be set by CookfsPagesPageCacheMoveToTop */
     CookfsPagesPageCacheMoveToTop(p, newIdx);
@@ -1898,8 +1905,9 @@ indexReadError:
 indexReadOk:
 
     /* read page MD5 checksums and pages */
+    Tcl_DecrRefCount(p->dataIndex);
     p->dataIndex = buffer;
-    Tcl_IncrRefCount(p->dataIndex);
+    // Do not increase refcount for p->dataIndex because Cookfs_ReadPage returns Tcl_Obj with refcount=1
 
     /* seek to beginning of data, depending on if foffset was specified */
     Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);

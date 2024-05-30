@@ -283,6 +283,13 @@ void Cookfs_PagesFiniCompr(Cookfs_Pages *rc) {
 	    }
 	    ckfree((void *) rc->asyncCompressCommandPtr);
 	}
+	if (rc->asyncDecompressCommandPtr != NULL) {
+	    Tcl_Obj **ptr;
+	    for (ptr = rc->asyncDecompressCommandPtr; *ptr; ptr++) {
+		Tcl_DecrRefCount(*ptr);
+	    }
+	    ckfree((void *) rc->asyncDecompressCommandPtr);
+	}
     }
 #ifdef COOKFS_USEXZ
     CookfsLog(printf("Cookfs_PagesFiniCompr: free xz resources"));

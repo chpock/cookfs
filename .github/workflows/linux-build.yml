@@ -8,6 +8,7 @@ defaults:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     strategy:
       matrix:
         compiler: ["gcc", "clang"]
@@ -58,7 +59,7 @@ jobs:
           }
       - name: Build
         run: |
-          make || {
+          make -j || {
             echo "::error::Failure during Build"
             exit 1
           }

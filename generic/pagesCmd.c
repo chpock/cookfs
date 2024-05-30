@@ -14,7 +14,7 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
 static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static void CookfsPagesDeleteProc(ClientData clientData);
 static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
-
+static void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p);
 
 /*
  *----------------------------------------------------------------------
@@ -65,6 +65,7 @@ Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p) {
     CookfsRegisterExistingPagesObjectCmd(interp, p);
     Tcl_Obj *rc = Tcl_NewObj();
     Tcl_GetCommandFullName(interp, p->commandToken, rc);
+    CookfsLog(printf("CookfsGetPagesObjectCmd: return [%p]", (void *)rc));
     return rc;
 }
 
@@ -85,7 +86,7 @@ Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p) {
  *----------------------------------------------------------------------
  */
 
-void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p) {
+static void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p) {
     if (p->commandToken != NULL) {
         return;
     }
@@ -95,7 +96,6 @@ void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p) {
     p->commandToken = Tcl_CreateObjCommand(interp, buf, CookfsPagesCmd,
         (ClientData)p, CookfsPagesDeleteProc);
     p->interp = interp;
-    Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
 }
 
 /* command for creating new objects that deal with pages */
@@ -299,7 +299,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
 
     /* create Tcl command and return its name and set interp result to the command name */
     CookfsLog(printf("Create Tcl command for the pages object..."))
-    CookfsRegisterExistingPagesObjectCmd(interp, pages);
+    Tcl_SetObjResult(interp, CookfsGetPagesObjectCmd(interp, pages));
     return TCL_OK;
 
 ERROR:
@@ -402,6 +402,9 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             }  else  {
                 Tcl_SetObjResult(interp, rc);
+                // Cookfs_PageGet always returns a page with refcount=1. We need
+                // to decrease refcount now.
+                Tcl_DecrRefCount(rc);
             }
             break;
         }

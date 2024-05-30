@@ -580,11 +580,11 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
             }
 
             // Try to add page
-            CookfsLog(printf("Cookfs_WriterPurge: add page..."));
+            CookfsLog(printf("Cookfs_WriterAddFile: add page..."));
             int block = Cookfs_PageAddRaw(w->pages,
                 (readBuffer == NULL ?
                 (char *)data + currentOffset : readBuffer), bytesToWrite);
-            CookfsLog(printf("Cookfs_WriterPurge: got block index: %d", block));
+            CookfsLog(printf("Cookfs_WriterAddFile: got block index: %d", block));
 
             if (block < 0) {
                 Tcl_Obj *err = Cookfs_PagesGetLastError(w->pages);
@@ -595,7 +595,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
                 goto error;
             }
 
-            CookfsLog(printf("Cookfs_WriterPurge: update block number %d"
+            CookfsLog(printf("Cookfs_WriterAddFile: update block number %d"
                 " of fsindex entry...", currentBlockNumber));
             Cookfs_FsindexUpdateEntryBlock(w->index, entry, currentBlockNumber,
                 block, 0, bytesToWrite);
@@ -608,6 +608,13 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
 
         // Unset entry to avoid releasing it at the end
         entry = NULL;
+
+        // If we add a buffer, the caller expects that the writer now owns
+        // the buffer. Since we already store the file (its buffer) in pages,
+        // we don't need this data anymore.
+        if (dataType == COOKFS_WRITER_SOURCE_BUFFER) {
+            ckfree(data);
+        }
 
     }
 
