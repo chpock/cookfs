@@ -28,6 +28,11 @@ typedef struct cookfsInternalRep {
     Tcl_Size relativePathObjLen;
 } cookfsInternalRep;
 
+enum cookfsAttributes {
+    COOKFS_VFS_ATTR_VFS = 0,
+    COOKFS_VFS_ATTR_HANDLE
+};
+
 static Tcl_FSPathInFilesystemProc CookfsPathInFilesystem;
 static Tcl_FSDupInternalRepProc CookfsDupInternalRep;
 static Tcl_FSFreeInternalRepProc CookfsFreeInternalRep;
@@ -39,9 +44,9 @@ static Tcl_FSOpenFileChannelProc CookfsOpenFileChannel;
 static Tcl_FSMatchInDirectoryProc CookfsMatchInDirectory;
 static Tcl_FSUtimeProc CookfsUtime;
 static Tcl_FSListVolumesProc CookfsListVolumes;
-//static Tcl_FSFileAttrStringsProc CookfsFileAttrStrings;
-//static Tcl_FSFileAttrsGetProc CookfsFileAttrsGet;
-//static Tcl_FSFileAttrsSetProc CookfsFileAttrsSet;
+static Tcl_FSFileAttrStringsProc CookfsFileAttrStrings;
+static Tcl_FSFileAttrsGetProc CookfsFileAttrsGet;
+static Tcl_FSFileAttrsSetProc CookfsFileAttrsSet;
 static Tcl_FSCreateDirectoryProc CookfsCreateDirectory;
 static Tcl_FSRemoveDirectoryProc CookfsRemoveDirectory;
 static Tcl_FSDeleteFileProc CookfsDeleteFile;
@@ -65,9 +70,9 @@ static Tcl_Filesystem cookfsFilesystem = {
     &CookfsUtime,
     NULL, /* linkProc */
     &CookfsListVolumes,
-    NULL, /* fileAttrStringsProc */
-    NULL, /* fileAttrsGetProc */
-    NULL, /* fileAttrsSetProc */
+    &CookfsFileAttrStrings,
+    &CookfsFileAttrsGet,
+    &CookfsFileAttrsSet,
     &CookfsCreateDirectory,
     &CookfsRemoveDirectory,
     &CookfsDeleteFile,
@@ -865,4 +870,92 @@ static int CookfsDeleteFile(Tcl_Obj *pathPtr) {
 
     return TCL_OK;
 
+}
+
+static const char *const *CookfsFileAttrStrings(Tcl_Obj *pathPtr,
+    Tcl_Obj **objPtrRef)
+{
+
+    CookfsLog(printf("CookfsFileAttrStrings: path [%s]",
+        Tcl_GetString(pathPtr)));
+
+    cookfsInternalRep *internalRep =
+        (cookfsInternalRep *)Tcl_FSGetInternalRep(pathPtr, &cookfsFilesystem);
+
+    // Something is really wrong. CookfsFileAttrStrings() should only be called
+    // for files belonging to CookFS. But here we got NULL CookFS mount.
+    if (internalRep == NULL) {
+        CookfsLog(printf("CookfsFileAttrStrings: something really wrong,"
+            " return an error"));
+        return NULL;
+    }
+
+    CookfsFSData *fsdata = (CookfsFSData *)Tcl_FSData(CookfsFilesystem());
+    if (fsdata != NULL) {
+        // Check the length of the split path. If the length is zero, then
+        // we want to get attributes for cookfs.
+        if (internalRep->relativePathObjLen) {
+            CookfsLog(printf("CookfsFileAttrStrings: return common"
+                " attr list"));
+            *objPtrRef = fsdata->attrList;
+        } else {
+            CookfsLog(printf("CookfsFileAttrStrings: return root"
+                " attr list"));
+            *objPtrRef = fsdata->attrListRoot;
+        }
+    }
+
+    return NULL;
+
+}
+
+static int CookfsFileAttrsGet(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
+    Tcl_Obj **objPtrRef)
+{
+
+    UNUSED(interp);
+
+    CookfsLog(printf("CookfsFileAttrsGet: path [%s] index:%d",
+        Tcl_GetString(pathPtr), index));
+
+    switch ((enum cookfsAttributes) index) {
+    case COOKFS_VFS_ATTR_VFS: ; // empty statement
+        CookfsFSData *fsdata = (CookfsFSData *)Tcl_FSData(CookfsFilesystem());
+        if (fsdata != NULL) {
+            *objPtrRef = fsdata->attrValVfs;
+            CookfsLog(printf("CookfsFileAttrsGet: return value for -vfs"));
+            return TCL_OK;
+        }
+        break;
+    case COOKFS_VFS_ATTR_HANDLE: ; // empty statement
+        cookfsInternalRep *internalRep =
+            (cookfsInternalRep *)Tcl_FSGetInternalRep(pathPtr,
+            &cookfsFilesystem);
+        if (internalRep != NULL) {
+            *objPtrRef = CookfsGetVfsObjectCmd(internalRep->vfs);
+            CookfsLog(printf("CookfsFileAttrsGet: return value for -handle"));
+            return TCL_OK;
+        }
+        break;
+    }
+
+    CookfsLog(printf("CookfsFileAttrsGet: return error"));
+    return TCL_ERROR;
+
+}
+
+static int CookfsFileAttrsSet(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
+    Tcl_Obj *objPtr)
+{
+    UNUSED(objPtr);
+    CookfsLog(printf("CookfsFileAttrsSet: path [%s] index:%d",
+        Tcl_GetString(pathPtr), index));
+    Tcl_SetErrno(EROFS);
+    if (interp != NULL) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("attributes of CookFS"
+            " objects are read-only", -1));
+    }
+    UNUSED(index);
+    UNUSED(pathPtr);
+    return TCL_ERROR;
 }

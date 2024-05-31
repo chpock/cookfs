@@ -283,3 +283,10 @@ void Cookfs_VfsSetReadonly(Cookfs_Vfs *vfs, int status) {
     return;
 }
 
+Tcl_Obj *CookfsGetVfsObjectCmd(Cookfs_Vfs *vfs) {
+    Tcl_Obj *rc = Tcl_NewObj();
+    if (vfs->commandToken != NULL) {
+        Tcl_GetCommandFullName(vfs->interp, vfs->commandToken, rc);
+    }
+    return rc;
+}

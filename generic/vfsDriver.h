@@ -7,6 +7,12 @@
 
 #define VFS_SEPARATOR '/'
 
+typedef struct CookfsFSData {
+    Tcl_Obj *attrListRoot;
+    Tcl_Obj *attrList;
+    Tcl_Obj *attrValVfs;
+} CookfsFSData;
+
 const Tcl_Filesystem *CookfsFilesystem(void);
 
 #endif /* COOKFS_VFSDRIVER_H */

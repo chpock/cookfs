@@ -10,6 +10,7 @@ namespace eval cookfs {}
 namespace eval cookfs::tcl {}
 namespace eval cookfs::tcl::vfs {
     variable mountId 0
+    variable attributes [list "-vfs" "-handle"]
 }
 
 if { ![llength [info commands ::cookfs::debug]] } {
@@ -486,6 +487,7 @@ set cookfs::posix(ENOENT) 2
 set cookfs::posix(ENOTDIR) 20
 set cookfs::posix(EISDIR) 21
 set cookfs::posix(EROFS) 30
+set cookfs::posix(EINVAL) 22
 
 # dispatcher for commands
 proc cookfs::tcl::vfs::handler {fsid cmd root relative actualpath args} {
@@ -556,26 +558,44 @@ proc cookfs::tcl::vfs::createdirectory {fsid root relative actualpath} {
 # handle file attributes
 proc cookfs::tcl::vfs::fileattributes {fsid root relative actualpath a} {
     upvar #0 $fsid fs
+    variable attributes
     switch -- [llength $a] {
         0 {
             # list strings
-            return [::vfs::listAttributes]
+            #return [::vfs::listAttributes]
+            if { [string length $relative] } {
+                return [lrange $attributes 0 0]
+            } else {
+                return $attributes
+            }
         }
         1 {
             # get value
             set index [lindex $a 0]
-            return [::vfs::attributesGet $root $relative $index]
-
+            switch -exact [lindex $attributes $index] {
+                -vfs {
+                    return 1
+                }
+                -handle {
+                    if { [llength [info commands $fsid]] } {
+                        return $fsid
+                    } else {
+                        return ""
+                    }
+                }
+            }
+            vfs::filesystem posixerror $cookfs::posix(EINVAL)
         }
         2 {
+            return -code error "attributes of CookFS objects are read-only"
             # set value
-            if {0} {
-                # handle read-only
-                vfs::filesystem posixerror $::cookfs::posix(EROFS)
-            }
-            set index [lindex $a 0]
-            set val [lindex $a 1]
-            return [::vfs::attributesSet $root $relative $index $val]
+            #if {0} {
+            #    # handle read-only
+            #    vfs::filesystem posixerror $::cookfs::posix(EROFS)
+            #}
+            #set index [lindex $a 0]
+            #set val [lindex $a 1]
+            #return [::vfs::attributesSet $root $relative $index $val]
         }
     }
 }

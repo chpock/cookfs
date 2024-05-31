@@ -33,19 +33,35 @@ void Cookfs_CookfsRegister(Tcl_Interp *interp) {
     CookfsLog(printf("Cookfs_CookfsRegister: register in interp [%p]",
         (void *)interp));
 
-    // Set callback to cleanup mount points for deleted interp
-    Tcl_SetAssocData(interp, COOKFS_ASSOC_KEY, (Tcl_InterpDeleteProc*)
-        Cookfs_CookfsUnregister, (ClientData) 1);
-
     // Register Cookfs if it is not already registered
-    ClientData isRegistered = Tcl_FSData(CookfsFilesystem());
-    if (isRegistered == NULL) {
-        Tcl_FSRegister((ClientData) 1, CookfsFilesystem());
+    CookfsFSData *fsdata = (CookfsFSData *)Tcl_FSData(CookfsFilesystem());
+    if (fsdata == NULL) {
+
+        fsdata = ckalloc(sizeof(CookfsFSData));
+        if (fsdata == NULL) {
+            CookfsLog(printf("Cookfs_CookfsRegister: failed to alloc fsdata"));
+            return;
+        }
+        Tcl_Obj *objv[2];
+        objv[0] = Tcl_NewStringObj("-vfs", -1);
+        objv[1] = Tcl_NewStringObj("-handle", -1);
+        fsdata->attrListRoot = Tcl_NewListObj(2, objv);
+        fsdata->attrList = Tcl_NewListObj(1, objv);
+        fsdata->attrValVfs = Tcl_NewIntObj(1);
+        Tcl_IncrRefCount(fsdata->attrListRoot);
+        Tcl_IncrRefCount(fsdata->attrList);
+        Tcl_IncrRefCount(fsdata->attrValVfs);
+
+        Tcl_FSRegister((ClientData)fsdata, CookfsFilesystem());
         Tcl_CreateExitHandler(Cookfs_CookfsExitProc, (ClientData) NULL);
         Tcl_CreateThreadExitHandler(Cookfs_CookfsThreadExitProc, NULL);
     } else {
         CookfsLog(printf("Cookfs_CookfsRegister: already registered"));
     }
+
+    // Set callback to cleanup mount points for deleted interp
+    Tcl_SetAssocData(interp, COOKFS_ASSOC_KEY, Cookfs_CookfsUnregister,
+        (ClientData) 1);
 }
 
 static void Cookfs_CookfsUnregister(ClientData clientData,
@@ -77,6 +93,13 @@ static void Cookfs_CookfsUnregister(ClientData clientData,
 
 static void Cookfs_CookfsExitProc(ClientData clientData) {
     UNUSED(clientData);
+    CookfsFSData *fsdata = (CookfsFSData *)Tcl_FSData(CookfsFilesystem());
+    if (fsdata != NULL) {
+        Tcl_DecrRefCount(fsdata->attrListRoot);
+        Tcl_DecrRefCount(fsdata->attrList);
+        Tcl_DecrRefCount(fsdata->attrValVfs);
+        ckfree(fsdata);
+    }
     Tcl_FSUnregister(CookfsFilesystem());
 }
 
