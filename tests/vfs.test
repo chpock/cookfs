@@ -1130,3 +1130,113 @@ tcltest::test cookfsVfs-15.2 "Test optimizelist with non-empty base" -constraint
     tcltest::removeFile $file
     unset -nocomplain file fsid h files
 } -result {}
+
+# Attributes will work only for c-vfs
+
+tcltest::test cookfsVfs-16.1.1 "Test set attributes for root" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none]
+} -body {
+    file attributes $file -vfs 2
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid
+} -returnCodes {error} -result {attributes of CookFS objects are read-only}
+
+tcltest::test cookfsVfs-16.1.2 "Test list attributes for root" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none]
+} -body {
+    lsort [dict keys [file attributes $file]]
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid result
+} -result {-handle -vfs}
+
+tcltest::test cookfsVfs-16.1.3 "Test get attributes for root" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none]
+} -body {
+    set result [list]
+    lappend result [file attributes $file -vfs]
+    lappend result [string equal [file attributes $file -handle] $fsid]
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid result
+} -result {1 1}
+
+tcltest::test cookfsVfs-16.1.4 "Test get unknown attribute for root" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none]
+} -body {
+    file attributes $file -foo
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid result
+} -returnCodes error -result {bad option "-foo": must be -vfs or -handle}
+
+tcltest::test cookfsVfs-16.1.5 "Test -handle attribute for root when vfs created with -nocommand" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -nocommand]
+} -body {
+    file attributes $file -handle
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid
+} -result {}
+
+tcltest::test cookfsVfs-16.2.1 "Test set attributes for file" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none]
+    set file2 [tcltest::makeBinFile "" test $file]
+} -body {
+    file attributes $file2 -vfs 2
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid file2
+} -returnCodes {error} -result {attributes of CookFS objects are read-only}
+
+tcltest::test cookfsVfs-16.2.2 "Test list attributes for file" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none]
+    set file2 [tcltest::makeBinFile "" test $file]
+} -body {
+    lsort [dict keys [file attributes $file2]]
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid result file2
+} -result {-vfs}
+
+tcltest::test cookfsVfs-16.2.3 "Test get attributes for file" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none]
+    set file2 [tcltest::makeBinFile "" test $file]
+} -body {
+    set result [list]
+    lappend result [file attributes $file2 -vfs]
+    lappend result [catch { file attributes $file2 -handle }]
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid result file2
+} -result {1 1}
+
+tcltest::test cookfsVfs-16.2.4 "Test get unknown attribute for file" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none]
+    set file2 [tcltest::makeBinFile "" test $file]
+} -body {
+    file attributes $file2 -handle
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid result file2
+} -returnCodes error -result {bad option "-handle": must be -vfs}
+
