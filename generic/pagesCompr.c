@@ -221,6 +221,9 @@ void Cookfs_PagesInitCompr(Cookfs_Pages *rc) {
 
     CookfsLog(printf("Cookfs_PagesInitCompr: xz is ready."));
 #endif
+#if !defined(USE_VFS_COMMANDS_FOR_ZIP) && !defined(COOKFS_USEXZ)
+    UNUSED(rc);
+#endif
 }
 
 
@@ -1383,6 +1386,9 @@ static int CookfsWritePageXz(Cookfs_Pages *p, unsigned char *bytes, int origSize
     Tcl_DecrRefCount(bufObj);
     return ostream.size;
 #else
+    UNUSED(p);
+    UNUSED(bytes);
+    UNUSED(origSize);
     return -1;
 #endif
 }
@@ -1449,6 +1455,8 @@ static Tcl_Obj *CookfsReadPageXz(Cookfs_Pages *p, int size) {
     CookfsLog(printf("CookfsReadPageXz: finish. Got total %u bytes.", ostream.size));
     return resultObj;
 #else
+    UNUSED(p);
+    UNUSED(size);
     return NULL;
 #endif
 }

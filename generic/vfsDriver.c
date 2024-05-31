@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <utime.h>
 #include <fcntl.h>
+#include <errno.h>
 
 // Cached internal representation of a cookfs entry
 typedef struct cookfsInternalRep {
