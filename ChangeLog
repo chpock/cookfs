@@ -1,6 +1,7 @@
 2024-05-31 Konstantin Kushnir <chpock@gmail.com>
 	* Fix build and tests for Windows platform
 	* Add support for attributes
+	* Fix build with --disable-xz
 
 2024-05-30 Konstantin Kushnir <chpock@gmail.com>
 	* Fix multiple memory leaks
