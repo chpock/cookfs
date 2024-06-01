@@ -41,6 +41,19 @@ int Cookfs_InitVfsMountCmd(Tcl_Interp *interp) {
 
 }
 
+int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local) {
+
+    if (Cookfs_CookfsFindVfs(local, -1) != NULL) {
+        return TCL_OK;
+    }
+
+    Tcl_Obj *objv[2];
+    objv[0] = archive;
+    objv[1] = local;
+    return CookfsMountCmd((ClientData)1, interp, 2, (Tcl_Obj *const *)&objv);
+
+}
+
 #define PROCESS_OPT_SWITCH(opt_name, var) \
     if (opt == opt_name) { \
         var = 1; \
@@ -69,8 +82,6 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
     int objc, Tcl_Obj *const objv[])
 {
 
-    UNUSED(clientData);
-
     CookfsLog(printf("CookfsMountCmd: ENTER"));
 
 #ifdef COOKFS_USETCLCMDS
@@ -89,7 +100,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
     Tcl_Obj *decompresscommand = NULL;
     Tcl_WideInt endoffset = -1;
     Tcl_Obj *setmetadata = NULL;
-    int readonly = 0;
+    int readonly = (clientData == NULL ? 0 : 1);
     int writetomemory = 0;
     int pagecachesize = 8;
     int volume = 0;
