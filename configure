@@ -662,7 +662,7 @@ COOKFS_PKGCONFIG_USECWRITER
 COOKFS_PKGCONFIG_USECVFS
 COOKFS_PKGCONFIG_FEATURE_METADATA
 COOKFS_PKGCONFIG_USECFSINDEX
-COOKFS_PKGCONFIG_USEXZ
+COOKFS_PKGCONFIG_USELZMA
 COOKFS_PKGCONFIG_USEBZ2
 COOKFS_PKGCONFIG_USECWRITERCHAN
 COOKFS_PKGCONFIG_USECREADERCHAN
@@ -787,7 +787,7 @@ enable_rpath
 enable_symbols
 enable_internal_debug
 enable_bz2
-enable_xz
+enable_lzma
 enable_tcl_fallback
 enable_c_pages
 enable_c_fsindex
@@ -1435,7 +1435,7 @@ Optional Features:
   --enable-symbols        build with debugging symbols (default: off)
   --enable-internal-debug   Enable internal debugging mechanism. Defaults to false
   --enable-bz2              Use bz2 compression. Defaults to false
-  --enable-xz               Use xz compression. Defaults to true
+  --enable-lzma             Use lzma compression. Defaults to true
   --enable-tcl-fallback     Install Tcl scripts if load fails. Defaults to false
   --disable-c-pages         Use pages handling written in C. Defaults to true
   --disable-c-fsindex       Use index handling written in C. Defaults to true
@@ -8602,12 +8602,12 @@ else $as_nop
   USEBZ2=no
 fi
 
-# Check whether --enable-xz was given.
-if test ${enable_xz+y}
+# Check whether --enable-lzma was given.
+if test ${enable_lzma+y}
 then :
-  enableval=$enable_xz; USEXZ=${enableval}
+  enableval=$enable_lzma; USELZMA=${enableval}
 else $as_nop
-  USEXZ=yes
+  USELZMA=yes
 fi
 
 # Check whether --enable-tcl-fallback was given.
@@ -8809,9 +8809,9 @@ if test ${USECPAGES} = yes; then
         COOKFS_PKGCONFIG_USEBZ2=0
     fi
 
-    if test ${USEXZ} = yes; then
+    if test ${USELZMA} = yes; then
         BUILDCCODE=yes
-        # XZ requires these CPU features: sse4.1 avx avx2
+        # lzma requires these CPU features: sse4.1 avx avx2
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for SSE4.1 instruction set" >&5
 printf %s "checking for SSE4.1 instruction set... " >&6; }
         cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -8871,43 +8871,7 @@ printf "%s\n" "no, adding -mavx -mavx2" >&6; };
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 
-    vars="7zip/C/XzEnc.c 7zip/C/XzDec.c 7zip/C/LzmaEnc.c 7zip/C/Lzma2Enc.c 7zip/C/Lzma2Dec.c 7zip/C/Xz.c 7zip/C/XzIn.c 7zip/C/XzCrc64.c 7zip/C/XzCrc64Opt.c 7zip/C/LzFind.c 7zip/C/LzFindMt.c 7zip/C/LzFindOpt.c 7zip/C/MtCoder.c 7zip/C/MtDec.c 7zip/C/Sha256.c 7zip/C/Sha256Opt.c 7zip/C/7zCrc.c 7zip/C/7zCrcOpt.c 7zip/C/7zStream.c 7zip/C/Lzma86Enc.c 7zip/C/LzmaDec.c 7zip/C/CpuArch.c 7zip/C/Threads.c 7zip/C/Delta.c 7zip/C/Alloc.c 7zip/C/Bra.c 7zip/C/Bra86.c"
-    for i in $vars; do
-	case $i in
-	    \$*)
-		# allow $-var names
-		PKG_SOURCES="$PKG_SOURCES $i"
-		PKG_OBJECTS="$PKG_OBJECTS $i"
-		;;
-	    *)
-		# check for existence - allows for generic/win/unix VPATH
-		# To add more dirs here (like 'src'), you have to update VPATH
-		# in Makefile.in as well
-		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
-		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
-		    -a ! -f "${srcdir}/macosx/$i" \
-		    ; then
-		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
-		fi
-		PKG_SOURCES="$PKG_SOURCES $i"
-		# this assumes it is in a VPATH dir
-		i=`basename $i`
-		# handle user calling this before or after TEA_SETUP_COMPILER
-		if test x"${OBJEXT}" != x ; then
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
-		else
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
-		fi
-		PKG_OBJECTS="$PKG_OBJECTS $j"
-		;;
-	esac
-    done
-
-
-
-        # only for ::cookfs::c::sha1 command
-
-    vars="7zip/C/Sha1.c 7zip/C/Sha1Opt.c"
+    vars="7zip/C/LzmaEnc.c 7zip/C/LzmaDec.c 7zip/C/LzFind.c"
     for i in $vars; do
 	case $i in
 	    \$*)
@@ -8948,16 +8912,22 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
     done
 
 
-        printf "%s\n" "#define COOKFS_USEXZ 1" >>confdefs.h
+        printf "%s\n" "#define COOKFS_USELZMA 1" >>confdefs.h
 
-        COOKFS_PKGCONFIG_USEXZ=1
+        # Disable multi-thread
+        printf "%s\n" "#define Z7_ST 1" >>confdefs.h
+
+        # Enable size optimization
+        printf "%s\n" "#define Z7_LZMA_SIZE_OPT 1" >>confdefs.h
+
+        COOKFS_PKGCONFIG_USELZMA=1
     else
-        COOKFS_PKGCONFIG_USEXZ=0
+        COOKFS_PKGCONFIG_USELZMA=0
     fi
 else
     COOKFS_PKGCONFIG_USECPAGES=0
     COOKFS_PKGCONFIG_FEATURE_ASIDE=0
-    COOKFS_PKGCONFIG_USEXZ=0
+    COOKFS_PKGCONFIG_USELZMA=0
 
     # Tcl implementation offers bzip2 compression only with Trf package
     COOKFS_PKGCONFIG_USEBZ2=0
@@ -9241,7 +9211,7 @@ if test ${USECPKGCONFIG} = yes; then
 
     printf "%s\n" "#define COOKFS_PKGCONFIG_USEBZ2 $COOKFS_PKGCONFIG_USEBZ2" >>confdefs.h
 
-    printf "%s\n" "#define COOKFS_PKGCONFIG_USEXZ $COOKFS_PKGCONFIG_USEXZ" >>confdefs.h
+    printf "%s\n" "#define COOKFS_PKGCONFIG_USELZMA $COOKFS_PKGCONFIG_USELZMA" >>confdefs.h
 
     printf "%s\n" "#define COOKFS_PKGCONFIG_USECFSINDEX $COOKFS_PKGCONFIG_USECFSINDEX" >>confdefs.h
 

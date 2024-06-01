@@ -122,7 +122,7 @@ fi
 
 AC_ARG_ENABLE(internal-debug,  [  --enable-internal-debug   Enable internal debugging mechanism. Defaults to false],INTERNALDEBUG=${enableval},    INTERNALDEBUG=no)
 AC_ARG_ENABLE(bz2,             [  --enable-bz2              Use bz2 compression. Defaults to false],                USEBZ2=${enableval},           USEBZ2=no)
-AC_ARG_ENABLE(xz,              [  --enable-xz               Use xz compression. Defaults to true],                  USEXZ=${enableval},            USEXZ=yes)
+AC_ARG_ENABLE(lzma,            [  --enable-lzma             Use lzma compression. Defaults to true],                USELZMA=${enableval},          USELZMA=yes)
 AC_ARG_ENABLE(tcl-fallback,    [  --enable-tcl-fallback     Install Tcl scripts if load fails. Defaults to false],  USEFALLBACK=${enableval},      USEFALLBACK=no)
 AC_ARG_ENABLE(c-pages,         [  --disable-c-pages         Use pages handling written in C. Defaults to true],     USECPAGES=${enableval},        USECPAGES=yes)
 AC_ARG_ENABLE(c-fsindex,       [  --disable-c-fsindex       Use index handling written in C. Defaults to true],     USECFSINDEX=${enableval},      USECFSINDEX=yes)
@@ -158,9 +158,9 @@ if test ${USECPAGES} = yes; then
         COOKFS_PKGCONFIG_USEBZ2=0
     fi
 
-    if test ${USEXZ} = yes; then
+    if test ${USELZMA} = yes; then
         BUILDCCODE=yes
-        # XZ requires these CPU features: sse4.1 avx avx2
+        # lzma requires these CPU features: sse4.1 avx avx2
         AC_MSG_CHECKING(for SSE4.1 instruction set)
         AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
             #include <smmintrin.h>
@@ -177,19 +177,21 @@ if test ${USECPAGES} = yes; then
           [AC_MSG_RESULT(yes)],
           [AC_MSG_RESULT([no, adding -mavx -mavx2]); TEA_ADD_CFLAGS([-mavx -mavx2])]
         )
-        TEA_ADD_SOURCES([7zip/C/XzEnc.c 7zip/C/XzDec.c 7zip/C/LzmaEnc.c 7zip/C/Lzma2Enc.c 7zip/C/Lzma2Dec.c 7zip/C/Xz.c 7zip/C/XzIn.c 7zip/C/XzCrc64.c 7zip/C/XzCrc64Opt.c 7zip/C/LzFind.c 7zip/C/LzFindMt.c 7zip/C/LzFindOpt.c 7zip/C/MtCoder.c 7zip/C/MtDec.c 7zip/C/Sha256.c 7zip/C/Sha256Opt.c 7zip/C/7zCrc.c 7zip/C/7zCrcOpt.c 7zip/C/7zStream.c 7zip/C/Lzma86Enc.c 7zip/C/LzmaDec.c 7zip/C/CpuArch.c 7zip/C/Threads.c 7zip/C/Delta.c 7zip/C/Alloc.c 7zip/C/Bra.c 7zip/C/Bra86.c])
-        # only for ::cookfs::c::sha1 command
-        TEA_ADD_SOURCES([7zip/C/Sha1.c 7zip/C/Sha1Opt.c])
+        TEA_ADD_SOURCES([7zip/C/LzmaEnc.c 7zip/C/LzmaDec.c 7zip/C/LzFind.c])
         TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/7zip/C`\"])
-        AC_DEFINE(COOKFS_USEXZ)
-        COOKFS_PKGCONFIG_USEXZ=1
+        AC_DEFINE(COOKFS_USELZMA)
+        # Disable multi-thread
+        AC_DEFINE(Z7_ST)
+        # Enable size optimization
+        AC_DEFINE(Z7_LZMA_SIZE_OPT)
+        COOKFS_PKGCONFIG_USELZMA=1
     else
-        COOKFS_PKGCONFIG_USEXZ=0
+        COOKFS_PKGCONFIG_USELZMA=0
     fi
 else
     COOKFS_PKGCONFIG_USECPAGES=0
     COOKFS_PKGCONFIG_FEATURE_ASIDE=0
-    COOKFS_PKGCONFIG_USEXZ=0
+    COOKFS_PKGCONFIG_USELZMA=0
 
     # Tcl implementation offers bzip2 compression only with Trf package
     COOKFS_PKGCONFIG_USEBZ2=0
@@ -276,7 +278,7 @@ AC_SUBST(COOKFS_PKGCONFIG_USECPAGES)
 AC_SUBST(COOKFS_PKGCONFIG_USECREADERCHAN)
 AC_SUBST(COOKFS_PKGCONFIG_USECWRITERCHAN)
 AC_SUBST(COOKFS_PKGCONFIG_USEBZ2)
-AC_SUBST(COOKFS_PKGCONFIG_USEXZ)
+AC_SUBST(COOKFS_PKGCONFIG_USELZMA)
 AC_SUBST(COOKFS_PKGCONFIG_USECFSINDEX)
 AC_SUBST(COOKFS_PKGCONFIG_FEATURE_METADATA)
 AC_SUBST(COOKFS_PKGCONFIG_USECVFS)
@@ -291,7 +293,7 @@ if test ${USECPKGCONFIG} = yes; then
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECWRITERCHAN, $COOKFS_PKGCONFIG_USECWRITERCHAN)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECPKGCONFIG, $COOKFS_PKGCONFIG_USECPKGCONFIG)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USEBZ2, $COOKFS_PKGCONFIG_USEBZ2)
-    AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USEXZ, $COOKFS_PKGCONFIG_USEXZ)
+    AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USELZMA, $COOKFS_PKGCONFIG_USELZMA)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECFSINDEX, $COOKFS_PKGCONFIG_USECFSINDEX)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_FEATURE_METADATA, $COOKFS_PKGCONFIG_FEATURE_METADATA)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECVFS, $COOKFS_PKGCONFIG_USECVFS)

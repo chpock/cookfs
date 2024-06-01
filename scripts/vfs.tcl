@@ -53,8 +53,8 @@ proc cookfs::tcl::Mount {args} {
 	{nodirectorymtime				{Do not initialize mtime for new directories to current date and time}}
     }
 
-    if { [::cookfs::pkgconfig get feature-xz] } {
-        lappend options {compression.arg "xz" {Compression type to use}}
+    if { [::cookfs::pkgconfig get feature-lzma] } {
+        lappend options {compression.arg "lzma" {Compression type to use}}
     } else {
         lappend options {compression.arg "zlib" {Compression type to use}}
     }

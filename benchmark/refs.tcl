@@ -18,6 +18,13 @@ if { [file exists [file join $selfdir data.tcl]] } {
     exit 1
 }
 
+if { [file exists [file join $selfdir dishes_prev.tcl]] } {
+    source [file join $selfdir dishes_prev.tcl]
+} {
+    puts stderr "No prev-dishes available."
+    exit 1
+}
+
 if { [file exists [file join $selfdir dishes.tcl]] } {
     source [file join $selfdir dishes.tcl]
 } {
@@ -63,6 +70,8 @@ foreach archive [lsort [dict keys $archives]] {
 }
 
 puts ""
+puts "Dishes prev:"
+puts ""
 
 set maxrecipe [getmaxlength [dict keys $recipes]]
 
@@ -73,6 +82,27 @@ append template_title [string repeat " %${maxcase}s" [dict size $recipes]]
 append template_row   [string repeat " %${maxcase}.2f" [dict size $recipes]]
 
 puts [format $template_title "" {*}[dict keys $recipes]]
+
+foreach archive [lsort [dict keys $archives]] {
+
+    set hash [dict get $archives $archive hash]
+    set unpacked [dict get $data $hash unpacked_size]
+    set ratio_base [expr { 1.0 * [dict get $data $hash gzip] / $unpacked }]
+
+    set numbers [list]
+    foreach recipe [dict keys $recipes] {
+        set size [dict get $dishes_prev $hash $recipe]
+        set ratio [expr { (100.0 * $size / $unpacked) / $ratio_base }]
+        lappend numbers $ratio
+    }
+
+    puts [format $template_row $archive {*}$numbers]
+
+}
+
+puts ""
+puts "Dishes now:"
+puts ""
 
 foreach archive [lsort [dict keys $archives]] {
 

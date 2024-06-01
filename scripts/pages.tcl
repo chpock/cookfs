@@ -210,7 +210,7 @@ proc cookfs::tcl::pages::compress {name origdata} {
         package require Trf
         set data "\u0002[binary format I [string length $origdata]][bz2 -mode compress $origdata]"
     } elseif {$c(cid) == 3} {
-        error "XZ compression is not supported by Tcl pages"
+        error "Lzma compression is not supported by Tcl pages"
     }  elseif {$c(cid) == 255} {
         if {$c(compresscommand) != ""} {
             set data "\u00ff[uplevel #0 [concat $c(compresscommand) [list $origdata]]]"
@@ -272,7 +272,7 @@ proc cookfs::tcl::pages::compression2cid {name} {
         bz2 {
             return 2
         }
-        xz {
+        lzma {
             return 3
         }
         custom {
@@ -296,7 +296,7 @@ proc cookfs::tcl::pages::cid2compression {name} {
             return "bz2"
         }
         3 {
-            return "xz"
+            return "lzma"
         }
         255 {
             return "custom"

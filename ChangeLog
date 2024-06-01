@@ -1,5 +1,7 @@
 2024-06-01 Konstantin Kushnir <chpock@gmail.com>
 	* Add in-memory vfs feature
+	* Change XZ format to plain LZMA
+	* Remove sha1/sha256 hash functions
 
 2024-05-31 Konstantin Kushnir <chpock@gmail.com>
 	* Fix build and tests for Windows platform
