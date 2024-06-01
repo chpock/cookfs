@@ -281,6 +281,8 @@ package require \fBvfs::cookfs ?1\&.6\&.0?\fR
 .sp
 \fB::cookfs::Mount\fR ?\fIoptions\fR? \fIarchive\fR \fIlocal\fR ?\fIoptions\fR?
 .sp
+\fB::cookfs::Mount\fR ?\fIoptions\fR? \fI-writetomemory\fR \fIlocal\fR ?\fIoptions\fR?
+.sp
 \fB::vfs::cookfs::Mount\fR ?\fIoptions\fR? \fIarchive\fR \fIlocal\fR ?\fIoptions\fR?
 .sp
 \fB::cookfs::Unmount\fR \fBfsid\fR
@@ -316,8 +318,15 @@ in an efficient way\&.
 .TP
 \fB::cookfs::Mount\fR ?\fIoptions\fR? \fIarchive\fR \fIlocal\fR ?\fIoptions\fR?
 .TP
+\fB::cookfs::Mount\fR ?\fIoptions\fR? \fI-writetomemory\fR \fIlocal\fR ?\fIoptions\fR?
+.TP
 \fB::vfs::cookfs::Mount\fR ?\fIoptions\fR? \fIarchive\fR \fIlocal\fR ?\fIoptions\fR?
-Mounts cookfs archive\&. Archive is read from \fIarchive\fR and can later be accessed from Tcl using \fIlocal\fR as mount point\&. Options can preceed or succeed \fIarchive\fR and \fIlocal\fR arguments\&.
+Mounts cookfs archive\&. Archive is read from \fIarchive\fR and can later be accessed
+from Tcl using \fIlocal\fR as mount point\&. Options can preceed or succeed \fIarchive\fR
+and \fIlocal\fR arguments\&.
+.sp
+If \fI-writetomemory\fR argument is specified, argument \fIarchive\fR may be omitted\&.
+This will create a fully in-memory vfs at the specified mount point\&.
 .sp
 The command returns a cookfs handle which is also a command that can be used to perform certain actions on cookfs archive\&.
 .sp

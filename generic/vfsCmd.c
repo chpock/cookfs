@@ -236,9 +236,16 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 
     // Make sure that we have 2 mandatory arguments
     if (archive == NULL || local == NULL) {
-        Tcl_WrongNumArgs(interp, 1, objv, "?-option value ...? archive"
-            " local ?-option value ...?");
-        return TCL_ERROR;
+        // However, when 'writetomemory' is true, we can accept only
+        // one argument.
+        if (writetomemory && archive != NULL) {
+            local = archive;
+            archive = NULL;
+        } else {
+            Tcl_WrongNumArgs(interp, 1, objv, "?-option value ...? archive"
+                " local ?-option value ...?");
+            return TCL_ERROR;
+        }
     }
 
     if (smallfilesize > pagesize) {
@@ -250,6 +257,11 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         return TCL_ERROR;
     }
 
+    // if write to memory option was selected, open archive as read only anyway
+    if (writetomemory) {
+        readonly = 1;
+    }
+
     Cookfs_Vfs *vfs = NULL;
     Cookfs_Pages *pages = NULL;
     Cookfs_Fsindex *index = NULL;
@@ -259,6 +271,10 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
     Tcl_Obj *localActual = NULL;
 
     Tcl_Obj *normalized;
+
+    if (archive == NULL) {
+        goto skipArchive;
+    }
 
     if (Tcl_GetCharLength(archive)) {
         CookfsLog(printf("CookfsMountCmd: normalize archive path [%s]",
@@ -287,6 +303,8 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
             goto error;
         }
     }
+
+skipArchive:
 
     if (!volume) {
         if (Tcl_GetCharLength(local)) {
@@ -324,6 +342,10 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         Tcl_IncrRefCount(localActual);
     }
 
+    if (archive == NULL) {
+        goto skipPages;
+    }
+
 #ifdef COOKFS_USETCLCMDS
     if (pagesobject == NULL) {
 #endif
@@ -341,6 +363,10 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
             asynccompresscommand, asyncdecompresscommand);
 
         if (pages == NULL) {
+            // Ignore page creation failure for writetomemory VFS
+            if (writetomemory) {
+                goto skipPagesConfiguration;
+            }
             return TCL_ERROR;
         }
 
@@ -365,15 +391,23 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         pagecachesize));
     Cookfs_PagesSetCacheSize(pages, pagecachesize);
 
+skipPagesConfiguration:
+
     // Archive path is not needed anymore
     Tcl_DecrRefCount(archiveActual);
     archiveActual = NULL;
+
+skipPages:
 
 #ifdef COOKFS_USETCLCMDS
     if (fsindexobject == NULL) {
 #endif
         CookfsLog(printf("CookfsMountCmd: creating the index object"));
-        index = Cookfs_FsindexFromPages(NULL, pages);
+        if (pages == NULL) {
+            index = Cookfs_FsindexInit(NULL);
+        } else {
+            index = Cookfs_FsindexFromPages(NULL, pages);
+        }
         if (index == NULL) {
             Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create"
                 " index object", -1));
@@ -392,6 +426,10 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 #endif
 
     const char *pagehashMetadataKey = "cookfs.pagehash";
+
+    if (pages == NULL) {
+        goto skipPagesBootstrap;
+    }
 
     if (pages->dataNumPages) {
         CookfsLog(printf("CookfsMountCmd: pages contain data"));
@@ -484,6 +522,8 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 
     }
 
+skipPagesBootstrap:
+
     if (setmetadata != NULL) {
         CookfsLog(printf("CookfsMountCmd: setmetadata is specified"));
         Tcl_Obj **metadataKeyVal;
@@ -527,8 +567,10 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
     }
 
     CookfsLog(printf("CookfsMountCmd: creating the vfs object"));
+    // If writetomemory is specified, create writable VFS
     vfs = Cookfs_VfsInit(interp, localActual, volume,
-        (nodirectorymtime ? 0 : 1), readonly, pages, index, writer);
+        (nodirectorymtime ? 0 : 1), ((!writetomemory && readonly) ? 1 : 0),
+        pages, index, writer);
     if (vfs == NULL) {
         CookfsLog(printf("CookfsMountCmd: failed to create the vfs object"));
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create"

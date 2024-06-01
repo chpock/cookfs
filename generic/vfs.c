@@ -20,8 +20,8 @@ Cookfs_Vfs *Cookfs_VfsInit(Tcl_Interp* interp, Tcl_Obj* mountPoint,
 
     Cookfs_Vfs *vfs = NULL;
 
-    if (interp == NULL || mountPoint == NULL || pages == NULL
-        || index == NULL || writer == NULL)
+    if (interp == NULL || mountPoint == NULL || index == NULL
+        || writer == NULL)
     {
         goto error;
     }
@@ -145,6 +145,10 @@ skipSavingIndex:
     CookfsLog(printf("Cookfs_VfsFini: delete writer..."));
     Cookfs_WriterFini(vfs->writer);
 
+    if (vfs->pages == NULL) {
+        goto skipPages;
+    }
+
     // Cleanup pages
     CookfsLog(printf("Cookfs_VfsFini: close pages..."));
     Tcl_WideInt offset = Cookfs_PagesClose(vfs->pages);
@@ -153,6 +157,8 @@ skipSavingIndex:
     }
     CookfsLog(printf("Cookfs_VfsFini: delete pages..."));
     Cookfs_PagesFini(vfs->pages);
+
+skipPages:
 
     // Cleanup index
     CookfsLog(printf("Cookfs_VfsFini: delete index..."));

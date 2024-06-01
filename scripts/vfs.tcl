@@ -103,7 +103,8 @@ proc cookfs::tcl::Mount {args} {
 	    lappend newargs $arg
 	}
     }
-    if {($setopt != "") || ([llength $newargs] != 2)} {
+
+    if {($setopt != "") || ([llength $newargs] != 2 && ($opt(writetomemory) && [llength $newargs] != 1))} {
 	set showhelp 1
     }
     unset optarg
@@ -112,23 +113,29 @@ proc cookfs::tcl::Mount {args} {
 	error $help
     }
 
-    # extract paths from remaining arguments
-    set archive [lindex $newargs 0]
-    set local [lindex $newargs 1]
-
     # if write to memory option was selected, open archive as read only anyway
-    if {$opt(writetomemory)} {
-	set opt(readonly) 1
+    if { $opt(writetomemory) } {
+        if { [llength $newargs] == 1 } {
+            set local [lindex $newargs 0]
+        }
+        set opt(readonly) 1
+    }
+    if { ![info exists local] } {
+        # extract paths from remaining arguments
+        set archive [lindex $newargs 0]
+        set local [lindex $newargs 1]
     }
 
     if {![catch {package require Tcl 8.5}]} {
-	set archive [file normalize [file join [pwd] $archive]]
+        if { [info exists archive] } {
+            set archive [file normalize [file join [pwd] $archive]]
+        }
 	if {!$opt(volume)} {
 	    set local [file normalize [file join [pwd] $local]]
 	}
     }
 
-    if {$opt(readonly) && (!$opt(writetomemory)) && (![file exists $archive])} {
+    if {$opt(readonly) && !$opt(writetomemory) && ![file exists $archive]} {
 	set e "File \"$archive\" does not exist"
 	return -code error -errorinfo $e $e
     }
@@ -142,7 +149,9 @@ proc cookfs::tcl::Mount {args} {
     array set fs {
 	channelId 0
     }
-    set fs(archive) $archive
+    if { [info exists archive] } {
+        set fs(archive) $archive
+    }
     set fs(local) $local
     set fs(noregister) $opt(noregister)
     set fs(nocommand) $opt(nocommand)
@@ -168,44 +177,59 @@ proc cookfs::tcl::Mount {args} {
     }
 
     # initialize pages
-    if {$opt(pagesobject) == ""} {
-	set pagesoptions [list -cachesize $opt(pagecachesize) \
-	    -compression $opt(compression) \
-	    -asynccompresscommand $opt(asynccompresscommand) \
-	    -asyncdecompresscommand $opt(asyncdecompresscommand) \
-	    -compresscommand $opt(compresscommand) \
-	    -decompresscommand $opt(decompresscommand) \
-	    -asyncdecompressqueuesize $opt(asyncdecompressqueuesize) \
-	    ]
+    if {$opt(pagesobject) ne ""} {
+        set fs(pages) $opt(pagesobject)
+        $fs(pages) cachesize $opt(pagecachesize)
+    } elseif { ![info exists archive] } {
+        set fs(pages) ""
+    } else {
+        set pagesoptions [list -cachesize $opt(pagecachesize) \
+            -compression $opt(compression) \
+            -asynccompresscommand $opt(asynccompresscommand) \
+            -asyncdecompresscommand $opt(asyncdecompresscommand) \
+            -compresscommand $opt(compresscommand) \
+            -decompresscommand $opt(decompresscommand) \
+            -asyncdecompressqueuesize $opt(asyncdecompressqueuesize) \
+        ]
 
-	if {$opt(readonly)} {
-	    lappend pagesoptions -readonly
-	}
+        if {$opt(readonly)} {
+            lappend pagesoptions -readonly
+        }
 
-	if {$opt(alwayscompress)} {
-	    lappend pagesoptions -alwayscompress
-	}
+        if {$opt(alwayscompress)} {
+            lappend pagesoptions -alwayscompress
+        }
 
-	if {$opt(endoffset) != ""} {
-	    lappend pagesoptions -endoffset $opt(endoffset)
-	}
+        if {$opt(endoffset) != ""} {
+            lappend pagesoptions -endoffset $opt(endoffset)
+        }
 
-	if {$fs(tclpages)} {
-	    set pagescmd [list ::cookfs::tcl::pages]
-	}  else  {
-	    set pagescmd [list ::cookfs::c::pages]
-	}
+        if {$fs(tclpages)} {
+            set pagescmd [list ::cookfs::tcl::pages]
+        } else {
+            set pagescmd [list ::cookfs::c::pages]
+        }
 
-	set pagescmd [concat $pagescmd $pagesoptions [list $archive]]
-	set fs(pages) [eval $pagescmd]
-    }  else  {
-	set fs(pages) $opt(pagesobject)
-	$fs(pages) cachesize $opt(pagecachesize)
+        set pagescmd [concat $pagescmd $pagesoptions [list $archive]]
+        if { [catch {
+            set fs(pages) [eval $pagescmd]
+        } err opts] } {
+            # Throw page creation failure if VFS is not in writetomemory mode
+            if { !$opt(writetomemory) } {
+                return -options $opts $err
+            }
+            # ignore the failure if we are in writetomemory mode
+            set fs(pages) ""
+        }
     }
 
     # initialize directory listing
     if {$opt(fsindexobject) == ""} {
-	set idx [$fs(pages) index]
+        if { $fs(pages) eq "" } {
+            set idx ""
+        } else {
+            set idx [$fs(pages) index]
+        }
 	if {$fs(tclfsindex)} {
 	    set fsindexcmd [list ::cookfs::tcl::fsindex]
 	}  else  {
@@ -228,18 +252,20 @@ proc cookfs::tcl::Mount {args} {
         -writetomemory $opt(writetomemory)]
 
     # additional initialization if no pages currently exist
-    if {[$fs(pages) length] == 0} {
-	# add bootstrap if specified
-	if {[string length $opt(bootstrap)] > 0} {
-	    $fs(pages) add $opt(bootstrap)
-	}
+    if { $fs(pages) ne "" } {
+        if {[$fs(pages) length] == 0} {
+            # add bootstrap if specified
+            if {[string length $opt(bootstrap)] > 0} {
+                $fs(pages) add $opt(bootstrap)
+            }
 
-	$fs(pages) hash $opt(pagehash)
+            $fs(pages) hash $opt(pagehash)
 
-	$fs(index) setmetadata cookfs.pagehash $opt(pagehash)
-    }  else  {
-	# by default, md5 was the page hashing algorithm used
-	$fs(pages) hash [$fs(index) getmetadata cookfs.pagehash "md5"]
+            $fs(index) setmetadata cookfs.pagehash $opt(pagehash)
+        } else {
+            # by default, md5 was the page hashing algorithm used
+            $fs(pages) hash [$fs(index) getmetadata cookfs.pagehash "md5"]
+        }
     }
 
     foreach {paramname paramvalue} $opt(setmetadata) {
@@ -300,8 +326,12 @@ proc cookfs::tcl::Unmount {args} {
 
     # finalize writer, pages and index
     $fs(writer) delete
-    set offset [$fs(pages) close]
-    $fs(pages) delete
+    if { $fs(pages) eq "" } {
+        set offset 0
+    } else {
+        set offset [$fs(pages) close]
+        $fs(pages) delete
+    }
     $fs(index) delete
 
     # unmount filesystem

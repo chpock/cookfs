@@ -129,17 +129,18 @@
 </ul>
 <ul class="doctools_syntax">
 <li><a href="#1"><b class="cmd">::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></li>
-<li><a href="#2"><b class="cmd">::vfs::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></li>
-<li><a href="#3"><b class="cmd">::cookfs::Unmount</b> <b class="method">fsid</b></a></li>
-<li><a href="#4"><b class="cmd">::cookfs::Unmount</b> <b class="method">local</b></a></li>
-<li><a href="#5"><i class="arg">cookfsHandle</i> <b class="method">aside</b> <i class="arg">filename</i></a></li>
-<li><a href="#6"><i class="arg">cookfsHandle</i> <b class="method">writetomemory</b></a></li>
-<li><a href="#7"><i class="arg">cookfsHandle</i> <b class="method">optimizelist</b> <i class="arg">base</i> <i class="arg">filelist</i></a></li>
-<li><a href="#8"><i class="arg">cookfsHandle</i> <b class="method">getmetadata</b> <i class="arg">parameterName</i> <span class="opt">?<i class="arg">defaultValue</i>?</span></a></li>
-<li><a href="#9"><i class="arg">cookfsHandle</i> <b class="method">setmetadata</b> <i class="arg">parameterName</i> <i class="arg">value</i></a></li>
-<li><a href="#10"><i class="arg">cookfsHandle</i> <b class="method">writeFiles</b> <span class="opt">?<i class="arg">filename1</i> <i class="arg">type1</i> <i class="arg">data1</i> <i class="arg">size1</i> <span class="opt">?<i class="arg">filename2</i> <i class="arg">type2</i> <i class="arg">data2</i> <i class="arg">size2</i> <span class="opt">?<i class="arg">..</i>?</span>?</span>?</span></a></li>
-<li><a href="#11"><i class="arg">cookfsHandle</i> <b class="method">filesize</b></a></li>
-<li><a href="#12"><i class="arg">cookfsHandle</i> <b class="method">smallfilebuffersize</b></a></li>
+<li><a href="#2"><b class="cmd">::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">-writetomemory</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></li>
+<li><a href="#3"><b class="cmd">::vfs::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></li>
+<li><a href="#4"><b class="cmd">::cookfs::Unmount</b> <b class="method">fsid</b></a></li>
+<li><a href="#5"><b class="cmd">::cookfs::Unmount</b> <b class="method">local</b></a></li>
+<li><a href="#6"><i class="arg">cookfsHandle</i> <b class="method">aside</b> <i class="arg">filename</i></a></li>
+<li><a href="#7"><i class="arg">cookfsHandle</i> <b class="method">writetomemory</b></a></li>
+<li><a href="#8"><i class="arg">cookfsHandle</i> <b class="method">optimizelist</b> <i class="arg">base</i> <i class="arg">filelist</i></a></li>
+<li><a href="#9"><i class="arg">cookfsHandle</i> <b class="method">getmetadata</b> <i class="arg">parameterName</i> <span class="opt">?<i class="arg">defaultValue</i>?</span></a></li>
+<li><a href="#10"><i class="arg">cookfsHandle</i> <b class="method">setmetadata</b> <i class="arg">parameterName</i> <i class="arg">value</i></a></li>
+<li><a href="#11"><i class="arg">cookfsHandle</i> <b class="method">writeFiles</b> <span class="opt">?<i class="arg">filename1</i> <i class="arg">type1</i> <i class="arg">data1</i> <i class="arg">size1</i> <span class="opt">?<i class="arg">filename2</i> <i class="arg">type2</i> <i class="arg">data2</i> <i class="arg">size2</i> <span class="opt">?<i class="arg">..</i>?</span>?</span>?</span></a></li>
+<li><a href="#12"><i class="arg">cookfsHandle</i> <b class="method">filesize</b></a></li>
+<li><a href="#13"><i class="arg">cookfsHandle</i> <b class="method">smallfilebuffersize</b></a></li>
 </ul>
 </div>
 </div>
@@ -155,27 +156,33 @@ in an efficient way.</p>
 <dl class="doctools_definitions">
 <dt><a name="1"><b class="cmd">::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></dt>
 <dd></dd>
-<dt><a name="2"><b class="cmd">::vfs::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></dt>
-<dd><p>Mounts cookfs archive. Archive is read from <i class="arg">archive</i> and can later be accessed from Tcl using <i class="arg">local</i> as mount point. Options can preceed or succeed <i class="arg">archive</i> and <i class="arg">local</i> arguments.</p>
+<dt><a name="2"><b class="cmd">::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">-writetomemory</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></dt>
+<dd></dd>
+<dt><a name="3"><b class="cmd">::vfs::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></dt>
+<dd><p>Mounts cookfs archive. Archive is read from <i class="arg">archive</i> and can later be accessed
+from Tcl using <i class="arg">local</i> as mount point. Options can preceed or succeed <i class="arg">archive</i>
+and <i class="arg">local</i> arguments.</p>
+<p>If <i class="arg">-writetomemory</i> argument is specified, argument <i class="arg">archive</i> may be omitted.
+This will create a fully in-memory vfs at the specified mount point.</p>
 <p>The command returns a cookfs handle which is also a command that can be used to perform certain actions on cookfs archive.</p>
 <p>For definition of available options, see <span class="sectref"><a href="#section3">MOUNT OPTIONS</a></span>.</p></dd>
-<dt><a name="3"><b class="cmd">::cookfs::Unmount</b> <b class="method">fsid</b></a></dt>
+<dt><a name="4"><b class="cmd">::cookfs::Unmount</b> <b class="method">fsid</b></a></dt>
 <dd></dd>
-<dt><a name="4"><b class="cmd">::cookfs::Unmount</b> <b class="method">local</b></a></dt>
+<dt><a name="5"><b class="cmd">::cookfs::Unmount</b> <b class="method">local</b></a></dt>
 <dd><p>Unmounts a cookfs archive.</p>
 <p>The <b class="cmd">vfs::unmount</b> command can also be used to unmount archives,
 but it is only available if the tclvfs package was loaded at mount time.
 Thus, it is not recommended to unmount archives using the <b class="cmd">vfs::unmount</b> command,
 and this feature is only present for backward compatibility.</p>
 <p>For cookfs archives it is very important to properly unmount them after performing all operations as many changes are only stored on unmount operation.</p></dd>
-<dt><a name="5"><i class="arg">cookfsHandle</i> <b class="method">aside</b> <i class="arg">filename</i></a></dt>
+<dt><a name="6"><i class="arg">cookfsHandle</i> <b class="method">aside</b> <i class="arg">filename</i></a></dt>
 <dd><p>Uses a separate file for storing changes to an archive. This can be used to keep changes for a read-only archive in a separate file.</p>
 <p>See <span class="sectref"><a href="#section7">ASIDE AND WRITE TO MEMORY</a></span> for more details on aside files and how they can be used.</p></dd>
-<dt><a name="6"><i class="arg">cookfsHandle</i> <b class="method">writetomemory</b></a></dt>
+<dt><a name="7"><i class="arg">cookfsHandle</i> <b class="method">writetomemory</b></a></dt>
 <dd><p>Stores all further changes to this archive only in memory.
 This can be used to store temporary data or applying changes that do not persist across cookfs filesystem remounts and/or application restarts.</p>
 <p>See <span class="sectref"><a href="#section7">ASIDE AND WRITE TO MEMORY</a></span> for more details on write to memory feature.</p></dd>
-<dt><a name="7"><i class="arg">cookfsHandle</i> <b class="method">optimizelist</b> <i class="arg">base</i> <i class="arg">filelist</i></a></dt>
+<dt><a name="8"><i class="arg">cookfsHandle</i> <b class="method">optimizelist</b> <i class="arg">base</i> <i class="arg">filelist</i></a></dt>
 <dd><p>Takes a list of files and optimizes them to reduce number of pages read by cookfs.
 This is mainly useful when unpacking very large number of files.</p>
 <p>Parameter <i class="arg">base</i> specifies path to be prepended when getting file information.
@@ -197,15 +204,15 @@ contents/dir1/subdir/file2
 contents/dir1/file1
 </pre>
 </dd>
-<dt><a name="8"><i class="arg">cookfsHandle</i> <b class="method">getmetadata</b> <i class="arg">parameterName</i> <span class="opt">?<i class="arg">defaultValue</i>?</span></a></dt>
+<dt><a name="9"><i class="arg">cookfsHandle</i> <b class="method">getmetadata</b> <i class="arg">parameterName</i> <span class="opt">?<i class="arg">defaultValue</i>?</span></a></dt>
 <dd><p>Gets a parameter from cookfs metadata. If <i class="arg">parameterName</i> is currently set in metadata, value for it is returned.</p>
 <p>If  <i class="arg">parameterName</i> is not currently set, <i class="arg">defaultValue</i> is returned if it was specified.
 If <i class="arg">defaultValue</i> was not specified and parameter is not set, an error is thrown.</p>
 <p>See <span class="sectref"><a href="#section6">COOKFS METADATA</a></span> for more details on metadata storage in cookfs archives.</p></dd>
-<dt><a name="9"><i class="arg">cookfsHandle</i> <b class="method">setmetadata</b> <i class="arg">parameterName</i> <i class="arg">value</i></a></dt>
+<dt><a name="10"><i class="arg">cookfsHandle</i> <b class="method">setmetadata</b> <i class="arg">parameterName</i> <i class="arg">value</i></a></dt>
 <dd><p>Set <i class="arg">parameterName</i> to specified <i class="arg">value</i>. If parameter currently exists, it is overwritten.</p>
 <p>See <span class="sectref"><a href="#section6">COOKFS METADATA</a></span> for more details on metadata storage in cookfs archives.</p></dd>
-<dt><a name="10"><i class="arg">cookfsHandle</i> <b class="method">writeFiles</b> <span class="opt">?<i class="arg">filename1</i> <i class="arg">type1</i> <i class="arg">data1</i> <i class="arg">size1</i> <span class="opt">?<i class="arg">filename2</i> <i class="arg">type2</i> <i class="arg">data2</i> <i class="arg">size2</i> <span class="opt">?<i class="arg">..</i>?</span>?</span>?</span></a></dt>
+<dt><a name="11"><i class="arg">cookfsHandle</i> <b class="method">writeFiles</b> <span class="opt">?<i class="arg">filename1</i> <i class="arg">type1</i> <i class="arg">data1</i> <i class="arg">size1</i> <span class="opt">?<i class="arg">filename2</i> <i class="arg">type2</i> <i class="arg">data2</i> <i class="arg">size2</i> <span class="opt">?<i class="arg">..</i>?</span>?</span>?</span></a></dt>
 <dd><p>Write one or more files to cookfs archive. Specified as list of one or more 4-element entries describing files.
 Each <i class="arg">filename</i> specifies name of the file, relative to archive root.
 Elements <i class="arg">type</i> and <i class="arg">data</i> specify source for adding a file as well as actual data.
@@ -221,10 +228,10 @@ file is copied directly and does not require staging file in memory, unlike writ
 <i class="arg">data</i> is a valid Tcl channel that should be read by cookfs;
 channel is read from current location until end or until <i class="arg">size</i> bytes have been read</p></li>
 </ul></dd>
-<dt><a name="11"><i class="arg">cookfsHandle</i> <b class="method">filesize</b></a></dt>
+<dt><a name="12"><i class="arg">cookfsHandle</i> <b class="method">filesize</b></a></dt>
 <dd><p>Returns size of file up to last stored page.
 The size only includes page sizes and does not include overhead for index and additional information used by cookfs.</p></dd>
-<dt><a name="12"><i class="arg">cookfsHandle</i> <b class="method">smallfilebuffersize</b></a></dt>
+<dt><a name="13"><i class="arg">cookfsHandle</i> <b class="method">smallfilebuffersize</b></a></dt>
 <dd><p>Returns size of all files that are queued up to be written.</p></dd>
 </dl>
 </div>
