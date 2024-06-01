@@ -1275,3 +1275,30 @@ tcltest::test cookfsVfs-17.2 "Test in-memory vfs, open without a file" -setup {
     tcltest::removeDirectory $dir
     unset -nocomplain fsid dir result mnt
 } -result {1}
+
+tcltest::test cookfsVfs-17.3 "Test in-memory vfs, open existing archive" -setup {
+    set dir [tcltest::makeDirectory cookfs.vfs]
+    makeSimpleTree2 $dir
+    set file [tcltest::makeBinFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none \
+        -smallfilesize 0x10 -smallfilebuffer 0x30 -pagesize 0x10]
+    file copy -force $dir [file join $file vfs]
+    cookfs::Unmount $file
+    set file2 [tcltest::makeBinFile {} cookfs2.cfs]
+    file copy -force $file $file2
+} -body {
+    set fsid [cookfs::Mount $file $file -writetomemory \
+        -smallfilesize 0x10 -smallfilebuffer 0x30 -pagesize 0x10]
+    set result [list]
+    lappend result [testIfEqual $dir [file join $file vfs]]
+    makeSimpleTree2 $file/subdirX
+    cookfs::Unmount $file
+    # Compare archive $file with its copy $file2 to make sure it hasn't changed.
+    lappend result [testIfEqual $file $file2]
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    tcltest::removeFile $file2
+    tcltest::removeDirectory $dir
+    unset -nocomplain file fsid dir result file2
+} -result {1 1}

@@ -92,8 +92,6 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
         return TCL_OK;
     }
 
-    int writetomemory = Cookfs_WriterGetWritetomemory(vfs->writer);
-
     // Let's purge writer first
     CookfsLog(printf("Cookfs_VfsFini: purge writer..."));
     if (Cookfs_WriterPurge(vfs->writer) != TCL_OK) {
@@ -115,7 +113,7 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
         CookfsLog(printf("Cookfs_VfsFini: pages readonly: false"));
     }
 
-    if (writetomemory) {
+    if (Cookfs_WriterGetWritetomemory(vfs->writer)) {
         CookfsLog(printf("Cookfs_VfsFini: writer writetomemory: true"));
         goto skipSavingIndex;
     } else {
@@ -147,7 +145,7 @@ skipSavingIndex:
     CookfsLog(printf("Cookfs_VfsFini: delete writer..."));
     Cookfs_WriterFini(vfs->writer);
 
-    if (writetomemory) {
+    if (vfs->pages == NULL) {
         goto skipPages;
     }
 
