@@ -162,7 +162,7 @@ proc cookfs::tcl::writer::_purgeSmallfilesChunk {} {
 # or when buffer size exceeds maximum buffer for large files
 proc cookfs::tcl::writer::purge {wrid} {
     upvar #0 $wrid c
-    if {$c(smallfilebufsize) > 0} {
+    if {!$c(writetomemory) && $c(smallfilebufsize) > 0} {
         set plist [list]
 
         # create complete list of files
@@ -204,12 +204,11 @@ proc cookfs::tcl::writer::purge {wrid} {
 
         # dump remaining files, if any
         _purgeSmallfilesChunk
-
-        array set c {
-            smallfilepaths {}
-            smallfilebuf {}
-            smallfilebufsize 0
-        }
+    }
+    array set c {
+        smallfilepaths {}
+        smallfilebuf {}
+        smallfilebufsize 0
     }
 }
 

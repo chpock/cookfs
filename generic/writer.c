@@ -74,7 +74,7 @@ Cookfs_Writer *Cookfs_WriterInit(Tcl_Interp* interp,
         (void *)interp, (void *)pages, (void *)index,
         smallfilebuffer, smallfilesize, pagesize, writetomemory));
 
-    if (interp == NULL || pages == NULL || index == NULL) {
+    if (interp == NULL || (pages == NULL && !writetomemory) || index == NULL) {
         CookfsLog(printf("Cookfs_WriterInit: failed, something is NULL"));
         return NULL;
     }
@@ -862,6 +862,10 @@ generateSortKey: ; // empty statement
 
     }
 
+    if (w->isWriteToMemory) {
+        goto skipAll;
+    }
+
     // If we have more than 2 buffers, then sort them
     if (w->bufferCount > 2) {
         CookfsLog( \
@@ -1016,6 +1020,8 @@ next:
         }
 
     }
+
+skipAll:
 
     // Cleanup small file buffer
     CookfsLog(printf("Cookfs_WriterPurge: cleanup small file buffer"));

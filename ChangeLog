@@ -1,3 +1,6 @@
+2024-06-01 Konstantin Kushnir <chpock@gmail.com>
+	* Add in-memory vfs feature
+
 2024-05-31 Konstantin Kushnir <chpock@gmail.com>
 	* Fix build and tests for Windows platform
 	* Add support for attributes

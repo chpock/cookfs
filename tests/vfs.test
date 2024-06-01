@@ -1240,3 +1240,38 @@ tcltest::test cookfsVfs-16.2.4 "Test get unknown attribute for file" -setup {
     unset -nocomplain file fsid result file2
 } -returnCodes error -result {bad option "-handle": must be -vfs}
 
+tcltest::test cookfsVfs-17.1 "Test in-memory vfs, open with a file" -setup {
+    set dir [tcltest::makeDirectory cookfs.vfs]
+    makeSimpleTree2 $dir
+    set file [tcltest::makeBinFile {} cookfs.cfs]
+} -body {
+    set fsid [cookfs::Mount $file $file -writetomemory \
+        -smallfilesize 0x10 -smallfilebuffer 0x30 -pagesize 0x10]
+    file copy -force $dir [file join $file vfs]
+    set result [list]
+    lappend result [testIfEqual $dir [file join $file vfs]]
+    cookfs::Unmount $file
+    lappend result [file size $file]
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    tcltest::removeDirectory $dir
+    unset -nocomplain file fsid dir result
+} -result {1 0}
+
+tcltest::test cookfsVfs-17.2 "Test in-memory vfs, open without a file" -setup {
+    set dir [tcltest::makeDirectory cookfs.vfs]
+    makeSimpleTree2 $dir
+    set mnt "/mountpoint"
+} -body {
+    set fsid [cookfs::Mount $mnt -writetomemory \
+        -smallfilesize 0x10 -smallfilebuffer 0x30 -pagesize 0x10]
+    file copy -force $dir [file join $mnt vfs]
+    set result [testIfEqual $dir [file join $mnt vfs]]
+    cookfs::Unmount $mnt
+    set result
+} -cleanup {
+    catch { cookfs::Unmount $mnt }
+    tcltest::removeDirectory $dir
+    unset -nocomplain fsid dir result mnt
+} -result {1}

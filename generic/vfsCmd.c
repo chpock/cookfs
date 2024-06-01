@@ -236,9 +236,16 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 
     // Make sure that we have 2 mandatory arguments
     if (archive == NULL || local == NULL) {
-        Tcl_WrongNumArgs(interp, 1, objv, "?-option value ...? archive"
-            " local ?-option value ...?");
-        return TCL_ERROR;
+        // However, when 'writetomemory' is true, we can accept only
+        // one argument.
+        if (writetomemory && archive != NULL) {
+            local = archive;
+            archive = NULL;
+        } else {
+            Tcl_WrongNumArgs(interp, 1, objv, "?-option value ...? archive"
+                " local ?-option value ...?");
+            return TCL_ERROR;
+        }
     }
 
     if (smallfilesize > pagesize) {
@@ -259,6 +266,10 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
     Tcl_Obj *localActual = NULL;
 
     Tcl_Obj *normalized;
+
+    if (archive == NULL) {
+        goto skipArchive;
+    }
 
     if (Tcl_GetCharLength(archive)) {
         CookfsLog(printf("CookfsMountCmd: normalize archive path [%s]",
@@ -287,6 +298,8 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
             goto error;
         }
     }
+
+skipArchive:
 
     if (!volume) {
         if (Tcl_GetCharLength(local)) {
@@ -322,6 +335,10 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         // Just use specified "local", but increase refcount
         localActual = local;
         Tcl_IncrRefCount(localActual);
+    }
+
+    if (archive == NULL) {
+        goto skipPages;
     }
 
 #ifdef COOKFS_USETCLCMDS
@@ -369,11 +386,17 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
     Tcl_DecrRefCount(archiveActual);
     archiveActual = NULL;
 
+skipPages:
+
 #ifdef COOKFS_USETCLCMDS
     if (fsindexobject == NULL) {
 #endif
         CookfsLog(printf("CookfsMountCmd: creating the index object"));
-        index = Cookfs_FsindexFromPages(NULL, pages);
+        if (pages == NULL) {
+            index = Cookfs_FsindexInit(NULL);
+        } else {
+            index = Cookfs_FsindexFromPages(NULL, pages);
+        }
         if (index == NULL) {
             Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create"
                 " index object", -1));
@@ -392,6 +415,10 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 #endif
 
     const char *pagehashMetadataKey = "cookfs.pagehash";
+
+    if (pages == NULL) {
+        goto skipPagesBootstrap;
+    }
 
     if (pages->dataNumPages) {
         CookfsLog(printf("CookfsMountCmd: pages contain data"));
@@ -483,6 +510,8 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         }
 
     }
+
+skipPagesBootstrap:
 
     if (setmetadata != NULL) {
         CookfsLog(printf("CookfsMountCmd: setmetadata is specified"));

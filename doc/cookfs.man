@@ -22,9 +22,16 @@ in an efficient way.
 [list_begin definitions]
 
 [call [cmd ::cookfs::Mount] [opt [arg options]] [arg archive] [arg local] [opt [arg options]]]
+[call [cmd ::cookfs::Mount] [opt [arg options]] [arg -writetomemory] [arg local] [opt [arg options]]]
 [call [cmd ::vfs::cookfs::Mount] [opt [arg options]] [arg archive] [arg local] [opt [arg options]]]
 
-Mounts cookfs archive. Archive is read from [arg archive] and can later be accessed from Tcl using [arg local] as mount point. Options can preceed or succeed [arg archive] and [arg local] arguments.
+Mounts cookfs archive. Archive is read from [arg archive] and can later be accessed
+from Tcl using [arg local] as mount point. Options can preceed or succeed [arg archive]
+and [arg local] arguments.
+
+[para]
+If [arg -writetomemory] argument is specified, argument [arg archive] may be omitted.
+This will create a fully in-memory vfs at the specified mount point.
 
 [para]
 The command returns a cookfs handle which is also a command that can be used to perform certain actions on cookfs archive.
