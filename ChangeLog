@@ -2,6 +2,7 @@
 	* Add in-memory vfs feature
 	* Change XZ format to plain LZMA
 	* Remove sha1/sha256 hash functions
+	* Add a simple mount command for use from C
 
 2024-05-31 Konstantin Kushnir <chpock@gmail.com>
 	* Fix build and tests for Windows platform
