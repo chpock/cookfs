@@ -56,5 +56,5 @@ set cases {
 set recipes {
     "default" { args {} }
     "zlib"    { args {-compression zlib} }
-    "xz"      { args {-compression xz}   }
+    "lzma"    { args {-compression lzma}   }
 }

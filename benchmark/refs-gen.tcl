@@ -135,7 +135,7 @@ proc cook { source args } {
     puts "Cook with arguments: $args"
     ::cookfs::Mount $dest $dest {*}$args
     file copy $source $dest
-    ::vfs::unmount $dest
+    ::cookfs::Unmount $dest
     set ret [file size $dest]
     file delete -force $dest
     return $ret
@@ -184,7 +184,7 @@ dict for { title d } $archives {
             if { $::tcl_platform(platform) eq "windows" } {
                 catch { exec tar xf $packed }
             } {
-                exec unzip $packed
+                exec 7z x $packed
             }
         }
     }

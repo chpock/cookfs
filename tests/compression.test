@@ -1,5 +1,5 @@
 
-foreach { cid } { none zlib bz2 xz } {
+foreach { cid } { none zlib bz2 lzma } {
 
     set constraint "cookfsCompression[string totitle $cid]"
     set test_title "cookfsCompr[string totitle $cid]"

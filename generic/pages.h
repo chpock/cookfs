@@ -6,10 +6,6 @@
 #ifndef COOKFS_PAGES_H
 #define COOKFS_PAGES_H 1
 
-#ifdef COOKFS_USEXZ
-#include "XzEnc.h"
-#endif
-
 /* only handle pages code if enabled in configure */
 #ifdef COOKFS_USECPAGES
 
@@ -64,12 +60,6 @@ typedef struct Cookfs_Pages {
     Tcl_Interp *interp;
     Tcl_Command commandToken;
     Tcl_Obj *lastErrorObj;
-#ifdef COOKFS_USEXZ
-    CXzProps xzEncoderProps;
-    CXzEncHandle xzEncoder;
-    CXzDecMtProps xzDecoderProps;
-    CXzDecMtHandle xzDecoder;
-#endif
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
     Tcl_Obj *zipCmdCrc[2];
     Tcl_Obj *zipCmdCompress[6];

@@ -19,7 +19,7 @@ proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
 
 	    feature-aside "@COOKFS_PKGCONFIG_FEATURE_ASIDE@"
 	    feature-bzip2 "@COOKFS_PKGCONFIG_USEBZ2@"
-	    feature-xz    "@COOKFS_PKGCONFIG_USEXZ@"
+	    feature-lzma  "@COOKFS_PKGCONFIG_USELZMA@"
 	    feature-metadata "@COOKFS_PKGCONFIG_FEATURE_METADATA@"
 	}
 	set pkgconfigInitialized 1
