@@ -17,6 +17,8 @@ Tcl_WideInt Cookfs_Readerchannel_WideSeek(ClientData instanceData, Tcl_WideInt o
 
 void Cookfs_Readerchannel_Watch(ClientData instanceData, int mask);
 
+Tcl_DriverThreadActionProc Cookfs_Readerchannel_ThreadAction;
+
 #endif /* COOKFS_USECREADERCHAN */
 
 #endif /* COOKFS_READERCHANNELIO_H */

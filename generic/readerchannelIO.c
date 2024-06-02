@@ -12,7 +12,8 @@
 int Cookfs_Readerchannel_Close(ClientData instanceData, Tcl_Interp *interp) {
     UNUSED(interp);
     Cookfs_ReaderChannelInstData *instData = (Cookfs_ReaderChannelInstData *) instanceData;
-    CookfsLog(printf("Cookfs_Readerchannel_Close: channel=%s\n", instData->channelName))
+    CookfsLog(printf("Cookfs_Readerchannel_Close: channel=%s",
+        Tcl_GetChannelName(instData->channel)));
     Cookfs_CreateReaderchannelFree(instData);
     return 0;
 }
@@ -27,7 +28,6 @@ int Cookfs_Readerchannel_Close2(ClientData instanceData, Tcl_Interp *interp, int
 
 int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, int *errorCodePtr) {
     Cookfs_ReaderChannelInstData *instData = (Cookfs_ReaderChannelInstData *) instanceData;
-    Tcl_Obj *pageObj;
     int bytesRead = 0;
     int bytesLeft;
     int blockLeft;
@@ -35,7 +35,7 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
     char *pageBuf;
     Tcl_Size pageBufSize;
 
-    CookfsLog(printf("Cookfs_Readerchannel_Input: read %d, current offset: %"
+    CookfsLog(printf("Cookfs_Readerchannel_Input: ===> read %d, current offset: %"
         TCL_LL_MODIFIER "d", bufSize, instData->currentOffset))
 
     if (instData->currentBlock >= instData->bufSize) {
@@ -65,7 +65,17 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	}
 
 	int pageIndex = instData->buf[instData->currentBlock + 0];
-	CookfsLog(printf("Cookfs_Readerchannel_Input: reading page %d", pageIndex))
+
+	if (instData->cachedPageObj != NULL) {
+	    if (instData->cachedPageNum == pageIndex) {
+		CookfsLog(printf("Cookfs_Readerchannel_Input: use"
+		    " the previously retrieved page index#%d", pageIndex));
+		goto gotPage;
+	    }
+	    Tcl_DecrRefCount(instData->cachedPageObj);
+	}
+
+	CookfsLog(printf("Cookfs_Readerchannel_Input: reading page index#%d", pageIndex));
 	int pageUsage = Cookfs_FsindexGetBlockUsage(instData->fsindex, pageIndex);
 	/* If page contains only one file, set its weight to 0. Otherwise, set its weight to 1. */
 	int pageWeight = (pageUsage <= 1) ? 0 : 1;
@@ -85,14 +95,19 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	    }
 	    instData->firstTimeRead = 0;
 	}
-	pageObj = Cookfs_PageGet(instData->pages, pageIndex, pageWeight);
-	CookfsLog(printf("Cookfs_Readerchannel_Input: result %s", (pageObj ? "SET" : "NULL")))
-
-	if (pageObj == NULL) {
+	instData->cachedPageObj = Cookfs_PageGet(instData->pages, pageIndex, pageWeight);
+	// No need to increase refcount on retrieved page, it already has refcount=1
+	// after Cookfs_PageGet().
+	CookfsLog(printf("Cookfs_Readerchannel_Input: got the page: %p",
+	    (void *)instData->cachedPageObj))
+	if (instData->cachedPageObj == NULL) {
 	    goto error;
 	}
+	instData->cachedPageNum = pageIndex;
 
-	pageBuf = (char *) Tcl_GetByteArrayFromObj(pageObj, &pageBufSize);
+gotPage:
+
+	pageBuf = (char *) Tcl_GetByteArrayFromObj(instData->cachedPageObj, &pageBufSize);
 
 	CookfsLog(printf("Cookfs_Readerchannel_Input: copying %d+%d", instData->buf[instData->currentBlock + 1], instData->currentBlockOffset))
 	// validate enough data is available in the buffer
@@ -100,16 +115,23 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	    goto error;
 	}
 	memcpy(buf + bytesRead, pageBuf + instData->buf[instData->currentBlock + 1] + instData->currentBlockOffset, blockRead);
-	Tcl_DecrRefCount(pageObj);
-
 	instData->currentBlockOffset += blockRead;
 	bytesRead += blockRead;
 	instData->currentOffset += blockRead;
 	CookfsLog(printf("Cookfs_Readerchannel_Input: currentOffset: %"
 	    TCL_LL_MODIFIER "d", instData->currentOffset));
+	// If we have reached the end of the current page, we probably don't need
+	// it anymore and can release it.
+	if (instData->currentBlockOffset == instData->buf[instData->currentBlock + 2]) {
+	    CookfsLog(printf("Cookfs_Readerchannel_Input: release the page"));
+	    Tcl_DecrRefCount(instData->cachedPageObj);
+	    instData->cachedPageObj = NULL;
+	} else {
+	    CookfsLog(printf("Cookfs_Readerchannel_Input: keep the page"));
+	}
     }
 
-    CookfsLog(printf("Cookfs_Readerchannel_Input: bytesRead=%d", bytesRead))
+    CookfsLog(printf("Cookfs_Readerchannel_Input: <=== bytesRead=%d", bytesRead))
     return bytesRead;
 
 error:
@@ -179,27 +201,88 @@ int Cookfs_Readerchannel_Seek(ClientData instanceData, long offset, int seekMode
     return Cookfs_Readerchannel_WideSeek(instanceData, offset, seekMode, errorCodePtr);
 }
 
-/* watch implementation taken from rechan.c */
-static void CookfsReaderchannelTimerProc(ClientData instanceData)
-{
-    Cookfs_ReaderChannelInstData *chan = (Cookfs_ReaderChannelInstData *) instanceData;
-    if (chan->watchTimer != NULL) {
-	Tcl_DeleteTimerHandler(chan->watchTimer);
-	chan->watchTimer = NULL;
+void Cookfs_Readerchannel_ThreadAction(ClientData instanceData, int action) {
+    Cookfs_ReaderChannelInstData *instData =
+        (Cookfs_ReaderChannelInstData *) instanceData;
+
+    if (instData->channel == NULL) {
+        CookfsLog(printf("Cookfs_Readerchannel_ThreadAction: channel [NULL] at [%p]"
+            " action [%d]", (void *)instData, action));
+    } else {
+        CookfsLog(printf("Cookfs_Readerchannel_ThreadAction: channel [%s] at [%p]"
+            " action [%d]", Tcl_GetChannelName(instData->channel),
+            (void *)instData, action));
     }
-    Tcl_NotifyChannel(chan->channel, TCL_READABLE);
+
+    if (action == TCL_CHANNEL_THREAD_REMOVE) {
+        if (instData->event != NULL) {
+            instData->event->instData = NULL;
+            instData->event = NULL;
+        }
+        instData->interest = 0;
+    }
+}
+
+static int Cookfs_Readerchannel_Ready(Tcl_Event* evPtr, int flags) {
+    Cookfs_ReaderChannelInstData *instData =
+        ((Cookfs_ReaderChannelEvent *)evPtr)->instData;
+
+    if (instData == NULL) {
+        CookfsLog(printf("Cookfs_Readerchannel_Ready: NULL data"));
+        return 1;
+    }
+
+    CookfsLog(printf("Cookfs_Readerchannel_Ready: channel [%s] at [%p]"
+        " flags [%d]", Tcl_GetChannelName(instData->channel),
+        (void *)instData, flags));
+
+    if (!(flags & TCL_FILE_EVENTS)) {
+        CookfsLog(printf("Cookfs_Readerchannel_Ready: not TCL_FILE_EVENTS"));
+        return 0;
+    }
+
+    instData->event = NULL;
+
+    if (instData->interest) {
+        CookfsLog(printf("Cookfs_Readerchannel_Ready: call Tcl_NotifyChannel"
+            " with mask [%d]", instData->interest));
+        Tcl_NotifyChannel(instData->channel, instData->interest);
+    } else {
+        CookfsLog(printf("Cookfs_Readerchannel_Ready: interest is zero"));
+    }
+
+    return 1;
 }
 
 void Cookfs_Readerchannel_Watch(ClientData instanceData, int mask) {
-    Cookfs_ReaderChannelInstData *chan = (Cookfs_ReaderChannelInstData *) instanceData;
-    CookfsLog(printf("Cookfs_Readerchannel_Watch: channel=%s mask=%08x\n", chan->channelName, mask))
-    if (mask & TCL_READABLE) {
-        if (chan->watchTimer == NULL) {
-    	    chan->watchTimer = Tcl_CreateTimerHandler(5, CookfsReaderchannelTimerProc, instanceData);
+
+    Cookfs_ReaderChannelInstData *instData =
+        (Cookfs_ReaderChannelInstData *)instanceData;
+
+    CookfsLog(printf("Cookfs_Readerchannel_Watch: channel=%s mask=%08x",
+        Tcl_GetChannelName(instData->channel), mask))
+
+    instData->interest = mask;
+
+    if ((mask & TCL_READABLE) == 0) {
+        if (instData->event != NULL) {
+            instData->event->instData = NULL;
+            instData->event = NULL;
         }
-    } else if (chan->watchTimer != NULL) {
-	Tcl_DeleteTimerHandler(chan->watchTimer);
-	chan->watchTimer = NULL;
+        return;
     }
+
+    if (instData->event == NULL) {
+        instData->event = (Cookfs_ReaderChannelEvent*)ckalloc(
+            sizeof(Cookfs_ReaderChannelEvent));
+        if (instData->event == NULL) {
+            return;
+        }
+        instData->event->header.proc = Cookfs_Readerchannel_Ready;
+        instData->event->instData = instData;
+        Tcl_QueueEvent(&instData->event->header, TCL_QUEUE_TAIL);
+    }
+    CookfsLog(printf("Cookfs_Readerchannel_Watch: ok"));
+
 }
 

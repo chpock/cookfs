@@ -5,15 +5,15 @@
 #ifndef COOKFS_WRITERCHANNEL_H
 #define COOKFS_WRITERCHANNEL_H 1
 
-typedef struct ChannelEvent {
+typedef struct Cookfs_WriterChannelEvent {
   Tcl_Event header;
   struct Cookfs_WriterChannelInstData *instData;
-} ChannelEvent;
+} Cookfs_WriterChannelEvent;
 
 typedef struct Cookfs_WriterChannelInstData {
     Tcl_Channel channel;
     Tcl_Interp *interp;
-    ChannelEvent* event;
+    Cookfs_WriterChannelEvent* event;
     int interest;
     Tcl_Obj *closeResult;
 

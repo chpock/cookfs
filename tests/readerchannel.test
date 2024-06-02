@@ -1,5 +1,5 @@
 
-tcltest::test cookfsReaderChannel-1 {read from multiple pages} -constraints {enabledTclCmds} -setup {
+tcltest::test cookfsReaderChannel-1.1 {read from multiple pages} -constraints {enabledTclCmds} -setup {
     set vfs  [tcltest::makeFile {} cookfs.cfs]
     # page size is 899 bytes
     cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
@@ -34,7 +34,7 @@ tcltest::test cookfsReaderChannel-1 {read from multiple pages} -constraints {ena
     unset -nocomplain pg fs fp result vfs file data
 }
 
-tcltest::test cookfsReaderChannel-2 {full read with multiple pages} -setup {
+tcltest::test cookfsReaderChannel-2.1 {full read with multiple pages} -setup {
     set vfs  [tcltest::makeFile {} cookfs.cfs]
     # page size is 899 bytes
     cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
@@ -59,7 +59,33 @@ tcltest::test cookfsReaderChannel-2 {full read with multiple pages} -setup {
     unset -nocomplain result fp vfs file data
 }
 
-tcltest::test cookfsReaderChannel-3 {position when reading a file sequentially over several pages} -setup {
+tcltest::test cookfsReaderChannel-2.2 {full read with multiple pages, file > 4096 (the default read chunk)} -setup {
+    set vfs  [tcltest::makeFile {} cookfs.cfs]
+    # page size is 2.5*4096 = 10240 bytes
+    cookfs::Mount -compression none -pagesize 10240 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
+    # data size is 7*4096 = 28672
+    # 10240 bytes on page#0
+    # 10240 bytes on page#1
+    # 8192  bytes on page#2
+    set data [string repeat "TEST123" 4096]
+    set file [tcltest::makeBinFile $data test $vfs]
+    cookfs::Unmount $vfs
+} -body {
+    cookfs::Mount -readonly $vfs $vfs
+    set result ""
+    set fp [open $file rb]
+    set result [read $fp]
+    close $fp
+    cookfs::Unmount $vfs
+    list [string length $result] [expr { $result eq $data }]
+} -result {28672 1} -cleanup {
+    catch { close $fp }
+    catch { cookfs::Unmount $vfs }
+    file delete -force $vfs
+    unset -nocomplain result fp vfs file data
+}
+
+tcltest::test cookfsReaderChannel-3.1 {position when reading a file sequentially over several pages} -setup {
     set vfs  [tcltest::makeFile {} cookfs.cfs]
     # page size is 899 bytes
     cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs
@@ -92,7 +118,7 @@ tcltest::test cookfsReaderChannel-3 {position when reading a file sequentially o
     unset -nocomplain result expected fp vfs file data
 }
 
-tcltest::test cookfsReaderChannel-4 {position when reading a file randomly over several pages} -setup {
+tcltest::test cookfsReaderChannel-4.1 {position when reading a file randomly over several pages} -setup {
     set vfs  [tcltest::makeFile {} cookfs.cfs]
     # page size is 899 bytes
     cookfs::Mount -compression none -pagesize 899 -smallfilesize 1 -smallfilebuffer 0 $vfs $vfs

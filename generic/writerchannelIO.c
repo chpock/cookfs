@@ -399,7 +399,8 @@ static void Cookfs_Writerchannel_ThreadAction(ClientData instanceData,
 }
 
 static int Cookfs_Writerchannel_Ready(Tcl_Event* evPtr, int flags) {
-    Cookfs_WriterChannelInstData *instData = ((ChannelEvent *)evPtr)->instData;
+    Cookfs_WriterChannelInstData *instData =
+        ((Cookfs_WriterChannelEvent *)evPtr)->instData;
 
     if (instData == NULL) {
         CookfsLog(printf("Cookfs_Writerchannel_Ready: NULL data"));
@@ -447,7 +448,8 @@ static void Cookfs_Writerchannel_Watch(ClientData instanceData, int mask) {
     }
 
     if (instData->event == NULL) {
-        instData->event = (ChannelEvent*)ckalloc(sizeof(ChannelEvent));
+        instData->event = (Cookfs_WriterChannelEvent*)ckalloc(
+            sizeof(Cookfs_WriterChannelEvent));
         if (instData->event == NULL) {
             return;
         }

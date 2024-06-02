@@ -10,8 +10,6 @@
 #include "cookfs.h"
 #include <errno.h>
 
-static int cookfsChannelId = 0;
-
 static Tcl_ChannelType cookfsReaderChannel = {
     "cookfsreader",
     TCL_CHANNEL_VERSION_5,
@@ -36,7 +34,7 @@ static Tcl_ChannelType cookfsReaderChannel = {
     NULL,
     NULL,
     Cookfs_Readerchannel_WideSeek,
-    NULL,
+    Cookfs_Readerchannel_ThreadAction,
     NULL,
 };
 
@@ -115,16 +113,18 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Cookfs_Fsindex *fsin
 
     if (channelNamePtr != NULL)
     {
-	*channelNamePtr = instData->channelName;
+	*channelNamePtr = (char *)Tcl_GetChannelName(instData->channel);
     }
 
     return instData->channel;
 }
 
 int Cookfs_CreateReaderchannelCreate(Cookfs_ReaderChannelInstData *instData, Tcl_Interp *interp) {
-    /* TODO: mutex */
-    sprintf(instData->channelName, "cookfsreader%d", ++cookfsChannelId);
-    instData->channel = Tcl_CreateChannel(&cookfsReaderChannel, instData->channelName, (ClientData) instData, TCL_READABLE);
+    char channelName[128];
+    sprintf(channelName, "cookfsreader%p", (void *)instData);
+
+    instData->channel = Tcl_CreateChannel(&cookfsReaderChannel, channelName,
+        (ClientData) instData, TCL_READABLE);
 
     if (instData->channel == NULL) {
 	CookfsLog(printf("Cookfs_CreateReaderchannelCreate: Unable to create channel"))
@@ -143,7 +143,7 @@ Cookfs_ReaderChannelInstData *Cookfs_CreateReaderchannelAlloc(Cookfs_Pages *page
 
     result = (Cookfs_ReaderChannelInstData *) ckalloc(sizeof(Cookfs_ReaderChannelInstData) + bufSize * sizeof(int));
     result->channel = NULL;
-    result->watchTimer = NULL;
+    result->event = NULL;
 
     result->pages = pages;
     result->fsindex = fsindex;
@@ -155,21 +155,24 @@ Cookfs_ReaderChannelInstData *Cookfs_CreateReaderchannelAlloc(Cookfs_Pages *page
     result->fileSize = 0;
     result->bufSize = bufSize;
 
+    result->cachedPageObj = NULL;
+
     result->firstTimeRead = 1;
 
     return result;
 }
 
 void Cookfs_CreateReaderchannelFree(Cookfs_ReaderChannelInstData *instData) {
-    CookfsLog(printf("Cookfs_CreateReaderchannelFree: freeing channel=%s\n", instData->channelName))
-    strcpy(instData->channelName, "INVALID");
-    if (instData->watchTimer != NULL) {
-    	CookfsLog(printf("Cookfs_CreateReaderchannelFree: deleting target"))
-	Tcl_DeleteTimerHandler(instData->watchTimer);
+    CookfsLog(printf("Cookfs_CreateReaderchannelFree: freeing channel=%s",
+        Tcl_GetChannelName(instData->channel)));
+    if (instData->event != NULL) {
+        instData->event->instData = NULL;
+        instData->event = NULL;
     }
-    CookfsLog(printf("Cookfs_CreateReaderchannelFree: before free"))
+    if (instData->cachedPageObj != NULL) {
+        Tcl_DecrRefCount(instData->cachedPageObj);
+    }
     ckfree((void *) instData);
-    CookfsLog(printf("Cookfs_CreateReaderchannelFree: after free"))
 }
 
 /* command for creating new objects that deal with pages */
