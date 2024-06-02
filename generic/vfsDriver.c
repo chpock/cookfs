@@ -623,8 +623,8 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
 
 // cppcheck-suppress constParameterCallback
 static int CookfsUtime(Tcl_Obj *pathPtr, struct utimbuf *tval) {
-    CookfsLog(printf("CookfsUtime: path [%s] time [%ld]",
-        Tcl_GetString(pathPtr), tval->modtime));
+    CookfsLog(printf("CookfsUtime: path [%s] time [%lld]",
+        Tcl_GetString(pathPtr), (long long int)tval->modtime));
 
     cookfsInternalRep *internalRep =
         (cookfsInternalRep *)Tcl_FSGetInternalRep(pathPtr, &cookfsFilesystem);

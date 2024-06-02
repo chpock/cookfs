@@ -1258,7 +1258,7 @@ static int CookfsWritePageLzma(Cookfs_Pages *p, unsigned char *bytes, int origSi
         // Increase output size by pre-defined bytes (origSize + lzma
         // properties)
         destLen += 4 + LZMA_PROPS_SIZE;
-        CookfsLog(printf("CookfsWritePageLzma: got encoded size: %lu", destLen));
+        CookfsLog(printf("CookfsWritePageLzma: got encoded size: %zu", destLen));
         if (SHOULD_COMPRESS(p, (unsigned int)origSize, destLen)) {
             // Write the original size to the beginning of the buffer
             CookfsLog(printf("CookfsWritePageLzma: write page"));
@@ -1354,7 +1354,7 @@ static Tcl_Obj *CookfsReadPageLzma(Cookfs_Pages *p, int size) {
             (status == LZMA_STATUS_NOT_FINISHED ? "NOT_FINISHED" :
             (status == LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK ?
             "MAYBE_FINISHED_WITHOUT_MARK" : "UNKNOWN-OK"))) : "UNKNOWN")));
-    CookfsLog(printf("CookfsReadPageLzma: consumed bytes %lu got bytes %lu",
+    CookfsLog(printf("CookfsReadPageLzma: consumed bytes %zu got bytes %zu",
         srcLen, destSizeResult));
 
     Tcl_DecrRefCount(data);

@@ -2,6 +2,7 @@
 	* Don't allow deleting pages/fsindex that are in use
 	* Optimize c-readerchannel
 	* Add a full-featured mount command for use from C
+	* Fix debug build on 32-bit platforms
 
 2024-06-01 Konstantin Kushnir <chpock@gmail.com>
 	* Add in-memory vfs feature
