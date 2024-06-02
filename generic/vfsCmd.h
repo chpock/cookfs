@@ -39,7 +39,7 @@ typedef struct {
 int Cookfs_InitVfsMountCmd(Tcl_Interp *interp);
 
 int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
-    Cookfs_VfsProps *props);
+    Cookfs_VfsProps *aprops);
 
 Cookfs_VfsProps *Cookfs_VfsPropsInit(Cookfs_VfsProps *p);
 void Cookfs_VfsPropsFree(Cookfs_VfsProps *p);
