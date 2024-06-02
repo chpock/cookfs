@@ -323,8 +323,9 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
 
     UNUSED(permissions);
 
-    CookfsLog(printf("CookfsOpenFileChannel: path [%s] mode [%d]"
-        " permissions [%d]", Tcl_GetString(pathPtr), mode, permissions));
+    CookfsLog(printf("CookfsOpenFileChannel: interp [%p] path [%s] mode [%d]"
+        " permissions [%d]", (void *)interp, Tcl_GetString(pathPtr), mode,
+        permissions));
 
     cookfsInternalRep *internalRep =
         (cookfsInternalRep *)Tcl_FSGetInternalRep(pathPtr, &cookfsFilesystem);
@@ -462,8 +463,10 @@ done:
     return channel;
 
 posixerror:
-    Tcl_SetObjResult(interp, Tcl_ObjPrintf("couldn't open \"%s\": %s",
-        Tcl_GetString(pathPtr), Tcl_PosixError(interp)));
+    if (interp != NULL) {
+        Tcl_SetObjResult(interp, Tcl_ObjPrintf("couldn't open \"%s\": %s",
+            Tcl_GetString(pathPtr), Tcl_PosixError(interp)));
+    }
     return NULL;
 }
 

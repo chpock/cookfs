@@ -28,6 +28,28 @@ static Tcl_WideInt Cookfs_PageSearchStamp(Cookfs_Pages *p);
 
 static const char *const pagehashNames[] = { "md5", "crc32", NULL };
 
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Cookfs_PagesLock --
+ *
+ *      Locks or unlocks the specified pages object
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_PagesLock(Cookfs_Pages *p, int isLocked) {
+    p->isLocked = isLocked;
+}
+
 /*
  *----------------------------------------------------------------------
  *
@@ -225,6 +247,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileRe
     int i;
 
     /* initialize basic information */
+    rc->isLocked = 0;
     rc->isDead = 0;
     rc->interp = interp;
     rc->lastErrorObj = NULL;
@@ -529,6 +552,12 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     int i;
 
     if (p->isDead) {
+        return;
+    }
+
+    if (p->isLocked) {
+        CookfsLog(printf("Cookfs_PagesFini: could not remove"
+            " locked object"));
         return;
     }
 

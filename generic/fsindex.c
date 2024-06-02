@@ -22,6 +22,26 @@ static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e);
 /*
  *----------------------------------------------------------------------
  *
+ * Cookfs_FsindexLock --
+ *
+ *      Locks or unlocks the specified fsindex object
+ *
+ * Results:
+ *      None
+ *
+ * Side effects:
+ *      None
+ *
+ *----------------------------------------------------------------------
+ */
+
+void Cookfs_FsindexLock(Cookfs_Fsindex *i, int isLocked) {
+    i->isLocked = isLocked;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Cookfs_FsindexUpdateEntryFileSize --
  *
  *      Updates the filesize field for specified entry
@@ -326,6 +346,7 @@ Cookfs_Fsindex *Cookfs_FsindexInit(Cookfs_Fsindex *i) {
         rc->commandToken = NULL;
         rc->interp = NULL;
         rc->isDead = 0;
+        rc->isLocked = 0;
     } else {
         rc = i;
     }
@@ -395,6 +416,11 @@ void Cookfs_FsindexCleanup(Cookfs_Fsindex *i) {
 
 void Cookfs_FsindexFini(Cookfs_Fsindex *i) {
     if (i->isDead) {
+        return;
+    }
+    if (i->isLocked) {
+        CookfsLog(printf("Cookfs_FsindexFini: could not remove"
+            " locked object"));
         return;
     }
     i->isDead = 1;

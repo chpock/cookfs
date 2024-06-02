@@ -1,3 +1,6 @@
+2024-06-02 Konstantin Kushnir <chpock@gmail.com>
+	* Don't allow deleting pages/fsindex that are in use
+
 2024-06-01 Konstantin Kushnir <chpock@gmail.com>
 	* Add in-memory vfs feature
 	* Change XZ format to plain LZMA

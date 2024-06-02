@@ -98,6 +98,10 @@ Cookfs_Init(Tcl_Interp *interp) // cppcheck-suppress unusedFunction
         return TCL_ERROR;
     }
 
+    if (Tcl_PkgProvide(interp, PACKAGE_NAME, PACKAGE_VERSION) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
     return TCL_OK;
 }
 

@@ -49,6 +49,7 @@ typedef struct Cookfs_Fsindex {
     Tcl_Interp *interp;
     Tcl_Command commandToken;
     int isDead;
+    int isLocked;
 } Cookfs_Fsindex;
 
 Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName);
@@ -92,6 +93,8 @@ void Cookfs_FsindexUpdateEntryFileSize(Cookfs_FsindexEntry *e,
 
 void Cookfs_FsindexUpdatePendingEntry(Cookfs_Fsindex *i, Cookfs_FsindexEntry *e,
     int blockIndex, int blockOffset);
+
+void Cookfs_FsindexLock(Cookfs_Fsindex *i, int isLocked);
 
 #endif /* COOKFS_USECFSINDEX */
 
