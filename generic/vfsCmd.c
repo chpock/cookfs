@@ -47,10 +47,21 @@ int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local) {
         return TCL_OK;
     }
 
-    Tcl_Obj *objv[2];
-    objv[0] = archive;
-    objv[1] = local;
-    return CookfsMountCmd((ClientData)1, interp, 2, (Tcl_Obj *const *)&objv);
+    Tcl_Obj *objv[3];
+    objv[0] = Tcl_NewObj();
+    Tcl_IncrRefCount(objv[0]);
+    objv[1] = archive;
+    Tcl_IncrRefCount(archive);
+    objv[2] = local;
+    Tcl_IncrRefCount(local);
+
+    int res = CookfsMountCmd((ClientData)1, interp, 3, (Tcl_Obj *const *)&objv);
+
+    Tcl_DecrRefCount(local);
+    Tcl_DecrRefCount(archive);
+    Tcl_DecrRefCount(objv[0]);
+
+    return res;
 
 }
 
