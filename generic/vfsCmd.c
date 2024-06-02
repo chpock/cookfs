@@ -404,6 +404,8 @@ skipArchive:
     }
 #endif
 
+    Cookfs_PagesLock(pages, 1);
+
     // set whether compression should always be enabled
     CookfsLog(printf("CookfsMountCmd: set pages always compress: %d",
         alwayscompress));
@@ -446,6 +448,8 @@ skipPages:
         }
     }
 #endif
+
+    Cookfs_FsindexLock(index, 1);
 
     const char *pagehashMetadataKey = "cookfs.pagehash";
 
@@ -673,6 +677,7 @@ error:
 #else
         if (index != NULL) {
 #endif
+            Cookfs_FsindexLock(index, 0);
             Cookfs_FsindexFini(index);
         }
         // If no pages object was specified and a pages object was created by
@@ -682,6 +687,7 @@ error:
 #else
         if (pages != NULL) {
 #endif
+            Cookfs_PagesLock(pages, 0);
             Cookfs_PagesFini(pages);
         }
     }

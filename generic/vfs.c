@@ -156,12 +156,14 @@ skipSavingIndex:
         *pagesCloseOffset = offset;
     }
     CookfsLog(printf("Cookfs_VfsFini: delete pages..."));
+    Cookfs_PagesLock(vfs->pages, 0);
     Cookfs_PagesFini(vfs->pages);
 
 skipPages:
 
     // Cleanup index
     CookfsLog(printf("Cookfs_VfsFini: delete index..."));
+    Cookfs_FsindexLock(vfs->index, 0);
     Cookfs_FsindexFini(vfs->index);
 
     // Remove mount Tcl command is exists

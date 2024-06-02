@@ -1302,3 +1302,25 @@ tcltest::test cookfsVfs-17.3 "Test in-memory vfs, open existing archive" -setup 
     tcltest::removeDirectory $dir
     unset -nocomplain file fsid dir result file2
 } -result {1 1}
+
+tcltest::test cookfsVfs-18.1 "Test that fsindex/pages are available when their\
+     commands are deleted, but they are bound to existing VFS" -constraints {enabledTclCmds enabledCVfs} -setup {
+    set file [tcltest::makeBinFile {} cookfs.cfs]
+} -body {
+    set p [cookfs::pages -compression none $file]
+    set i [cookfs::fsindex]
+    cookfs::Mount $file $file -pagesobject $p -fsindexobject $i
+    # delete pages/index commands
+    rename $p ""
+    rename $i ""
+    # try to add a file
+    set file2 [tcltest::makeBinFile TEST01 test $file]
+    cookfs::Unmount $file
+    cookfs::Mount $file $file -readonly
+    tcltest::viewBinFile $file2
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file p i file2
+} -result TEST01
+

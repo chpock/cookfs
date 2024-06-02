@@ -57,6 +57,7 @@ typedef struct Cookfs_CacheEntry {
 typedef struct Cookfs_Pages {
     /* main interp */
     int isDead;
+    int isLocked;
     Tcl_Interp *interp;
     Tcl_Command commandToken;
     Tcl_Obj *lastErrorObj;
@@ -173,6 +174,8 @@ int Cookfs_PagesSetHashByObj(Cookfs_Pages *p, Tcl_Obj *pagehash,
     Tcl_Interp *interp);
 
 int Cookfs_PageAddStamp(Cookfs_Pages *p, Tcl_WideInt size);
+
+void Cookfs_PagesLock(Cookfs_Pages *p, int isLocked);
 
 #endif /* COOKFS_USECPAGES */
 
