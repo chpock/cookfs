@@ -8,7 +8,7 @@ file mkdir $tmpdir
 tcltest::temporaryDirectory $tmpdir
 tcltest::testsDirectory [file dirname [info script]]
 
-package require vfs::cookfs
+package require cookfs
 
 catch {
     package require vfs

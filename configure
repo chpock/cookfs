@@ -8871,7 +8871,7 @@ printf "%s\n" "no, adding -mavx -mavx2" >&6; };
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 
-    vars="7zip/C/LzmaEnc.c 7zip/C/LzmaDec.c 7zip/C/LzFind.c"
+    vars="7zip/C/LzmaEnc.c 7zip/C/LzmaDec.c 7zip/C/LzFind.c 7zip/C/CpuArch.c"
     for i in $vars; do
 	case $i in
 	    \$*)

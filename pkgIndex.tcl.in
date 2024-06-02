@@ -31,8 +31,9 @@ package ifneeded @PACKAGE_NAME@ @PACKAGE_VERSION@ [list ::apply {{ dir } {
     if { ![@PACKAGE_NAME@::pkgconfig get c-vfs] } {
         package require @PACKAGE_NAME@::tcl::vfs @PACKAGE_VERSION@
     }
-    package require @PACKAGE_NAME@::tcl::writer @PACKAGE_VERSION@
-    package provide @PACKAGE_NAME@ @PACKAGE_VERSION@
+    if { ![@PACKAGE_NAME@::pkgconfig get c-writer] } {
+        package require @PACKAGE_NAME@::tcl::writer @PACKAGE_VERSION@
+    }
 }} $dir]
 
 package ifneeded vfs::@PACKAGE_NAME@ @PACKAGE_VERSION@ [list ::apply {{ dir } {
