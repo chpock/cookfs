@@ -7,12 +7,16 @@
 #define COOKFS_READERCHANNEL_H 1
 
 #ifdef COOKFS_USECREADERCHAN
+
+typedef struct Cookfs_ReaderChannelEvent {
+  Tcl_Event header;
+  struct Cookfs_ReaderChannelInstData *instData;
+} Cookfs_ReaderChannelEvent;
+
 typedef struct Cookfs_ReaderChannelInstData {
-    // "cookfsreader%d"+\0 where "%d" is between 1 and 11 bytes.
-    // The buffer should be 12+11+1=24 bytes.
-    char channelName[24];
     Tcl_Channel channel;
-    Tcl_TimerToken watchTimer;
+    Cookfs_ReaderChannelEvent *event;
+    int interest;
 
     Cookfs_Pages *pages;
     Cookfs_Fsindex *fsindex;
@@ -22,6 +26,9 @@ typedef struct Cookfs_ReaderChannelInstData {
     int currentBlock;
     int currentBlockOffset;
     int firstTimeRead;
+
+    Tcl_Obj *cachedPageObj;
+    int cachedPageNum;
 
     int bufSize;
     int buf[1];
