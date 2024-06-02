@@ -283,27 +283,19 @@ wrongArgNum:
 }
 
 int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
-    Cookfs_VfsProps *props)
+    Cookfs_VfsProps *aprops)
 {
 
     CookfsLog(printf("Cookfs_Mount: ENTER"));
 
-    if (props == NULL) {
-        return TCL_ERROR;
-    }
-
-    if (props->smallfilesize > props->pagesize) {
-        CookfsLog(printf("Cookfs_Mount: ERROR: smallfilesize [%"
-            TCL_LL_MODIFIER "d] > pagesize [%" TCL_LL_MODIFIER "d]",
-            props->smallfilesize, props->pagesize));
-        Tcl_SetObjResult(interp, Tcl_NewStringObj("smallfilesize cannot be"
-            " larger than pagesize", -1));
-        return TCL_ERROR;
-    }
-
-    // if write to memory option was selected, open archive as read only anyway
-    if (props->writetomemory) {
-        props->readonly = 1;
+    Cookfs_VfsProps *props;
+    if (aprops != NULL) {
+        props = aprops;
+    } else {
+        props = Cookfs_VfsPropsInit(NULL);
+        if (props == NULL) {
+            return TCL_ERROR;
+        }
     }
 
     Cookfs_Vfs *vfs = NULL;
@@ -315,6 +307,20 @@ int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
     Tcl_Obj *localActual = NULL;
 
     Tcl_Obj *normalized;
+
+    if (props->smallfilesize > props->pagesize) {
+        CookfsLog(printf("Cookfs_Mount: ERROR: smallfilesize [%"
+            TCL_LL_MODIFIER "d] > pagesize [%" TCL_LL_MODIFIER "d]",
+            props->smallfilesize, props->pagesize));
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("smallfilesize cannot be"
+            " larger than pagesize", -1));
+        goto error;
+    }
+
+    // if write to memory option was selected, open archive as read only anyway
+    if (props->writetomemory) {
+        props->readonly = 1;
+    }
 
     if (archive == NULL) {
         goto skipArchive;
@@ -674,10 +680,17 @@ skipPagesBootstrap:
         CookfsLog(printf("Cookfs_Mount: ok (no cmd)"));
     }
 
+    if (aprops == NULL) {
+        Cookfs_VfsPropsFree(props);
+    }
+
     return TCL_OK;
 
 error:
 
+    if (aprops == NULL) {
+        Cookfs_VfsPropsFree(props);
+    }
     if (archiveActual != NULL) {
         Tcl_DecrRefCount(archiveActual);
     }
