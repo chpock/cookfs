@@ -1316,7 +1316,7 @@ tcltest::test cookfsVfs-18.1 "Test that fsindex/pages are available when their\
     # try to add a file
     set file2 [tcltest::makeBinFile TEST01 test $file]
     cookfs::Unmount $file
-    set h [cookfs::Mount $file $file -readonly]
+    cookfs::Mount $file $file -readonly
     tcltest::viewBinFile $file2
 } -cleanup {
     catch { cookfs::Unmount $file }
