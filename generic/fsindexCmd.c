@@ -76,11 +76,27 @@ int Cookfs_InitFsindexCmd(Tcl_Interp *interp) {
 
 Tcl_Obj *CookfsGetFsindexObjectCmd(Tcl_Interp *interp, Cookfs_Fsindex *i) {
     if (i == NULL) {
+        CookfsLog(printf("CookfsGetFsindexObjectCmd: return NULL"));
         return NULL;
     }
-    CookfsRegisterExistingFsindexObjectCmd(interp, i);
+    CookfsLog(printf("CookfsGetFsindexObjectCmd: enter interp:%p my interp:%p",
+        (void *)interp, (void *)i->interp));
+    CookfsRegisterExistingFsindexObjectCmd(i->interp, i);
     Tcl_Obj *rc = Tcl_NewObj();
-    Tcl_GetCommandFullName(interp, i->commandToken, rc);
+    Tcl_GetCommandFullName(i->interp, i->commandToken, rc);
+    if (interp == i->interp) {
+        goto done;
+    }
+    const char *cmd = Tcl_GetString(rc);
+    if (Tcl_GetAlias(interp, cmd, NULL, NULL, NULL, NULL) == TCL_OK) {
+        CookfsLog(printf("CookfsGetFsindexObjectCmd: alias already exists"));
+        goto done;
+    }
+    CookfsLog(printf("CookfsGetFsindexObjectCmd: create interp alias"));
+    Tcl_CreateAlias(interp, cmd, i->interp, cmd, 0, NULL);
+done:
+    CookfsLog(printf("CookfsGetFsindexObjectCmd: return [%s]",
+        Tcl_GetString(rc)));
     return rc;
 }
 
@@ -151,10 +167,10 @@ static int CookfsRegisterFsindexObjectCmd(ClientData clientData, Tcl_Interp *int
 
     /* import fsindex from specified data if specified, otherwise create new fsindex */
     if (objc == 2) {
-        i = Cookfs_FsindexFromObject(NULL, objv[1]);
+        i = Cookfs_FsindexFromObject(interp, NULL, objv[1]);
         CookfsLog(printf("CookfsRegisterFsindexObjectCmd: created fsindex from obj [%p]", (void *)i));
     } else {
-        i = Cookfs_FsindexInit(NULL);
+        i = Cookfs_FsindexInit(interp, NULL);
         CookfsLog(printf("CookfsRegisterFsindexObjectCmd: created fsindex from scratch [%p]", (void *)i));
     }
 
@@ -404,7 +420,7 @@ static int CookfsFsindexCmdImport(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, i
 	return TCL_ERROR;
     }
 
-    Cookfs_Fsindex *result = Cookfs_FsindexFromObject(fsIndex, objv[2]);
+    Cookfs_Fsindex *result = Cookfs_FsindexFromObject(interp, fsIndex, objv[2]);
 
     return (result == NULL ? TCL_ERROR : TCL_OK);
 }

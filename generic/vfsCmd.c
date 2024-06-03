@@ -457,9 +457,9 @@ skipPages:
 #endif
         CookfsLog(printf("Cookfs_Mount: creating the index object"));
         if (pages == NULL) {
-            index = Cookfs_FsindexInit(NULL);
+            index = Cookfs_FsindexInit(interp, NULL);
         } else {
-            index = Cookfs_FsindexFromPages(NULL, pages);
+            index = Cookfs_FsindexFromPages(interp, NULL, pages);
         }
         if (index == NULL) {
             Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create"
@@ -1046,7 +1046,7 @@ static int CookfsMountHandleCommandAside(Cookfs_Vfs *vfs, Tcl_Interp *interp,
     }
 
     CookfsLog(printf("CookfsMountHandleCommandAside: refresh index..."));
-    if (Cookfs_FsindexFromPages(vfs->index, vfs->pages) == NULL) {
+    if (Cookfs_FsindexFromPages(interp, vfs->index, vfs->pages) == NULL) {
         return TCL_ERROR;
     }
 

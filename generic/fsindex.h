@@ -54,7 +54,7 @@ typedef struct Cookfs_Fsindex {
 
 Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName);
 
-Cookfs_Fsindex *Cookfs_FsindexInit(Cookfs_Fsindex *i);
+Cookfs_Fsindex *Cookfs_FsindexInit(Tcl_Interp *interp, Cookfs_Fsindex *i);
 void Cookfs_FsindexFini(Cookfs_Fsindex *i);
 void Cookfs_FsindexCleanup(Cookfs_Fsindex *i);
 

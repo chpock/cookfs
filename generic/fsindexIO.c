@@ -94,7 +94,7 @@ Tcl_Obj *Cookfs_FsindexToObject(Cookfs_Fsindex *fsindex) {
  *----------------------------------------------------------------------
  */
 
-Cookfs_Fsindex *Cookfs_FsindexFromPages(Cookfs_Fsindex *fsindex, Cookfs_Pages *pages) {
+Cookfs_Fsindex *Cookfs_FsindexFromPages(Tcl_Interp *interp, Cookfs_Fsindex *fsindex, Cookfs_Pages *pages) {
 
     CookfsLog(printf("Cookfs_FsindexFromPages: fsindex [%p] pages [%p]",
         (void *)fsindex, (void *)pages));
@@ -112,11 +112,11 @@ Cookfs_Fsindex *Cookfs_FsindexFromPages(Cookfs_Fsindex *fsindex, Cookfs_Pages *p
 
     if (indexDataLen) {
         CookfsLog(printf("Cookfs_FsindexFromPages: import from the object..."));
-        rc = Cookfs_FsindexFromObject(fsindex, indexDataObj);
+        rc = Cookfs_FsindexFromObject(interp, fsindex, indexDataObj);
     } else {
         if (fsindex == NULL) {
             CookfsLog(printf("Cookfs_FsindexFromPages: create a new clean index"));
-            rc = Cookfs_FsindexInit(NULL);
+            rc = Cookfs_FsindexInit(interp, NULL);
         } else {
             rc = fsindex;
             Cookfs_FsindexCleanup(rc);
@@ -148,7 +148,7 @@ Cookfs_Fsindex *Cookfs_FsindexFromPages(Cookfs_Fsindex *fsindex, Cookfs_Pages *p
  *----------------------------------------------------------------------
  */
 
-Cookfs_Fsindex *Cookfs_FsindexFromObject(Cookfs_Fsindex *fsindex, Tcl_Obj *o) {
+Cookfs_Fsindex *Cookfs_FsindexFromObject(Tcl_Interp *interp, Cookfs_Fsindex *fsindex, Tcl_Obj *o) {
     Tcl_Size objLength;
     int i;
     unsigned char *bytes;
@@ -162,7 +162,7 @@ Cookfs_Fsindex *Cookfs_FsindexFromObject(Cookfs_Fsindex *fsindex, Tcl_Obj *o) {
     }
 
     /* initialize empty fsindex */
-    result = Cookfs_FsindexInit(fsindex);
+    result = Cookfs_FsindexInit(interp, fsindex);
 
     if (result == NULL) {
         CookfsLog(printf("Cookfs_FsindexFromObject - unable to initialize Fsindex object"))

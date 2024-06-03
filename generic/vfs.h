@@ -45,6 +45,6 @@ void Cookfs_VfsUnregisterInTclvfs(Cookfs_Vfs *vfs);
 int Cookfs_VfsRegisterInTclvfs(Cookfs_Vfs *vfs);
 #endif
 
-Tcl_Obj *CookfsGetVfsObjectCmd(Cookfs_Vfs *vfs);
+Tcl_Obj *CookfsGetVfsObjectCmd(Tcl_Interp* interp, Cookfs_Vfs *vfs);
 
 #endif /* COOKFS_VFS_H */
