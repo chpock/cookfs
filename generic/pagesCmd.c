@@ -72,7 +72,7 @@ Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p) {
         goto done;
     }
     const char *cmd = Tcl_GetString(rc);
-    if (Tcl_GetAlias(interp, cmd, NULL, NULL, NULL, NULL) == TCL_OK) {
+    if (Tcl_GetAliasObj(interp, cmd, NULL, NULL, NULL, NULL) == TCL_OK) {
         CookfsLog(printf("CookfsGetPagesObjectCmd: alias already exists"));
         goto done;
     }
