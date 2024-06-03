@@ -91,6 +91,12 @@ void Cookfs_VfsPropSetVolume(Cookfs_VfsProps *p, int volume) {
     }
 }
 
+void Cookfs_VfsPropSetWritetomemory(Cookfs_VfsProps *p, int writetomemory) {
+    if (p != NULL) {
+        p->writetomemory = writetomemory;
+    }
+}
+
 #define PROCESS_OPT_SWITCH(opt_name, var) \
     if (opt == opt_name) { \
         var = 1; \

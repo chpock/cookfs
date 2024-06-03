@@ -46,5 +46,6 @@ void Cookfs_VfsPropsFree(Cookfs_VfsProps *p);
 
 void Cookfs_VfsPropSetVolume(Cookfs_VfsProps *p, int volume);
 void Cookfs_VfsPropSetReadonly(Cookfs_VfsProps *p, int readonly);
+void Cookfs_VfsPropSetWritetomemory(Cookfs_VfsProps *p, int writetomemory);
 
 #endif /* COOKFS_VFSCMD_H */
