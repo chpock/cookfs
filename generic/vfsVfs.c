@@ -349,7 +349,7 @@ static int Cookfs_CookfsRemoveVolume(Tcl_Obj *volume) {
         Tcl_IncrRefCount(obj);
 
         Tcl_Size volumeCurLen;
-        char *volumeCurStr = Tcl_GetStringFromObj(volume, &volumeCurLen);
+        char *volumeCurStr = Tcl_GetStringFromObj(obj, &volumeCurLen);
 
         if (volumeCurLen != volumeLen ||
             strcmp(volumeStr, volumeCurStr) != 0)
