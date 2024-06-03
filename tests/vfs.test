@@ -119,7 +119,7 @@ tcltest::test cookfsVfs-1.7 "Setting metadata on mount" -setup {
 tcltest::test cookfsVfs-1.8.1 "Mounting as volume, unmount with vfs::unmount" -constraints {packageTclvfs enabledTclCmds} -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
 } -body {
-    cookfs::Mount $file $file
+    cookfs::Mount $file $file -compression none
     set fh [open [file join $file testfile] w]
     fconfigure $fh -translation binary
     puts $fh TEST
@@ -142,7 +142,7 @@ tcltest::test cookfsVfs-1.8.1 "Mounting as volume, unmount with vfs::unmount" -c
 tcltest::test cookfsVfs-1.8.2 "Mounting as volume, unmount with cookfs::Unmount" -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
 } -body {
-    cookfs::Mount $file $file
+    cookfs::Mount $file $file -compression none
     set fh [open [file join $file testfile] w]
     fconfigure $fh -translation binary
     puts $fh TEST
@@ -160,6 +160,53 @@ tcltest::test cookfsVfs-1.8.2 "Mounting as volume, unmount with cookfs::Unmount"
     tcltest::removeFile $file
     unset -nocomplain file fh h result
 } -returnCodes {ok} -result 1
+
+tcltest::test cookfsVfs-1.8.3 "Mounting multiple volumes, unmounting a single volume" -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+} -body {
+    cookfs::Mount $file $file -compression none
+    set fh [open [file join $file testfile] w]
+    fconfigure $fh -translation binary
+    puts $fh TEST
+    close $fh
+    cookfs::Unmount $file
+
+    cookfs::Mount $file test1:/ -volume
+    cookfs::Mount $file test2:/ -volume
+    cookfs::Mount $file test3:/ -volume
+    set result [list]
+    lappend result [list \
+        [expr {([lsearch -exact [file volumes] test1:/]>=0)?1:0}] \
+        [expr {([lsearch -exact [file volumes] test2:/]>=0)?1:0}] \
+        [expr {([lsearch -exact [file volumes] test3:/]>=0)?1:0}] \
+    ]
+    cookfs::Unmount test2:/
+    lappend result [list \
+        [expr {([lsearch -exact [file volumes] test1:/]>=0)?1:0}] \
+        [expr {([lsearch -exact [file volumes] test2:/]>=0)?1:0}] \
+        [expr {([lsearch -exact [file volumes] test3:/]>=0)?1:0}] \
+    ]
+    cookfs::Unmount test1:/
+    lappend result [list \
+        [expr {([lsearch -exact [file volumes] test1:/]>=0)?1:0}] \
+        [expr {([lsearch -exact [file volumes] test2:/]>=0)?1:0}] \
+        [expr {([lsearch -exact [file volumes] test3:/]>=0)?1:0}] \
+    ]
+    cookfs::Unmount test3:/
+    lappend result [list \
+        [expr {([lsearch -exact [file volumes] test1:/]>=0)?1:0}] \
+        [expr {([lsearch -exact [file volumes] test2:/]>=0)?1:0}] \
+        [expr {([lsearch -exact [file volumes] test3:/]>=0)?1:0}] \
+    ]
+    set result
+} -cleanup {
+    catch {cookfs::Unmount $file}
+    catch {cookfs::Unmount test1:/}
+    catch {cookfs::Unmount test2:/}
+    catch {cookfs::Unmount test3:/}
+    tcltest::removeFile $file
+    unset -nocomplain file fh h result
+} -result {{1 1 1} {1 0 1} {0 0 1} {0 0 0}}
 
 tcltest::test cookfsVfs-1.9 "Test storing same files" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
