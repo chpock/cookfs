@@ -1324,3 +1324,145 @@ tcltest::test cookfsVfs-18.1 "Test that fsindex/pages are available when their\
     unset -nocomplain file p i file2
 } -result TEST01
 
+tcltest::test cookfsVfs-19.1 "Check if VFS is available in child interp" -setup {
+    set file [tcltest::makeBinFile {} cookfs.cfs]
+    set i [interp create]
+    interp eval $i [list set file $file]
+} -body {
+    cookfs::Mount $file $file -compression none
+    interp eval $i [list file attributes $file -vfs]
+} -cleanup {
+    interp delete $i
+    cookfs::Unmount $file
+    tcltest::removeFile $file
+    unset -nocomplain file i
+} -result 1
+
+tcltest::test cookfsVfs-19.2.1 "Check if files can be copied to VFS in the child interp (small file)" -setup {
+    set file [tcltest::makeBinFile {} cookfs.cfs]
+    set file2 [tcltest::makeBinFile {TEST01} test]
+    set i [interp create]
+    interp eval $i [list set file $file]
+    interp eval $i [list set file2 $file]
+} -body {
+    cookfs::Mount $file $file -compression none -smallfilesize 1024 -smallfilebuffer 2048 -pagesize 1024
+    interp eval $i [list file copy $file2 [file join $file test]]
+    tcltest::viewBinFile [file join $file test]
+} -cleanup {
+    interp delete $i
+    cookfs::Unmount $file
+    tcltest::removeFile $file
+    unset -nocomplain file file2 i
+} -result TEST01
+
+tcltest::test cookfsVfs-19.2.2 "Check if files can be copied to VFS in the child interp (big file)" -setup {
+    set file [tcltest::makeBinFile {} cookfs.cfs]
+    set file2 [tcltest::makeBinFile {TEST02} test]
+    set i [interp create]
+    interp eval $i [list set file $file]
+    interp eval $i [list set file2 $file]
+} -body {
+    cookfs::Mount $file $file -compression none -smallfilesize 1 -smallfilebuffer 0 -pagesize 1024
+    interp eval $i [list file copy $file2 [file join $file test]]
+    tcltest::viewBinFile [file join $file test]
+} -cleanup {
+    interp delete $i
+    cookfs::Unmount $file
+    tcltest::removeFile $file
+    unset -nocomplain file file2 i
+} -result TEST02
+
+tcltest::test cookfsVfs-19.3 "Check if mount handler is available in child interp" -constraints {enabledCVfs enabledTclCmds} -setup {
+    set file [tcltest::makeBinFile {} cookfs.cfs]
+    set i [interp create]
+    interp eval $i [list set file $file]
+} -body {
+    cookfs::Mount $file $file -compression none
+    interp eval $i {
+        [file attributes $file -handle] filesize
+    }
+} -cleanup {
+    interp delete $i
+    cookfs::Unmount $file
+    tcltest::removeFile $file
+    unset -nocomplain file i
+} -result 0
+
+tcltest::test cookfsVfs-19.4 "Check if pages handler is available in child interp" -constraints {enabledCVfs enabledTclCmds} -setup {
+    set file [tcltest::makeBinFile {} cookfs.cfs]
+    set i [interp create]
+    interp eval $i [list set file $file]
+} -body {
+    cookfs::Mount $file $file -compression none
+    interp eval $i {
+        [[file attributes $file -handle] getpages] length
+    }
+} -cleanup {
+    interp delete $i
+    cookfs::Unmount $file
+    tcltest::removeFile $file
+    unset -nocomplain file i
+} -result 0
+
+tcltest::test cookfsVfs-19.5 "Check if fsindex handler is available in child interp" -constraints {enabledCVfs enabledTclCmds} -setup {
+    set file [tcltest::makeBinFile {} cookfs.cfs]
+    set i [interp create]
+    interp eval $i [list set file $file]
+} -body {
+    cookfs::Mount $file $file -compression none
+    interp eval $i {
+        set result [[[file attributes $file -handle] getindex] get ""]
+        # as "" is VFS root, we expect only one element
+        # after 'get ""' - directory mtime
+        expr { [string is wideinteger -strict $result] ? "ok" : $result }
+    }
+} -cleanup {
+    interp delete $i
+    cookfs::Unmount $file
+    tcltest::removeFile $file
+    unset -nocomplain file i
+} -result ok
+
+tcltest::test cookfsVfs-19.6.1 "Check mount/unmount in child interp" -setup {
+    set file [tcltest::makeBinFile {} cookfs.cfs]
+    set i [interp create]
+    interp eval $i [list set file $file]
+} -body {
+    set result [list]
+    interp eval $i {
+        package require cookfs
+        cookfs::Mount $file $file -compression none
+    }
+    lappend result [file type $file]
+    interp eval $i {
+        cookfs::Unmount $file
+    }
+    lappend result [file type $file]
+} -cleanup {
+    interp delete $i
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file i result
+} -result {directory file}
+
+tcltest::test cookfsVfs-19.6.2 "Check unmount in child interp after interp died" -setup {
+    set file [tcltest::makeBinFile {} cookfs.cfs]
+    set i [interp create]
+    interp eval $i [list set file $file]
+} -body {
+    set result [list]
+    interp eval $i {
+        package require cookfs
+        cookfs::Mount $file $file -compression none
+    }
+    lappend result [file type $file]
+    interp delete $i
+    lappend result [file type $file]
+} -cleanup {
+    catch { interp delete $i }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file i result
+} -result {directory file}
+
+

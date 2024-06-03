@@ -936,7 +936,7 @@ static int CookfsFileAttrsGet(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
             (cookfsInternalRep *)Tcl_FSGetInternalRep(pathPtr,
             &cookfsFilesystem);
         if (internalRep != NULL) {
-            *objPtrRef = CookfsGetVfsObjectCmd(internalRep->vfs);
+            *objPtrRef = CookfsGetVfsObjectCmd(interp, internalRep->vfs);
             CookfsLog(printf("CookfsFileAttrsGet: return value for -handle"));
             return TCL_OK;
         }

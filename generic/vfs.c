@@ -291,10 +291,49 @@ void Cookfs_VfsSetReadonly(Cookfs_Vfs *vfs, int status) {
     return;
 }
 
-Tcl_Obj *CookfsGetVfsObjectCmd(Cookfs_Vfs *vfs) {
+Tcl_Obj *CookfsGetVfsObjectCmd(Tcl_Interp* interp, Cookfs_Vfs *vfs) {
+    CookfsLog(printf("CookfsGetVfsObjectCmd: enter interp:%p my interp:%p",
+        (void *)interp, (void *)vfs->interp));
     Tcl_Obj *rc = Tcl_NewObj();
     if (vfs->commandToken != NULL) {
         Tcl_GetCommandFullName(vfs->interp, vfs->commandToken, rc);
+        if (interp == vfs->interp) {
+            goto done;
+        }
+        const char *cmd = Tcl_GetString(rc);
+        if (Tcl_GetAliasObj(interp, cmd, NULL, NULL, NULL, NULL) == TCL_OK) {
+            CookfsLog(printf("CookfsGetVfsObjectCmd: alias already exists"));
+            goto done;
+        }
+        CookfsLog(printf("CookfsGetVfsObjectCmd: create interp alias"));
+        Tcl_CreateAlias(interp, cmd, vfs->interp, cmd, 0, NULL);
+        // Create aliases for pages/fsindex commands as well. This is necessary
+        // for correct operation of getpages/getindex subcommands. When mount
+        // handler is called via an alias, it gets its own interp as a parameter.
+        // I.e. when it tries to provide command names for pages/fsindex,
+        // it provides them in own interp. There is no way to know that mount
+        // handler was invoked via interp alias. Thus, we will create
+        // pages/fsindex aliases right now.
+        Tcl_Obj *tmp;
+        if (vfs->pages != NULL) {
+            tmp = CookfsGetPagesObjectCmd(interp, vfs->pages);
+            // Release the temporary object
+            if (tmp != NULL) {
+                Tcl_IncrRefCount(tmp);
+                Tcl_DecrRefCount(tmp);
+            }
+        }
+        tmp = CookfsGetFsindexObjectCmd(interp, vfs->index);
+        // Release the temporary object
+        if (tmp != NULL) {
+            Tcl_IncrRefCount(tmp);
+            Tcl_DecrRefCount(tmp);
+        }
+done:
+        CookfsLog(printf("CookfsGetVfsObjectCmd: return [%s]",
+            Tcl_GetString(rc)));
+    } else {
+        CookfsLog(printf("CookfsGetVfsObjectCmd: return empty result"));
     }
     return rc;
 }

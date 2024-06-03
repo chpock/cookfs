@@ -339,12 +339,12 @@ Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName)
  *----------------------------------------------------------------------
  */
 
-Cookfs_Fsindex *Cookfs_FsindexInit(Cookfs_Fsindex *i) {
+Cookfs_Fsindex *Cookfs_FsindexInit(Tcl_Interp *interp, Cookfs_Fsindex *i) {
     Cookfs_Fsindex *rc;
     if (i == NULL) {
         rc = (Cookfs_Fsindex *) ckalloc(sizeof(Cookfs_Fsindex));
         rc->commandToken = NULL;
-        rc->interp = NULL;
+        rc->interp = interp;
         rc->isDead = 0;
         rc->isLocked = 0;
     } else {
