@@ -998,4 +998,4 @@ if { ![llength [info commands cookfs::pages]] } {
     interp alias {} cookfs::pages {} cookfs::tcl::pages
 }
 
-package provide cookfs::tcl::pages 1.6.0
+package provide cookfs::tcl::pages 1.7.0

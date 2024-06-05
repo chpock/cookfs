@@ -53,5 +53,5 @@ proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
     error "Usage: ::cookfs::pkgconfig list|get paramName"
 }
 
-package provide cookfs::tcl::pkgconfig 1.6.0
+package provide cookfs::tcl::pkgconfig 1.7.0
 

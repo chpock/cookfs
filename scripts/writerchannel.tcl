@@ -65,4 +65,4 @@ proc cookfs::tcl::writerchannel::onClose {fsid path chan} {
     $fs(writer) write $path channel $chan ""
 }
 
-package provide cookfs::tcl::writerchannel 1.6.0
+package provide cookfs::tcl::writerchannel 1.7.0

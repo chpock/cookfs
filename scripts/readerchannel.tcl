@@ -158,4 +158,4 @@ proc cookfs::tcl::readerchannel::handler {fsid chid command args} {
     }
 }
 
-package provide cookfs::tcl::readerchannel 1.6.0
+package provide cookfs::tcl::readerchannel 1.7.0
