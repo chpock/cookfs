@@ -1,3 +1,6 @@
+2024-06-06 Konstantin Kushnir <chpock@gmail.com>
+	* RELEASE TAG 1.6.0
+
 2024-06-03 Konstantin Kushnir <chpock@gmail.com>
 	* Provide proper operation between interps for c-vfs
 	* Fix a bug with unmounting volumes
