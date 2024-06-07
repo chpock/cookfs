@@ -129,7 +129,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
         return NULL;
     }
 
-    Tcl_Obj *blockObj = NULL;
+    Cookfs_PageObj blockObj = NULL;
 
     if (Cookfs_CreateWriterchannelCreate(instData, interp) != TCL_OK) {
         CookfsLog(printf("Cookfs_CreateWriterchannel: "
@@ -201,8 +201,9 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
                 goto error;
             }
 
-            Tcl_IncrRefCount(blockObj);
-            blockBuffer = (char *)Tcl_GetByteArrayFromObj(blockObj, &blockSize);
+            Cookfs_PageObjIncrRefCount(blockObj);
+            blockSize = Cookfs_PageObjSize(blockObj);
+            blockBuffer = (const char *)blockObj;
 
         }
 
@@ -232,7 +233,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
 
         // We don't need the blockObj object anymore
         if (blockObj != NULL) {
-            Tcl_DecrRefCount(blockObj);
+            Cookfs_PageObjDecrRefCount(blockObj);
             blockObj = NULL;
         }
 
@@ -252,7 +253,7 @@ done:
 error:
 
     if (blockObj != NULL) {
-        Tcl_DecrRefCount(blockObj);
+        Cookfs_PageObjDecrRefCount(blockObj);
     }
 
     if (instData != NULL) {

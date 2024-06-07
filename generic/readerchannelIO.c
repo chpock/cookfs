@@ -32,8 +32,6 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
     int bytesLeft;
     int blockLeft;
     int blockRead;
-    char *pageBuf;
-    Tcl_Size pageBufSize;
 
     CookfsLog(printf("Cookfs_Readerchannel_Input: ===> read %d, current offset: %"
         TCL_LL_MODIFIER "d", bufSize, instData->currentOffset))
@@ -72,7 +70,7 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 		    " the previously retrieved page index#%d", pageIndex));
 		goto gotPage;
 	    }
-	    Tcl_DecrRefCount(instData->cachedPageObj);
+	    Cookfs_PageObjDecrRefCount(instData->cachedPageObj);
 	}
 
 	CookfsLog(printf("Cookfs_Readerchannel_Input: reading page index#%d", pageIndex));
@@ -96,8 +94,7 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	    instData->firstTimeRead = 0;
 	}
 	instData->cachedPageObj = Cookfs_PageGet(instData->pages, pageIndex, pageWeight);
-	// No need to increase refcount on retrieved page, it already has refcount=1
-	// after Cookfs_PageGet().
+	Cookfs_PageObjIncrRefCount(instData->cachedPageObj);
 	CookfsLog(printf("Cookfs_Readerchannel_Input: got the page: %p",
 	    (void *)instData->cachedPageObj))
 	if (instData->cachedPageObj == NULL) {
@@ -107,14 +104,12 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 
 gotPage:
 
-	pageBuf = (char *) Tcl_GetByteArrayFromObj(instData->cachedPageObj, &pageBufSize);
-
 	CookfsLog(printf("Cookfs_Readerchannel_Input: copying %d+%d", instData->buf[instData->currentBlock + 1], instData->currentBlockOffset))
 	// validate enough data is available in the buffer
-	if (pageBufSize < (instData->buf[instData->currentBlock + 1] + instData->currentBlockOffset + blockRead)) {
+	if (Cookfs_PageObjSize(instData->cachedPageObj) < (instData->buf[instData->currentBlock + 1] + instData->currentBlockOffset + blockRead)) {
 	    goto error;
 	}
-	memcpy(buf + bytesRead, pageBuf + instData->buf[instData->currentBlock + 1] + instData->currentBlockOffset, blockRead);
+	memcpy(buf + bytesRead, instData->cachedPageObj + instData->buf[instData->currentBlock + 1] + instData->currentBlockOffset, blockRead);
 	instData->currentBlockOffset += blockRead;
 	bytesRead += blockRead;
 	instData->currentOffset += blockRead;
@@ -124,7 +119,7 @@ gotPage:
 	// it anymore and can release it.
 	if (instData->currentBlockOffset == instData->buf[instData->currentBlock + 2]) {
 	    CookfsLog(printf("Cookfs_Readerchannel_Input: release the page"));
-	    Tcl_DecrRefCount(instData->cachedPageObj);
+	    Cookfs_PageObjDecrRefCount(instData->cachedPageObj);
 	    instData->cachedPageObj = NULL;
 	} else {
 	    CookfsLog(printf("Cookfs_Readerchannel_Input: keep the page"));

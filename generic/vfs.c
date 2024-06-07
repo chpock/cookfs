@@ -122,18 +122,18 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
 
     // If we are here, then we need to store index
     CookfsLog(printf("Cookfs_VfsFini: dump index..."));
-    Tcl_Obj *exportObj = Cookfs_FsindexToObject(vfs->index);
+    Cookfs_PageObj exportObj = Cookfs_FsindexToPageObj(vfs->index);
     if (exportObj == NULL) {
         CookfsLog(printf("Cookfs_VfsFini: failed to get index dump"));
         Tcl_SetObjResult(interp, Tcl_NewStringObj("unable to get index"
             " dump", -1));
         return TCL_ERROR;
     }
-    Tcl_IncrRefCount(exportObj);
+    Cookfs_PageObjIncrRefCount(exportObj);
 
     CookfsLog(printf("Cookfs_VfsFini: store index..."));
     Cookfs_PagesSetIndex(vfs->pages, exportObj);
-    Tcl_DecrRefCount(exportObj);
+    Cookfs_PageObjDecrRefCount(exportObj);
 
 skipSavingIndex:
 

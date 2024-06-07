@@ -27,7 +27,7 @@ typedef struct Cookfs_ReaderChannelInstData {
     int currentBlockOffset;
     int firstTimeRead;
 
-    Tcl_Obj *cachedPageObj;
+    Cookfs_PageObj cachedPageObj;
     int cachedPageNum;
 
     int bufSize;

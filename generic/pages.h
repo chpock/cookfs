@@ -51,7 +51,7 @@ typedef struct Cookfs_CacheEntry {
     int pageIdx;
     int weight;
     int age;
-    Tcl_Obj *pageObj;
+    Cookfs_PageObj pageObj;
 } Cookfs_CacheEntry;
 
 typedef struct Cookfs_Pages {
@@ -95,7 +95,7 @@ typedef struct Cookfs_Pages {
     int dataPagesDataSize;
     int *dataPagesSize;
     unsigned char *dataPagesMD5;
-    Tcl_Obj *dataIndex;
+    Cookfs_PageObj dataIndex;
     int dataPagesIsAside;
     struct Cookfs_Pages *dataAsidePages;
 
@@ -135,10 +135,11 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p);
 Tcl_WideInt Cookfs_GetFilesize(Cookfs_Pages *p);
 void Cookfs_PagesFini(Cookfs_Pages *p);
 int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength);
-int Cookfs_PageAdd(Cookfs_Pages *p, Tcl_Obj *dataObj);
-Tcl_Obj *Cookfs_PageGet(Cookfs_Pages *p, int index, int weight);
-Tcl_Obj *Cookfs_PageCacheGet(Cookfs_Pages *p, int index, int update, int weight);
-void Cookfs_PageCacheSet(Cookfs_Pages *p, int idx, Tcl_Obj *obj, int weight);
+int Cookfs_PageAdd(Cookfs_Pages *p, Cookfs_PageObj dataObj);
+int Cookfs_PageAddTclObj(Cookfs_Pages *p, Tcl_Obj *dataObj);
+Cookfs_PageObj Cookfs_PageGet(Cookfs_Pages *p, int index, int weight);
+Cookfs_PageObj Cookfs_PageCacheGet(Cookfs_Pages *p, int index, int update, int weight);
+void Cookfs_PageCacheSet(Cookfs_Pages *p, int idx, Cookfs_PageObj obj, int weight);
 Tcl_Obj *Cookfs_PageGetHead(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetHeadMD5(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p);
@@ -157,8 +158,8 @@ int Cookfs_PagesIsReadonly(Cookfs_Pages *p);
 
 void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside);
 
-void Cookfs_PagesSetIndex(Cookfs_Pages *p, Tcl_Obj *dataIndex);
-Tcl_Obj *Cookfs_PagesGetIndex(Cookfs_Pages *p);
+void Cookfs_PagesSetIndex(Cookfs_Pages *p, Cookfs_PageObj dataIndex);
+Cookfs_PageObj Cookfs_PagesGetIndex(Cookfs_Pages *p);
 
 Tcl_WideInt Cookfs_PagesGetPageOffset(Cookfs_Pages *p, int idx);
 

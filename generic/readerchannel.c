@@ -170,7 +170,7 @@ void Cookfs_CreateReaderchannelFree(Cookfs_ReaderChannelInstData *instData) {
         instData->event = NULL;
     }
     if (instData->cachedPageObj != NULL) {
-        Tcl_DecrRefCount(instData->cachedPageObj);
+        Cookfs_PageObjDecrRefCount(instData->cachedPageObj);
     }
     ckfree((void *) instData);
 }

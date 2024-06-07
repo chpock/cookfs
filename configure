@@ -8729,7 +8729,7 @@ if test ${USECPAGES} = yes; then
     COOKFS_PKGCONFIG_USECPAGES=1
     COOKFS_PKGCONFIG_FEATURE_ASIDE=1
 
-    vars="pages.c pagesCompr.c pagesCmd.c"
+    vars="pageObj.c pages.c pagesCompr.c pagesCmd.c"
     for i in $vars; do
 	case $i in
 	    \$*)
@@ -8805,6 +8805,9 @@ if test ${USECPAGES} = yes; then
         printf "%s\n" "#define COOKFS_USEBZ2 1" >>confdefs.h
 
         COOKFS_PKGCONFIG_USEBZ2=1
+        # This is required to compile bz2 sources.
+        # See: https://github.com/Perl/perl5/issues/17528
+        #TEA_ADD_CFLAGS([-Wno-implicit-fallthrough])
     else
         COOKFS_PKGCONFIG_USEBZ2=0
     fi
