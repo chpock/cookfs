@@ -35,6 +35,8 @@ static int CookfsFsindexImportMetadata(Cookfs_Fsindex *fsIndex, unsigned char *b
  *  subdirectories are inlined completely and recursively
  */
 
+#ifdef COOKFS_USECPAGES
+
 Cookfs_PageObj Cookfs_FsindexToPageObj(Cookfs_Fsindex *fsindex) {
     Cookfs_PageObj rc;
     Tcl_Obj *obj = Cookfs_FsindexToObject(fsindex);
@@ -47,6 +49,8 @@ Cookfs_PageObj Cookfs_FsindexToPageObj(Cookfs_Fsindex *fsindex) {
     }
     return rc;
 }
+
+#endif /* COOKFS_USECPAGES */
 
 /*
  *----------------------------------------------------------------------
@@ -151,6 +155,10 @@ Cookfs_Fsindex *Cookfs_FsindexFromPages(Tcl_Interp *interp, Cookfs_Fsindex *fsin
     return rc;
 }
 
+Cookfs_Fsindex *Cookfs_FsindexFromPageObj(Tcl_Interp *interp, Cookfs_Fsindex *fsindex, Cookfs_PageObj o) {
+    return Cookfs_FsindexFromBytes(interp, fsindex, o, Cookfs_PageObjSize(o));
+}
+
 #endif /* COOKFS_USECPAGES */
 
 Cookfs_Fsindex *Cookfs_FsindexFromTclObj(Tcl_Interp *interp, Cookfs_Fsindex *fsindex, Tcl_Obj *o) {
@@ -158,10 +166,6 @@ Cookfs_Fsindex *Cookfs_FsindexFromTclObj(Tcl_Interp *interp, Cookfs_Fsindex *fsi
     unsigned char *bytes = Tcl_GetByteArrayFromObj(o, &size);
     return Cookfs_FsindexFromBytes(interp, fsindex, bytes, size);
 
-}
-
-Cookfs_Fsindex *Cookfs_FsindexFromPageObj(Tcl_Interp *interp, Cookfs_Fsindex *fsindex, Cookfs_PageObj o) {
-    return Cookfs_FsindexFromBytes(interp, fsindex, o, Cookfs_PageObjSize(o));
 }
 
 /*
