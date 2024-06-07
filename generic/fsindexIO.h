@@ -7,8 +7,11 @@
 #ifdef COOKFS_USECFSINDEX
 
 Tcl_Obj *Cookfs_FsindexToObject(Cookfs_Fsindex *fsindex);
-Cookfs_Fsindex *Cookfs_FsindexFromObject(Tcl_Interp *interp, Cookfs_Fsindex *fsindex, Tcl_Obj *o);
+Cookfs_Fsindex *Cookfs_FsindexFromBytes(Tcl_Interp *interp, Cookfs_Fsindex *fsindex, unsigned char *bytes, Tcl_Size size);
+Cookfs_Fsindex *Cookfs_FsindexFromTclObj(Tcl_Interp *interp, Cookfs_Fsindex *fsindex, Tcl_Obj *o);
 #ifdef COOKFS_USECPAGES
+Cookfs_PageObj Cookfs_FsindexToPageObj(Cookfs_Fsindex *fsindex);
+Cookfs_Fsindex *Cookfs_FsindexFromPageObj(Tcl_Interp *interp, Cookfs_Fsindex *fsindex, Cookfs_PageObj o);
 Cookfs_Fsindex *Cookfs_FsindexFromPages(Tcl_Interp *interp, Cookfs_Fsindex *fsindex, Cookfs_Pages *pages);
 #endif /* COOKFS_USECPAGES */
 

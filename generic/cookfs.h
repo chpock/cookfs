@@ -53,6 +53,7 @@
 #include "hashes.h"
 
 #ifdef COOKFS_USECPAGES
+#include "pageObj.h"
 #include "pages.h"
 #include "pagesCmd.h"
 #include "pagesCompr.h"

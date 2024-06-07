@@ -375,7 +375,9 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 Tcl_WrongNumArgs(interp, 2, objv, "data");
                 return TCL_ERROR;
             }
-            idx = Cookfs_PageAdd(p, objv[2]);
+            Tcl_Size size;
+            unsigned char *bytes = Tcl_GetByteArrayFromObj(objv[2], &size);
+            idx = Cookfs_PageAddRaw(p, bytes, size);
             if (idx < 0) {
                 Tcl_Obj *err = Cookfs_PagesGetLastError(p);
                 if (err == NULL) {
@@ -410,16 +412,23 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             if (Tcl_GetIntFromObj(interp, objv[objc-1], &idx) != TCL_OK) {
                 return TCL_ERROR;
             }
-            rc = Cookfs_PageGet(p, idx, weight);
+            Cookfs_PageObj data = Cookfs_PageGet(p, idx, weight);
+            CookfsLog(printf("cmdGet data [%s]", data == NULL ? "NULL" : "SET"))
+            if (data != NULL) {
+                Cookfs_PageObjIncrRefCount(data);
+                rc = Cookfs_PageObjCopyAsByteArray(data);
+                Cookfs_PageObjDecrRefCount(data);
+            } else {
+                rc = NULL;
+            }
+            // Check rc here again as conversion PageObj->ByteArray may fail
+            // due to OOM.
             CookfsLog(printf("cmdGet [%s]", rc == NULL ? "NULL" : "SET"))
             if (rc == NULL) {
                 Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve chunk", -1));
                 return TCL_ERROR;
             }  else  {
                 Tcl_SetObjResult(interp, rc);
-                // Cookfs_PageGet always returns a page with refcount=1. We need
-                // to decrease refcount now.
-                Tcl_DecrRefCount(rc);
             }
             break;
         }
@@ -497,10 +506,27 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
         }
         case cmdIndex:
         {
+            Cookfs_PageObj data;
             if (objc == 3) {
-                Cookfs_PagesSetIndex(p, objv[2]);
+                data = Cookfs_PageObjNewFromByteArray(objv[2]);
+                Cookfs_PageObjIncrRefCount(data);
+                Cookfs_PagesSetIndex(p, data);
+                Cookfs_PageObjDecrRefCount(data);
             }
-            Tcl_SetObjResult(interp, Cookfs_PagesGetIndex(p));
+            data = Cookfs_PagesGetIndex(p);
+            if (data == NULL) {
+                Tcl_SetObjResult(interp, Tcl_NewObj());
+            } else {
+                Cookfs_PageObjIncrRefCount(data);
+                Tcl_Obj *rc = Cookfs_PageObjCopyAsByteArray(data);
+                Cookfs_PageObjDecrRefCount(data);
+                if (rc == NULL) {
+                    Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to"
+                        " convert from PageObj", -1));
+                } else {
+                    Tcl_SetObjResult(interp, rc);
+                }
+            }
             break;
         }
         case cmdLength:
