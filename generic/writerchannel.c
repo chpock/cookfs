@@ -192,7 +192,9 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
                 firstTimeRead = 0;
             }
 
-            blockObj = Cookfs_PageGet(pages, block, pageWeight);
+            // TODO: pass a pointer to err variable instead of NULL and produce
+            // the corresponding error message
+            blockObj = Cookfs_PageGet(pages, block, pageWeight, NULL);
 
             // Returns an error if the pages was unable to retrieve the block
             if (blockObj == NULL) {

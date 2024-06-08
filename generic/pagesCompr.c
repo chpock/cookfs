@@ -26,13 +26,13 @@
 /* declarations of static and/or internal functions */
 static Tcl_Obj **CookfsCreateCompressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd, int *lenPtr, int additionalElements);
 static void CookfsWriteCompression(Cookfs_Pages *p, int compression);
-static Cookfs_PageObj CookfsReadPageZlib(Cookfs_Pages *p, int size);
+static Cookfs_PageObj CookfsReadPageZlib(Cookfs_Pages *p, int size, Tcl_Obj **err);
 static int CookfsWritePageZlib(Cookfs_Pages *p, unsigned char *bytes, int origSize);
-static Cookfs_PageObj CookfsReadPageBz2(Cookfs_Pages *p, int size);
+static Cookfs_PageObj CookfsReadPageBz2(Cookfs_Pages *p, int size, Tcl_Obj **err);
 static int CookfsWritePageBz2(Cookfs_Pages *p, unsigned char *bytes, int origSize);
-static Cookfs_PageObj CookfsReadPageLzma(Cookfs_Pages *p, int size);
+static Cookfs_PageObj CookfsReadPageLzma(Cookfs_Pages *p, int size, Tcl_Obj **err);
 static int CookfsWritePageLzma(Cookfs_Pages *p, unsigned char *bytes, int origSize);
-static Cookfs_PageObj CookfsReadPageCustom(Cookfs_Pages *p, int size);
+static Cookfs_PageObj CookfsReadPageCustom(Cookfs_Pages *p, int size, Tcl_Obj **err);
 static int CookfsWritePageCustom(Cookfs_Pages *p, unsigned char *bytes, int origSize);
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
 static int CookfsCheckCommandExists(Tcl_Interp *interp, const char *commandName);
@@ -365,7 +365,7 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
  *----------------------------------------------------------------------
  */
 
-Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompress, int compressionType) {
+Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompress, int compressionType, Tcl_Obj **err) {
 
     if (idx >= p->dataNumPages) {
 	return NULL;
@@ -431,13 +431,13 @@ Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompres
             }
 	    /* run proper reading functions */
             case COOKFS_COMPRESSION_ZLIB:
-		return CookfsReadPageZlib(p, size);
+		return CookfsReadPageZlib(p, size, err);
             case COOKFS_COMPRESSION_CUSTOM:
-		return CookfsReadPageCustom(p, size);
+		return CookfsReadPageCustom(p, size, err);
             case COOKFS_COMPRESSION_BZ2:
-		return CookfsReadPageBz2(p, size);
+		return CookfsReadPageBz2(p, size, err);
             case COOKFS_COMPRESSION_LZMA:
-		return CookfsReadPageLzma(p, size);
+		return CookfsReadPageLzma(p, size, err);
         }
     }
     return NULL;
@@ -787,7 +787,8 @@ int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
 	}
 
 	CookfsLog(printf("Cookfs_AsyncPagePreload: Reading page %d for async decompress", idx))
-	Cookfs_PageObj dataPageObj = Cookfs_ReadPage(p, idx, -1, 0, COOKFS_COMPRESSION_CUSTOM);
+	// TODO: do something with possible error message
+	Cookfs_PageObj dataPageObj = Cookfs_ReadPage(p, idx, -1, 0, COOKFS_COMPRESSION_CUSTOM, NULL);
 	if (dataPageObj == NULL) {
 	    CookfsLog(printf("Cookfs_AsyncPagePreload: ERROR: Cookfs_ReadPage returned NULL, return 1"));
 	    return 1;
@@ -1007,7 +1008,8 @@ static Tcl_Obj **CookfsCreateCompressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd
  *----------------------------------------------------------------------
  */
 
-static Cookfs_PageObj CookfsReadPageZlib(Cookfs_Pages *p, int size) {
+static Cookfs_PageObj CookfsReadPageZlib(Cookfs_Pages *p, int size, Tcl_Obj **err) {
+    UNUSED(err);
 #ifdef USE_ZLIB_TCL86
     /* use Tcl 8.6 API for decompression */
     Tcl_Obj *data;
@@ -1322,7 +1324,8 @@ static int CookfsWritePageLzma(Cookfs_Pages *p, unsigned char *bytes, int origSi
  *----------------------------------------------------------------------
  */
 
-static Cookfs_PageObj CookfsReadPageLzma(Cookfs_Pages *p, int size) {
+static Cookfs_PageObj CookfsReadPageLzma(Cookfs_Pages *p, int size, Tcl_Obj **err) {
+    UNUSED(err);
 #ifdef COOKFS_USELZMA
 
     CookfsLog(printf("CookfsReadPageLzma: start. Want to read %d bytes.", size));
@@ -1419,7 +1422,8 @@ static Cookfs_PageObj CookfsReadPageLzma(Cookfs_Pages *p, int size) {
  *----------------------------------------------------------------------
  */
 
-static Cookfs_PageObj CookfsReadPageBz2(Cookfs_Pages *p, int size) {
+static Cookfs_PageObj CookfsReadPageBz2(Cookfs_Pages *p, int size, Tcl_Obj **err) {
+    UNUSED(err);
 #ifdef COOKFS_USEBZ2
     int destSize;
     int count;
@@ -1545,7 +1549,7 @@ static int CookfsWritePageBz2(Cookfs_Pages *p, unsigned char *bytes, int origSiz
  *----------------------------------------------------------------------
  */
 
-static Cookfs_PageObj CookfsReadPageCustom(Cookfs_Pages *p, int size) {
+static Cookfs_PageObj CookfsReadPageCustom(Cookfs_Pages *p, int size, Tcl_Obj **err) {
     /* use vfs::zip command for decompression */
     Tcl_Obj *prevResult;
     Tcl_Obj *compressed;
@@ -1553,7 +1557,7 @@ static Cookfs_PageObj CookfsReadPageCustom(Cookfs_Pages *p, int size) {
     int count;
 
     if (p->decompressCommandPtr == NULL) {
-        Cookfs_PagesSetLastError(p, "No decompresscommand specified");
+        SET_ERROR_STR("No decompresscommand specified");
 	return NULL;
     }
 

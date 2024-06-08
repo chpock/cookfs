@@ -94,7 +94,9 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
 
     // Let's purge writer first
     CookfsLog(printf("Cookfs_VfsFini: purge writer..."));
-    if (Cookfs_WriterPurge(vfs->writer) != TCL_OK) {
+    // TODO: pass a pointer to err variable instead of NULL and handle
+    // the corresponding error message
+    if (Cookfs_WriterPurge(vfs->writer, NULL) != TCL_OK) {
         CookfsLog(printf("Cookfs_VfsFini: return an error, writer failed"));
         return TCL_ERROR;
     }

@@ -8,26 +8,6 @@
 
 #include "cookfs.h"
 
-static void Cookfs_WriterSetLastErrorObj(Cookfs_Writer *w, Tcl_Obj *msg) {
-    if (w->lastErrorObj != NULL) {
-        Tcl_DecrRefCount(w->lastErrorObj);
-    }
-    if (msg == NULL) {
-        w->lastErrorObj = NULL;
-    } else {
-        w->lastErrorObj = msg;
-        Tcl_IncrRefCount(w->lastErrorObj);
-    }
-}
-
-static void Cookfs_WriterSetLastError(Cookfs_Writer *w, const char *msg) {
-    Cookfs_WriterSetLastErrorObj(w, Tcl_NewStringObj(msg, -1));
-}
-
-Tcl_Obj *Cookfs_WriterGetLastError(Cookfs_Writer *w) {
-    return w->lastErrorObj;
-}
-
 static Cookfs_WriterBuffer *Cookfs_WriterWriterBufferAlloc(Tcl_Obj *pathObj,
     Tcl_WideInt mtime)
 {
@@ -92,7 +72,6 @@ Cookfs_Writer *Cookfs_WriterInit(Tcl_Interp* interp,
         return NULL;
     }
 
-    w->lastErrorObj = NULL;
     w->commandToken = NULL;
     w->interp = interp;
     w->fatalError = 0;
@@ -148,17 +127,13 @@ void Cookfs_WriterFini(Cookfs_Writer *w) {
 
     CookfsLog(printf("Cookfs_WriterFini: free all"));
 
-    if (w->lastErrorObj != NULL) {
-        Tcl_DecrRefCount(w->lastErrorObj);
-    }
-
     ckfree(w);
 
     return;
 }
 
 int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w, Tcl_Obj *pathObj,
-    Tcl_WideInt mtime, void *buffer, Tcl_WideInt bufferSize)
+    Tcl_WideInt mtime, void *buffer, Tcl_WideInt bufferSize, Tcl_Obj **err)
 {
     CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: add buf [%p],"
         " size: %" TCL_LL_MODIFIER "d", buffer, bufferSize));
@@ -169,7 +144,7 @@ int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w, Tcl_Obj *pathObj,
     if (wb == NULL) {
         CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: failed to"
             " alloc"));
-        Cookfs_WriterSetLastError(w, "failed to alloc WriterBuffer");
+        SET_ERROR_STR("failed to alloc WriterBuffer");
         return TCL_ERROR;
     }
 
@@ -179,7 +154,7 @@ int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w, Tcl_Obj *pathObj,
     if (wb->entry == NULL) {
         CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: failed to create"
             " the entry"));
-        Cookfs_WriterSetLastError(w, "Unable to create entry");
+        SET_ERROR_STR("Unable to create entry");
         Cookfs_WriterWriterBufferFree(wb);
         return TCL_ERROR;
     }
@@ -288,7 +263,8 @@ int Cookfs_WriterRemoveFile(Cookfs_Writer *w, Cookfs_FsindexEntry *entry) {
 #define DATA_OBJECT  (Tcl_Obj *)data
 
 int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
-    Cookfs_WriterDataSource dataType, void *data, Tcl_WideInt dataSize)
+    Cookfs_WriterDataSource dataType, void *data, Tcl_WideInt dataSize,
+    Tcl_Obj **err)
 {
     CookfsLog(printf("Cookfs_WriterAddFile: enter [%p] [%s] size: %"
         TCL_LL_MODIFIER "d", data,
@@ -301,8 +277,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
     // Check if a fatal error has occurred previously
     if (w->fatalError) {
         CookfsLog(printf("Cookfs_WriterAddFile: ERROR: writer in a fatal"
-            " error state: [%s]",
-            Tcl_GetString(Cookfs_WriterGetLastError(w))));
+            " error state"));
         return TCL_ERROR;
     }
 
@@ -344,7 +319,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
 
         Tcl_StatBuf *sb = Tcl_AllocStatBuf();
         if (sb == NULL) {
-            Cookfs_WriterSetLastError(w, "could not alloc statbuf");
+            SET_ERROR_STR("could not alloc statbuf");
             return TCL_ERROR;
         }
 
@@ -353,7 +328,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
         if (Tcl_FSStat(DATA_FILE, sb) != TCL_OK) {
             CookfsLog(printf("Cookfs_WriterAddFile: failed, return error"));
             ckfree(sb);
-            Cookfs_WriterSetLastError(w, "could get stat for the file");
+            SET_ERROR_STR("could get stat for the file");
             return TCL_ERROR;
         }
 
@@ -375,7 +350,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
         data = (void *)Tcl_FSOpenFileChannel(NULL, DATA_FILE, "rb", 0);
         if (data == NULL) {
             CookfsLog(printf("Cookfs_WriterAddFile: failed to open the file"));
-            Cookfs_WriterSetLastError(w, "could not open the file");
+            SET_ERROR_STR("could not open the file");
             return TCL_ERROR;
         }
 
@@ -448,7 +423,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
         if (entry == NULL) {
             CookfsLog(printf("Cookfs_WriterAddFile: failed to create"
                 " the entry"));
-            Cookfs_WriterSetLastError(w, "Unable to create entry");
+            SET_ERROR_STR("Unable to create entry");
             goto error;
         }
         // Set entry block information
@@ -473,7 +448,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
             if (readBuffer == NULL) {
                 CookfsLog(printf("Cookfs_WriterAddFile: failed to alloc"
                     " buffer"));
-                Cookfs_WriterSetLastError(w, "failed to alloc buffer");
+                SET_ERROR_STR("failed to alloc buffer");
                 goto error;
             }
 
@@ -491,8 +466,8 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
                 if (readSize < dataSize) {
                     CookfsLog(printf("Cookfs_WriterAddFile: ERROR: got less"
                         " bytes than required"));
-                    Cookfs_WriterSetLastError(w, "could not read specified"
-                        " amount of bytes from the file");
+                    SET_ERROR_STR("could not read specified amount of bytes"
+                        " from the file");
                     goto error;
                 }
 
@@ -503,7 +478,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
         CookfsLog(printf("Cookfs_WriterAddFile: add to small file buf..."));
         int ret = Cookfs_WriterAddBufferToSmallFiles(w, pathObj, mtime,
             (dataType == COOKFS_WRITER_SOURCE_BUFFER ? data : readBuffer),
-            dataSize);
+            dataSize, err);
         if (ret != TCL_OK) {
             goto error;
         }
@@ -514,7 +489,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
 
         if (!w->isWriteToMemory && (w->bufferSize >= w->maxBufferSize)) {
             CookfsLog(printf("Cookfs_WriterAddFile: need to purge"));
-            result = Cookfs_WriterPurge(w);
+            result = Cookfs_WriterPurge(w, err);
         } else {
             CookfsLog(printf("Cookfs_WriterAddFile: no need to purge"));
         }
@@ -530,7 +505,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
             readBuffer = ckalloc(w->pageSize);
             if (readBuffer == NULL) {
                 CookfsLog(printf("Cookfs_WriterAddFile: failed to alloc"));
-                Cookfs_WriterSetLastError(w, "failed to alloc buffer");
+                SET_ERROR_STR("failed to alloc buffer");
                 goto error;
             }
         }
@@ -548,7 +523,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
         if (entry == NULL) {
             CookfsLog(printf("Cookfs_WriterAddFile: failed to create"
                 " the entry"));
-            Cookfs_WriterSetLastError(w, "Unable to create entry");
+            SET_ERROR_STR("Unable to create entry");
             goto error;
         }
         Cookfs_FsindexUpdateEntryFileSize(entry, dataSize);
@@ -577,24 +552,27 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
                 if (readSize < bytesToWrite) {
                     CookfsLog(printf("Cookfs_WriterAddFile: ERROR: got less"
                         " bytes than required"));
-                    Cookfs_WriterSetLastError(w, "could not read specified"
-                        " amount of bytes from the file");
+                    SET_ERROR_STR("could not read specified amount of bytes"
+                        " from the file");
                     goto error;
                 }
             }
 
             // Try to add page
             CookfsLog(printf("Cookfs_WriterAddFile: add page..."));
+            Tcl_Obj *pgerr = NULL;
             int block = Cookfs_PageAddRaw(w->pages,
                 (readBuffer == NULL ?
-                (char *)data + currentOffset : readBuffer), bytesToWrite);
+                (char *)data + currentOffset : readBuffer), bytesToWrite, &pgerr);
             CookfsLog(printf("Cookfs_WriterAddFile: got block index: %d", block));
 
             if (block < 0) {
-                Tcl_Obj *err = Cookfs_PagesGetLastError(w->pages);
-                Cookfs_WriterSetLastErrorObj(w, Tcl_ObjPrintf("error while adding"
-                    " page: %s",
-                    (err == NULL ? "unknown error" : Tcl_GetString(err))));
+                SET_ERROR(Tcl_ObjPrintf("error while adding page: %s",
+                    (pgerr == NULL ? "unknown error" : Tcl_GetString(pgerr))));
+                if (pgerr != NULL) {
+                    Tcl_IncrRefCount(pgerr);
+                    Tcl_DecrRefCount(pgerr);
+                }
                 w->fatalError = 1;
                 goto error;
             }
@@ -671,7 +649,7 @@ static int Cookfs_WriterPurgeSortFunc(const void *a, const void *b) {
     return strcmp(wba->sortKeyStr, wbb->sortKeyStr);
 }
 
-int Cookfs_WriterPurge(Cookfs_Writer *w) {
+int Cookfs_WriterPurge(Cookfs_Writer *w, Tcl_Obj **err) {
 
     CookfsLog(printf("Cookfs_WriterPurge: enter [%p]", (void *)w));
     if (w->bufferCount == 0) {
@@ -718,7 +696,7 @@ int Cookfs_WriterPurge(Cookfs_Writer *w) {
     sortedWB = ckalloc(w->bufferCount * sizeof(Cookfs_WriterBuffer *));
     if (sortedWB == NULL) {
         CookfsLog(printf("Cookfs_WriterPurge: unable to alloc sortedWB"));
-        Cookfs_WriterSetLastError(w, "failed to alloc sortedWB");
+        SET_ERROR_STR("failed to alloc sortedWB");
         goto fatalError;
     }
 
@@ -975,15 +953,20 @@ next:
         // Try to add page if we need to save something from pageBuffer
         if (pageBufferSize) {
             CookfsLog(printf("Cookfs_WriterPurge: add page..."));
-            pageBlock = Cookfs_PageAddRaw(w->pages, pageBuffer, pageBufferSize);
+            Tcl_Obj *pgerr;
+            pageBlock = Cookfs_PageAddRaw(w->pages, pageBuffer, pageBufferSize,
+                &pgerr);
             CookfsLog(printf("Cookfs_WriterPurge: got block index: %d",
                 pageBlock));
 
             if (pageBlock < 0) {
-                Tcl_Obj *err = Cookfs_PagesGetLastError(w->pages);
-                Cookfs_WriterSetLastErrorObj(w, Tcl_ObjPrintf("error while adding"
-                    " page of small files: %s",
-                    (err == NULL ? "unknown error" : Tcl_GetString(err))));
+                SET_ERROR(Tcl_ObjPrintf("error while adding page of small"
+                    " files: %s", (pgerr == NULL ? "unknown error" :
+                    Tcl_GetString(pgerr))));
+                if (pgerr != NULL) {
+                    Tcl_IncrRefCount(pgerr);
+                    Tcl_DecrRefCount(pgerr);
+                }
                 goto fatalError;
             }
             // Reduce size by already saved buffers size
@@ -1038,7 +1021,7 @@ skipAll:
 
 fatalErrorCantHappened:
 
-    Cookfs_WriterSetLastError(w, "this case doesn't have to happen");
+    SET_ERROR_STR("this case doesn't have to happen");
 
 fatalError:
 

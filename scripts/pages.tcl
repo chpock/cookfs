@@ -874,7 +874,7 @@ proc cookfs::tcl::pages::handle {name cmd args} {
                 pageGet $name [lindex $args end] $weight
             } rc]} {
                 ::cookfs::debug {pageGet error: $::errorInfo}
-                error "Unable to retrieve chunk"
+                error "Unable to retrieve chunk: $rc"
             }
             return $rc
         }

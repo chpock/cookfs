@@ -173,15 +173,16 @@ void Cookfs_Writerchannel_CloseHandler(ClientData clientData) {
     }
 
     CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: write file..."));
+    Tcl_Obj *err = NULL;
     if (Cookfs_WriterAddFile(instData->writer, instData->pathObj,
-        COOKFS_WRITER_SOURCE_BUFFER, instData->buffer, instData->currentSize)
-        == TCL_OK)
+        COOKFS_WRITER_SOURCE_BUFFER, instData->buffer, instData->currentSize,
+        &err) == TCL_OK)
     {
         // buffer is owned by writer now. Set to null to avoid releasing it.
         instData->buffer = NULL;
         instData->bufferSize = 0;
     } else {
-        instData->closeResult = Cookfs_WriterGetLastError(instData->writer);
+        instData->closeResult = err;
         if (instData->closeResult != NULL) {
             Tcl_IncrRefCount(instData->closeResult);
         }

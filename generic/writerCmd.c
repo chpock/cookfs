@@ -231,12 +231,12 @@ int CookfsWriterHandleCommandWrite(Cookfs_Writer *w,
             }
         }
 
+        Tcl_Obj *err = NULL;
         int ret = Cookfs_WriterAddFile(w, splitPath,
             (Cookfs_WriterDataSource)dataTypeInt, (
             (Cookfs_WriterDataSource)dataTypeInt == COOKFS_WRITER_SOURCE_CHANNEL
-            ? (void *)channel : (void *)data), dataSize);
+            ? (void *)channel : (void *)data), dataSize, &err);
         if (ret != TCL_OK) {
-            Tcl_Obj *err = Cookfs_WriterGetLastError(w);
             if (err == NULL) {
                 CookfsLog(printf("CookfsWriterHandleCommandWrite: got error"
                     " and unknown message from Cookfs_WriterAddFile()"));

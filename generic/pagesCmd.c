@@ -299,8 +299,13 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     }
 
     /* Create cookfs instance */
-    pages = Cookfs_PagesInit(interp, tobjv[1], oReadOnly, oCompression, NULL, useFoffset, foffset, 0, asyncDecompressQueueSize, compressCmd, decompressCmd, asyncCompressCmd, asyncDecompressCmd);
-
+    Tcl_Obj *err = NULL;
+    pages = Cookfs_PagesInit(interp, tobjv[1], oReadOnly, oCompression, NULL,
+        useFoffset, foffset, 0, asyncDecompressQueueSize, compressCmd,
+        decompressCmd, asyncCompressCmd, asyncDecompressCmd, &err);
+    if (err != NULL) {
+        Tcl_SetObjResult(interp, err);
+    }
     if (pages == NULL) {
         return TCL_ERROR;
     }
@@ -356,6 +361,7 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
         cmdClose, cmdDelete, cmdCachesize, cmdFilesize, cmdCompression,
         cmdGetCache, cmdTickTock
     };
+    Tcl_Obj *err = NULL;
     int idx;
     Cookfs_Pages *p = (Cookfs_Pages *) clientData;
 
@@ -377,9 +383,8 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             }
             Tcl_Size size;
             unsigned char *bytes = Tcl_GetByteArrayFromObj(objv[2], &size);
-            idx = Cookfs_PageAddRaw(p, bytes, size);
+            idx = Cookfs_PageAddRaw(p, bytes, size, &err);
             if (idx < 0) {
-                Tcl_Obj *err = Cookfs_PagesGetLastError(p);
                 if (err == NULL) {
                     err = Tcl_NewStringObj("Unable to add page", -1);
                 }
@@ -412,7 +417,7 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             if (Tcl_GetIntFromObj(interp, objv[objc-1], &idx) != TCL_OK) {
                 return TCL_ERROR;
             }
-            Cookfs_PageObj data = Cookfs_PageGet(p, idx, weight);
+            Cookfs_PageObj data = Cookfs_PageGet(p, idx, weight, &err);
             CookfsLog(printf("cmdGet data [%s]", data == NULL ? "NULL" : "SET"))
             if (data != NULL) {
                 Cookfs_PageObjIncrRefCount(data);
@@ -425,9 +430,17 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             // due to OOM.
             CookfsLog(printf("cmdGet [%s]", rc == NULL ? "NULL" : "SET"))
             if (rc == NULL) {
-                Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve chunk", -1));
+                if (err == NULL) {
+                    Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to"
+                        " retrieve chunk", -1));
+                } else {
+                    Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unable to"
+                        " retrieve chunk: %s", Tcl_GetString(err)));
+                    Tcl_IncrRefCount(err);
+                    Tcl_DecrRefCount(err);
+                }
                 return TCL_ERROR;
-            }  else  {
+            } else {
                 Tcl_SetObjResult(interp, rc);
             }
             break;
@@ -682,8 +695,12 @@ int CookfsPagesCmdAside(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_O
 
         /* TODO: copy compression objects from original pages object in aside
            operations */
+        /* TODO: pass pointer to err object instead of NULL and produce
+           the corresponding error message below if Cookfs_PagesInit()
+           failed. */
         asidePages = Cookfs_PagesInit(pages->interp, objv[2], 0,
-            pages->fileCompression, NULL, 0, 0, 1, 0, NULL, NULL, NULL, NULL);
+            pages->fileCompression, NULL, 0, 0, 1, 0, NULL, NULL, NULL, NULL,
+            NULL);
 
         if (asidePages == NULL) {
             CookfsLog(printf("Failed to create add-aside pages object"))

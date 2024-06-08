@@ -413,11 +413,14 @@ skipArchive:
         }
 
         CookfsLog(printf("Cookfs_Mount: creating the pages object"));
+        // TODO: pass a pointer to err variable instead of NULL and
+        // handle the corresponding error message
         pages = Cookfs_PagesInit(interp, archiveActual, props->readonly,
             oCompression, NULL, (props->endoffset == -1 ? 0 : 1),
             props->endoffset, 0, props->asyncdecompressqueuesize,
             props->compresscommand, props->decompresscommand,
-            props->asynccompresscommand, props->asyncdecompresscommand);
+            props->asynccompresscommand, props->asyncdecompresscommand,
+            NULL);
 
         if (pages == NULL) {
             // Ignore page creation failure for writetomemory VFS
@@ -532,12 +535,16 @@ skipPages:
                 CookfsLog(printf("Cookfs_Mount: bootstrap is empty"));
             } else {
                 CookfsLog(printf("Cookfs_Mount: add bootstrap"));
-                int idx = Cookfs_PageAddTclObj(pages, props->bootstrap);
+                Tcl_Obj *err = NULL;
+                int idx = Cookfs_PageAddTclObj(pages, props->bootstrap, &err);
                 if (idx < 0) {
-                    Tcl_Obj *err = Cookfs_PagesGetLastError(pages);
                     Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unable to add"
                         " bootstrap: %s", (err == NULL ? "unknown error" :
                         Tcl_GetString(err))));
+                    if (err != NULL) {
+                        Tcl_IncrRefCount(err);
+                        Tcl_DecrRefCount(err);
+                    }
                     goto error;
                 }
             }
@@ -1042,7 +1049,9 @@ static int CookfsMountHandleCommandAside(Cookfs_Vfs *vfs, Tcl_Interp *interp,
     }
 
     CookfsLog(printf("CookfsMountHandleCommandAside: purge writer..."));
-    if (Cookfs_WriterPurge(vfs->writer) != TCL_OK) {
+    // TODO: pass a pointer to err instead of NULL and handle the corresponding
+    // error message
+    if (Cookfs_WriterPurge(vfs->writer, NULL) != TCL_OK) {
         return TCL_ERROR;
     }
 
@@ -1109,7 +1118,9 @@ static int CookfsMountHandleCommandCompression(Cookfs_Vfs *vfs,
 
     if (objc == 3) {
         //always purge small files cache when compression changes
-        int ret = Cookfs_WriterPurge(vfs->writer);
+        // TODO: pass a pointer to err variable instead of NULL and handle
+        // the corresponding error message
+        int ret = Cookfs_WriterPurge(vfs->writer, NULL);
         if (ret != TCL_OK) {
             return ret;
         }
