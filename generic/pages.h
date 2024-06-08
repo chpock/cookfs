@@ -60,7 +60,6 @@ typedef struct Cookfs_Pages {
     int isLocked;
     Tcl_Interp *interp;
     Tcl_Command commandToken;
-    Tcl_Obj *lastErrorObj;
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
     Tcl_Obj *zipCmdCrc[2];
     Tcl_Obj *zipCmdCompress[6];
@@ -129,14 +128,20 @@ typedef struct Cookfs_Pages {
 
 Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName);
 
-Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName, int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside, int asyncDecompressQueueSize, Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand, Tcl_Obj *asyncDecompressCommand);
+Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
+    int fileReadOnly, int fileCompression, char *fileSignature,
+    int useFoffset, Tcl_WideInt foffset, int isAside,
+    int asyncDecompressQueueSize, Tcl_Obj *compressCommand,
+    Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand,
+    Tcl_Obj *asyncDecompressCommand, Tcl_Obj **err);
+
 Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p);
 Tcl_WideInt Cookfs_GetFilesize(Cookfs_Pages *p);
 void Cookfs_PagesFini(Cookfs_Pages *p);
-int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength);
-int Cookfs_PageAdd(Cookfs_Pages *p, Cookfs_PageObj dataObj);
-int Cookfs_PageAddTclObj(Cookfs_Pages *p, Tcl_Obj *dataObj);
-Cookfs_PageObj Cookfs_PageGet(Cookfs_Pages *p, int index, int weight);
+int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength, Tcl_Obj **err);
+int Cookfs_PageAdd(Cookfs_Pages *p, Cookfs_PageObj dataObj, Tcl_Obj **err);
+int Cookfs_PageAddTclObj(Cookfs_Pages *p, Tcl_Obj *dataObj, Tcl_Obj **err);
+Cookfs_PageObj Cookfs_PageGet(Cookfs_Pages *p, int index, int weight, Tcl_Obj **err);
 Cookfs_PageObj Cookfs_PageCacheGet(Cookfs_Pages *p, int index, int update, int weight);
 void Cookfs_PageCacheSet(Cookfs_Pages *p, int idx, Cookfs_PageObj obj, int weight);
 Tcl_Obj *Cookfs_PageGetHead(Cookfs_Pages *p);
@@ -165,9 +170,6 @@ Tcl_WideInt Cookfs_PagesGetPageOffset(Cookfs_Pages *p, int idx);
 int Cookfs_PagesSetMaxAge(Cookfs_Pages *p, int maxAge);
 int Cookfs_PagesTickTock(Cookfs_Pages *p);
 int Cookfs_PagesIsCached(Cookfs_Pages *p, int index);
-
-void Cookfs_PagesSetLastError(Cookfs_Pages *p, const char *msg);
-Tcl_Obj *Cookfs_PagesGetLastError(Cookfs_Pages *p);
 
 Tcl_Obj *Cookfs_PagesGetHashAsObj(Cookfs_Pages *p);
 int Cookfs_PagesSetHashByObj(Cookfs_Pages *p, Tcl_Obj *pagehash,

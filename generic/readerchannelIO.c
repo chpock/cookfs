@@ -93,13 +93,16 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	    }
 	    instData->firstTimeRead = 0;
 	}
-	instData->cachedPageObj = Cookfs_PageGet(instData->pages, pageIndex, pageWeight);
-	Cookfs_PageObjIncrRefCount(instData->cachedPageObj);
+	// TODO: pass a pointer to err variable instead of NULL and handle
+	// possible error message from Cookfs_PageGet()
+	instData->cachedPageObj = Cookfs_PageGet(instData->pages, pageIndex,
+	    pageWeight, NULL);
 	CookfsLog(printf("Cookfs_Readerchannel_Input: got the page: %p",
 	    (void *)instData->cachedPageObj))
 	if (instData->cachedPageObj == NULL) {
 	    goto error;
 	}
+	Cookfs_PageObjIncrRefCount(instData->cachedPageObj);
 	instData->cachedPageNum = pageIndex;
 
 gotPage:

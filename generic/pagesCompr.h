@@ -45,7 +45,7 @@ void Cookfs_SeekToPage(Cookfs_Pages *p, int idx);
 int Cookfs_WritePage(Cookfs_Pages *p, int idx, unsigned char *bytes, int origSize, Tcl_Obj *compressedData);
 int Cookfs_WritePageObj(Cookfs_Pages *p, int idx, Cookfs_PageObj data, Tcl_Obj *compressedData);
 int Cookfs_WriteTclObj(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compressedData);
-Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompress, int compressionType);
+Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompress, int compressionType, Tcl_Obj **err);
 Cookfs_PageObj Cookfs_AsyncPageGet(Cookfs_Pages *p, int idx);
 int Cookfs_AsyncPageAdd(Cookfs_Pages *p, int idx, unsigned char *bytes, int dataSize);
 void Cookfs_AsyncDecompressWaitIfLoading(Cookfs_Pages *p, int idx);

@@ -33,7 +33,6 @@ typedef struct Cookfs_Writer {
 
     Tcl_Interp *interp;
     Tcl_Command commandToken;
-    Tcl_Obj *lastErrorObj;
     int fatalError;
     int isDead;
 
@@ -61,16 +60,15 @@ Cookfs_Writer *Cookfs_WriterInit(Tcl_Interp* interp,
 
 void Cookfs_WriterFini(Cookfs_Writer *w);
 
-Tcl_Obj *Cookfs_WriterGetLastError(Cookfs_Writer *w);
-
-int Cookfs_WriterPurge(Cookfs_Writer *w);
+int Cookfs_WriterPurge(Cookfs_Writer *w, Tcl_Obj **err);
 
 Tcl_Obj *Cookfs_WriterGetBufferObj(Cookfs_Writer *w, int blockNumber);
 const void *Cookfs_WriterGetBuffer(Cookfs_Writer *w, int blockNumber,
     Tcl_WideInt *blockSize);
 
 int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
-    Cookfs_WriterDataSource dataType, void *data, Tcl_WideInt dataSize);
+    Cookfs_WriterDataSource dataType, void *data, Tcl_WideInt dataSize,
+    Tcl_Obj **err);
 
 int Cookfs_WriterRemoveFile(Cookfs_Writer *w, Cookfs_FsindexEntry *entry);
 

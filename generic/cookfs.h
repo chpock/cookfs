@@ -48,6 +48,11 @@
 #define Tcl_NewSizeIntFromObj Tcl_NewWideIntObj
 #endif /* TCL_SIZE_MAX */
 
+#define SET_ERROR(e) \
+    if (err != NULL) { *err = (e); }
+
+#define SET_ERROR_STR(e) SET_ERROR(Tcl_NewStringObj((e), -1));
+
 #include "common.h"
 #include "bindata.h"
 #include "hashes.h"

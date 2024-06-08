@@ -1,4 +1,7 @@
 2024-06-07 Konstantin Kushnir <chpock@gmail.com>
+	* Improve error handling
+
+2024-06-07 Konstantin Kushnir <chpock@gmail.com>
 	* Thread support preparation: eliminate Tcl_Obj usage by pages object
 
 2024-06-06 Konstantin Kushnir <chpock@gmail.com>

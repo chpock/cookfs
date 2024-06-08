@@ -599,7 +599,7 @@ tcltest::test cookfsPages-7.2 "Test custom compression algorithm - no decompress
     file delete -force $file
     unset -nocomplain file pg i0
     testcompresscleanup
-} -returnCodes {error} -result {Unable to retrieve chunk}
+} -returnCodes {error} -result {Unable to retrieve chunk: No decompresscommand specified}
 
 tcltest::test cookfsPages-7.3 "Test custom compression algorithm - no decompress command error when adding same page" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
