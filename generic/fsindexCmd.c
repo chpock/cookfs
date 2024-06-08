@@ -444,9 +444,6 @@ static int CookfsFsindexCmdImport(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, i
  */
 
 static int CookfsFsindexCmdGetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    Tcl_Obj *splitPath;
-    Cookfs_FsindexEntry *entry;
-
     /* check arguments */
     if (objc != 3) {
 	Tcl_WrongNumArgs(interp, 2, objv, "path");
@@ -454,16 +451,12 @@ static int CookfsFsindexCmdGetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
     }
 
     /* get split path to entry */
-    splitPath = Tcl_FSSplitPath(objv[2], NULL);
-    Tcl_IncrRefCount(splitPath);
-    if (splitPath == NULL) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to split path", -1));
-	return TCL_ERROR;
-    }
+    Cookfs_PathObj *pathObj = Cookfs_PathObjNewFromTclObj(objv[2]);
+    Cookfs_PathObjIncrRefCount(pathObj);
 
     /* get entry and free splitPath */
-    entry = Cookfs_FsindexGet(fsIndex, splitPath);
-    Tcl_DecrRefCount(splitPath);
+    Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(fsIndex, pathObj);
+    Cookfs_PathObjDecrRefCount(pathObj);
 
     /* check if entry was returned */
     if (entry == NULL) {
@@ -494,8 +487,6 @@ static int CookfsFsindexCmdGetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
  */
 
 static int CookfsFsindexCmdSetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    Tcl_Obj *splitPath;
-    Cookfs_FsindexEntry *entry;
     Tcl_WideInt fileTime;
 
     /* check arguments */
@@ -510,16 +501,12 @@ static int CookfsFsindexCmdSetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
     }
 
     /* get split path to entry */
-    splitPath = Tcl_FSSplitPath(objv[2], NULL);
-    Tcl_IncrRefCount(splitPath);
-    if (splitPath == NULL) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to split path", -1));
-	return TCL_ERROR;
-    }
+    Cookfs_PathObj *pathObj = Cookfs_PathObjNewFromTclObj(objv[2]);
+    Cookfs_PathObjIncrRefCount(pathObj);
 
     /* get entry and free splitPath */
-    entry = Cookfs_FsindexGet(fsIndex, splitPath);
-    Tcl_DecrRefCount(splitPath);
+    Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(fsIndex, pathObj);
+    Cookfs_PathObjDecrRefCount(pathObj);
 
     /* check if entry was returned */
     if (entry == NULL) {
@@ -564,7 +551,6 @@ static int CookfsFsindexCmdSetmtime(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
 static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     Tcl_Size numBlocks;
     int fileBlockData;
-    Tcl_Obj *splitPath;
     Tcl_Obj **listElements;
     Tcl_WideInt fileTime;
     Cookfs_FsindexEntry *entry;
@@ -581,35 +567,31 @@ static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
     }
 
     /* get split path to entry */
-    splitPath = Tcl_FSSplitPath(objv[2], NULL);
-    Tcl_IncrRefCount(splitPath);
-    if (splitPath == NULL) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to split path", -1));
-	return TCL_ERROR;
-    }
+    Cookfs_PathObj *pathObj = Cookfs_PathObjNewFromTclObj(objv[2]);
+    Cookfs_PathObjIncrRefCount(pathObj);
 
     if (objc == 4) {
 	/* create new directory if no list of blocks has been specified */
-	entry = Cookfs_FsindexSet(fsIndex, splitPath, COOKFS_NUMBLOCKS_DIRECTORY);
+	entry = Cookfs_FsindexSet(fsIndex, pathObj, COOKFS_NUMBLOCKS_DIRECTORY);
 	if (entry == NULL) {
 	    Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create entry", -1));
-	    Tcl_DecrRefCount(splitPath);
+	    Cookfs_PathObjDecrRefCount(pathObj);
 	    return TCL_ERROR;
 	}
     }  else  {
 	/* otherwise try to create a file - first get list of blocks */
 	if (Tcl_ListObjGetElements(interp, objv[4], &numBlocks, &listElements) != TCL_OK) {
-	    Tcl_DecrRefCount(splitPath);
+	    Cookfs_PathObjDecrRefCount(pathObj);
 	    return TCL_ERROR;
 	}
 
 	numBlocks /= 3;
 
 	/* create new fsindex entry, return error if it fails (i.e. due to failed constraints) */
-	entry = Cookfs_FsindexSet(fsIndex, splitPath, numBlocks);
+	entry = Cookfs_FsindexSet(fsIndex, pathObj, numBlocks);
 	if (entry == NULL) {
 	    Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create entry", -1));
-	    Tcl_DecrRefCount(splitPath);
+	    Cookfs_PathObjDecrRefCount(pathObj);
 	    return TCL_ERROR;
 	}
 	entry->data.fileInfo.fileSize = 0;
@@ -619,8 +601,8 @@ static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
 	for (i = 0; i < numBlocks * 3; i++) {
 	    if (Tcl_GetIntFromObj(interp, listElements[i], &fileBlockData) != TCL_OK) {
 		/* if getting integer failed, remove partial item */
-		Cookfs_FsindexUnset(fsIndex, splitPath);
-		Tcl_DecrRefCount(splitPath);
+		Cookfs_FsindexUnset(fsIndex, pathObj);
+		Cookfs_PathObjDecrRefCount(pathObj);
 		CookfsLog(printf("Getting from list failed"))
 		return TCL_ERROR;
 	    }
@@ -640,9 +622,8 @@ static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
     /* set mtime */
     entry->fileTime = fileTime;
 
-    /* free splitPath and return */
-
-    Tcl_DecrRefCount(splitPath);
+    /* free pathObj and return */
+    Cookfs_PathObjDecrRefCount(pathObj);
     return TCL_OK;
 }
 
@@ -664,7 +645,6 @@ static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
  */
 
 static int CookfsFsindexCmdUnset(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    Tcl_Obj *splitPath;
     int result;
 
     /* check number of arguments */
@@ -674,16 +654,12 @@ static int CookfsFsindexCmdUnset(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, in
     }
 
     /* get split path to entry */
-    splitPath = Tcl_FSSplitPath(objv[2], NULL);
-    Tcl_IncrRefCount(splitPath);
-    if (splitPath == NULL) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to split path", -1));
-	return TCL_ERROR;
-    }
+    Cookfs_PathObj *pathObj = Cookfs_PathObjNewFromTclObj(objv[2]);
+    Cookfs_PathObjIncrRefCount(pathObj);
 
     /* unset using fsindex API */
-    result = Cookfs_FsindexUnset(fsIndex, splitPath);
-    Tcl_DecrRefCount(splitPath);
+    result = Cookfs_FsindexUnset(fsIndex, pathObj);
+    Cookfs_PathObjDecrRefCount(pathObj);
 
     /* provide error message if operation failed */
     if (!result) {
@@ -719,7 +695,6 @@ static int CookfsFsindexCmdUnset(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, in
  */
 
 static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    Tcl_Obj *splitPath;
     Tcl_Obj *resultObjects[3];
     Cookfs_FsindexEntry *entry;
 
@@ -730,16 +705,12 @@ static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
     }
 
     /* get split path to entry */
-    splitPath = Tcl_FSSplitPath(objv[2], NULL);
-    Tcl_IncrRefCount(splitPath);
-    if (splitPath == NULL) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to split path", -1));
-	return TCL_ERROR;
-    }
+    Cookfs_PathObj *pathObj = Cookfs_PathObjNewFromTclObj(objv[2]);
+    Cookfs_PathObjIncrRefCount(pathObj);
 
     /* get entry and free splitPath */
-    entry = Cookfs_FsindexGet(fsIndex, splitPath);
-    Tcl_DecrRefCount(splitPath);
+    entry = Cookfs_FsindexGet(fsIndex, pathObj);
+    Cookfs_PathObjDecrRefCount(pathObj);
 
     /* check if entry was returned */
     if (entry == NULL) {
@@ -791,7 +762,6 @@ static int CookfsFsindexCmdGet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
  */
 
 static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    Tcl_Obj *splitPath;
     Tcl_Obj **resultList;
     Cookfs_FsindexEntry **results;
     int itemCount, idx;
@@ -803,16 +773,12 @@ static int CookfsFsindexCmdList(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int
     }
 
     /* get split path to entry */
-    splitPath = Tcl_FSSplitPath(objv[2], NULL);
-    Tcl_IncrRefCount(splitPath);
-    if (splitPath == NULL) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to split path", -1));
-	return TCL_ERROR;
-    }
+    Cookfs_PathObj *pathObj = Cookfs_PathObjNewFromTclObj(objv[2]);
+    Cookfs_PathObjIncrRefCount(pathObj);
 
     /* list specified path; return error if path not found */
-    results = Cookfs_FsindexList(fsIndex, splitPath, &itemCount);
-    Tcl_DecrRefCount(splitPath);
+    results = Cookfs_FsindexList(fsIndex, pathObj, &itemCount);
+    Cookfs_PathObjDecrRefCount(pathObj);
 
     if (results == NULL) {
 	CookfsLog(printf("cmdList - results==NULL"))

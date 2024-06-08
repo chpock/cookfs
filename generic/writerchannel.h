@@ -21,8 +21,7 @@ typedef struct Cookfs_WriterChannelInstData {
     Cookfs_Fsindex *index;
     Cookfs_Writer *writer;
 
-    Tcl_Obj *pathObj;
-    int pathObjLen;
+    Cookfs_PathObj *pathObj;
 
     void *buffer;
     Tcl_WideInt bufferSize;
@@ -34,8 +33,8 @@ typedef struct Cookfs_WriterChannelInstData {
 int Cookfs_InitWriterchannelCmd(Tcl_Interp *interp);
 
 Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
-    Cookfs_Fsindex *index, Cookfs_Writer *writer, Tcl_Obj *pathObj,
-    int pathObjLen, Cookfs_FsindexEntry *entry, Tcl_Interp *interp);
+    Cookfs_Fsindex *index, Cookfs_Writer *writer, Cookfs_PathObj *pathObj,
+    Cookfs_FsindexEntry *entry, Tcl_Interp *interp);
 
 void Cookfs_CreateWriterchannelFree(Cookfs_WriterChannelInstData *instData);
 

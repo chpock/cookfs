@@ -5367,7 +5367,7 @@ printf "%s\n" "#define AC_APPLE_UNIVERSAL_BUILD 1" >>confdefs.h
 
 
 
-    vars="cookfs.c common.c md5.h bindata.c hashes.c"
+    vars="cookfs.c common.c md5.h bindata.c hashes.c pathObj.c"
     for i in $vars; do
 	case $i in
 	    \$*)

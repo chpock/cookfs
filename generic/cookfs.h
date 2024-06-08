@@ -56,6 +56,7 @@
 #include "common.h"
 #include "bindata.h"
 #include "hashes.h"
+#include "pathObj.h"
 
 #ifdef COOKFS_USECPAGES
 #include "pageObj.h"

@@ -180,14 +180,8 @@ int CookfsWriterHandleCommandWrite(Cookfs_Writer *w,
     for (int i = 2; i < objc;) {
 
         Tcl_Obj *path = objv[i++];
-        Tcl_Obj *splitPath = Tcl_FSSplitPath(path, NULL);
-        if (path == NULL) {
-            CookfsLog(printf("CookfsWriterHandleCommandWrite: unable to split"
-                " path [%s]", Tcl_GetString(path)));
-            Tcl_SetObjResult(interp, Tcl_ObjPrintf("error while splitting"
-                " path"));
-            goto error;
-        }
+        Cookfs_PathObj *pathObj = Cookfs_PathObjNewFromTclObj(path);
+        Cookfs_PathObjIncrRefCount(pathObj);
 
         int dataTypeInt;
         if (Tcl_GetIndexFromObj(interp, objv[i++], dataTypes, "datatype",
@@ -232,7 +226,7 @@ int CookfsWriterHandleCommandWrite(Cookfs_Writer *w,
         }
 
         Tcl_Obj *err = NULL;
-        int ret = Cookfs_WriterAddFile(w, splitPath,
+        int ret = Cookfs_WriterAddFile(w, pathObj,
             (Cookfs_WriterDataSource)dataTypeInt, (
             (Cookfs_WriterDataSource)dataTypeInt == COOKFS_WRITER_SOURCE_CHANNEL
             ? (void *)channel : (void *)data), dataSize, &err);
@@ -249,6 +243,8 @@ int CookfsWriterHandleCommandWrite(Cookfs_Writer *w,
             goto error;
         }
 
+        Cookfs_PathObjDecrRefCount(pathObj);
+
         continue;
 
 error:
@@ -257,6 +253,7 @@ error:
             Tcl_GetString(path), Tcl_GetString(Tcl_GetObjResult(interp))));
         CookfsLog(printf("CookfsWriterHandleCommandWrite: ERROR while adding"
             " [%s]", Tcl_GetString(path)));
+        Cookfs_PathObjDecrRefCount(pathObj);
         return TCL_ERROR;
 
     }

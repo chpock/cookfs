@@ -8,8 +8,8 @@
 
 #include "cookfs.h"
 
-static Cookfs_WriterBuffer *Cookfs_WriterWriterBufferAlloc(Tcl_Obj *pathObj,
-    Tcl_WideInt mtime)
+static Cookfs_WriterBuffer *Cookfs_WriterWriterBufferAlloc(
+    Cookfs_PathObj *pathObj, Tcl_WideInt mtime)
 {
     Cookfs_WriterBuffer *wb = ckalloc(sizeof(Cookfs_WriterBuffer));
     if (wb != NULL) {
@@ -17,7 +17,7 @@ static Cookfs_WriterBuffer *Cookfs_WriterWriterBufferAlloc(Tcl_Obj *pathObj,
         wb->bufferSize = 0;
         wb->mtime = mtime;
         wb->pathObj = pathObj;
-        Tcl_IncrRefCount(pathObj);
+        Cookfs_PathObjIncrRefCount(pathObj);
         wb->entry = NULL;
         wb->sortKey = NULL;
         wb->next = NULL;
@@ -34,10 +34,10 @@ static void Cookfs_WriterWriterBufferFree(Cookfs_WriterBuffer *wb) {
         ckfree(wb->buffer);
     }
     if (wb->pathObj != NULL) {
-        Tcl_DecrRefCount(wb->pathObj);
+        Cookfs_PathObjDecrRefCount(wb->pathObj);
     }
     if (wb->sortKey != NULL) {
-        Tcl_DecrRefCount(wb->sortKey);
+        Cookfs_PathObjDecrRefCount(wb->sortKey);
     }
     ckfree(wb);
 }
@@ -132,8 +132,9 @@ void Cookfs_WriterFini(Cookfs_Writer *w) {
     return;
 }
 
-int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w, Tcl_Obj *pathObj,
-    Tcl_WideInt mtime, void *buffer, Tcl_WideInt bufferSize, Tcl_Obj **err)
+int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w,
+    Cookfs_PathObj *pathObj, Tcl_WideInt mtime, void *buffer,
+    Tcl_WideInt bufferSize, Tcl_Obj **err)
 {
     CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: add buf [%p],"
         " size: %" TCL_LL_MODIFIER "d", buffer, bufferSize));
@@ -262,7 +263,7 @@ int Cookfs_WriterRemoveFile(Cookfs_Writer *w, Cookfs_FsindexEntry *entry) {
 #define DATA_CHANNEL (Tcl_Channel)data
 #define DATA_OBJECT  (Tcl_Obj *)data
 
-int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
+int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
     Cookfs_WriterDataSource dataType, void *data, Tcl_WideInt dataSize,
     Tcl_Obj **err)
 {
@@ -644,9 +645,17 @@ done:
 }
 
 static int Cookfs_WriterPurgeSortFunc(const void *a, const void *b) {
+    int rc;
     Cookfs_WriterBuffer *wba = *(Cookfs_WriterBuffer **)a;
     Cookfs_WriterBuffer *wbb = *(Cookfs_WriterBuffer **)b;
-    return strcmp(wba->sortKeyStr, wbb->sortKeyStr);
+    rc = strcmp(wba->sortKeyExt, wbb->sortKeyExt);
+    if (!rc) {
+        rc = strcmp(wba->pathObj->tailName, wbb->pathObj->tailName);
+        if (!rc) {
+            rc = strcmp(wba->pathObj->fullName, wbb->pathObj->fullName);
+        }
+    }
+    return rc;
 }
 
 int Cookfs_WriterPurge(Cookfs_Writer *w, Tcl_Obj **err) {
@@ -700,8 +709,6 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, Tcl_Obj **err) {
         goto fatalError;
     }
 
-    char *justDot = ".";
-
     // Fill the buffer
     for (i = 0, wb = w->bufferFirst; wb != NULL; i++, wb = wb->next) {
 
@@ -733,9 +740,9 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, Tcl_Obj **err) {
                         " has been found"));
                     // Let's use its sort key
                     wb->sortKey = wbc->sortKey;
-                    Tcl_IncrRefCount(wb->sortKey);
-                    wb->sortKeyStr = wbc->sortKeyStr;
-                    wb->sortKeyLen = wbc->sortKeyLen;
+                    Cookfs_PathObjIncrRefCount(wb->sortKey);
+                    wb->sortKeyExt = wbc->sortKeyExt;
+                    wb->sortKeyExtLen = wbc->sortKeyExtLen;
                     // Stop processing
                     break;
                 }
@@ -748,95 +755,30 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, Tcl_Obj **err) {
             }
         }
 
-        // Let's generate a sort key for the file
-        Tcl_Size pathLength;
-        if (Tcl_ListObjLength(NULL, wb->pathObj, &pathLength) != TCL_OK ||
-            pathLength < 1
-        ) {
-            goto fatalErrorCantHappened;
-        }
+        // Copy existing pathObj as a sortKey
+        wb->sortKey = wb->pathObj;
+        Cookfs_PathObjIncrRefCount(wb->sortKey);
 
-        // Get file name
-        Tcl_Obj *pathTail;
-        if (Tcl_ListObjIndex(NULL, wb->pathObj, pathLength - 1, &pathTail)
-            != TCL_OK || pathTail == NULL)
-        {
-            goto fatalErrorCantHappened;
-        }
-
-        Tcl_Obj *sortPrefix;
-        pathTail = Tcl_DuplicateObj(pathTail);
-        Tcl_IncrRefCount(pathTail);
-
-        // Let's move extension to front of filename
-        Tcl_Size pathTailLength;
-        char *pathTailStr = Tcl_GetStringFromObj(pathTail, &pathTailLength);
-        // Check to see if we have an empty filename, this shouldn't
-        // happen, but who knows?
-        if (!pathTailLength) {
-            goto skipExtension;
-        }
-        char *dotPosition = strrchr(pathTailStr, '.');
+        // TODO: this will not work correctly if there are null bytes in
+        // the tailName, since strrchr will start searching from the first null
+        // byte rather than from the beginning of the string.
+        char *dotPosition = strrchr(wb->pathObj->tailName, '.');
         // No dot or dot at the first position? then skip
-        if (dotPosition == NULL || dotPosition == pathTailStr) {
-            goto skipExtension;
-        }
-        int nameLength = dotPosition - pathTailStr;
-        // Create a new object with extension only
-        sortPrefix = Tcl_NewStringObj(++dotPosition,
-            pathTailLength - nameLength - 1);
-        Tcl_IncrRefCount(sortPrefix);
-        // Append dot symbol
-        Tcl_AppendToObj(sortPrefix, justDot, 1);
-        // Append file name without extension
-        Tcl_AppendToObj(sortPrefix, pathTailStr, nameLength);
-
-        // pathTail is not needed anymore
-        Tcl_DecrRefCount(pathTail);
-
-        goto generateSortKey;
-
-skipExtension:
-
-        // If we have no extension, than just use the filename as
-        // the sortPrefix. We don't create a new object and we don't decrement
-        // refcount on pathTail. Later, we will reduce the refcount for
-        // sortPrefix, which essentially means reducing the refcount
-        // for pathTail.
-        sortPrefix = pathTail;
-
-generateSortKey: ; // empty statement
-
-        // Let's generate our sort key. First, use the split path
-        // as the source.
-        Tcl_Obj *sortKeySplit = Tcl_DuplicateObj(wb->pathObj);
-        Tcl_IncrRefCount(sortKeySplit);
-
-        // Add sortPrefix to the beggining
-        if (Tcl_ListObjReplace(NULL, sortKeySplit, 0, 0, 1, &sortPrefix)
-            != TCL_OK)
-        {
-            // Don't forget to cleanup
-            Tcl_DecrRefCount(sortPrefix);
-            Tcl_DecrRefCount(sortKeySplit);
-            goto fatalErrorCantHappened;
+        if (dotPosition == NULL || dotPosition == wb->pathObj->tailName) {
+            wb->sortKeyExt = wb->pathObj->tailName;
+            wb->sortKeyExtLen = wb->pathObj->tailNameLength;
+        } else {
+            // +1 for dot position to skip the dot itself
+            wb->sortKeyExt = ++dotPosition;
+            // (dotPosition - wb->pathObj->tailName) - filename without extension
+            // filename length - length of the filename without extension = ext length
+            wb->sortKeyExtLen = wb->pathObj->tailNameLength -
+                (dotPosition - wb->pathObj->tailName);
         }
 
-        // sortPrefix is not needed anymore
-        Tcl_DecrRefCount(sortPrefix);
-
-        // Generate the sort key by compining split sort key
-        wb->sortKey = Tcl_FSJoinPath(sortKeySplit, -1);
-        Tcl_IncrRefCount(wb->sortKey);
-
-        // We don't need split sort key anymore
-        Tcl_DecrRefCount(sortKeySplit);
-
-        // Optimize a bit
-        wb->sortKeyStr = Tcl_GetStringFromObj(wb->sortKey, &wb->sortKeyLen);
-
-        CookfsLog(printf("Cookfs_WriterPurge: generated the sort key [%s]",
-            Tcl_GetString(wb->sortKey)));
+        CookfsLog(printf("Cookfs_WriterPurge: generated the sort key"
+            " [%s]+[%s]+[%s]", wb->sortKeyExt, wb->pathObj->tailName,
+            wb->pathObj->fullName));
 
     }
 
@@ -849,9 +791,11 @@ generateSortKey: ; // empty statement
         CookfsLog( \
             printf("Cookfs_WriterPurge: == entries ===========> \n"); \
             for (i = 0; i < w->bufferCount; i++) { \
-                printf("Cookfs_WriterPurge: %p %s\n", \
+                printf("Cookfs_WriterPurge: %p [%s]+[%s]+[%s]\n", \
                     (void *)sortedWB[i]->buffer, \
-                    (char *)sortedWB[i]->sortKeyStr); \
+                    sortedWB[i]->sortKeyExt, \
+                    sortedWB[i]->pathObj->tailName, \
+                    sortedWB[i]->pathObj->fullName); \
             }; \
             printf("Cookfs_WriterPurge: <======================")
         );
@@ -861,9 +805,11 @@ generateSortKey: ; // empty statement
         CookfsLog( \
             printf("Cookfs_WriterPurge: == entries ===========> \n"); \
             for (i = 0; i < w->bufferCount; i++) { \
-                printf("Cookfs_WriterPurge: %p %s\n", \
+                printf("Cookfs_WriterPurge: %p [%s]+[%s]+[%s]\n", \
                     (void *)sortedWB[i]->buffer, \
-                    (char *)sortedWB[i]->sortKeyStr); \
+                    sortedWB[i]->sortKeyExt, \
+                    sortedWB[i]->pathObj->tailName, \
+                    sortedWB[i]->pathObj->fullName); \
             }; \
             printf("Cookfs_WriterPurge: <======================")
         );
@@ -1018,10 +964,6 @@ skipAll:
     w->bufferCount = 0;
 
     goto done;
-
-fatalErrorCantHappened:
-
-    SET_ERROR_STR("this case doesn't have to happen");
 
 fatalError:
 

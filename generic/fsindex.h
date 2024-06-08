@@ -62,13 +62,13 @@ void Cookfs_FsindexCleanup(Cookfs_Fsindex *i);
 Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks, int useHash);
 void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e);
 
-Cookfs_FsindexEntry *Cookfs_FsindexGet(Cookfs_Fsindex *i, Tcl_Obj *pathList);
-Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Tcl_Obj *pathList, int numBlocks);
+Cookfs_FsindexEntry *Cookfs_FsindexGet(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj);
+Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj, int numBlocks);
 Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_FsindexEntry *currentNode, char *pathTailStr, int pathTailLen, int numBlocks);
-int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Tcl_Obj *pathList);
-int Cookfs_FsindexUnsetRecursive(Cookfs_Fsindex *i, Tcl_Obj *pathList);
+int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj);
+int Cookfs_FsindexUnsetRecursive(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj);
 
-Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Tcl_Obj *pathList, int *itemCountPtr);
+Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj, int *itemCountPtr);
 Cookfs_FsindexEntry **Cookfs_FsindexListEntry(Cookfs_FsindexEntry *dirNode, int *itemCountPtr);
 void Cookfs_FsindexListFree(Cookfs_FsindexEntry **items);
 
@@ -78,7 +78,7 @@ int Cookfs_FsindexUnsetMetadata(Cookfs_Fsindex *i, const char *paramName);
 int Cookfs_FsindexGetBlockUsage(Cookfs_Fsindex *i, int idx);
 void Cookfs_FsindexModifyBlockUsage(Cookfs_Fsindex *i, int idx, int count);
 
-Cookfs_FsindexEntry *CookfsFsindexFindElement(const Cookfs_Fsindex *i, Tcl_Obj *pathList, int listSize);
+Cookfs_FsindexEntry *CookfsFsindexFindElement(const Cookfs_Fsindex *i, Cookfs_PathObj *pathObj, int listSize);
 
 Tcl_WideInt Cookfs_FsindexIncrChangeCount(Cookfs_Fsindex *i, int count);
 void Cookfs_FsindexResetChangeCount(Cookfs_Fsindex *i);
