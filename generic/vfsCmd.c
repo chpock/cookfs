@@ -662,7 +662,7 @@ skipPagesBootstrap:
     if (!props->noregister) {
         CookfsLog(printf("Cookfs_Mount: registering the vfs in tclvfs..."));
         if (Cookfs_VfsRegisterInTclvfs(vfs) != TCL_OK) {
-            Cookfs_CookfsRemoveVfs(interp, NULL, vfs);
+            Cookfs_CookfsRemoveVfs(interp, vfs);
             // We have an error message from Tclvfs in interp result
             CookfsLog(printf("Cookfs_Mount: failed to register vfs"
                 " in tclvfs"));
@@ -862,7 +862,7 @@ static int CookfsUnmountCmd(ClientData clientData, Tcl_Interp *interp,
 
     // Try to remove the mount point from mount list
     CookfsLog(printf("CookfsUnmountCmd: remove the mount point"));
-    vfs = Cookfs_CookfsRemoveVfs(interp, NULL, vfs);
+    vfs = Cookfs_CookfsRemoveVfs(interp, vfs);
     // If vfs is NULL, then Cookfs_CookfsRemoveVfs() could not find
     // the vfs in the vfs list. Return error.
     if (vfs == NULL) {

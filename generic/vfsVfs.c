@@ -8,9 +8,16 @@
 
 #include "cookfs.h"
 
+typedef struct Cookfs_VolumeEntry {
+    char *volumeStr;
+    Tcl_Size volumeLen;
+    struct Cookfs_VolumeEntry *next;
+} Cookfs_VolumeEntry;
+
 typedef struct ThreadSpecificData {
     Cookfs_Vfs *listOfMounts;
-    Tcl_Obj *cookfsVolumes;
+    Tcl_Obj *volumesObj;
+    Cookfs_VolumeEntry *volumesList;
 } ThreadSpecificData;
 
 static Tcl_ThreadDataKey dataKeyCookfs;
@@ -24,9 +31,6 @@ static Tcl_ThreadDataKey dataKeyCookfs;
 static Tcl_InterpDeleteProc Cookfs_CookfsUnregister;
 static Tcl_ExitProc Cookfs_CookfsExitProc;
 static Tcl_ExitProc Cookfs_CookfsThreadExitProc;
-
-static void Cookfs_CookfsAddVolume(Tcl_Obj *volume);
-static int Cookfs_CookfsRemoveVolume(Tcl_Obj *volume);
 
 void Cookfs_CookfsRegister(Tcl_Interp *interp) {
 
@@ -75,7 +79,7 @@ static void Cookfs_CookfsUnregister(ClientData clientData,
     // Remove all mount points
     while (1) {
         CookfsLog(printf("Cookfs_CookfsUnregister: remove the next vfs..."));
-        Cookfs_Vfs *vfs = Cookfs_CookfsRemoveVfs(interp, NULL, NULL);
+        Cookfs_Vfs *vfs = Cookfs_CookfsRemoveVfs(interp, NULL);
         if (vfs == NULL) {
             CookfsLog(printf("Cookfs_CookfsUnregister: no more vfs"));
             break;
@@ -127,7 +131,27 @@ int Cookfs_CookfsAddVfs(Tcl_Interp *interp, Cookfs_Vfs *vfs) {
     tsdPtr->listOfMounts = vfs;
 
     if (vfs->isVolume) {
-        Cookfs_CookfsAddVolume(vfs->mountObj);
+
+        Cookfs_VolumeEntry *v = ckalloc(sizeof(Cookfs_VolumeEntry) +
+            vfs->mountLen + 1);
+        if (v == NULL) {
+            Tcl_Panic("failed to alloc Cookfs_VolumeEntry");
+            return 0; // <- avoid cppcheck complaints
+        }
+
+        v->volumeStr = (char *)v + sizeof(Cookfs_VolumeEntry);
+        v->volumeLen = vfs->mountLen;
+        memcpy(v->volumeStr, vfs->mountStr, vfs->mountLen + 1);
+
+        v->next = tsdPtr->volumesList;
+        tsdPtr->volumesList = v;
+
+        // Invalidate volume list cache
+        if (tsdPtr->volumesObj != NULL) {
+            Tcl_DecrRefCount(tsdPtr->volumesObj);
+            tsdPtr->volumesObj = NULL;
+        }
+
     }
     Tcl_FSMountsChanged(CookfsFilesystem());
 
@@ -135,13 +159,12 @@ int Cookfs_CookfsAddVfs(Tcl_Interp *interp, Cookfs_Vfs *vfs) {
 
 }
 
-Cookfs_Vfs *Cookfs_CookfsRemoveVfs(Tcl_Interp *interp, Tcl_Obj* mountPoint,
+Cookfs_Vfs *Cookfs_CookfsRemoveVfs(Tcl_Interp *interp,
     Cookfs_Vfs *vfsToRemove)
 {
 
     CookfsLog(printf("Cookfs_CookfsRemoveVfs: want to remove vfs with mount"
-        " point [%p] ptr [%p] interp [%p]", (void *)mountPoint,
-        (void *)vfsToRemove, (void *)interp));
+        " ptr [%p] interp [%p]", (void *)vfsToRemove, (void *)interp));
 
     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
 
@@ -156,13 +179,6 @@ Cookfs_Vfs *Cookfs_CookfsRemoveVfs(Tcl_Interp *interp, Tcl_Obj* mountPoint,
         if (interp != vfs->interp) {
             CookfsLog(printf("Cookfs_CookfsRemoveVfs: wrong interp"));
             goto next;
-        }
-
-        if (mountPoint != NULL) {
-            if (Tcl_FSEqualPaths(vfs->mountObj, mountPoint) != 1) {
-                CookfsLog(printf("Cookfs_CookfsRemoveVfs: wrong path"));
-                goto next;
-            }
         }
 
         if (vfsToRemove != NULL) {
@@ -192,7 +208,38 @@ Cookfs_Vfs *Cookfs_CookfsRemoveVfs(Tcl_Interp *interp, Tcl_Obj* mountPoint,
         }
 
         if (vfs->isVolume) {
-            Cookfs_CookfsRemoveVolume(vfs->mountObj);
+
+            Cookfs_VolumeEntry *volumePrev = NULL;
+            Cookfs_VolumeEntry *volume = tsdPtr->volumesList;
+            while (volume != NULL) {
+
+                if (volume->volumeLen != vfs->mountLen ||
+                    memcmp(volume->volumeStr, vfs->mountStr,
+                    vfs->mountLen) != 0)
+                {
+                    volumePrev = volume;
+                    volume = volume->next;
+                    continue;
+                }
+
+                if (volumePrev == NULL) {
+                    tsdPtr->volumesList = volume->next;
+                } else {
+                    volumePrev->next = volume->next;
+                }
+
+                ckfree(volume);
+
+                // Invalidate volume list cache
+                if (tsdPtr->volumesObj != NULL) {
+                    Tcl_DecrRefCount(tsdPtr->volumesObj);
+                    tsdPtr->volumesObj = NULL;
+                }
+
+                break;
+
+            }
+
         }
 
         Tcl_FSMountsChanged(CookfsFilesystem());
@@ -257,7 +304,8 @@ void Cookfs_CookfsSearchVfsToListObj(Tcl_Obj *path, const char *pattern,
         }
         CookfsLog(printf("CookfsMatchInDirectory: add vfs [%s]",
                 vfs->mountStr));
-        Tcl_ListObjAppendElement(NULL, returnObj, vfs->mountObj);
+        Tcl_ListObjAppendElement(NULL, returnObj,
+            Tcl_NewStringObj(vfs->mountStr, vfs->mountLen));
 nextVfs:
         vfs = vfs->nextVfs;
     }
@@ -311,69 +359,27 @@ Cookfs_Vfs *Cookfs_CookfsFindVfs(Tcl_Obj *path, Tcl_Size len) {
 
 Tcl_Obj *Cookfs_CookfsGetVolumesList(void) {
     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
-    return tsdPtr->cookfsVolumes;
-}
 
-static void Cookfs_CookfsAddVolume(Tcl_Obj *volume) {
+    CookfsLog(printf("Cookfs_CookfsGetVolumesList: ENTER"));
 
-    ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
+    if (tsdPtr->volumesObj == NULL && tsdPtr->volumesList != NULL) {
 
-    if (tsdPtr->cookfsVolumes == NULL) {
-        tsdPtr->cookfsVolumes = Tcl_NewListObj(0, NULL);
-        Tcl_IncrRefCount(tsdPtr->cookfsVolumes);
-    }
+        CookfsLog(printf("Cookfs_CookfsGetVolumesList: need to rebuild cache"));
+        // Need to rebuild volume list cache
+        tsdPtr->volumesObj = Tcl_NewListObj(0, NULL);
+        Tcl_IncrRefCount(tsdPtr->volumesObj);
 
-    Tcl_ListObjAppendElement(NULL, tsdPtr->cookfsVolumes, volume);
-
-}
-
-static int Cookfs_CookfsRemoveVolume(Tcl_Obj *volume) {
-
-    ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
-
-    if (tsdPtr->cookfsVolumes == NULL || volume == NULL) {
-        return TCL_OK;
-    }
-
-    Tcl_Size volumeLen;
-    char *volumeStr = Tcl_GetStringFromObj(volume, &volumeLen);
-
-    Tcl_Size volCount;
-    Tcl_ListObjLength(NULL, tsdPtr->cookfsVolumes, &volCount);
-
-    for (Tcl_Size i = 0; i < volCount; i++) {
-
-        Tcl_Obj *obj;
-        Tcl_ListObjIndex(NULL, tsdPtr->cookfsVolumes, i, &obj);
-
-        Tcl_IncrRefCount(obj);
-
-        Tcl_Size volumeCurLen;
-        char *volumeCurStr = Tcl_GetStringFromObj(obj, &volumeCurLen);
-
-        if (volumeCurLen != volumeLen ||
-            strcmp(volumeStr, volumeCurStr) != 0)
-        {
-            Tcl_DecrRefCount(obj);
-            continue;
+        Cookfs_VolumeEntry *v = tsdPtr->volumesList;
+        while (v != NULL) {
+            Tcl_Obj *obj = Tcl_NewStringObj(v->volumeStr, v->volumeLen);
+            Tcl_ListObjAppendElement(NULL, tsdPtr->volumesObj, obj);
+            v = v->next;
         }
 
-        // We have found the mount
-
-        // If we have only one volume in the list, then just release
-        // the volume list
-        if (volCount == 1) {
-            Tcl_DecrRefCount(tsdPtr->cookfsVolumes);
-            tsdPtr->cookfsVolumes = NULL;
-        } else {
-            Tcl_ListObjReplace(NULL, tsdPtr->cookfsVolumes, i, 1, 0, NULL);
-        }
-
-        Tcl_DecrRefCount(obj);
-        return TCL_OK;
-
     }
 
-    return TCL_ERROR;
-
+    CookfsLog(printf("Cookfs_CookfsGetVolumesList: ok [%s]",
+        tsdPtr->volumesObj == NULL ?
+        "NULL" : Tcl_GetString(tsdPtr->volumesObj)));
+    return tsdPtr->volumesObj;
 }

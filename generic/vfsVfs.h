@@ -15,7 +15,7 @@ void Cookfs_CookfsSearchVfsToListObj(Tcl_Obj *path, const char *pattern,
     Tcl_Obj *returnObj);
 
 int Cookfs_CookfsAddVfs(Tcl_Interp *interp, Cookfs_Vfs *vfs);
-Cookfs_Vfs *Cookfs_CookfsRemoveVfs(Tcl_Interp *interp, Tcl_Obj* mountPoint,
+Cookfs_Vfs *Cookfs_CookfsRemoveVfs(Tcl_Interp *interp,
     Cookfs_Vfs *vfsToRemove);
 int Cookfs_CookfsIsVfsExist(Cookfs_Vfs *vfsToSearch);
 
