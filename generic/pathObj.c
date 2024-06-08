@@ -51,6 +51,9 @@ Cookfs_PathObj *Cookfs_PathObjNewFromStr(const char* pathStr,
         sizeof(Cookfs_PathObjElement) * elementCount + (pathLength + 1) * 2);
     if (rc == NULL) {
         Tcl_Panic("failed to alloc pathObj");
+        // Tcl_Panic will not return, but we have to return here something to
+        // shutup cppcheck.
+        return NULL;
     }
 
     // Fill general properties
