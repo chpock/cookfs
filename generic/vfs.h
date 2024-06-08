@@ -7,7 +7,6 @@
 
 typedef struct Cookfs_Vfs {
     const char* mountStr;
-    Tcl_Obj *mountObj;
     Tcl_Size mountLen;
 
     Tcl_Interp *interp;

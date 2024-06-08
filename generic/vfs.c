@@ -40,9 +40,6 @@ Cookfs_Vfs *Cookfs_VfsInit(Tcl_Interp* interp, Tcl_Obj* mountPoint,
     }
     strcpy((char *)vfs->mountStr, mountPointString);
 
-    vfs->mountObj = mountPoint;
-    Tcl_IncrRefCount(mountPoint);
-
     vfs->nextVfs = NULL;
     vfs->commandToken = NULL;
     vfs->interp = interp;
@@ -178,7 +175,6 @@ skipPages:
 
     // Cleanup own fields
     CookfsLog(printf("Cookfs_VfsFini: cleanup own fields"));
-    Tcl_DecrRefCount(vfs->mountObj);
     ckfree((char *)vfs->mountStr);
     ckfree((char *)vfs);
 
@@ -204,7 +200,7 @@ void Cookfs_VfsUnregisterInTclvfs(Cookfs_Vfs *vfs) {
 
     Tcl_Obj *objv[2];
     objv[0] = Tcl_NewStringObj("::vfs::unmount", -1);
-    objv[1] = vfs->mountObj;
+    objv[1] = Tcl_NewStringObj(vfs->mountStr, vfs->mountLen);
     Tcl_Obj *cmd = Tcl_NewListObj(2, objv);
     Tcl_IncrRefCount(cmd);
     CookfsLog(printf("Cookfs_VfsUnregisterInTclvfs: call tclvfs: [%s]",
@@ -244,7 +240,7 @@ int Cookfs_VfsRegisterInTclvfs(Cookfs_Vfs *vfs) {
     }
 
     CookfsLog(printf("Cookfs_VfsRegisterInTclvfs: vfs [%p] in [%s]",
-        (void *)vfs, Tcl_GetString(vfs->mountObj)));
+        (void *)vfs, vfs->mountStr));
 
     Tcl_Obj *objv[3];
 
@@ -258,7 +254,7 @@ int Cookfs_VfsRegisterInTclvfs(Cookfs_Vfs *vfs) {
 
     // Construct the first two words of the tclvfs registration command
     objv[0] = Tcl_NewStringObj("::vfs::RegisterMount", -1);
-    objv[1] = vfs->mountObj;
+    objv[1] = Tcl_NewStringObj(vfs->mountStr, vfs->mountLen);
 
     // Construct the registration command
     Tcl_Obj *cmd = Tcl_NewListObj(3, objv);
