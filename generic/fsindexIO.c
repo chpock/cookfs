@@ -521,9 +521,12 @@ static int CookfsFsindexExportMetadata(Cookfs_Fsindex *fsIndex, Tcl_Obj *result,
 
         unsigned int keySize = strlen(paramName);
 
-        Tcl_Obj *valueObj = Tcl_GetHashValue(hashEntry);
-        Tcl_Size valueSize;
-        unsigned char *valueData = Tcl_GetByteArrayFromObj(valueObj, &valueSize);
+        unsigned char *valueData = Tcl_GetHashValue(hashEntry);
+        CookfsLog(printf("CookfsFsindexExportMetadata - data: %p", valueData));
+        Tcl_Size valueSize = *((Tcl_Size *)valueData);
+        valueData += sizeof(Tcl_Size);
+        CookfsLog(printf("CookfsFsindexExportMetadata - size: %"
+            TCL_SIZE_MODIFIER "d", valueSize));
 
         int size = keySize + 1 + valueSize;
         count++;
@@ -610,7 +613,7 @@ static int CookfsFsindexImportMetadata(Cookfs_Fsindex *fsIndex, unsigned char *b
         keySize = strlen(paramName);
         valueData = bytes + objOffset + (keySize + 1);
         valueSize = size - (keySize + 1);
-        Cookfs_FsindexSetMetadata(fsIndex, paramName, Tcl_NewByteArrayObj(valueData, valueSize));
+        Cookfs_FsindexSetMetadataRaw(fsIndex, paramName, valueData, valueSize);
         objOffset += size;
     }
     return objOffset;

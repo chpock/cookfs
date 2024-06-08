@@ -391,7 +391,7 @@ void Cookfs_FsindexCleanup(Cookfs_Fsindex *i) {
 
     /* free all entries in hash table */
     for (hashEntry = Tcl_FirstHashEntry(&i->metadataHash, &hashSearch); hashEntry != NULL; hashEntry = Tcl_NextHashEntry(&hashSearch)) {
-        Tcl_DecrRefCount((Tcl_Obj *) Tcl_GetHashValue(hashEntry));
+        ckfree(Tcl_GetHashValue(hashEntry));
         Tcl_DeleteHashEntry(hashEntry);
     }
     Tcl_DeleteHashTable(&i->metadataHash);
@@ -915,9 +915,10 @@ Tcl_Obj *Cookfs_FsindexGetMetadata(Cookfs_Fsindex *i, const char *paramName) {
     Tcl_HashEntry *hashEntry;
     hashEntry = Tcl_FindHashEntry(&i->metadataHash, paramName);
     if (hashEntry != NULL) {
-	return (Tcl_Obj *) Tcl_GetHashValue(hashEntry);
+        unsigned char *value = Tcl_GetHashValue(hashEntry);
+        return Tcl_NewByteArrayObj(value + sizeof(Tcl_Size), *((Tcl_Size *)value));
     }  else  {
-	return NULL;
+        return NULL;
     }
 }
 
@@ -939,20 +940,38 @@ Tcl_Obj *Cookfs_FsindexGetMetadata(Cookfs_Fsindex *i, const char *paramName) {
  *----------------------------------------------------------------------
  */
 
-void Cookfs_FsindexSetMetadata(Cookfs_Fsindex *i, const char *paramName, Tcl_Obj *data) {
+void Cookfs_FsindexSetMetadataRaw(Cookfs_Fsindex *i, const char *paramName,
+    const unsigned char *dataPtr, Tcl_Size dataSize)
+{
     int isNew;
     Tcl_HashEntry *hashEntry;
     hashEntry = Tcl_CreateHashEntry(&i->metadataHash, paramName, &isNew);
 
     /* decrement reference count for old value, if set */
     if (!isNew) {
-	Tcl_DecrRefCount((Tcl_Obj *) Tcl_GetHashValue(hashEntry));
+        ckfree(Tcl_GetHashValue(hashEntry));
     }
-    Tcl_IncrRefCount(data);
-    Tcl_SetHashValue(hashEntry, (ClientData) data);
+
+    unsigned char *value = ckalloc(sizeof(Tcl_Size) + dataSize);
+    CookfsLog(printf("Cookfs_FsindexSetMetadataRaw: key [%s] size %"
+        TCL_SIZE_MODIFIER "d value ptr %p", paramName, dataSize,
+        (void *)value));
+    if (value == NULL) {
+        Tcl_Panic("failed to alloc metadata value");
+        return;
+    }
+    *((Tcl_Size *)value) = dataSize;
+    memcpy(value + sizeof(Tcl_Size), dataPtr, dataSize);
+
+    Tcl_SetHashValue(hashEntry, (ClientData) value);
     Cookfs_FsindexIncrChangeCount(i, 1);
 }
 
+void Cookfs_FsindexSetMetadata(Cookfs_Fsindex *i, const char *paramName, Tcl_Obj *data) {
+    Tcl_Size dataSize;
+    unsigned char *dataPtr = Tcl_GetByteArrayFromObj(data, &dataSize);
+    Cookfs_FsindexSetMetadataRaw(i, paramName, dataPtr, dataSize);
+}
 
 /*
  *----------------------------------------------------------------------
@@ -975,7 +994,7 @@ int Cookfs_FsindexUnsetMetadata(Cookfs_Fsindex *i, const char *paramName) {
     Tcl_HashEntry *hashEntry;
     hashEntry = Tcl_FindHashEntry(&i->metadataHash, paramName);
     if (hashEntry != NULL) {
-	Tcl_DecrRefCount((Tcl_Obj *) Tcl_GetHashValue(hashEntry));
+        ckfree(Tcl_GetHashValue(hashEntry));
 	Tcl_DeleteHashEntry(hashEntry);
 	Cookfs_FsindexIncrChangeCount(i, 1);
 	return 1;
