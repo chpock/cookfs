@@ -1206,10 +1206,11 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
         CookfsLog(printf("CookfsMountHandleCommandOptimizelist: full path:"
             " [%s]", Tcl_GetString(fullNameJoined)));
 
-        Tcl_Obj *fullNameSplit = Tcl_FSSplitPath(fullNameJoined, NULL);
-        Tcl_IncrRefCount(fullNameSplit);
+        Cookfs_PathObj *fullNameSplit = Cookfs_PathObjNewFromTclObj(fullNameJoined);
+        Cookfs_PathObjIncrRefCount(fullNameSplit);
 
         Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(index, fullNameSplit);
+        Cookfs_PathObjDecrRefCount(fullNameSplit);
 
         Tcl_Obj *listToAdd = NULL;
         int pageNum = -1;
@@ -1248,7 +1249,6 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
         Tcl_ListObjAppendElement(NULL, listToAdd, fileTail);
 
         // Cleanup
-        Tcl_DecrRefCount(fullNameSplit);
         Tcl_DecrRefCount(fullNameJoined);
         Tcl_DecrRefCount(fullName);
 

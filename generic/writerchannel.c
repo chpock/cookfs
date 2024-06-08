@@ -33,7 +33,7 @@ static int Cookfs_CreateWriterchannelCreate(Cookfs_WriterChannelInstData
 
 static Cookfs_WriterChannelInstData *Cookfs_CreateWriterchannelAlloc(
     Cookfs_Pages *pages, Cookfs_Fsindex *index, Cookfs_Writer *writer,
-    Tcl_Obj *pathObj, int pathObjLen, Tcl_Interp *interp,
+    Cookfs_PathObj *pathObj, Tcl_Interp *interp,
     Tcl_WideInt initialBufferSize)
 {
 
@@ -72,10 +72,9 @@ static Cookfs_WriterChannelInstData *Cookfs_CreateWriterchannelAlloc(
     instData->index = index;
     instData->writer = writer;
 
-    instData->pathObjLen = pathObjLen;
     instData->pathObj = pathObj;
     if (pathObj != NULL) {
-        Tcl_IncrRefCount(pathObj);
+        Cookfs_PathObjIncrRefCount(pathObj);
     }
 
     instData->currentOffset = 0;
@@ -106,7 +105,7 @@ void Cookfs_CreateWriterchannelFree(Cookfs_WriterChannelInstData *instData) {
         ckfree(instData->buffer);
     }
     if (instData->pathObj != NULL) {
-        Tcl_DecrRefCount(instData->pathObj);
+        Cookfs_PathObjDecrRefCount(instData->pathObj);
     }
 
     ckfree((void *)instData);
@@ -115,14 +114,14 @@ void Cookfs_CreateWriterchannelFree(Cookfs_WriterChannelInstData *instData) {
 }
 
 Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
-    Cookfs_Fsindex *index, Cookfs_Writer *writer, Tcl_Obj *pathObj,
-    int pathObjLen, Cookfs_FsindexEntry *entry, Tcl_Interp *interp)
+    Cookfs_Fsindex *index, Cookfs_Writer *writer, Cookfs_PathObj *pathObj,
+    Cookfs_FsindexEntry *entry, Tcl_Interp *interp)
 {
 
     CookfsLog(printf("Cookfs_CreateWriterchannel: start"));
 
     Cookfs_WriterChannelInstData *instData = Cookfs_CreateWriterchannelAlloc(
-        pages, index, writer, pathObj, pathObjLen, interp,
+        pages, index, writer, pathObj, interp,
         (entry == NULL ? 0 : entry->data.fileInfo.fileSize));
 
     if (instData == NULL) {
@@ -315,18 +314,12 @@ static int CookfsCreateWriterchannelCmd(ClientData clientData,
         return TCL_ERROR;
     }
 
-    Tcl_Size pathObjLen;
-    Tcl_Obj *pathObj = Tcl_FSSplitPath(objv[4], &pathObjLen);
-    if (pathObj == NULL) {
-        Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unable to use"
-            " file name \"%s\"", Tcl_GetString(objv[4])));
-        return TCL_ERROR;
-    }
-    Tcl_IncrRefCount(pathObj);
+    Cookfs_PathObj *pathObj = Cookfs_PathObjNewFromTclObj(objv[4]);
+    Cookfs_PathObjIncrRefCount(pathObj);
 
     // If pathObjLen is 0, it is the root directory. We cannot open
     // the root directory as a writable file.
-    if (pathObjLen == 0) {
+    if (pathObj->elementCount == 0) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Could not open an empty"
             " file name for writing", -1));
         goto error;
@@ -346,7 +339,7 @@ static int CookfsCreateWriterchannelCmd(ClientData clientData,
     } else {
         // Make sure that parent directory exists
         Cookfs_FsindexEntry *entryParent = CookfsFsindexFindElement(index,
-            pathObj, pathObjLen - 1);
+            pathObj, pathObj->elementCount - 1);
         if (entryParent == NULL) {
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unable to open"
                 " file \"%s\" for writing, since the parent directory"
@@ -368,21 +361,21 @@ static int CookfsCreateWriterchannelCmd(ClientData clientData,
     // from scratch, then pass NULL as entry.
 
     Tcl_Channel channel = Cookfs_CreateWriterchannel(pages, index, writer,
-        pathObj, pathObjLen, (wantToRead ? entry : NULL), interp);
+        pathObj, (wantToRead ? entry : NULL), interp);
 
     if (channel == NULL) {
         goto error;
     }
 
     // We don't need the pathObj anymore
-    Tcl_DecrRefCount(pathObj);
+    Cookfs_PathObjDecrRefCount(pathObj);
     Tcl_SetObjResult(interp, Tcl_NewStringObj(
         Tcl_GetChannelName(channel), -1));
     return TCL_OK;
 
 error:
 
-    Tcl_DecrRefCount(pathObj);
+    Cookfs_PathObjDecrRefCount(pathObj);
     return TCL_ERROR;
 
 }

@@ -25,8 +25,7 @@
 // Cached internal representation of a cookfs entry
 typedef struct cookfsInternalRep {
     Cookfs_Vfs *vfs;
-    Tcl_Obj *relativePathObj;
-    Tcl_Size relativePathObjLen;
+    Cookfs_PathObj *pathObj;
 } cookfsInternalRep;
 
 enum cookfsAttributes {
@@ -150,14 +149,9 @@ static int CookfsPathInFilesystem(Tcl_Obj *pathPtr,
 
     //CookfsLog(printf("CookfsPathInFilesystem: computed relative path [%s]",
     //    normPathStr + normPathCut));
-
-    Tcl_Obj *normRelativePathObj = Tcl_NewStringObj(normPathStr + normPathCut,
+    internalRep->pathObj = Cookfs_PathObjNewFromStr(normPathStr + normPathCut,
         normPathLen - normPathCut);
-    internalRep->relativePathObj = Tcl_FSSplitPath(normRelativePathObj,
-        &internalRep->relativePathObjLen);
-    Tcl_IncrRefCount(internalRep->relativePathObj);
-    Tcl_IncrRefCount(normRelativePathObj);
-    Tcl_DecrRefCount(normRelativePathObj);
+    Cookfs_PathObjIncrRefCount(internalRep->pathObj);
 
     *clientDataPtr = (ClientData)internalRep;
     //CookfsLog(printf("CookfsPathInFilesystem: return found entry as"
@@ -171,8 +165,8 @@ static ClientData CookfsDupInternalRep(ClientData clientData) {
         (cookfsInternalRep *)ckalloc(sizeof(cookfsInternalRep));
     if (internalCopyRep != NULL) {
         internalCopyRep->vfs = internalRep->vfs;
-        internalCopyRep->relativePathObj = internalRep->relativePathObj;
-        Tcl_IncrRefCount(internalCopyRep->relativePathObj);
+        internalCopyRep->pathObj = internalRep->pathObj;
+        Cookfs_PathObjIncrRefCount(internalRep->pathObj);
     }
     CookfsLog(printf("CookfsDupInternalRep: copy from [%p] to [%p]",
         (void *)internalRep, (void *)internalCopyRep));
@@ -184,7 +178,7 @@ static void CookfsFreeInternalRep(ClientData clientData) {
         (void *)clientData));
     cookfsInternalRep *internalRep = (cookfsInternalRep *)clientData;
     if (internalRep != NULL) {
-        Tcl_DecrRefCount(internalRep->relativePathObj);
+        Cookfs_PathObjDecrRefCount(internalRep->pathObj);
         ckfree((char *)internalRep);
     }
 }
@@ -227,7 +221,7 @@ static int CookfsStat(Tcl_Obj *pathPtr, Tcl_StatBuf *bufPtr) {
 
     // Try to find the file entry
     Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(index,
-        internalRep->relativePathObj);
+        internalRep->pathObj);
 
     if (entry == NULL) {
         CookfsLog(printf("CookfsStat: could not find the entry,"
@@ -250,7 +244,7 @@ static int CookfsStat(Tcl_Obj *pathPtr, Tcl_StatBuf *bufPtr) {
         CookfsLog(printf("CookfsStat: return stats for a file"));
     }
     // Tcl variant of Cookfs returns mtime as 0 for the root directory
-    if (internalRep->relativePathObjLen == 0) {
+    if (internalRep->pathObj->fullNameLength == 0) {
         bufPtr->st_mtime = 0;
         bufPtr->st_ctime = 0;
         bufPtr->st_atime = 0;
@@ -295,7 +289,7 @@ static int CookfsAccess(Tcl_Obj *pathPtr, int mode) {
 
     // Try to find the file entry
     Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(index,
-        internalRep->relativePathObj);
+        internalRep->pathObj);
 
     // The entry has been found
     if (entry != NULL) {
@@ -345,7 +339,7 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
 
     // Try to find the file entry
     Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(index,
-        internalRep->relativePathObj);
+        internalRep->pathObj);
 
     Tcl_Channel channel;
 
@@ -369,7 +363,7 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
                 CookfsLog(printf("CookfsOpenFileChannel: the file is in"
                     " a pending state, open it using writerchannel"));
                 channel = Cookfs_CreateWriterchannel(pages, index,
-                    vfs->writer, NULL, 0, entry, interp);
+                    vfs->writer, NULL, entry, interp);
             } else {
                 CookfsLog(printf("CookfsOpenFileChannel: the file is NOT in"
                     " a pending state, open it using readerchannel"));
@@ -399,7 +393,7 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
 
         // Check if parent exists
         Cookfs_FsindexEntry *entryParent = CookfsFsindexFindElement(index,
-            internalRep->relativePathObj, internalRep->relativePathObjLen - 1);
+            internalRep->pathObj, internalRep->pathObj->elementCount - 1);
         if (entryParent == NULL) {
             CookfsLog(printf("CookfsOpenFileChannel: parent directory"
                 " doesn't exist"));
@@ -434,8 +428,7 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
     }
 
     channel = Cookfs_CreateWriterchannel(pages, index, vfs->writer,
-        internalRep->relativePathObj, internalRep->relativePathObjLen, entry,
-        interp);
+        internalRep->pathObj, entry, interp);
 
     if (channel == NULL) {
         CookfsLog(printf("CookfsOpenFileChannel: got NULL from"
@@ -528,7 +521,7 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
 
     // Try to find the file entry
     Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(index,
-        internalRep->relativePathObj);
+        internalRep->pathObj);
 
     // We could not find the file entry, just return empty result
     if (entry == NULL) {
@@ -651,7 +644,7 @@ static int CookfsUtime(Tcl_Obj *pathPtr, struct utimbuf *tval) {
 
     // Try to find the file entry
     Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(index,
-        internalRep->relativePathObj);
+        internalRep->pathObj);
 
     if (entry == NULL) {
         CookfsLog(printf("CookfsUtime: could not find the entry,"
@@ -707,7 +700,7 @@ static int CookfsCreateDirectory(Tcl_Obj *pathPtr) {
 
     // Try to create the directory entry
     Cookfs_FsindexEntry *entry = Cookfs_FsindexSet(index,
-        internalRep->relativePathObj, COOKFS_NUMBLOCKS_DIRECTORY);
+        internalRep->pathObj, COOKFS_NUMBLOCKS_DIRECTORY);
 
     if (entry == NULL) {
         CookfsLog(printf("CookfsCreateDirectory: could not create"
@@ -760,7 +753,7 @@ static int CookfsRemoveDirectory(Tcl_Obj *pathPtr, int recursive,
 
     // Try to find the file entry
     Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(index,
-        internalRep->relativePathObj);
+        internalRep->pathObj);
 
     if (entry == NULL) {
         CookfsLog(printf("CookfsRemoveDirectory: could not find the entry,"
@@ -786,7 +779,7 @@ static int CookfsRemoveDirectory(Tcl_Obj *pathPtr, int recursive,
     }
 
     int result = Cookfs_FsindexUnsetRecursive(index,
-        internalRep->relativePathObj);
+        internalRep->pathObj);
 
     // Check to see if anything's wrong
     if (!result) {
@@ -837,7 +830,7 @@ static int CookfsDeleteFile(Tcl_Obj *pathPtr) {
 
     // Try to find the file entry
     Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(index,
-        internalRep->relativePathObj);
+        internalRep->pathObj);
 
     if (entry == NULL) {
         CookfsLog(printf("CookfsDeleteFile: could not find the entry,"
@@ -860,7 +853,7 @@ static int CookfsDeleteFile(Tcl_Obj *pathPtr) {
         Cookfs_WriterRemoveFile(vfs->writer, entry);
     }
 
-    int result = Cookfs_FsindexUnset(index, internalRep->relativePathObj);
+    int result = Cookfs_FsindexUnset(index, internalRep->pathObj);
 
     // Check to see if anything's wrong
     if (!result) {
@@ -898,7 +891,7 @@ static const char *const *CookfsFileAttrStrings(Tcl_Obj *pathPtr,
     if (fsdata != NULL) {
         // Check the length of the split path. If the length is zero, then
         // we want to get attributes for cookfs.
-        if (internalRep->relativePathObjLen) {
+        if (internalRep->pathObj->fullNameLength) {
             CookfsLog(printf("CookfsFileAttrStrings: return common"
                 " attr list"));
             *objPtrRef = fsdata->attrList;

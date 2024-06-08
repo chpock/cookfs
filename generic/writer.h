@@ -15,13 +15,13 @@ typedef enum {
 typedef struct Cookfs_WriterBuffer {
     void *buffer;
     Tcl_WideInt bufferSize;
-    Tcl_Obj *pathObj;
+    Cookfs_PathObj *pathObj;
     Tcl_WideInt mtime;
     Cookfs_FsindexEntry *entry;
 
-    Tcl_Obj *sortKey;
-    const void *sortKeyStr;
-    Tcl_Size sortKeyLen;
+    Cookfs_PathObj *sortKey;
+    char *sortKeyExt;
+    Tcl_Size sortKeyExtLen;
 
     int pageBlock;
     int pageOffset;
@@ -66,7 +66,7 @@ Tcl_Obj *Cookfs_WriterGetBufferObj(Cookfs_Writer *w, int blockNumber);
 const void *Cookfs_WriterGetBuffer(Cookfs_Writer *w, int blockNumber,
     Tcl_WideInt *blockSize);
 
-int Cookfs_WriterAddFile(Cookfs_Writer *w, Tcl_Obj *pathObj,
+int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
     Cookfs_WriterDataSource dataType, void *data, Tcl_WideInt dataSize,
     Tcl_Obj **err);
 
