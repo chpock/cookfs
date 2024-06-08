@@ -2,6 +2,7 @@
 	* Improve error handling
 	* Thread support preparation: eliminate Tcl_Obj usage for paths
 	* Thread support preparation: eliminate Tcl_Obj usage for vfs
+	* Thread support preparation: eliminate Tcl_Obj usage for fsindex metadata
 
 2024-06-07 Konstantin Kushnir <chpock@gmail.com>
 	* Thread support preparation: eliminate Tcl_Obj usage by pages object
