@@ -39,8 +39,8 @@ Cookfs_PathObj *Cookfs_PathObjNewFromStr(const char* pathStr,
     } else {
         elementCount = 0;
     }
-    CookfsLog(printf("Cookfs_PathObjNewFromStr: element count: %d",
-        elementCount));
+    // CookfsLog(printf("Cookfs_PathObjNewFromStr: element count: %d",
+    //     elementCount));
 
     // We need to alloc our object now. We need the following buffer:
     //     Cookfs_PathObj +
@@ -82,8 +82,8 @@ Cookfs_PathObj *Cookfs_PathObjNewFromStr(const char* pathStr,
                 continue;
             }
             // Save information about the previous element
-            CookfsLog(printf("Cookfs_PathObjNewFromStr: found element #%d"
-                " length %d", currentElement, currentElementLength));
+            // CookfsLog(printf("Cookfs_PathObjNewFromStr: found element #%d"
+            //     " length %d", currentElement, currentElementLength));
             rc->fullName0[i] = '\0';
             rc->element[currentElement].name = lastElementStr;
             rc->element[currentElement].name0 = lastElementStr0;
@@ -97,20 +97,20 @@ Cookfs_PathObj *Cookfs_PathObjNewFromStr(const char* pathStr,
         // The current state is corresponds to the tail element
         rc->tailName = lastElementStr;
         rc->tailNameLength = currentElementLength;
-        CookfsLog(printf("Cookfs_PathObjNewFromStr: tail element #%d [%s]"
-            " length %d", currentElement, lastElementStr,
-            currentElementLength));
+        // CookfsLog(printf("Cookfs_PathObjNewFromStr: tail element #%d [%s]"
+        //     " length %d", currentElement, lastElementStr,
+        //     currentElementLength));
         // Also, save information about the last element
         rc->element[currentElement].name = lastElementStr;
         rc->element[currentElement].name0 = lastElementStr0;
         rc->element[currentElement].length = currentElementLength;
     } else {
-        CookfsLog(printf("Cookfs_PathObjNewFromStr: the path is empty"));
+        // CookfsLog(printf("Cookfs_PathObjNewFromStr: the path is empty"));
         rc->tailName = rc->fullName;
         rc->tailNameLength = rc->fullNameLength;
     }
 
-    CookfsLog(printf("Cookfs_PathObjNewFromStr: return %p", (void *)rc));
+    // CookfsLog(printf("Cookfs_PathObjNewFromStr: return %p", (void *)rc));
     return rc;
 
 }

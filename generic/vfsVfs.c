@@ -360,11 +360,11 @@ Cookfs_Vfs *Cookfs_CookfsFindVfs(Tcl_Obj *path, Tcl_Size len) {
 Tcl_Obj *Cookfs_CookfsGetVolumesList(void) {
     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
 
-    CookfsLog(printf("Cookfs_CookfsGetVolumesList: ENTER"));
+    // CookfsLog(printf("Cookfs_CookfsGetVolumesList: ENTER"));
 
     if (tsdPtr->volumesObj == NULL && tsdPtr->volumesList != NULL) {
 
-        CookfsLog(printf("Cookfs_CookfsGetVolumesList: need to rebuild cache"));
+        // CookfsLog(printf("Cookfs_CookfsGetVolumesList: need to rebuild cache"));
         // Need to rebuild volume list cache
         tsdPtr->volumesObj = Tcl_NewListObj(0, NULL);
         Tcl_IncrRefCount(tsdPtr->volumesObj);
@@ -378,8 +378,8 @@ Tcl_Obj *Cookfs_CookfsGetVolumesList(void) {
 
     }
 
-    CookfsLog(printf("Cookfs_CookfsGetVolumesList: ok [%s]",
-        tsdPtr->volumesObj == NULL ?
-        "NULL" : Tcl_GetString(tsdPtr->volumesObj)));
+    // CookfsLog(printf("Cookfs_CookfsGetVolumesList: ok [%s]",
+    //     tsdPtr->volumesObj == NULL ?
+    //     "NULL" : Tcl_GetString(tsdPtr->volumesObj)));
     return tsdPtr->volumesObj;
 }

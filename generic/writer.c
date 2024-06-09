@@ -729,9 +729,17 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, Tcl_Obj **err) {
             int j;
             for (j = 0; j < i; j++) {
                 Cookfs_WriterBuffer *wbc = sortedWB[j];
-                CookfsLog(printf("Cookfs_WriterPurge: check if [%p] equals"
-                    " to [%p]", (void *)wb->buffer,
-                    (void *)wbc->buffer));
+                // TODO: comparing the current buffer with all previous buffers
+                // is extremely expensive. Here we first compare the buffers
+                // size and this partially mitigates the problem. However,
+                // since all our buffers are already in memory, it will be easy
+                // to calculate the crc/hash for the buffer and compare
+                // the buffers by hashes. If hashes are equal, then compare
+                // their contents.
+                //
+                // CookfsLog(printf("Cookfs_WriterPurge: check if [%p] equals"
+                //     " to [%p]", (void *)wb->buffer,
+                //     (void *)wbc->buffer));
                 if ((wb->bufferSize == wbc->bufferSize)
                     && memcmp(wb->buffer, wbc->buffer, wb->bufferSize) == 0)
                 {

@@ -295,15 +295,15 @@ static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
 	    objOffset ++;
 
 	    /* add file modification time and number of blocks */
-	    CookfsLog(printf("DEBUG 1 - %d", objOffset))
+	    // CookfsLog(printf("DEBUG 1 - %d", objOffset))
 	    Cookfs_WideInt2Binary(&itemNode->fileTime, bytes + objOffset, 1);
 	    objOffset += 8;
 
-	    CookfsLog(printf("DEBUG 2 - %d", objOffset))
+	    // CookfsLog(printf("DEBUG 2 - %d", objOffset))
 	    Cookfs_Int2Binary(&itemNode->fileBlocks, bytes + objOffset, 1);
 	    objOffset += 4;
 
-	    CookfsLog(printf("DEBUG 3 - %d", objOffset))
+	    // CookfsLog(printf("DEBUG 3 - %d", objOffset))
 	    if (itemNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
 		/* add child directory's structure inlined; append
 		 * rest of current directory after child's export data */
@@ -320,7 +320,7 @@ static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
 		Cookfs_Int2Binary(itemNode->data.fileInfo.fileBlockOffsetSize, bytes + objOffset, itemNode->fileBlocks * 3);
 		objOffset += itemNode->fileBlocks * 12;
 	    }
-	    CookfsLog(printf("DEBUG 4 - %d", objOffset))
+	    // CookfsLog(printf("DEBUG 4 - %d", objOffset))
 	}
     }  else  {
 	int i;

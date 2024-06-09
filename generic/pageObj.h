@@ -13,28 +13,29 @@ typedef struct Cookfs_PageObjStruct {
     int refCount;
 } Cookfs_PageObjStruct;
 
-/*
+
 #define Cookfs_PageObjIncrRefCount(p) \
     ((Cookfs_PageObjStruct *)((Cookfs_PageObj)(p) - \
         sizeof(Cookfs_PageObjStruct)))->refCount++
-*/
 
+/*
 #define Cookfs_PageObjIncrRefCount(p) \
     { \
         ((Cookfs_PageObjStruct *)((Cookfs_PageObj)(p) - \
             sizeof(Cookfs_PageObjStruct)))->refCount++; \
         CookfsLog(printf("Cookfs_PageObjIncrRefCount: %p", (void *)p)); \
     }
+*/
 
-/*
+
 #define Cookfs_PageObjDecrRefCount(p) \
     { \
         Cookfs_PageObjStruct *tmp = (Cookfs_PageObjStruct *)( \
             (Cookfs_PageObj)(p) - sizeof(Cookfs_PageObjStruct)); \
         if (!(--tmp->refCount)) { ckfree(tmp); } \
     }
-*/
 
+/*
 #define Cookfs_PageObjDecrRefCount(p) \
     { \
         CookfsLog(printf("Cookfs_PageObjDecrRefCount: %p", (void *)p)); \
@@ -45,6 +46,7 @@ typedef struct Cookfs_PageObjStruct {
             CookfsLog(printf("Cookfs_PageObjDecrRefCount: release %p", (void *)p)); \
         } \
     }
+*/
 
 #define Cookfs_PageObjSize(p) \
     (((Cookfs_PageObjStruct *)((Cookfs_PageObj)(p) - \

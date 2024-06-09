@@ -1279,7 +1279,6 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *cu
 	    /* iterate over children array and find matching node */
 	    CookfsLog(printf("CookfsFsindexFindInDirectory - looking in childTable"))
 	    for (i = 0 ; i < COOKFS_FSINDEX_TABLE_MAXENTRIES; i++) {
-		CookfsLog(printf("CookfsFsindexFindInDirectory - checking %d", i))
 		if ((currentNode->data.dirInfo.dirData.childTable[i] != NULL) && (strcmp(currentNode->data.dirInfo.dirData.childTable[i]->fileName, pathTailStr) == 0)) {
 		    fileNode = currentNode->data.dirInfo.dirData.childTable[i];
 		    fileNodePtr = &currentNode->data.dirInfo.dirData.childTable[i];
@@ -1325,6 +1324,7 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *cu
 		}
 		return fileNode;
 	    }  else  {
+	        CookfsLog(printf("CookfsFsindexFindInDirectory - not found"));
 		/* if entry was not found */
 		if (command == COOKFSFSINDEX_FIND_CREATE) {
 		    /* for create operation, add new child to static array */
@@ -1337,7 +1337,6 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *cu
 		    }  else  {
 			/* if we have any spots available, update first free one */
 			for (i = 0 ; i < COOKFS_FSINDEX_TABLE_MAXENTRIES; i++) {
-			    CookfsLog(printf("CookfsFsindexFindInDirectory - create - checking %d", i))
 			    if (currentNode->data.dirInfo.dirData.childTable[i] == NULL) {
 				CookfsLog(printf("CookfsFsindexFindInDirectory - create - adding at %d", i))
 				currentNode->data.dirInfo.dirData.childTable[i] = newFileNode;

@@ -607,7 +607,7 @@ static int CookfsFsindexCmdSet(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int 
 		return TCL_ERROR;
 	    }
 	    entry->data.fileInfo.fileBlockOffsetSize[i] = fileBlockData;
-	    CookfsLog(printf("Dump %d -> %d", i, fileBlockData))
+	    // CookfsLog(printf("Dump %d -> %d", i, fileBlockData))
 	}
 
 	/* calculate file size by iterating over each block and adding its size */
