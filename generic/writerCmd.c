@@ -7,6 +7,12 @@
  */
 
 #include "cookfs.h"
+#include "writer.h"
+#include "writerInt.h"
+#include "writerCmd.h"
+
+typedef int (Cookfs_WriterHandleCommandProc)(Cookfs_Writer *w,
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
 // Creating a writer object from Tcl is not supported as for now
 // static Tcl_ObjCmdProc CookfsWriterCmd;
@@ -47,10 +53,11 @@ static void CookfsRegisterExistingWriterObjectCmd(Tcl_Interp *interp, Cookfs_Wri
 }
 
 
-Tcl_Obj *CookfsGetWriterObjectCmd(Tcl_Interp *interp, Cookfs_Writer *w) {
-    CookfsRegisterExistingWriterObjectCmd(interp, w);
+Tcl_Obj *CookfsGetWriterObjectCmd(Tcl_Interp *interp, void *w) {
+    Cookfs_Writer *writer = (Cookfs_Writer *)w;
+    CookfsRegisterExistingWriterObjectCmd(interp, writer);
     Tcl_Obj *rc = Tcl_NewObj();
-    Tcl_GetCommandFullName(interp, w->commandToken, rc);
+    Tcl_GetCommandFullName(interp, writer->commandToken, rc);
     return rc;
 }
 
@@ -82,8 +89,7 @@ static void CookfsWriterHandlerCmdDeleteProc(ClientData clientData) {
 }
 
 static Cookfs_WriterHandleCommandProc CookfsWriterHandleCommandGetbuf;
-// In headers:
-// Cookfs_WriterHandleCommandProc CookfsWriterHandleCommandWrite;
+static Cookfs_WriterHandleCommandProc CookfsWriterHandleCommandWrite;
 
 static int CookfsWriterHandlerCmd(ClientData clientData, Tcl_Interp *interp,
     int objc, Tcl_Obj *const objv[])
@@ -145,7 +151,12 @@ static int CookfsWriterHandleCommandGetbuf(Cookfs_Writer *w,
         return TCL_ERROR;
     }
 
+    if (!Cookfs_WriterLockRead(w, NULL)) {
+        return TCL_ERROR;
+    }
     Tcl_Obj *rc = Cookfs_WriterGetBufferObj(w, bufNumber);
+    Cookfs_WriterUnlock(w);
+
     if (rc == NULL) {
         CookfsLog(printf("CookfsWriterHandleCommandGetbuf: ERROR: got NULL"));
         Tcl_SetObjResult(interp, Tcl_ObjPrintf("unable to get buf index %d",
@@ -159,7 +170,7 @@ static int CookfsWriterHandleCommandGetbuf(Cookfs_Writer *w,
 
 }
 
-int CookfsWriterHandleCommandWrite(Cookfs_Writer *w,
+static int CookfsWriterHandleCommandWrite(Cookfs_Writer *w,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
 
@@ -226,10 +237,17 @@ int CookfsWriterHandleCommandWrite(Cookfs_Writer *w,
         }
 
         Tcl_Obj *err = NULL;
-        int ret = Cookfs_WriterAddFile(w, pathObj,
-            (Cookfs_WriterDataSource)dataTypeInt, (
-            (Cookfs_WriterDataSource)dataTypeInt == COOKFS_WRITER_SOURCE_CHANNEL
-            ? (void *)channel : (void *)data), dataSize, &err);
+        int ret;
+        if (!Cookfs_WriterLockWrite(w, &err)) {
+            ret = TCL_ERROR;
+        } else {
+            ret = Cookfs_WriterAddFile(w, pathObj, NULL,
+                (Cookfs_WriterDataSource)dataTypeInt, (
+                (Cookfs_WriterDataSource)dataTypeInt == COOKFS_WRITER_SOURCE_CHANNEL
+                ? (void *)channel : (void *)data), dataSize, &err);
+            Cookfs_WriterUnlock(w);
+        }
+
         if (ret != TCL_OK) {
             if (err == NULL) {
                 CookfsLog(printf("CookfsWriterHandleCommandWrite: got error"
@@ -260,4 +278,14 @@ error:
 
     return TCL_OK;
 
+}
+
+int Cookfs_WriterCmdForward(Cookfs_WriterForwardCmd cmd, void *w,
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{
+    switch (cmd) {
+    case COOKFS_WRITER_FORWARD_COMMAND_WRITE:
+        return CookfsWriterHandleCommandWrite(w, interp, objc, objv);
+    }
+    return TCL_ERROR;
 }

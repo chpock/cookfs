@@ -517,6 +517,11 @@ Do not create cookfs::fsindex object, use specified fsindex object\&. Mainly for
 .TP
 \fB-pagesobject\fR \fIpagesObject\fR
 Do not create cookfs::pages object, use specified pages object\&. Mainly for internal use\&.
+.TP
+\fB-shared\fR
+Create a multi-threaded cookfs that is available to all application threads\&.
+.sp
+See \fBMULTI-THREADING SUPPORT\fR for more details on multi-threading support in cookfs\&.
 .PP
 .SH "COOKFS STORAGE"
 Cookfs uses \fBcookfs::pages\fR for storing all files and
@@ -679,6 +684,39 @@ of small files\&. To avoid "age" overflow for other pages when reading these fil
 the field "age" will only increase the first time this page is read\&. If this page
 already exists in the cache, then the field "age" for cache items
 will not be increased\&.
+.SH "MULTI-THREADING SUPPORT"
+By default, cookfs are created that are only available within a single
+application thread, but to all interpreters\&.
+.PP
+Using the \fI-shared\fR parameter, you can create a cookfs that will be
+available to all application threads\&.
+.PP
+The following nuances must be taken into account when working in multi-threaded mode:
+.PP
+1\&. cookfs remains bound to the thread and interpreter in which it was created\&.
+This means that cookfs can only be unmounted in its own thread\&. Also, when
+the bound thread and/or interpreter is terminated, the cookfs will be unmounted
+and become unavailable to all other threads\&.
+.PP
+2\&. \fIcookfsHandle\fR and internal \fBcookfs::pages\fR/\fBcookfs::fsindex\fR
+objects are only available in bound thread\&. Other threads can only use
+standard Tcl commands like \fBfile\fR, \fBopen\fR, etc to access and
+manipulate files in cookfs\&.
+.PP
+3\&. Tcl callbacks are not available for multi-threaded cookfs\&.
+In particular, it means that compression type \fBcustom\fR is not available in this mode\&.
+The following list of options is not available for multi-threaded cookfs:
+.IP \(bu
+\fI-compresscommand\fR
+.IP \(bu
+\fI-decompresscommand\fR
+.IP \(bu
+\fI-asynccompresscommand\fR
+.IP \(bu
+\fI-asyncdecompresscommand\fR
+.PP
+.PP
+4\&. The multi-thread cookfs is only available when package is built with \fBc-vfs\fR option enabled\&.
 .SH "SEE ALSO"
 cookfs_fsindex, cookfs_pages
 .SH KEYWORDS

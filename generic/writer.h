@@ -5,6 +5,9 @@
 
 /* Tcl public API */
 
+#include "pages.h"
+#include "fsindex.h"
+
 typedef enum {
     COOKFS_WRITER_SOURCE_FILE,
     COOKFS_WRITER_SOURCE_CHANNEL,
@@ -12,44 +15,7 @@ typedef enum {
     COOKFS_WRITER_SOURCE_BUFFER
 } Cookfs_WriterDataSource;
 
-typedef struct Cookfs_WriterBuffer {
-    void *buffer;
-    Tcl_WideInt bufferSize;
-    Cookfs_PathObj *pathObj;
-    Tcl_WideInt mtime;
-    Cookfs_FsindexEntry *entry;
-
-    Cookfs_PathObj *sortKey;
-    char *sortKeyExt;
-    Tcl_Size sortKeyExtLen;
-
-    int pageBlock;
-    int pageOffset;
-
-    struct Cookfs_WriterBuffer *next;
-} Cookfs_WriterBuffer;
-
-typedef struct Cookfs_Writer {
-
-    Tcl_Interp *interp;
-    Tcl_Command commandToken;
-    int fatalError;
-    int isDead;
-
-    Cookfs_Pages *pages;
-    Cookfs_Fsindex *index;
-
-    int isWriteToMemory;
-    Tcl_WideInt smallFileSize;
-    Tcl_WideInt maxBufferSize;
-    Tcl_WideInt pageSize;
-
-    Cookfs_WriterBuffer *bufferFirst;
-    Cookfs_WriterBuffer *bufferLast;
-    Tcl_WideInt bufferSize;
-    int bufferCount;
-
-} Cookfs_Writer;
+typedef struct _Cookfs_Writer Cookfs_Writer;
 
 Cookfs_Writer *Cookfs_WriterGetHandle(Tcl_Interp *interp, const char *cmdName);
 
@@ -67,8 +33,8 @@ const void *Cookfs_WriterGetBuffer(Cookfs_Writer *w, int blockNumber,
     Tcl_WideInt *blockSize);
 
 int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
-    Cookfs_WriterDataSource dataType, void *data, Tcl_WideInt dataSize,
-    Tcl_Obj **err);
+    Cookfs_FsindexEntry *oldEntry, Cookfs_WriterDataSource dataType,
+    void *data, Tcl_WideInt dataSize, Tcl_Obj **err);
 
 int Cookfs_WriterRemoveFile(Cookfs_Writer *w, Cookfs_FsindexEntry *entry);
 
@@ -76,5 +42,15 @@ int Cookfs_WriterGetWritetomemory(Cookfs_Writer *w);
 void Cookfs_WriterSetWritetomemory(Cookfs_Writer *w, int status);
 
 Tcl_WideInt Cookfs_WriterGetSmallfilebuffersize(Cookfs_Writer *w);
+
+int Cookfs_WriterUnlockSoft(Cookfs_Writer *w);
+int Cookfs_WriterLockSoft(Cookfs_Writer *w);
+
+int Cookfs_WriterUnlock(Cookfs_Writer *w);
+int Cookfs_WriterLockRW(int isWrite, Cookfs_Writer *w, Tcl_Obj **err);
+#define Cookfs_WriterLockWrite(w,err) Cookfs_WriterLockRW(1,(w),(err))
+#define Cookfs_WriterLockRead(w,err) Cookfs_WriterLockRW(0,(w),(err))
+
+void Cookfs_WriterLockExclusive(Cookfs_Writer *w);
 
 #endif /* COOKFS_WRITER_H */

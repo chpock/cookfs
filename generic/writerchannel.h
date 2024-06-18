@@ -5,6 +5,11 @@
 #ifndef COOKFS_WRITERCHANNEL_H
 #define COOKFS_WRITERCHANNEL_H 1
 
+#include "pageObj.h"
+#include "pages.h"
+#include "fsindex.h"
+#include "writer.h"
+
 typedef struct Cookfs_WriterChannelEvent {
   Tcl_Event header;
   struct Cookfs_WriterChannelInstData *instData;
@@ -20,6 +25,7 @@ typedef struct Cookfs_WriterChannelInstData {
     Cookfs_Pages *pages;
     Cookfs_Fsindex *index;
     Cookfs_Writer *writer;
+    Cookfs_FsindexEntry *entry;
 
     Cookfs_PathObj *pathObj;
 
@@ -29,8 +35,6 @@ typedef struct Cookfs_WriterChannelInstData {
     Tcl_WideInt currentOffset;
     Tcl_WideInt currentSize;
 } Cookfs_WriterChannelInstData;
-
-int Cookfs_InitWriterchannelCmd(Tcl_Interp *interp);
 
 Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
     Cookfs_Fsindex *index, Cookfs_Writer *writer, Cookfs_PathObj *pathObj,

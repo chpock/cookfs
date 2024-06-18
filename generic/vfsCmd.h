@@ -15,13 +15,16 @@ typedef struct {
 #endif
 
     int nocommand;
-    Tcl_Obj *compression;
     int alwayscompress;
+
+    Tcl_Obj *compression;
+
     Tcl_Obj *compresscommand;
+    Tcl_Obj *decompresscommand;
     Tcl_Obj *asynccompresscommand;
     Tcl_Obj *asyncdecompresscommand;
+
     int asyncdecompressqueuesize;
-    Tcl_Obj *decompresscommand;
     Tcl_WideInt endoffset;
     Tcl_Obj *setmetadata;
     int readonly;
@@ -33,6 +36,7 @@ typedef struct {
     Tcl_WideInt smallfilebuffer;
     int nodirectorymtime;
     Tcl_Obj *pagehash;
+    int shared;
 
 } Cookfs_VfsProps;
 
@@ -47,5 +51,6 @@ void Cookfs_VfsPropsFree(Cookfs_VfsProps *p);
 void Cookfs_VfsPropSetVolume(Cookfs_VfsProps *p, int volume);
 void Cookfs_VfsPropSetReadonly(Cookfs_VfsProps *p, int readonly);
 void Cookfs_VfsPropSetWritetomemory(Cookfs_VfsProps *p, int writetomemory);
+void Cookfs_VfsPropSetShared(Cookfs_VfsProps *p, int shared);
 
 #endif /* COOKFS_VFSCMD_H */

@@ -8,6 +8,9 @@
  */
 
 #include "cookfs.h"
+#include "pages.h"
+#include "pagesInt.h"
+#include "pagesCompr.h"
 
 #define COOKFS_SUFFIX_BYTES 16
 
@@ -25,29 +28,105 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj **err);
 static void CookfsPagesPageExtendIfNeeded(Cookfs_Pages *p, int count);
 static void CookfsTruncateFileIfNeeded(Cookfs_Pages *p, Tcl_WideInt targetOffset);
 static Tcl_WideInt Cookfs_PageSearchStamp(Cookfs_Pages *p);
+static void Cookfs_PagesFree(Cookfs_Pages *p);
 
 static const char *const pagehashNames[] = { "md5", "crc32", NULL };
 
+int Cookfs_PagesLockRW(int isWrite, Cookfs_Pages *p, Tcl_Obj **err) {
+    int ret = 1;
+#ifdef TCL_THREADS
+    if (isWrite) {
+        CookfsLog(printf("Cookfs_PagesLockWrite: try to lock..."));
+        ret = Cookfs_RWMutexLockWrite(p->mx);
+    } else {
+        CookfsLog(printf("Cookfs_PagesLockRead: try to lock..."));
+        ret = Cookfs_RWMutexLockRead(p->mx);
+    }
+    if (ret && p->isDead == 1) {
+        // If object is terminated, don't allow everything.
+        ret = 0;
+        Cookfs_RWMutexUnlock(p->mx);
+    }
+    if (!ret) {
+        CookfsLog(printf("%s: FAILED", isWrite ? "Cookfs_PagesLockWrite" :
+            "Cookfs_PagesLockRead"));
+        if (err != NULL) {
+            *err = Tcl_NewStringObj("stalled pages object detected", -1);
+        }
+    } else {
+        CookfsLog(printf("%s: ok", isWrite ? "Cookfs_PagesLockWrite" :
+            "Cookfs_PagesLockRead"));
+    }
+#else
+    UNUSED(isWrite);
+    UNUSED(p);
+    UNUSED(err);
+#endif /* TCL_THREADS */
+    return ret;
+}
 
+int Cookfs_PagesUnlock(Cookfs_Pages *p) {
+#ifdef TCL_THREADS
+    Cookfs_RWMutexUnlock(p->mx);
+    CookfsLog(printf("Cookfs_PagesUnlock: ok"));
+#else
+    UNUSED(p);
+#endif /* TCL_THREADS */
+    return 1;
+}
 
-/*
- *----------------------------------------------------------------------
- *
- * Cookfs_PagesLock --
- *
- *      Locks or unlocks the specified pages object
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
+int Cookfs_PagesLockHard(Cookfs_Pages *p) {
+    p->lockHard = 1;
+    return 1;
+}
 
-void Cookfs_PagesLock(Cookfs_Pages *p, int isLocked) {
-    p->isLocked = isLocked;
+int Cookfs_PagesUnlockHard(Cookfs_Pages *p) {
+    p->lockHard = 0;
+    return 1;
+}
+
+int Cookfs_PagesLockSoft(Cookfs_Pages *p) {
+    int ret = 1;
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&p->mxLockSoft);
+#endif /* TCL_THREADS */
+    if (p->isDead) {
+        ret = 0;
+    } else {
+        p->lockSoft++;
+    }
+#ifdef TCL_THREADS
+    Tcl_MutexUnlock(&p->mxLockSoft);
+#endif /* TCL_THREADS */
+    return ret;
+}
+
+int Cookfs_PagesUnlockSoft(Cookfs_Pages *p) {
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&p->mxLockSoft);
+#endif /* TCL_THREADS */
+    assert(p->lockSoft > 0);
+    p->lockSoft--;
+    if (p->isDead == 1) {
+        Cookfs_PagesFree(p);
+    } else {
+#ifdef TCL_THREADS
+        Tcl_MutexUnlock(&p->mxLockSoft);
+#endif /* TCL_THREADS */
+    }
+    return 1;
+}
+
+void Cookfs_PagesLockExclusive(Cookfs_Pages *p) {
+#ifdef TCL_THREADS
+    Cookfs_RWMutexLockExclusive(p->mx);
+#else
+    UNUSED(p);
+#endif /* TCL_THREADS */
+}
+
+int Cookfs_PagesGetLength(Cookfs_Pages *p) {
+    return p->dataNumPages;
 }
 
 /*
@@ -67,6 +146,13 @@ void Cookfs_PagesLock(Cookfs_Pages *p, int isLocked) {
  */
 
 Tcl_Obj *Cookfs_PagesGetHashAsObj(Cookfs_Pages *p) {
+    Cookfs_PagesWantRead(p);
+    // Due to unknown reason, cppcheck gives here the following:
+    //     Argument 'pagehashNames[p->pageHash],-1' to function tcl_NewStringObj
+    //     is always -1. It does not matter what value 'p->pageHash'
+    //     has. [knownArgument]
+    // This sounds like a bug in cppcheck.
+    // cppcheck-suppress knownArgument
     return Tcl_NewStringObj(pagehashNames[p->pageHash], -1);
 }
 
@@ -90,6 +176,7 @@ Tcl_Obj *Cookfs_PagesGetHashAsObj(Cookfs_Pages *p) {
 int Cookfs_PagesSetHashByObj(Cookfs_Pages *p, Tcl_Obj *pagehash,
     Tcl_Interp *interp)
 {
+    Cookfs_PagesWantWrite(p);
     int idx;
     if (Tcl_GetIndexFromObj(interp, pagehash, pagehashNames, "hash",
         TCL_EXACT, &idx) != TCL_OK)
@@ -205,7 +292,8 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     int i;
 
     /* initialize basic information */
-    rc->isLocked = 0;
+    rc->lockHard = 0;
+    rc->lockSoft = 0;
     rc->isDead = 0;
     rc->interp = interp;
     rc->commandToken = NULL;
@@ -220,12 +308,20 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
 	return NULL;
     }
 
+#ifdef TCL_THREADS
+    /* initialize thread locks */
+    rc->mx = Cookfs_RWMutexInit();
+    rc->mxCache = NULL;
+    rc->mxIO = NULL;
+    rc->mxLockSoft = NULL;
+    rc->threadId = Tcl_GetCurrentThread();
+#endif /* TCL_THREADS */
+
     /* initialize structure */
     rc->isFirstWrite = 0;
     rc->useFoffset = useFoffset;
     rc->foffset = foffset;
     rc->fileReadOnly = fileReadOnly;
-    rc->fileCompression = fileCompression;
     rc->alwaysCompress = 0;
     if (fileSignature != NULL) {
         memcpy(rc->fileSignature, fileSignature, 7);
@@ -339,7 +435,10 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     }
 
     /* read index or fail */
-    if (!CookfsReadIndex(interp, rc, err)) {
+    Cookfs_PagesLockWrite(rc, NULL);
+    int indexRead = CookfsReadIndex(interp, rc, err);
+    Cookfs_PagesUnlock(rc);
+    if (!indexRead) {
 	if (rc->fileReadOnly) {
 	    // Detecting a corrupted file only if no endoffset is specified and we
 	    // tried to automatically detect the contents of the archive.
@@ -505,20 +604,44 @@ done:
  *----------------------------------------------------------------------
  */
 
+static void Cookfs_PagesFree(Cookfs_Pages *p) {
+    CookfsLog(printf("Cleaning up pages"))
+#ifdef TCL_THREADS
+    CookfsLog(printf("Cleaning up thread locks"));
+    Cookfs_RWMutexFini(p->mx);
+    Tcl_MutexFinalize(&p->mxCache);
+    Tcl_MutexFinalize(&p->mxIO);
+    Tcl_MutexUnlock(&p->mxLockSoft);
+    Tcl_MutexFinalize(&p->mxLockSoft);
+#endif /* TCL_THREADS */
+    /* clean up storage */
+    ckfree((void *) p);
+}
+
 void Cookfs_PagesFini(Cookfs_Pages *p) {
     int i;
 
-    if (p->isDead) {
+    if (p->isDead == 1) {
         return;
     }
 
-    if (p->isLocked) {
+    if (p->lockHard) {
         CookfsLog(printf("Cookfs_PagesFini: could not remove"
             " locked object"));
         return;
     }
 
+    Cookfs_PagesLockExclusive(p);
+
     CookfsLog(printf("Cookfs_PagesFini: enter"));
+
+    CookfsLog(printf("Cookfs_PagesFini: aquire mutex"));
+    // By acquisition the lockSoft mutex, we will be sure that no other
+    // thread calls Cookfs_PagesUnlockSoft() that can release this object
+    // while this function is running.
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&p->mxLockSoft);
+#endif /* TCL_THREADS */
     p->isDead = 1;
 
     Cookfs_PagesClose(p);
@@ -574,9 +697,14 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
         CookfsLog(printf("No tcl command"));
     }
 
-    CookfsLog(printf("Cleaning up pages"))
-    /* clean up storage */
-    ckfree((void *) p);
+    if (p->lockSoft) {
+        CookfsLog(printf("The page object is soft-locked"))
+#ifdef TCL_THREADS
+        Tcl_MutexUnlock(&p->mxLockSoft);
+#endif /* TCL_THREADS */
+    } else {
+        Cookfs_PagesFree(p);
+    }
 }
 
 /*
@@ -832,6 +960,8 @@ int Cookfs_PageAddTclObj(Cookfs_Pages *p, Tcl_Obj *dataObj, Tcl_Obj **err) {
 int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength,
     Tcl_Obj **err)
 {
+    Cookfs_PagesWantWrite(p);
+
     int idx;
     int dataSize;
     unsigned char md5sum[16];
@@ -885,6 +1015,8 @@ int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength,
 
 	    /* use -1000 weight as it is temporary page and we don't really need it in cache */
 	    otherPageData = Cookfs_PageGet(p, idx, -1000, err);
+	    // Do not increment refcount for otherPageData, Cookfs_PageGet()
+	    // returns a page with refcount=1.
 
 	    /* fail in case when decompression is not available
 	     *
@@ -894,7 +1026,6 @@ int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength,
 	        CookfsLog(printf("Cookfs_PageAdd: Unable to verify page with same MD5 checksum"));
 	        return -1;
 	    } else {
-	        Cookfs_PageObjIncrRefCount(otherPageData);
 	        if (Cookfs_PageObjSize(otherPageData) != objLength) {
 	            CookfsLog(printf("Cookfs_PageAdd: the length doesn't match"))
 	        } else if (memcmp(bytes, otherPageData, objLength) != 0) {
@@ -918,7 +1049,12 @@ int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength,
     /* if this page has an aside page set up, ask it to add new page */
     if (p->dataAsidePages != NULL) {
 	CookfsLog(printf("Cookfs_PageAdd: Sending add command to asidePages"))
-	return Cookfs_PageAddRaw(p->dataAsidePages, bytes, objLength, err);
+        if (!Cookfs_PagesLockWrite(p->dataAsidePages, NULL)) {
+            return -1;
+        }
+	int rc = Cookfs_PageAddRaw(p->dataAsidePages, bytes, objLength, err);
+	Cookfs_PagesUnlock(p->dataAsidePages);
+	return rc;
     }
 
     /* if file is read only, return page can't be added */
@@ -964,18 +1100,27 @@ int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength,
  *
  * Cookfs_PageGet --
  *
- *	Gets contents of a page at specified index and sets its weight in cache
+ *      Gets contents of a page at specified index and sets its weight in cache
  *
  * Results:
- *	Cookfs_PageObj with page data
- *	This Cookfs_PageObj may also be used by pages cache therefore it is
- *	needed to Tcl_IncrRefCount() / Tcl_DecrRefCount() to properly
- *	handle memory management
+ *      Cookfs_PageObj with page data and refcount=1. It is important to return
+ *      a page with non-zero refcount because this page is also managed by
+ *      cache.
+ *
+ *      Let's imagine that some code called Cookfs_PageGet and got a page.
+ *      Then after error checking, this code will call
+ *      Cookfs_PageObjIncrRefCount() to lock the page. However, it is possible
+ *      that this page will be removed from cache until refcount is increased.
+ *      The page will be freed before its refcount is incremented.
+ *      So, to avoid that, Cookfs_PageGet() shoul pre-increase refcount for
+ *      caller. This means, that caller sould not call
+ *      Cookfs_PageObjIncrRefCount() to lock the page. But it should call
+ *      Cookfs_PageObjDecrRefCount() when page data is no longer needed.
  *
  * Side effects:
- *	May remove other pages from pages cache; if reference counter is
- *	not properly managed, objects for other pages might be invalidated
- *	while they are used by caller of this API
+ *      May remove other pages from pages cache; if reference counter is
+ *      not properly managed, objects for other pages might be invalidated
+ *      while they are used by caller of this API
  *
  *----------------------------------------------------------------------
  */
@@ -983,6 +1128,8 @@ int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength,
 Cookfs_PageObj Cookfs_PageGet(Cookfs_Pages *p, int index, int weight,
     Tcl_Obj **err)
 {
+    Cookfs_PagesWantRead(p);
+
     Cookfs_PageObj rc;
     int preloadIndex = index + 1;
 
@@ -998,9 +1145,9 @@ Cookfs_PageObj Cookfs_PageGet(Cookfs_Pages *p, int index, int weight,
 
     /* if cache is disabled, immediately get page */
     if (p->cacheSize <= 0) {
-	rc = CookfsPagesPageGetInt(p, index, err);
-	CookfsLog(printf("Cookfs_PageGet: Returning directly [%p]", (void *)rc))
-	return rc;
+        rc = CookfsPagesPageGetInt(p, index, err);
+        CookfsLog(printf("Cookfs_PageGet: Returning directly [%p]", (void *)rc))
+        goto done;
     }
 
     Cookfs_AsyncDecompressWaitIfLoading(p, index);
@@ -1011,10 +1158,17 @@ Cookfs_PageObj Cookfs_PageGet(Cookfs_Pages *p, int index, int weight,
 	}
     }
 
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&p->mxCache);
+#endif /* TCL_THREADS */
     rc = Cookfs_PageCacheGet(p, index, 1, weight);
+#ifdef TCL_THREADS
+    Tcl_MutexUnlock(&p->mxCache);
+#endif /* TCL_THREADS */
+
     if (rc != NULL) {
-	CookfsLog(printf("Cookfs_PageGet: Returning from cache [%p]", (void *)rc));
-	return rc;
+        CookfsLog(printf("Cookfs_PageGet: Returning from cache [%p]", (void *)rc));
+        goto done;
     }
 
     /* get page and store it in cache */
@@ -1022,9 +1176,19 @@ Cookfs_PageObj Cookfs_PageGet(Cookfs_Pages *p, int index, int weight,
     CookfsLog(printf("Cookfs_PageGet: Returning and caching [%p]", (void *)rc))
 
     if (rc != NULL) {
+#ifdef TCL_THREADS
+        Tcl_MutexLock(&p->mxCache);
+#endif /* TCL_THREADS */
         Cookfs_PageCacheSet(p, index, rc, weight);
+#ifdef TCL_THREADS
+        Tcl_MutexUnlock(&p->mxCache);
+#endif /* TCL_THREADS */
     }
 
+done:
+    if (rc != NULL) {
+        Cookfs_PageObjIncrRefCount(rc);
+    }
     return rc;
 }
 
@@ -1221,12 +1385,18 @@ static void CookfsPagesPageCacheMoveToTop(Cookfs_Pages *p, int index) {
  */
 
 int Cookfs_PagesTickTock(Cookfs_Pages *p) {
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&p->mxCache);
+#endif /* TCL_THREADS */
     int maxAge = p->cacheMaxAge;
     for (int i = 0; i < p->cacheSize; i++) {
         if (++p->cache[i].age >= maxAge) {
             p->cache[i].weight = 0;
         }
     }
+#ifdef TCL_THREADS
+    Tcl_MutexUnlock(&p->mxCache);
+#endif /* TCL_THREADS */
     return maxAge;
 }
 
@@ -1248,10 +1418,17 @@ int Cookfs_PagesTickTock(Cookfs_Pages *p) {
  */
 
 int Cookfs_PagesSetMaxAge(Cookfs_Pages *p, int maxAge) {
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&p->mxCache);
+#endif /* TCL_THREADS */
     if (maxAge >= 0) {
         p->cacheMaxAge = maxAge;
     }
-    return p->cacheMaxAge;
+    int ret = p->cacheMaxAge;
+#ifdef TCL_THREADS
+    Tcl_MutexUnlock(&p->mxCache);
+#endif /* TCL_THREADS */
+    return ret;
 }
 
 /*
@@ -1271,12 +1448,20 @@ int Cookfs_PagesSetMaxAge(Cookfs_Pages *p, int maxAge) {
  */
 
 int Cookfs_PagesIsCached(Cookfs_Pages *p, int index) {
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&p->mxCache);
+#endif /* TCL_THREADS */
+    int ret = 0;
     for (int i = 0; i < p->cacheSize; i++) {
         if (p->cache[i].pageIdx == index && p->cache[i].pageObj != NULL) {
-            return 1;
+            ret = 1;
+            break;
         }
     }
-    return 0;
+#ifdef TCL_THREADS
+    Tcl_MutexUnlock(&p->mxCache);
+#endif /* TCL_THREADS */
+    return ret;
 }
 
 /*
@@ -1417,11 +1602,16 @@ Tcl_Obj *Cookfs_PageGetTailMD5(Cookfs_Pages *p) {
  */
 
 void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside) {
+    Cookfs_PagesWantWrite(p);
     if (p->dataAsidePages != NULL) {
 	Cookfs_PagesFini(p->dataAsidePages);
     }
     p->dataAsidePages = aside;
     if (aside != NULL) {
+        if (!Cookfs_PagesLockWrite(aside, NULL)) {
+            p->dataAsidePages = NULL;
+            return;
+        }
 	CookfsLog(printf("Cookfs_PagesSetAside: Checking if index in add-aside archive should be overwritten."))
 	Cookfs_PageObj asideIndex;
 	asideIndex = Cookfs_PagesGetIndex(aside);
@@ -1430,6 +1620,7 @@ void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside) {
 	    Cookfs_PagesSetIndex(aside, p->dataIndex);
 	    CookfsLog(printf("Cookfs_PagesSetAside: done copying index."))
 	}
+	Cookfs_PagesUnlock(aside);
     }
 }
 
@@ -1456,8 +1647,13 @@ void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside) {
  */
 
 void Cookfs_PagesSetIndex(Cookfs_Pages *p, Cookfs_PageObj dataIndex) {
+    Cookfs_PagesWantWrite(p);
     if (p->dataAsidePages != NULL) {
+        if (!Cookfs_PagesLockWrite(p->dataAsidePages, NULL)) {
+            return;
+        }
         Cookfs_PagesSetIndex(p->dataAsidePages, dataIndex);
+        Cookfs_PagesUnlock(p->dataAsidePages);
     }  else  {
         if (p->dataIndex != NULL) {
             Cookfs_PageObjDecrRefCount(p->dataIndex);
@@ -1489,11 +1685,19 @@ void Cookfs_PagesSetIndex(Cookfs_Pages *p, Cookfs_PageObj dataIndex) {
  */
 
 Cookfs_PageObj Cookfs_PagesGetIndex(Cookfs_Pages *p) {
+    Cookfs_PagesWantRead(p);
+    Cookfs_PageObj rc;
     if (p->dataAsidePages != NULL) {
-	return Cookfs_PagesGetIndex(p->dataAsidePages);
+        if (!Cookfs_PagesLockRead(p->dataAsidePages, NULL)) {
+            rc = NULL;
+        } else {
+            rc = Cookfs_PagesGetIndex(p->dataAsidePages);
+            Cookfs_PagesUnlock(p->dataAsidePages);
+        }
     }  else  {
-	return p->dataIndex;
+	rc = p->dataIndex;
     }
+    return rc;
 }
 
 
@@ -1516,7 +1720,9 @@ Cookfs_PageObj Cookfs_PagesGetIndex(Cookfs_Pages *p) {
 void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size) {
     int i;
 
-
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&p->mxCache);
+#endif /* TCL_THREADS */
     if (size < 0) {
         size = 0;
     }
@@ -1534,6 +1740,9 @@ void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size) {
         }
     }
     p->cacheSize = size;
+#ifdef TCL_THREADS
+    Tcl_MutexUnlock(&p->mxCache);
+#endif /* TCL_THREADS */
 }
 
 /*
@@ -1555,6 +1764,7 @@ void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size) {
 
 Tcl_WideInt Cookfs_GetFilesize(Cookfs_Pages *p) {
     Tcl_WideInt rc;
+    Cookfs_PagesWantRead(p);
     rc = Cookfs_PagesGetPageOffset(p, p->dataNumPages);
     return rc;
 }
@@ -1603,6 +1813,7 @@ int Cookfs_PagesGetAlwaysCompress(Cookfs_Pages *p) {
  */
 
 void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress) {
+    Cookfs_PagesWantWrite(p);
     p->alwaysCompress = alwaysCompress;
 }
 
@@ -1624,6 +1835,7 @@ void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress) {
  */
 
 int Cookfs_PagesGetCompression(Cookfs_Pages *p) {
+    Cookfs_PagesWantRead(p);
     return p->fileCompression;
 }
 
@@ -1645,6 +1857,7 @@ int Cookfs_PagesGetCompression(Cookfs_Pages *p) {
  */
 
 void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression) {
+    Cookfs_PagesWantWrite(p);
     if (p->fileCompression != fileCompression) {
 	// ensure all async pages are written
 	while(Cookfs_AsyncCompressWait(p, 1)) {};
@@ -1671,6 +1884,7 @@ void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression) {
  */
 
 Tcl_WideInt Cookfs_PagesGetPageOffset(Cookfs_Pages *p, int idx) {
+    Cookfs_PagesWantRead(p);
     /* TODO: optimize by cache'ing each N-th entry and start from there */
     int i;
     Tcl_WideInt rc = p->dataInitialOffset;
@@ -1718,7 +1932,13 @@ static Cookfs_PageObj CookfsPagesPageGetInt(Cookfs_Pages *p, int index,
 	}  else if (p->dataAsidePages != NULL) {
 	    /* if this is not the aside instance, redirect to it */
 	    CookfsLog(printf("Redirecting to add-aside pages object"))
-	    return CookfsPagesPageGetInt(p->dataAsidePages, index, err);
+            if (!Cookfs_PagesLockRead(p->dataAsidePages, err)) {
+                return NULL;
+            }
+	    Cookfs_PageObj rc = CookfsPagesPageGetInt(p->dataAsidePages, index,
+	        err);
+	    Cookfs_PagesUnlock(p->dataAsidePages);
+	    return rc;
 	}  else  {
 	    /* if no aside instance specified, return NULL */
 	    CookfsLog(printf("No add-aside pages defined"))
@@ -1737,7 +1957,13 @@ static Cookfs_PageObj CookfsPagesPageGetInt(Cookfs_Pages *p, int index,
 	return buffer;
     }
 
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&p->mxIO);
+#endif /* TCL_THREADS */
     buffer = Cookfs_ReadPage(p, index, -1, 1, COOKFS_COMPRESSION_ANY, err);
+#ifdef TCL_THREADS
+    Tcl_MutexUnlock(&p->mxIO);
+#endif /* TCL_THREADS */
     if (buffer == NULL) {
 	CookfsLog(printf("Unable to read page"))
 	return NULL;

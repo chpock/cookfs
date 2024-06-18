@@ -74,6 +74,40 @@ jobs:
             exit 1
           }
 
+      - name: Checkout tclthread
+        uses: actions/checkout@v4
+        with:
+          repository: tcltk/thread
+          ref: thread-2-8-9
+          path: tclthread
+      - name: Setup environment for tclthread
+        working-directory: tclthread
+        run: |
+          curl https://core.tcl-lang.org/tclconfig/tarball/main/tclconfig.tar.gz >tclconfig.tar.gz
+          tar xfz tclconfig.tar.gz
+      - name: Configure tclthread
+        working-directory: tclthread
+        run: |
+          ./configure --enable-symbols=all --with-tcl=$HOME/tcl_install/lib --prefix=$HOME/tcl_install --exec-prefix=$HOME/tcl_install || {
+            cat config.log
+            echo "::error::Failure during Configure tclthread"
+            exit 1
+          }
+      - name: Build tclthread
+        working-directory: tclthread
+        run: |
+          make -j || {
+            echo "::error::Failure during Build tclthread"
+            exit 1
+          }
+      - name: Install tclthread
+        working-directory: tclthread
+        run: |
+          make install || {
+            echo "::error::Failure during Install tclthread"
+            exit 1
+          }
+
       - name: Checkout
         uses: actions/checkout@v4
         with:

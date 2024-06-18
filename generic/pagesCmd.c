@@ -8,13 +8,17 @@
  */
 
 #include "cookfs.h"
+#include "pages.h"
+#include "pagesInt.h"
+#include "pagesCompr.h"
+#include "pagesCmd.h"
 
 /* definitions of static and/or internal functions */
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static void CookfsPagesDeleteProc(ClientData clientData);
 static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
-static void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p);
+static void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, void *p);
 
 /*
  *----------------------------------------------------------------------
@@ -58,17 +62,18 @@ int Cookfs_InitPagesCmd(Tcl_Interp *interp) {
  *----------------------------------------------------------------------
  */
 
-Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p) {
+Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, void *p) {
     if (p == NULL) {
         CookfsLog(printf("CookfsGetPagesObjectCmd: return NULL"));
         return NULL;
     }
+    Cookfs_Pages *pages = (Cookfs_Pages *)p;
     CookfsLog(printf("CookfsGetPagesObjectCmd: enter interp:%p my interp:%p",
-        (void *)interp, (void *)p->interp));
-    CookfsRegisterExistingPagesObjectCmd(p->interp, p);
+        (void *)interp, (void *)pages->interp));
+    CookfsRegisterExistingPagesObjectCmd(pages->interp, pages);
     Tcl_Obj *rc = Tcl_NewObj();
-    Tcl_GetCommandFullName(p->interp, p->commandToken, rc);
-    if (interp == p->interp) {
+    Tcl_GetCommandFullName(pages->interp, pages->commandToken, rc);
+    if (interp == pages->interp) {
         goto done;
     }
     const char *cmd = Tcl_GetString(rc);
@@ -77,7 +82,7 @@ Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p) {
         goto done;
     }
     CookfsLog(printf("CookfsGetPagesObjectCmd: create interp alias"));
-    Tcl_CreateAlias(interp, cmd, p->interp, cmd, 0, NULL);
+    Tcl_CreateAlias(interp, cmd, pages->interp, cmd, 0, NULL);
 done:
     CookfsLog(printf("CookfsGetPagesObjectCmd: return [%s]",
         Tcl_GetString(rc)));
@@ -101,16 +106,17 @@ done:
  *----------------------------------------------------------------------
  */
 
-static void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p) {
-    if (p->commandToken != NULL) {
+static void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, void *p) {
+    Cookfs_Pages *pages = (Cookfs_Pages *)p;
+    if (pages->commandToken != NULL) {
         return;
     }
     char buf[128];
     /* create Tcl command and return its name */
     sprintf(buf, "::cookfs::c::pages::handle%p", (void *)p);
-    p->commandToken = Tcl_CreateObjCommand(interp, buf, CookfsPagesCmd,
-        (ClientData)p, CookfsPagesDeleteProc);
-    p->interp = interp;
+    pages->commandToken = Tcl_CreateObjCommand(interp, buf, CookfsPagesCmd,
+        (ClientData)pages, CookfsPagesDeleteProc);
+    pages->interp = interp;
 }
 
 /* command for creating new objects that deal with pages */
@@ -310,12 +316,16 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
         return TCL_ERROR;
     }
 
+    Cookfs_PagesLockWrite(pages, NULL);
+
     /* set whether compression should always be enabled */
     Cookfs_PagesSetAlwaysCompress(pages, alwaysCompress);
 
     /* set up cache size */
     Cookfs_PagesSetCacheSize(pages, oCachesize);
     CookfsLog(printf("Cookfs Page Cmd: %p -> %d\n", (void *)pages, pages->cacheSize))
+
+    Cookfs_PagesUnlock(pages);
 
     /* create Tcl command and return its name and set interp result to the command name */
     CookfsLog(printf("Create Tcl command for the pages object..."))
@@ -326,6 +336,10 @@ ERROR:
     Tcl_WrongNumArgs(interp, 1, objv, "?-readonly|-readwrite? ?-compression mode? ?-cachesize numPages? ?-endoffset numBytes? ?-compresscommand tclCmd? ?-decompresscommand tclcmd? fileName");
     return TCL_ERROR;
 }
+
+static int CookfsPagesCmdAside(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+static int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+
 
 /* command for creating new objects that deal with pages */
 
@@ -383,7 +397,11 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             }
             Tcl_Size size;
             unsigned char *bytes = Tcl_GetByteArrayFromObj(objv[2], &size);
+            if (!Cookfs_PagesLockWrite(p, NULL)) {
+                return TCL_ERROR;
+            }
             idx = Cookfs_PageAddRaw(p, bytes, size, &err);
+            Cookfs_PagesUnlock(p);
             if (idx < 0) {
                 if (err == NULL) {
                     err = Tcl_NewStringObj("Unable to add page", -1);
@@ -417,10 +435,15 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             if (Tcl_GetIntFromObj(interp, objv[objc-1], &idx) != TCL_OK) {
                 return TCL_ERROR;
             }
+            if (!Cookfs_PagesLockRead(p, NULL)) {
+                return TCL_ERROR;
+            }
             Cookfs_PageObj data = Cookfs_PageGet(p, idx, weight, &err);
+            Cookfs_PagesUnlock(p);
+            // Do not increate refcount for data as Cookfs_PageGet() returns
+            // pages with refcount=1.
             CookfsLog(printf("cmdGet data [%s]", data == NULL ? "NULL" : "SET"))
             if (data != NULL) {
-                Cookfs_PageObjIncrRefCount(data);
                 rc = Cookfs_PageObjCopyAsByteArray(data);
                 Cookfs_PageObjDecrRefCount(data);
             } else {
@@ -453,7 +476,11 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             }
 
+            if (!Cookfs_PagesLockRead(p, NULL)) {
+                return TCL_ERROR;
+            }
             rc = Cookfs_PageGetHead(p);
+            Cookfs_PagesUnlock(p);
             if (rc == NULL) {
                 Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve head data", -1));
                 return TCL_ERROR;
@@ -470,7 +497,11 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             }
 
+            if (!Cookfs_PagesLockRead(p, NULL)) {
+                return TCL_ERROR;
+            }
             rc = Cookfs_PageGetHeadMD5(p);
+            Cookfs_PagesUnlock(p);
             if (rc == NULL) {
                 Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve head MD5", -1));
                 return TCL_ERROR;
@@ -487,7 +518,11 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             }
 
+            if (!Cookfs_PagesLockRead(p, NULL)) {
+                return TCL_ERROR;
+            }
             rc = Cookfs_PageGetTail(p);
+            Cookfs_PagesUnlock(p);
             if (rc == NULL) {
                 Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve tail data", -1));
                 return TCL_ERROR;
@@ -504,7 +539,11 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             }
 
+            if (!Cookfs_PagesLockRead(p, NULL)) {
+                return TCL_ERROR;
+            }
             rc = Cookfs_PageGetTailMD5(p);
+            Cookfs_PagesUnlock(p);
             if (rc == NULL) {
                 Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to retrieve tail MD5", -1));
                 return TCL_ERROR;
@@ -523,10 +562,18 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             if (objc == 3) {
                 data = Cookfs_PageObjNewFromByteArray(objv[2]);
                 Cookfs_PageObjIncrRefCount(data);
+                if (!Cookfs_PagesLockWrite(p, NULL)) {
+                    return TCL_ERROR;
+                }
                 Cookfs_PagesSetIndex(p, data);
+                Cookfs_PagesUnlock(p);
                 Cookfs_PageObjDecrRefCount(data);
             }
+            if (!Cookfs_PagesLockRead(p, NULL)) {
+                return TCL_ERROR;
+            }
             data = Cookfs_PagesGetIndex(p);
+            Cookfs_PagesUnlock(p);
             if (data == NULL) {
                 Tcl_SetObjResult(interp, Tcl_NewObj());
             } else {
@@ -548,7 +595,12 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 Tcl_WrongNumArgs(interp, 2, objv, "");
                 return TCL_ERROR;
             }
-            Tcl_SetObjResult(interp, Tcl_NewIntObj(p->dataNumPages));
+            if (!Cookfs_PagesLockRead(p, NULL)) {
+                return TCL_ERROR;
+            }
+            int len = Cookfs_PagesGetLength(p);
+            Cookfs_PagesUnlock(p);
+            Tcl_SetObjResult(interp, Tcl_NewIntObj(len));
             break;
         }
         case cmdDelete:
@@ -567,7 +619,11 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 Tcl_WrongNumArgs(interp, 2, objv, "");
                 return TCL_ERROR;
             }
+            if (!Cookfs_PagesLockWrite(p, NULL)) {
+                return TCL_ERROR;
+            }
             offset = Cookfs_PagesClose(p);
+            Cookfs_PagesUnlock(p);
             Tcl_SetObjResult(interp, Tcl_NewWideIntObj(offset));
             break;
         }
@@ -577,18 +633,24 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 Tcl_WrongNumArgs(interp, 2, objv, "?index?");
                 return TCL_ERROR;
             }
+            if (!Cookfs_PagesLockRead(p, NULL)) {
+                return TCL_ERROR;
+            }
 	    if (objc == 3) {
                 if (Tcl_GetIntFromObj(interp, objv[2], &idx) != TCL_OK) {
+                    Cookfs_PagesUnlock(p);
                     return TCL_ERROR;
                 }
-		if (idx > p->dataNumPages) {
+		if (idx > Cookfs_PagesGetLength(p)) {
 		    Tcl_SetObjResult(interp, Tcl_NewStringObj("Invalid page index", -1));
+		    Cookfs_PagesUnlock(p);
 		    return TCL_ERROR;
 		}
 		Tcl_SetObjResult(interp, Tcl_NewWideIntObj(Cookfs_PagesGetPageOffset(p, idx)));
 	    }  else  {
 		Tcl_SetObjResult(interp, Tcl_NewWideIntObj(p->dataInitialOffset));
 	    }
+	    Cookfs_PagesUnlock(p);
             break;
         }
         case cmdAside:
@@ -606,9 +668,18 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 if (Tcl_GetIntFromObj(interp, objv[2], &csize) != TCL_OK) {
                     return TCL_ERROR;
                 }
+                if (!Cookfs_PagesLockWrite(p, NULL)) {
+                    return TCL_ERROR;
+                }
                 Cookfs_PagesSetCacheSize(p, csize);
+                Cookfs_PagesUnlock(p);
             }
-            Tcl_SetObjResult(interp, Tcl_NewIntObj(p->cacheSize));
+            if (!Cookfs_PagesLockRead(p, NULL)) {
+                return TCL_ERROR;
+            }
+            csize = p->cacheSize;
+            Cookfs_PagesUnlock(p);
+            Tcl_SetObjResult(interp, Tcl_NewIntObj(csize));
             break;
         }
         case cmdFilesize:
@@ -617,7 +688,12 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 Tcl_WrongNumArgs(interp, 2, objv, "");
                 return TCL_ERROR;
             }
-            Tcl_SetObjResult(interp, Tcl_NewWideIntObj(Cookfs_GetFilesize(p)));
+            if (!Cookfs_PagesLockRead(p, NULL)) {
+                return TCL_ERROR;
+            }
+            Tcl_WideInt rc = Cookfs_GetFilesize(p);
+            Cookfs_PagesUnlock(p);
+            Tcl_SetObjResult(interp, Tcl_NewWideIntObj(rc));
             break;
         }
         case cmdCompression:
@@ -631,9 +707,13 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             }
             Tcl_Obj *rc;
+            if (!Cookfs_PagesLockRead(p, NULL)) {
+                return TCL_ERROR;
+            }
             if (objc == 3) {
                 int index;
                 if (Tcl_GetIntFromObj(interp, objv[2], &index) != TCL_OK) {
+                    Cookfs_PagesUnlock(p);
                     return TCL_ERROR;
                 }
                 int isCached = Cookfs_PagesIsCached(p, index);
@@ -654,6 +734,7 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                     Tcl_ListObjAppendElement(interp, rc, rec);
                 }
             }
+            Cookfs_PagesUnlock(p);
             Tcl_SetObjResult(interp, rc);
             break;
         }
@@ -664,14 +745,19 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
                 Tcl_WrongNumArgs(interp, 2, objv, "?maxAge?");
                 return TCL_ERROR;
             }
+            if (!Cookfs_PagesLockWrite(p, NULL)) {
+                return TCL_ERROR;
+            }
             if (objc == 3) {
                 if (Tcl_GetIntFromObj(interp, objv[2], &maxAge) != TCL_OK) {
+                    Cookfs_PagesUnlock(p);
                     return TCL_ERROR;
                 }
                 maxAge = Cookfs_PagesSetMaxAge(p, maxAge);
             } else {
                 maxAge = Cookfs_PagesTickTock(p);
             }
+            Cookfs_PagesUnlock(p);
             Tcl_SetObjResult(interp, Tcl_NewIntObj(maxAge));
             break;
         }
@@ -679,7 +765,7 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
     return TCL_OK;
 }
 
-int CookfsPagesCmdAside(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+static int CookfsPagesCmdAside(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
 
     if (objc != 3) {
         Tcl_WrongNumArgs(interp, 2, objv, "fileName");
@@ -715,13 +801,17 @@ int CookfsPagesCmdAside(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_O
         asidePages = NULL;
     }
 
+    if (!Cookfs_PagesLockWrite(pages, NULL)) {
+        return TCL_ERROR;
+    }
     Cookfs_PagesSetAside(pages, asidePages);
+    Cookfs_PagesUnlock(pages);
 
     return TCL_OK;
 
 }
 
-int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+static int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
 
     if (objc > 3) {
         Tcl_WrongNumArgs(interp, 2, objv, "?type?");
@@ -731,6 +821,9 @@ int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, int objc,
     int oCompression;
 
     if (objc == 2) {
+        if (!Cookfs_PagesLockRead(pages, NULL)) {
+            return TCL_ERROR;
+        }
         oCompression = Cookfs_PagesGetCompression(pages);
     } else {
         if (Tcl_GetIndexFromObj(interp, objv[2], (const char **) cookfsCompressionOptions,
@@ -740,8 +833,12 @@ int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, int objc,
         }
         /* map compression from cookfsCompressionOptionMap */
         oCompression = cookfsCompressionOptionMap[oCompression];
+        if (!Cookfs_PagesLockWrite(pages, NULL)) {
+            return TCL_ERROR;
+        }
         Cookfs_PagesSetCompression(pages, oCompression);
     }
+    Cookfs_PagesUnlock(pages);
 
     Tcl_SetObjResult(interp, Tcl_NewStringObj(cookfsCompressionNames[oCompression], -1));
 
@@ -772,11 +869,20 @@ static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc,
         return TCL_ERROR;
     }
     if (objc == 3) {
-        if (Cookfs_PagesSetHashByObj(pages, objv[2], interp) != TCL_OK) {
+        if (!Cookfs_PagesLockWrite(pages, NULL)) {
+            return TCL_ERROR;
+        }
+        int ret = Cookfs_PagesSetHashByObj(pages, objv[2], interp);
+        Cookfs_PagesUnlock(pages);
+        if (ret != TCL_OK) {
             return TCL_ERROR;
         }
     }
+    if (!Cookfs_PagesLockRead(pages, NULL)) {
+        return TCL_ERROR;
+    }
     Tcl_SetObjResult(interp, Cookfs_PagesGetHashAsObj(pages));
+    Cookfs_PagesUnlock(pages);
     return TCL_OK;
 }
 
@@ -806,3 +912,16 @@ static void CookfsPagesDeleteProc(ClientData clientData) {
     CookfsLog(printf("DELETING PAGES COMMAND"))
     Cookfs_PagesFini(pages);
 }
+
+int Cookfs_PagesCmdForward(Cookfs_PagesForwardCmd cmd, void *p,
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{
+    switch (cmd) {
+    case COOKFS_PAGES_FORWARD_COMMAND_ASIDE:
+        return CookfsPagesCmdAside(p, interp, objc, objv);
+    case COOKFS_PAGES_FORWARD_COMMAND_COMPRESSION:
+        return CookfsPagesCmdCompression(p, interp, objc, objv);
+    }
+    return TCL_ERROR;
+}
+

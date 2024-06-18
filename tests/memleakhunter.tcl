@@ -209,6 +209,17 @@ proc tcltest::CleanupTest { code } {
             if { [string match "*/win/tcl*.c * $::tcltest::testname" $line] } continue
             if { [string match "*/generic/regcomp.c * $::tcltest::testname" $line] } continue
             if { [string match "*/generic/regc_*.c * $::tcltest::testname" $line] } continue
+            # There are values from thread specific storage. Cookfs initialize
+            # them in runtime (when some test is already started) and they will
+            # be released during thread termination. Thus, they will be in
+            # the list of memory areas allocated during the test execution and
+            # not freed when the test is completed. Here we remove these memory
+            # region from the memory report.
+            if { [string match "*/generic/vfsDriver.c 137 *" $line] } continue
+            if { [string match "*/generic/vfsDriver.c 138 *" $line] } continue
+            if { [string match "*/generic/vfsDriver.c 139 *" $line] } continue
+            if { [string match "*/generic/vfsDriver.c 141 *" $line] } continue
+            if { [string match "*/generic/vfsDriver.c 143 *" $line] } continue
             if { ![info exists fo] } {
                 set fo [open "x-${::tcltest::testname}.memdump" w]
             }

@@ -252,6 +252,12 @@ Do not create cookfs::fsindex object, use specified fsindex object. Mainly for i
 [def "[option -pagesobject] [arg pagesObject]"]
 Do not create cookfs::pages object, use specified pages object. Mainly for internal use.
 
+[def "[option -shared]"]
+Create a multi-threaded cookfs that is available to all application threads.
+
+[para]
+See [sectref {MULTI-THREADING SUPPORT}] for more details on multi-threading support in cookfs.
+
 [list_end]
 
 [section {COOKFS STORAGE}]
@@ -449,6 +455,43 @@ of small files. To avoid "age" overflow for other pages when reading these files
 the field "age" will only increase the first time this page is read. If this page
 already exists in the cache, then the field "age" for cache items
 will not be increased.
+
+[section {MULTI-THREADING SUPPORT}]
+By default, cookfs are created that are only available within a single
+application thread, but to all interpreters.
+
+[para]
+Using the [arg -shared] parameter, you can create a cookfs that will be
+available to all application threads.
+
+[para]
+The following nuances must be taken into account when working in multi-threaded mode:
+
+[para]
+1. cookfs remains bound to the thread and interpreter in which it was created.
+This means that cookfs can only be unmounted in its own thread. Also, when
+the bound thread and/or interpreter is terminated, the cookfs will be unmounted
+and become unavailable to all other threads.
+
+[para]
+2. [arg cookfsHandle] and internal [sectref-external cookfs::pages]/[sectref-external cookfs::fsindex]
+objects are only available in bound thread. Other threads can only use
+standard Tcl commands like [const file], [const open], etc to access and
+manipulate files in cookfs.
+
+[para]
+3. Tcl callbacks are not available for multi-threaded cookfs.
+In particular, it means that compression type [const custom] is not available in this mode.
+The following list of options is not available for multi-threaded cookfs:
+[list_begin itemized]
+[item] [arg -compresscommand]
+[item] [arg -decompresscommand]
+[item] [arg -asynccompresscommand]
+[item] [arg -asyncdecompresscommand]
+[list_end]
+
+[para]
+4. The multi-thread cookfs is only available when package is built with [const c-vfs] option enabled.
 
 [see_also cookfs_pages cookfs_fsindex]
 [keywords vfs cookfs]

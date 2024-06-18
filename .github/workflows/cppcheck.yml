@@ -16,7 +16,7 @@ jobs:
           submodules: recursive
       - name: Setup Environment
         run: |
-          sudo apt-get install tcl8.6-dev tcl-vfs cppcheck
+          sudo apt-get install tcl8.6-dev cppcheck
           echo "CFGOPT_COMMON=--with-tcl=/usr/lib/tcl8.6" >> $GITHUB_ENV
       - name: Configure
         run: |

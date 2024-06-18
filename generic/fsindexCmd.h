@@ -3,16 +3,16 @@
 #ifndef COOKFS_FSINDEXCMD_H
 #define COOKFS_FSINDEXCMD_H 1
 
-/* only handle Fsindex code if enabled in configure */
-#ifdef COOKFS_USECFSINDEX
+typedef enum {
+    COOKFS_FSINDEX_FORWARD_COMMAND_GETMETADATA,
+    COOKFS_FSINDEX_FORWARD_COMMAND_SETMETADATA
+} Cookfs_FsindexForwardCmd;
 
 int Cookfs_InitFsindexCmd(Tcl_Interp *interp);
-Tcl_Obj *CookfsGetFsindexObjectCmd(Tcl_Interp *interp, Cookfs_Fsindex *i);
 
-int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
-int CookfsFsindexCmdSetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+Tcl_Obj *CookfsGetFsindexObjectCmd(Tcl_Interp *interp, void *i);
 
-
-#endif /* COOKFS_USECFSINDEX */
+int Cookfs_FsindexCmdForward(Cookfs_FsindexForwardCmd cmd, void *i,
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
 #endif /* COOKFS_FSINDEXCMD_H */

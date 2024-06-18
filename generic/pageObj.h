@@ -11,42 +11,13 @@ typedef struct Cookfs_PageObjStruct {
     Tcl_Size bufferSize;
     Tcl_Size effectiveSize;
     int refCount;
+#ifdef TCL_THREADS
+    Tcl_Mutex mx;
+#endif /* TCL_THREADS */
 } Cookfs_PageObjStruct;
 
-
-#define Cookfs_PageObjIncrRefCount(p) \
-    ((Cookfs_PageObjStruct *)((Cookfs_PageObj)(p) - \
-        sizeof(Cookfs_PageObjStruct)))->refCount++
-
-/*
-#define Cookfs_PageObjIncrRefCount(p) \
-    { \
-        ((Cookfs_PageObjStruct *)((Cookfs_PageObj)(p) - \
-            sizeof(Cookfs_PageObjStruct)))->refCount++; \
-        CookfsLog(printf("Cookfs_PageObjIncrRefCount: %p", (void *)p)); \
-    }
-*/
-
-
-#define Cookfs_PageObjDecrRefCount(p) \
-    { \
-        Cookfs_PageObjStruct *tmp = (Cookfs_PageObjStruct *)( \
-            (Cookfs_PageObj)(p) - sizeof(Cookfs_PageObjStruct)); \
-        if (!(--tmp->refCount)) { ckfree(tmp); } \
-    }
-
-/*
-#define Cookfs_PageObjDecrRefCount(p) \
-    { \
-        CookfsLog(printf("Cookfs_PageObjDecrRefCount: %p", (void *)p)); \
-        Cookfs_PageObjStruct *tmp = (Cookfs_PageObjStruct *)( \
-            (Cookfs_PageObj)(p) - sizeof(Cookfs_PageObjStruct)); \
-        if (!(--tmp->refCount)) { \
-            ckfree(tmp); \
-            CookfsLog(printf("Cookfs_PageObjDecrRefCount: release %p", (void *)p)); \
-        } \
-    }
-*/
+void Cookfs_PageObjIncrRefCount(Cookfs_PageObj p);
+void Cookfs_PageObjDecrRefCount(Cookfs_PageObj p);
 
 #define Cookfs_PageObjSize(p) \
     (((Cookfs_PageObjStruct *)((Cookfs_PageObj)(p) - \

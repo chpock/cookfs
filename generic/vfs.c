@@ -7,9 +7,13 @@
  */
 
 #include "cookfs.h"
+#include "vfs.h"
+#include "fsindexIO.h"
+#include "pagesCmd.h"
+#include "fsindexCmd.h"
 
 Cookfs_Vfs *Cookfs_VfsInit(Tcl_Interp* interp, Tcl_Obj* mountPoint,
-    int isVolume, int isCurrentDirTime, int isReadonly,
+    int isVolume, int isCurrentDirTime, int isReadonly, int isShared,
     Cookfs_Pages *pages, Cookfs_Fsindex *index,
     Cookfs_Writer *writer)
 {
@@ -40,13 +44,16 @@ Cookfs_Vfs *Cookfs_VfsInit(Tcl_Interp* interp, Tcl_Obj* mountPoint,
     }
     strcpy((char *)vfs->mountStr, mountPointString);
 
-    vfs->nextVfs = NULL;
+#ifdef TCL_THREADS
+    vfs->threadId = Tcl_GetCurrentThread();
+#endif /* TCL_THREADS */
     vfs->commandToken = NULL;
     vfs->interp = interp;
     vfs->isDead = 0;
 #ifdef COOKFS_USETCLCMDS
     vfs->isRegistered = 0;
 #endif
+    vfs->isShared = isShared;
     vfs->isVolume = isVolume;
     vfs->isCurrentDirTime = isCurrentDirTime;
     vfs->isReadonly = isReadonly;
@@ -89,6 +96,12 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
         return TCL_OK;
     }
 
+    Cookfs_WriterLockExclusive(vfs->writer);
+    Cookfs_FsindexLockExclusive(vfs->index);
+    if (vfs->pages != NULL) {
+        Cookfs_PagesLockExclusive(vfs->pages);
+    }
+
     // Let's purge writer first
     CookfsLog(printf("Cookfs_VfsFini: purge writer..."));
     // TODO: pass a pointer to err variable instead of NULL and handle
@@ -121,10 +134,19 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
 
     // If we are here, then we need to store index
     CookfsLog(printf("Cookfs_VfsFini: dump index..."));
-    Cookfs_PageObj exportObj = Cookfs_FsindexToPageObj(vfs->index);
-    if (exportObj == NULL) {
+    Tcl_Obj *exportObjTcl = Cookfs_FsindexToObject(vfs->index);
+    if (exportObjTcl == NULL) {
         CookfsLog(printf("Cookfs_VfsFini: failed to get index dump"));
         Tcl_SetObjResult(interp, Tcl_NewStringObj("unable to get index"
+            " dump", -1));
+        return TCL_ERROR;
+    }
+    Tcl_IncrRefCount(exportObjTcl);
+    Cookfs_PageObj exportObj = Cookfs_PageObjNewFromByteArray(exportObjTcl);
+    Tcl_DecrRefCount(exportObjTcl);
+    if (exportObj == NULL) {
+        CookfsLog(printf("Cookfs_VfsFini: failed to convert index dump"));
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("unable to convert index"
             " dump", -1));
         return TCL_ERROR;
     }
@@ -155,14 +177,14 @@ skipSavingIndex:
         *pagesCloseOffset = offset;
     }
     CookfsLog(printf("Cookfs_VfsFini: delete pages..."));
-    Cookfs_PagesLock(vfs->pages, 0);
+    Cookfs_PagesUnlockHard(vfs->pages);
     Cookfs_PagesFini(vfs->pages);
 
 skipPages:
 
     // Cleanup index
     CookfsLog(printf("Cookfs_VfsFini: delete index..."));
-    Cookfs_FsindexLock(vfs->index, 0);
+    Cookfs_FsindexUnlockHard(vfs->index);
     Cookfs_FsindexFini(vfs->index);
 
     // Remove mount Tcl command is exists

@@ -5,15 +5,16 @@
 
 /* Tcl public API */
 
-/* only handle pages code if enabled in configure */
-#ifdef COOKFS_USECPAGES
+typedef enum {
+    COOKFS_PAGES_FORWARD_COMMAND_ASIDE,
+    COOKFS_PAGES_FORWARD_COMMAND_COMPRESSION
+} Cookfs_PagesForwardCmd;
 
 int Cookfs_InitPagesCmd(Tcl_Interp *interp);
-Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, Cookfs_Pages *p);
 
-int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
-int CookfsPagesCmdAside(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, void *p);
 
-#endif /* COOKFS_USECPAGES */
+int Cookfs_PagesCmdForward(Cookfs_PagesForwardCmd cmd, void *p,
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
 #endif /* COOKFS_PAGESCMD_H */

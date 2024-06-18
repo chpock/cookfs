@@ -8,6 +8,34 @@
 
 #include "cookfs.h"
 
+void Cookfs_PathObjIncrRefCount(Cookfs_PathObj *p) {
+    // CookfsLog(printf("Cookfs_PathObjIncrRefCount: %p", (void *)p));
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&p->mx);
+#endif /* TCL_THREADS */
+    p->refCount++;
+#ifdef TCL_THREADS
+    Tcl_MutexUnlock(&p->mx);
+#endif /* TCL_THREADS */
+}
+
+void Cookfs_PathObjDecrRefCount(Cookfs_PathObj *p) {
+    // CookfsLog(printf("Cookfs_PathObjDecrRefCount: %p", (void *)p));
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&p->mx);
+#endif /* TCL_THREADS */
+    p->refCount--;
+#ifdef TCL_THREADS
+    Tcl_MutexUnlock(&p->mx);
+#endif /* TCL_THREADS */
+    if (!p->refCount) {
+#ifdef TCL_THREADS
+        Tcl_MutexFinalize(&p->mx);
+#endif /* TCL_THREADS */
+        ckfree(p);
+    }
+}
+
 Cookfs_PathObj *Cookfs_PathObjNewFromTclObj(Tcl_Obj *path) {
     Tcl_Size pathLength;
     const char *pathStr = Tcl_GetStringFromObj(path, &pathLength);
@@ -57,6 +85,9 @@ Cookfs_PathObj *Cookfs_PathObjNewFromStr(const char* pathStr,
     }
 
     // Fill general properties
+#ifdef TCL_THREADS
+    rc->mx = NULL;
+#endif /* TCL_THREADS */
     rc->refCount = 0;
     rc->fullName = (char *)rc + sizeof(Cookfs_PathObj) +
         sizeof(Cookfs_PathObjElement) * elementCount;

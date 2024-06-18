@@ -5367,7 +5367,7 @@ printf "%s\n" "#define AC_APPLE_UNIVERSAL_BUILD 1" >>confdefs.h
 
 
 
-    vars="cookfs.c common.c md5.h bindata.c hashes.c pathObj.c"
+    vars="cookfs.c common.c md5.h bindata.c hashes.c pathObj.c threads.c"
     for i in $vars; do
 	case $i in
 	    \$*)
@@ -9003,7 +9003,7 @@ if test ${USECREADERCHAN} = yes; then
 
     COOKFS_PKGCONFIG_USECREADERCHAN=1
 
-    vars="readerchannel.c readerchannelIO.c"
+    vars="readerchannel.c readerchannelIO.c readerchannelCmd.c"
     for i in $vars; do
 	case $i in
 	    \$*)
@@ -9092,7 +9092,7 @@ then
 
     COOKFS_PKGCONFIG_USECWRITERCHAN=1
 
-    vars="writerchannel.c writerchannelIO.c"
+    vars="writerchannel.c writerchannelIO.c writerchannelCmd.c"
     for i in $vars; do
 	case $i in
 	    \$*)
