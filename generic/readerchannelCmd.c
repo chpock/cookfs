@@ -39,6 +39,16 @@ static int CookfsCreateReaderchannelCmd(ClientData clientData, Tcl_Interp *inter
 	return TCL_ERROR;
     }
 
+    Tcl_Obj *err = NULL;
+    if (!Cookfs_FsindexLockRead(fsindex, &err)) {
+        if (err != NULL) {
+            Tcl_SetObjResult(interp, err);
+        }
+        return TCL_ERROR;
+    }
+
+    int rc = TCL_OK;
+
     Cookfs_PathObj *pathObj = Cookfs_PathObjNewFromTclObj(objv[3]);
     Cookfs_PathObjIncrRefCount(pathObj);
 
@@ -48,25 +58,29 @@ static int CookfsCreateReaderchannelCmd(ClientData clientData, Tcl_Interp *inter
     if (entry == NULL) {
         Tcl_SetObjResult(interp, Tcl_ObjPrintf("couldn't open \"%s\":"
             " no such file or directory", Tcl_GetString(objv[3])));
-        Cookfs_PathObjDecrRefCount(pathObj);
-        return TCL_ERROR;
+        goto error;
     } else if (Cookfs_FsindexEntryIsDirectory(entry)) {
         Tcl_SetObjResult(interp, Tcl_ObjPrintf("file \"%s\" exists"
             " and it is a directory", Tcl_GetString(objv[3])));
-        Cookfs_PathObjDecrRefCount(pathObj);
-        return TCL_ERROR;
+        goto error;
     }
 
     channel = Cookfs_CreateReaderchannel(pages, fsindex, entry, interp, &channelName);
-    Cookfs_PathObjDecrRefCount(pathObj);
 
     if (channel == NULL) {
-	return TCL_ERROR;
+        goto error;
     }
 
     Tcl_SetObjResult(interp, Tcl_NewStringObj(channelName, -1));
 
-    return TCL_OK;
+    goto done;
+
+error:
+    rc = TCL_ERROR;
+done:
+    Cookfs_FsindexUnlock(fsindex);
+    Cookfs_PathObjDecrRefCount(pathObj);
+    return rc;
 }
 
 int Cookfs_InitReaderchannelCmd(Tcl_Interp *interp) {
