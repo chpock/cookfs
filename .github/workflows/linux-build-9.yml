@@ -44,7 +44,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: tcltk/thread
-          ref: thread-2-8-9
+          ref: thread-3-0b2
           path: tclthread
       - name: Setup environment for tclthread
         working-directory: tclthread
