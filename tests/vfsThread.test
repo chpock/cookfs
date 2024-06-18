@@ -917,13 +917,16 @@ tcltest::test cookfsVfsThread-7.8 "VFS terminated while other thread gets direct
         # count how many times the directory was checked successfully
         set count 0
         set start [clock seconds]
+        puts "thread: start: $start"
         catch {
             while { [expr { [clock seconds] - $start }] < 3 } {
                 for { set i 0 } { $i < 10000000 } { incr i } {
                     glob -directory $dir *
                     incr count
                 }
+                puts "thread: round x: [clock seconds]"
             }
+            puts "thread: set notok"
             set ok notok
         } result
         # Add a 0 or 1 flag to the result whether the directory was successfully
@@ -932,13 +935,17 @@ tcltest::test cookfsVfsThread-7.8 "VFS terminated while other thread gets direct
         thread::rwmutex unlock $mx
     }
     # unlock mx mutex, the threads will start to read files
+    puts "test: unlock"
     thread::rwmutex unlock $mx
     # Give 10ms for thread to lock mx mutex
     after 10
+    puts "test: unmount"
     cookfs::Unmount $file
     # Now try locking the mutex again, since the thread read locked mutex,
     # we will wait for the thread to finish the job
+    puts "test: wait for thread to finish"
     thread::rwmutex wlock $mx
+    puts "test: thread finished"
     # we no longer need the mutex
     thread::rwmutex unlock $mx
     thread::rwmutex destroy $mx
