@@ -794,10 +794,13 @@ tcltest::test cookfsVfsThread-7.6 "VFS terminated while other thread accesses fi
         # the file multiple times before the VFS is unmounted. So, here we also
         # count how many times stat was read successfully
         set count 0
+        set start [clock seconds]
         catch {
-            for { set i 0 } { $i < 10000000 } { incr i } {
-                file stat $rfile x
-                incr count
+            while { [expr { [clock seconds] - $start }] < 3 } {
+                for { set i 0 } { $i < 10000000 } { incr i } {
+                    file stat $rfile x
+                    incr count
+                }
             }
             set ok notok
         } result
@@ -852,10 +855,13 @@ tcltest::test cookfsVfsThread-7.7 "VFS terminated while other thread gets file a
         # the file multiple times before the VFS is unmounted. So, here we also
         # count how many times stat was read successfully
         set count 0
+        set start [clock seconds]
         catch {
-            for { set i 0 } { $i < 1000000000 } { incr i } {
-                file attributes $rfile
-                incr count
+            while { [expr { [clock seconds] - $start }] < 3 } {
+                for { set i 0 } { $i < 1000000 } { incr i } {
+                    file attributes $rfile
+                    incr count
+                }
             }
             set ok notok
         } result
@@ -866,8 +872,8 @@ tcltest::test cookfsVfsThread-7.7 "VFS terminated while other thread gets file a
     }
     # unlock mx mutex, the threads will start to read files
     thread::rwmutex unlock $mx
-    # Give 5ms for thread to lock mx mutex
-    after 5
+    # Give 10ms for thread to lock mx mutex
+    after 10
     cookfs::Unmount $file
     # Now try locking the mutex again, since the thread read locked mutex,
     # we will wait for the thread to finish the job
@@ -910,10 +916,13 @@ tcltest::test cookfsVfsThread-7.8 "VFS terminated while other thread gets direct
         # directory multiple times before the VFS is unmounted. So, here we also
         # count how many times the directory was checked successfully
         set count 0
+        set start [clock seconds]
         catch {
-            for { set i 0 } { $i < 10000000 } { incr i } {
-                glob -directory $dir *
-                incr count
+            while { [expr { [clock seconds] - $start }] < 3 } {
+                for { set i 0 } { $i < 10000000 } { incr i } {
+                    glob -directory $dir *
+                    incr count
+                }
             }
             set ok notok
         } result
