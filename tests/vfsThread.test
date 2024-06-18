@@ -886,7 +886,7 @@ tcltest::test cookfsVfsThread-7.7 "VFS terminated while other thread gets file a
     # of the thread when the VFS was unmounted
     testMultipleMatch [thread::send $tid [list set result]] \
         {1 {could not read "*": not a directory}} \
-        {1 {could not read "*": no such file or directory}}
+        {1 {could not read "*": no such file or directory}} \
         {1 {could not read "*": invalid argument}}
 } -cleanup {
     catch { thread::release $tid }
@@ -918,16 +918,20 @@ tcltest::test cookfsVfsThread-7.8 "VFS terminated while other thread gets direct
         # count how many times the directory was checked successfully
         set count 0
         set start [clock seconds]
-        puts "thread: start: $start"
         catch {
             while { [expr { [clock seconds] - $start }] < 3 } {
                 for { set i 0 } { $i < 10000000 } { incr i } {
-                    puts "[file type $dir]:[glob -directory $dir *]:"
+                    # We can not use just "glob -directory $dir *" here and expect
+                    # that this command will fail when $dir is not a directory.
+                    # Tcl9 doesn't throw an error and returns empty list for this
+                    # case. So, in order to be compatible with Tcl9, we need to
+                    # check whether glob's result is an empty list.
+                    if { ![llength [glob -nocomplain -directory $dir *]] } {
+                        error "empty glob"
+                    }
                     incr count
                 }
-                puts "thread: round x: [clock seconds]"
             }
-            puts "thread: set notok"
             set ok notok
         } result
         # Add a 0 or 1 flag to the result whether the directory was successfully
@@ -936,17 +940,13 @@ tcltest::test cookfsVfsThread-7.8 "VFS terminated while other thread gets direct
         thread::rwmutex unlock $mx
     }
     # unlock mx mutex, the threads will start to read files
-    puts "test: unlock"
     thread::rwmutex unlock $mx
     # Give 10ms for thread to lock mx mutex
     after 10
-    puts "test: unmount"
     cookfs::Unmount $file
     # Now try locking the mutex again, since the thread read locked mutex,
     # we will wait for the thread to finish the job
-    puts "test: wait for thread to finish"
     thread::rwmutex wlock $mx
-    puts "test: thread finished"
     # we no longer need the mutex
     thread::rwmutex unlock $mx
     thread::rwmutex destroy $mx
