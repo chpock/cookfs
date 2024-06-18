@@ -17,6 +17,9 @@
 #include "Alloc.h"
 #endif
 #include "cookfs.h"
+#include "pages.h"
+#include "pagesInt.h"
+#include "pagesCompr.h"
 
 #define COOKFS_SUFFIX_BYTES 16
 

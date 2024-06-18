@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #ifdef COOKFS_INTERNAL_DEBUG
 #define CookfsLog(a) {a; printf("\n"); fflush(stdout);}
@@ -53,46 +54,32 @@
 
 #define SET_ERROR_STR(e) SET_ERROR(Tcl_NewStringObj((e), -1));
 
+#if 10 * TCL_MAJOR_VERSION + TCL_MINOR_VERSION < 86
+#define USE_VFS_COMMANDS_FOR_ZIP 1
+#else
+#define USE_ZLIB_TCL86 1
+#endif
+
+#if 10 * TCL_MAJOR_VERSION + TCL_MINOR_VERSION >= 85
+#define USE_TCL_TRUNCATE 1
+#endif
+
+// Define __SANITIZE_ADDRESS__ if asan is enabled in clang. In GCC, this
+// is already defined.
+#if !defined(__SANITIZE_ADDRESS__) && defined(__has_feature)
+#if __has_feature(address_sanitizer) // for clang
+#define __SANITIZE_ADDRESS__ // GCC already sets this
+#endif
+#endif
+
 #include "common.h"
 #include "bindata.h"
 #include "hashes.h"
 #include "pathObj.h"
 
-#ifdef COOKFS_USECPAGES
-#include "pageObj.h"
-#include "pages.h"
-#include "pagesCmd.h"
-#include "pagesCompr.h"
-#endif /* COOKFS_USECPAGES */
-
-#ifdef COOKFS_USECFSINDEX
-#include "fsindex.h"
-#include "fsindexIO.h"
-#include "fsindexCmd.h"
-#endif /* COOKFS_USECFSINDEX */
-
-#ifdef COOKFS_USECREADERCHAN
-#include "readerchannel.h"
-#include "readerchannelIO.h"
-#endif /* COOKFS_USECREADERCHAN */
-
-#ifdef COOKFS_USECWRITER
-#include "writer.h"
-#include "writerCmd.h"
-#endif /* COOKFS_USECWRITER */
-
-#ifdef COOKFS_USECVFS
-#include "writer.h"
-#include "vfs.h"
-#include "vfsDriver.h"
-#include "vfsVfs.h"
-#include "vfsCmd.h"
-#endif /* COOKFS_USECVFS */
-
-#ifdef COOKFS_USECWRITERCHAN
-#include "writerchannel.h"
-#include "writerchannelIO.h"
-#endif /* COOKFS_USECWRITERCHAN */
+#ifdef TCL_THREADS
+#include "threads.h"
+#endif /* TCL_THREADS */
 
 #ifdef COOKFS_USECPKGCONFIG
 static Tcl_Config const cookfs_pkgconfig[] = {

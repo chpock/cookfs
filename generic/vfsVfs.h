@@ -8,6 +8,8 @@
 void Cookfs_CookfsRegister(Tcl_Interp *interp);
 
 Cookfs_Vfs *Cookfs_CookfsFindVfs(Tcl_Obj *path, Tcl_Size len);
+Cookfs_Vfs *Cookfs_CookfsSplitWithVfs(Tcl_Obj *path,
+    Cookfs_PathObj **pathObjPtr);
 
 Tcl_Obj *Cookfs_CookfsGetVolumesList(void);
 

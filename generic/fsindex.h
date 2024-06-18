@@ -6,51 +6,8 @@
 #ifndef COOKFS_FSINDEX_H
 #define COOKFS_FSINDEX_H 1
 
-#define COOKFS_NUMBLOCKS_DIRECTORY -1
-#define COOKFS_FSINDEX_TABLE_MAXENTRIES 8
-
-#define COOKFS_USEHASH_DEFAULT 0
-
-/* only handle Fsindex code if enabled in configure */
-#ifdef COOKFS_USECFSINDEX
-
-typedef struct Cookfs_Fsindex Cookfs_Fsindex;
-
-/* all filenames are stored in UTF-8 */
-typedef struct Cookfs_FsindexEntry {
-    char *fileName;
-    unsigned char fileNameLen;
-    Tcl_WideInt fileTime;
-    int fileBlocks;
-    Cookfs_Fsindex *isFileBlocksInitialized;
-    union {
-        struct {
-            Tcl_WideInt fileSize;
-            int fileBlockOffsetSize[1];
-        } fileInfo;
-	struct {
-	    union {
-		Tcl_HashTable children;
-		struct Cookfs_FsindexEntry *childTable[COOKFS_FSINDEX_TABLE_MAXENTRIES];
-	    } dirData;
-	    char isHash;
-	    int childCount;
-	} dirInfo;
-    } data;
-    /* this stores series of 3 values: block number, block offset, size of element */
-} Cookfs_FsindexEntry;
-
-typedef struct Cookfs_Fsindex {
-    Cookfs_FsindexEntry *rootItem;
-    Tcl_HashTable metadataHash;
-    int *blockIndex;
-    int blockIndexSize;
-    Tcl_WideInt changeCount;
-    Tcl_Interp *interp;
-    Tcl_Command commandToken;
-    int isDead;
-    int isLocked;
-} Cookfs_Fsindex;
+typedef struct _Cookfs_Fsindex Cookfs_Fsindex;
+typedef struct _Cookfs_FsindexEntry Cookfs_FsindexEntry;
 
 Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName);
 
@@ -58,12 +15,9 @@ Cookfs_Fsindex *Cookfs_FsindexInit(Tcl_Interp *interp, Cookfs_Fsindex *i);
 void Cookfs_FsindexFini(Cookfs_Fsindex *i);
 void Cookfs_FsindexCleanup(Cookfs_Fsindex *i);
 
-/* TODO: move these to non-public API somehow? */
-Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks, int useHash);
-void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e);
-
 Cookfs_FsindexEntry *Cookfs_FsindexGet(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj);
 Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj, int numBlocks);
+Cookfs_FsindexEntry *Cookfs_FsindexSetDirectory(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj);
 Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_FsindexEntry *currentNode, char *pathTailStr, int pathTailLen, int numBlocks);
 int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj);
 int Cookfs_FsindexUnsetRecursive(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj);
@@ -77,6 +31,7 @@ void Cookfs_FsindexSetMetadata(Cookfs_Fsindex *i, const char *paramName, Tcl_Obj
 void Cookfs_FsindexSetMetadataRaw(Cookfs_Fsindex *i, const char *paramName,
     const unsigned char *dataPtr, Tcl_Size dataSize);
 int Cookfs_FsindexUnsetMetadata(Cookfs_Fsindex *i, const char *paramName);
+
 int Cookfs_FsindexGetBlockUsage(Cookfs_Fsindex *i, int idx);
 void Cookfs_FsindexModifyBlockUsage(Cookfs_Fsindex *i, int idx, int count);
 
@@ -87,17 +42,42 @@ void Cookfs_FsindexResetChangeCount(Cookfs_Fsindex *i);
 
 int Cookfs_FsindexEntryIsPending(Cookfs_FsindexEntry *e);
 int Cookfs_FsindexEntryIsDirectory(Cookfs_FsindexEntry *e);
+int Cookfs_FsindexEntryIsEmptyDirectory(Cookfs_FsindexEntry *e);
+int Cookfs_FsindexEntryIsInactive(Cookfs_FsindexEntry *e);
 
-void Cookfs_FsindexUpdateEntryBlock(Cookfs_Fsindex *i, Cookfs_FsindexEntry *e,
-    int blockNumber, int blockIndex, int blockOffset, int blockSize);
-void Cookfs_FsindexUpdateEntryFileSize(Cookfs_FsindexEntry *e,
+int Cookfs_FsindexEntryGetBlockCount(Cookfs_FsindexEntry *e);
+
+void Cookfs_FsindexEntrySetBlock(Cookfs_FsindexEntry *e,
+    int blockNumber, int pageIndex, int pageOffset, int pageSize);
+int Cookfs_FsindexEntryGetBlock(Cookfs_FsindexEntry *e,
+    int blockNumber, int *pageNum, int *pageOffset, int *pageSize);
+void Cookfs_FsindexEntryIncrBlockPageIndex(Cookfs_FsindexEntry *e,
+    int blockNumber, int change);
+
+void Cookfs_FsindexEntrySetFileSize(Cookfs_FsindexEntry *e,
     Tcl_WideInt fileSize);
+Tcl_WideInt Cookfs_FsindexEntryGetFilesize(Cookfs_FsindexEntry *e);
 
-void Cookfs_FsindexUpdatePendingEntry(Cookfs_Fsindex *i, Cookfs_FsindexEntry *e,
-    int blockIndex, int blockOffset);
+void Cookfs_FsindexEntrySetFileTime(Cookfs_FsindexEntry *e,
+    Tcl_WideInt fileTime);
+Tcl_WideInt Cookfs_FsindexEntryGetFileTime(Cookfs_FsindexEntry *e);
 
-void Cookfs_FsindexLock(Cookfs_Fsindex *i, int isLocked);
+const char *Cookfs_FsindexEntryGetFileName(Cookfs_FsindexEntry *e,
+    unsigned char *fileNameLen);
 
-#endif /* COOKFS_USECFSINDEX */
+int Cookfs_FsindexEntryUnlock(Cookfs_FsindexEntry *e);
+int Cookfs_FsindexEntryLock(Cookfs_FsindexEntry *e);
+
+int Cookfs_FsindexUnlock(Cookfs_Fsindex *i);
+int Cookfs_FsindexLockRW(int isWrite, Cookfs_Fsindex *i, Tcl_Obj **err);
+#define Cookfs_FsindexLockWrite(i,err) Cookfs_FsindexLockRW(1,(i),(err))
+#define Cookfs_FsindexLockRead(i,err) Cookfs_FsindexLockRW(0,(i),(err))
+
+int Cookfs_FsindexLockHard(Cookfs_Fsindex *i);
+int Cookfs_FsindexUnlockHard(Cookfs_Fsindex *i);
+int Cookfs_FsindexLockSoft(Cookfs_Fsindex *i);
+int Cookfs_FsindexUnlockSoft(Cookfs_Fsindex *i);
+
+void Cookfs_FsindexLockExclusive(Cookfs_Fsindex *i);
 
 #endif /* COOKFS_FSINDEX_H */

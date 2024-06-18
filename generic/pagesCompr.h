@@ -6,10 +6,6 @@
 #ifndef COOKFS_PAGESCOMPR_H
 #define COOKFS_PAGESCOMPR_H 1
 
-/* only handle pages code if enabled in configure */
-
-#ifdef COOKFS_USECPAGES
-
 extern const char *cookfsCompressionOptions[];
 extern const char *cookfsCompressionNames[];
 extern const int cookfsCompressionOptionMap[];
@@ -54,7 +50,5 @@ void Cookfs_AsyncCompressFinalize(Cookfs_Pages *p);
 int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx);
 int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require);
 void Cookfs_AsyncDecompressFinalize(Cookfs_Pages *p);
-
-#endif /* COOKFS_USECPAGES */
 
 #endif /* COOKFS_PAGESCOMPR_H */

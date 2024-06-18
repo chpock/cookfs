@@ -8,6 +8,8 @@
  */
 
 #include "cookfs.h"
+#include "fsindex.h"
+#include "fsindexInt.h"
 
 #define COOKFSFSINDEX_FIND_FIND             0
 #define COOKFSFSINDEX_FIND_CREATE           1
@@ -18,31 +20,159 @@
 static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexEntry **dirPtr, Cookfs_PathObj *pathObj, int command, Cookfs_FsindexEntry *newFileNode);
 static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *currentNode, char *pathTailStr, int command, Cookfs_FsindexEntry *newFileNode);
 static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e);
+static void Cookfs_FsindexFree(Cookfs_Fsindex *i);
+static Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(Cookfs_Fsindex *fsindex, int fileNameLength, int numBlocks, int useHash);
+static void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e);
 
-/*
- *----------------------------------------------------------------------
- *
- * Cookfs_FsindexLock --
- *
- *      Locks or unlocks the specified fsindex object
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
+int Cookfs_FsindexLockRW(int isWrite, Cookfs_Fsindex *i, Tcl_Obj **err) {
+    int ret = 1;
+#ifdef TCL_THREADS
+    if (isWrite) {
+        CookfsLog(printf("Cookfs_FsindexLockWrite: try to lock..."));
+        ret = Cookfs_RWMutexLockWrite(i->mx);
+    } else {
+        CookfsLog(printf("Cookfs_FsindexLockRead: try to lock..."));
+        ret = Cookfs_RWMutexLockRead(i->mx);
+    }
+    if (ret && i->isDead == 1) {
+        // If object is terminated, don't allow everything.
+        ret = 0;
+        Cookfs_RWMutexUnlock(i->mx);
+    }
+    if (!ret) {
+        CookfsLog(printf("%s: FAILED", isWrite ? "Cookfs_FsindexLockWrite" :
+            "Cookfs_FsindexLockRead"));
+        if (err != NULL) {
+            *err = Tcl_NewStringObj("stalled fsindex object detected", -1);
+        }
+    } else {
+        CookfsLog(printf("%s: ok", isWrite ? "Cookfs_FsindexLockWrite" :
+            "Cookfs_FsindexLockRead"));
+    }
+#else
+    UNUSED(isWrite);
+    UNUSED(i);
+    UNUSED(err);
+#endif /* TCL_THREADS */
+    return ret;
+}
 
-void Cookfs_FsindexLock(Cookfs_Fsindex *i, int isLocked) {
-    i->isLocked = isLocked;
+int Cookfs_FsindexUnlock(Cookfs_Fsindex *i) {
+#ifdef TCL_THREADS
+    Cookfs_RWMutexUnlock(i->mx);
+    CookfsLog(printf("Cookfs_FsindexUnlock: ok"));
+#else
+    UNUSED(i);
+#endif /* TCL_THREADS */
+    return 1;
+}
+
+int Cookfs_FsindexLockHard(Cookfs_Fsindex *i) {
+    i->lockHard = 1;
+    return 1;
+}
+
+int Cookfs_FsindexUnlockHard(Cookfs_Fsindex *i) {
+    i->lockHard = 0;
+    return 1;
+}
+
+int Cookfs_FsindexLockSoft(Cookfs_Fsindex *i) {
+    int ret = 1;
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&i->mxLockSoft);
+#endif /* TCL_THREADS */
+    if (i->isDead) {
+        ret = 0;
+    } else {
+        i->lockSoft++;
+    }
+#ifdef TCL_THREADS
+    Tcl_MutexUnlock(&i->mxLockSoft);
+#endif /* TCL_THREADS */
+    return ret;
+}
+
+int Cookfs_FsindexUnlockSoft(Cookfs_Fsindex *i) {
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&i->mxLockSoft);
+#endif /* TCL_THREADS */
+    assert(i->lockSoft > 0);
+    i->lockSoft--;
+    if (i->isDead == 1) {
+        Cookfs_FsindexFree(i);
+    } else {
+#ifdef TCL_THREADS
+        Tcl_MutexUnlock(&i->mxLockSoft);
+#endif /* TCL_THREADS */
+    }
+    return 1;
+}
+
+void Cookfs_FsindexLockExclusive(Cookfs_Fsindex *i) {
+#ifdef TCL_THREADS
+    Cookfs_RWMutexLockExclusive(i->mx);
+#else
+    UNUSED(i);
+#endif /* TCL_THREADS */
+}
+
+Tcl_WideInt Cookfs_FsindexEntryGetFilesize(Cookfs_FsindexEntry *e) {
+    Cookfs_FsindexEntryWantRead(e);
+    return e->data.fileInfo.fileSize;
+}
+
+int Cookfs_FsindexEntryGetBlockCount(Cookfs_FsindexEntry *e) {
+    Cookfs_FsindexEntryWantRead(e);
+    return e->fileBlocks;
+}
+
+int Cookfs_FsindexEntryLock(Cookfs_FsindexEntry *e) {
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&e->mxRefCount);
+#endif /* TCL_THREADS */
+    e->refcount++;
+#ifdef TCL_THREADS
+    Tcl_MutexUnlock(&e->mxRefCount);
+#endif /* TCL_THREADS */
+    return 1;
+}
+
+int Cookfs_FsindexEntryUnlock(Cookfs_FsindexEntry *e) {
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&e->mxRefCount);
+#endif /* TCL_THREADS */
+    e->refcount--;
+#ifdef TCL_THREADS
+    Tcl_MutexUnlock(&e->mxRefCount);
+#endif /* TCL_THREADS */
+    // If refcount < 0, there is an Unlock() without a corresponding Lock().
+    // Treat this as an error.
+    assert(e->refcount >= 0);
+    return 1;
+}
+
+int Cookfs_FsindexEntryGetBlock(Cookfs_FsindexEntry *e, int blockNumber,
+    int *pageNum, int *pageOffset,int *pageSize)
+{
+    Cookfs_FsindexEntryWantRead(e);
+    int blockIndexOffset = blockNumber * 3;
+    if (pageNum != NULL) {
+        *pageNum = e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 0];
+    }
+    if (pageOffset != NULL) {
+        *pageOffset = e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 1];
+    }
+    if (pageSize != NULL) {
+        *pageSize = e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 2];
+    }
+    return 1;
 }
 
 /*
  *----------------------------------------------------------------------
  *
- * Cookfs_FsindexUpdateEntryFileSize --
+ * Cookfs_FsindexEntrySetFileSize --
  *
  *      Updates the filesize field for specified entry
  *
@@ -55,17 +185,57 @@ void Cookfs_FsindexLock(Cookfs_Fsindex *i, int isLocked) {
  *----------------------------------------------------------------------
  */
 
-void Cookfs_FsindexUpdateEntryFileSize(Cookfs_FsindexEntry *e,
+void Cookfs_FsindexEntrySetFileSize(Cookfs_FsindexEntry *e,
     Tcl_WideInt fileSize)
 {
+    Cookfs_FsindexEntryWantWrite(e);
     e->data.fileInfo.fileSize = fileSize;
-    return ;
+    return;
 }
+
+void Cookfs_FsindexEntrySetFileTime(Cookfs_FsindexEntry *e,
+    Tcl_WideInt fileTime)
+{
+    Cookfs_FsindexEntryWantWrite(e);
+    e->fileTime = fileTime;
+    return;
+}
+
+Tcl_WideInt Cookfs_FsindexEntryGetFileTime(Cookfs_FsindexEntry *e)
+{
+    Cookfs_FsindexEntryWantRead(e);
+    return e->fileTime;
+}
+
+const char *Cookfs_FsindexEntryGetFileName(Cookfs_FsindexEntry *e,
+    unsigned char *fileNameLen)
+{
+    Cookfs_FsindexEntryWantRead(e);
+    if (fileNameLen != NULL) {
+        *fileNameLen = e->fileNameLen;
+    }
+    return e->fileName;
+}
+
+void Cookfs_FsindexEntryIncrBlockPageIndex(Cookfs_FsindexEntry *e,
+    int blockNumber, int change)
+{
+    Cookfs_FsindexEntryWantWrite(e);
+    int blockIndexOffset = blockNumber * 3 + 0;
+    e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 0] += change;
+    return;
+}
+
+int Cookfs_FsindexEntryIsInactive(Cookfs_FsindexEntry *e) {
+    Cookfs_FsindexEntryWantRead(e);
+    return e->isInactive;
+}
+
 
 /*
  *----------------------------------------------------------------------
  *
- * Cookfs_FsindexUpdateEntryBlock --
+ * Cookfs_FsindexEntrySetBlock --
  *
  *      Updates the block data for specified entry
  *
@@ -78,45 +248,26 @@ void Cookfs_FsindexUpdateEntryFileSize(Cookfs_FsindexEntry *e,
  *----------------------------------------------------------------------
  */
 
-void Cookfs_FsindexUpdateEntryBlock(Cookfs_Fsindex *i, Cookfs_FsindexEntry *e,
-    int blockNumber, int blockIndex, int blockOffset, int blockSize)
+void Cookfs_FsindexEntrySetBlock(Cookfs_FsindexEntry *e, int blockNumber,
+    int pageIndex, int pageOffset, int pageSize)
 {
+    Cookfs_Fsindex *i = e->fsindex;
+    Cookfs_FsindexWantWrite(i);
     int blockIndexOffset = blockNumber * 3 + 0;
+
     // Reducing block utilization for an already set block index
-    Cookfs_FsindexModifyBlockUsage(i, e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 0], -1);
-    e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 0] = blockIndex;
-    e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 1] = blockOffset;
-    if (blockSize >= 0) {
-        e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 2] = blockSize;
+    Cookfs_FsindexModifyBlockUsage(i,
+        e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 0], -1);
+
+    e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 0] = pageIndex;
+    e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 1] = pageOffset;
+    if (pageSize >= 0) {
+        e->data.fileInfo.fileBlockOffsetSize[blockIndexOffset + 2] = pageSize;
     }
     // Increase block utilization for the new block index
-    Cookfs_FsindexModifyBlockUsage(i, blockIndex, 1);
+    Cookfs_FsindexModifyBlockUsage(i, pageIndex, 1);
     // Register new change in the change counter
     Cookfs_FsindexIncrChangeCount(i, 1);
-    return ;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * Cookfs_FsindexUpdatePendingEntry --
- *
- *      Updates the block index on an entry that was previously registered
- *      as being in the small file buffer
- *
- * Results:
- *      None
- *
- * Side effects:
- *      None
- *
- *----------------------------------------------------------------------
- */
-
-void Cookfs_FsindexUpdatePendingEntry(Cookfs_Fsindex *i, Cookfs_FsindexEntry *e,
-    int blockIndex, int blockOffset)
-{
-    Cookfs_FsindexUpdateEntryBlock(i, e, 0, blockIndex, blockOffset, -1);
     return ;
 }
 
@@ -138,7 +289,8 @@ void Cookfs_FsindexUpdatePendingEntry(Cookfs_Fsindex *i, Cookfs_FsindexEntry *e,
  */
 
 int Cookfs_FsindexEntryIsPending(Cookfs_FsindexEntry *e) {
-    if (e == NULL || Cookfs_FsindexEntryIsDirectory(e)) {
+    Cookfs_FsindexEntryWantRead(e);
+    if (Cookfs_FsindexEntryIsDirectory(e)) {
         return 0;
     }
     for (int i = 0; i < (e->fileBlocks * 3); i += 3) {
@@ -166,7 +318,13 @@ int Cookfs_FsindexEntryIsPending(Cookfs_FsindexEntry *e) {
  */
 
 int Cookfs_FsindexEntryIsDirectory(Cookfs_FsindexEntry *e) {
+    Cookfs_FsindexEntryWantRead(e);
     return ((e != NULL && e->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) ? 1 : 0);
+}
+
+int Cookfs_FsindexEntryIsEmptyDirectory(Cookfs_FsindexEntry *e) {
+    Cookfs_FsindexEntryWantRead(e);
+    return (e->data.dirInfo.childCount ? 1 : 0);
 }
 
 /*
@@ -186,6 +344,7 @@ int Cookfs_FsindexEntryIsDirectory(Cookfs_FsindexEntry *e) {
  */
 
 Tcl_WideInt Cookfs_FsindexIncrChangeCount(Cookfs_Fsindex *i, int count) {
+    Cookfs_FsindexWantWrite(i);
     i->changeCount += count;
     return i->changeCount;
 }
@@ -207,6 +366,7 @@ Tcl_WideInt Cookfs_FsindexIncrChangeCount(Cookfs_Fsindex *i, int count) {
  */
 
 void Cookfs_FsindexResetChangeCount(Cookfs_Fsindex *i) {
+    Cookfs_FsindexWantWrite(i);
     i->changeCount = 0;
     return;
 }
@@ -229,6 +389,7 @@ void Cookfs_FsindexResetChangeCount(Cookfs_Fsindex *i) {
 
 int Cookfs_FsindexGetBlockUsage(Cookfs_Fsindex *i, int idx) {
     CookfsLog(printf("Cookfs_FsindexGetBlockUsage: from [%p] index [%d]", (void *)i, idx));
+    Cookfs_FsindexWantRead(i);
     if (idx < 0 || i->blockIndexSize <= idx)
         return 0;
     return i->blockIndex[idx];
@@ -252,6 +413,8 @@ int Cookfs_FsindexGetBlockUsage(Cookfs_Fsindex *i, int idx) {
  */
 
 void Cookfs_FsindexModifyBlockUsage(Cookfs_Fsindex *i, int idx, int count) {
+
+    Cookfs_FsindexWantWrite(i);
 
     // if blockIndexSize is not zero and blockIndex is NULL then we are
     // in terminate mode so we just return
@@ -346,11 +509,19 @@ Cookfs_Fsindex *Cookfs_FsindexInit(Tcl_Interp *interp, Cookfs_Fsindex *i) {
         rc->commandToken = NULL;
         rc->interp = interp;
         rc->isDead = 0;
-        rc->isLocked = 0;
+        rc->lockSoft = 0;
+        rc->lockHard = 0;
+        rc->inactiveItems = NULL;
+#ifdef TCL_THREADS
+        /* initialize thread locks */
+        rc->mx = Cookfs_RWMutexInit();
+        rc->threadId = Tcl_GetCurrentThread();
+        rc->mxLockSoft = NULL;
+#endif /* TCL_THREADS */
     } else {
         rc = i;
     }
-    rc->rootItem = Cookfs_FsindexEntryAlloc(0, COOKFS_NUMBLOCKS_DIRECTORY, COOKFS_USEHASH_DEFAULT);
+    rc->rootItem = Cookfs_FsindexEntryAlloc(rc, 0, COOKFS_NUMBLOCKS_DIRECTORY, COOKFS_USEHASH_DEFAULT);
     rc->rootItem->fileName = ".";
     rc->blockIndexSize = 0;
     rc->blockIndex = NULL;
@@ -414,27 +585,74 @@ void Cookfs_FsindexCleanup(Cookfs_Fsindex *i) {
  *----------------------------------------------------------------------
  */
 
+static void Cookfs_FsindexFree(Cookfs_Fsindex *i) {
+    CookfsLog(printf("Cleaning up fsindex"));
+    CookfsLog(printf("Cleaning up inactive items"));
+    while (i->inactiveItems != NULL) {
+        Cookfs_FsindexEntry *e = i->inactiveItems;
+        i->inactiveItems = e->next;
+        CookfsLog(printf("Cookfs_FsindexFree: release inactive entry %p",
+            (void *)e));
+#ifdef TCL_THREADS
+        Tcl_MutexFinalize(&e->mxRefCount);
+#endif /* TCL_THREADS */
+        ckfree((void *) e);
+    }
+#ifdef TCL_THREADS
+    CookfsLog(printf("Cleaning up thread locks"));
+    Cookfs_RWMutexFini(i->mx);
+    Tcl_MutexUnlock(&i->mxLockSoft);
+    Tcl_MutexFinalize(&i->mxLockSoft);
+#endif /* TCL_THREADS */
+    /* clean up storage */
+    CookfsLog(printf("Releasing fsindex"));
+    ckfree((void *) i);
+}
+
 void Cookfs_FsindexFini(Cookfs_Fsindex *i) {
-    if (i->isDead) {
+    if (i->isDead == 1) {
         return;
     }
-    if (i->isLocked) {
+    if (i->lockHard) {
         CookfsLog(printf("Cookfs_FsindexFini: could not remove"
             " locked object"));
         return;
     }
+
+    Cookfs_FsindexLockExclusive(i);
+
+    CookfsLog(printf("Cookfs_FsindexFini: aquire mutex"));
+    // By acquisition the lockSoft mutex, we will be sure that no other
+    // thread calls Cookfs_FsindexUnlockSoft() that can release this object
+    // while this function is running.
+#ifdef TCL_THREADS
+    Tcl_MutexLock(&i->mxLockSoft);
+#endif /* TCL_THREADS */
     i->isDead = 1;
-    CookfsLog(printf("Cookfs_FsindexFini: release"));
+
     Cookfs_FsindexCleanup(i);
+
+    CookfsLog(printf("Cookfs_FsindexFini: release"));
     if (i->commandToken != NULL) {
         CookfsLog(printf("Cleaning tcl command"));
         Tcl_DeleteCommandFromToken(i->interp, i->commandToken);
     } else {
         CookfsLog(printf("No tcl command"));
     }
-    ckfree((void *) i);
-}
 
+    // Unlock fsindex now. It is possible that some threads are waiting for
+    // read/write events. Let them go on and fail because of a dead object.
+    Cookfs_FsindexUnlock(i);
+
+    if (i->lockSoft) {
+        CookfsLog(printf("The fsindex object is soft-locked"))
+#ifdef TCL_THREADS
+        Tcl_MutexUnlock(&i->mxLockSoft);
+#endif /* TCL_THREADS */
+    } else {
+        Cookfs_FsindexFree(i);
+    }
+}
 
 /*
  *----------------------------------------------------------------------
@@ -458,6 +676,8 @@ void Cookfs_FsindexFini(Cookfs_Fsindex *i) {
  */
 
 Cookfs_FsindexEntry *Cookfs_FsindexGet(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj) {
+    Cookfs_FsindexWantRead(i);
+
     Cookfs_FsindexEntry *fileNode;
 
     CookfsLog(printf("Cookfs_FsindexGet - start"))
@@ -499,7 +719,13 @@ Cookfs_FsindexEntry *Cookfs_FsindexGet(Cookfs_Fsindex *i, Cookfs_PathObj *pathOb
  *----------------------------------------------------------------------
  */
 
+Cookfs_FsindexEntry *Cookfs_FsindexSetDirectory(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj) {
+    return Cookfs_FsindexSet(i, pathObj, COOKFS_NUMBLOCKS_DIRECTORY);
+}
+
 Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj, int numBlocks) {
+    Cookfs_FsindexWantWrite(i);
+
     Cookfs_FsindexEntry *dirNode = NULL;
     Cookfs_FsindexEntry *fileNode;
     const Cookfs_FsindexEntry *foundFileNode;
@@ -515,7 +741,7 @@ Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Cookfs_PathObj *pathOb
 
     /* create new entry for object - used by CookfsFsindexFind() if
      * existing entry was not found */
-    fileNode = Cookfs_FsindexEntryAlloc(pathObj->tailNameLength, numBlocks, COOKFS_USEHASH_DEFAULT);
+    fileNode = Cookfs_FsindexEntryAlloc(i, pathObj->tailNameLength, numBlocks, COOKFS_USEHASH_DEFAULT);
     if (fileNode == NULL) {
         CookfsLog(printf("Cookfs_FsindexSet - unable to create entry"))
         return NULL;
@@ -560,10 +786,11 @@ Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Cookfs_PathObj *pathOb
  */
 
 Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_FsindexEntry *currentNode, char *pathTailStr, int pathTailLen, int numBlocks) {
+    Cookfs_FsindexEntryWantWrite(currentNode);
     Cookfs_FsindexEntry *fileNode;
     const Cookfs_FsindexEntry *foundFileNode;
     CookfsLog(printf("Cookfs_FsindexSetInDirectory - begin (%s/%d)", pathTailStr, pathTailLen))
-    fileNode = Cookfs_FsindexEntryAlloc(pathTailLen, numBlocks, COOKFS_USEHASH_DEFAULT);
+    fileNode = Cookfs_FsindexEntryAlloc(currentNode->fsindex, pathTailLen, numBlocks, COOKFS_USEHASH_DEFAULT);
     memcpy(fileNode->fileName, pathTailStr, pathTailLen + 1);
 
     CookfsLog(printf("Cookfs_FsindexSetInDirectory - fileNode=%p", (void *)fileNode))
@@ -597,6 +824,7 @@ Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_FsindexEntry *currentNo
  */
 
 int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj) {
+    Cookfs_FsindexWantWrite(i);
     const Cookfs_FsindexEntry *fileNode;
 
     CookfsLog(printf("Cookfs_FsindexUnset - start"))
@@ -630,6 +858,7 @@ int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj) {
  */
 
 int Cookfs_FsindexUnsetRecursive(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj) {
+    Cookfs_FsindexWantWrite(i);
     const Cookfs_FsindexEntry *fileNode;
 
     CookfsLog(printf("Cookfs_FsindexUnsetRecursive - start"))
@@ -678,6 +907,9 @@ Cookfs_FsindexEntry **Cookfs_FsindexListEntry(Cookfs_FsindexEntry *dirNode, int 
         CookfsLog(printf("Cookfs_FsindexListEntry - not found"))
         return NULL;
     }
+
+    Cookfs_FsindexEntryWantRead(dirNode);
+
     if (dirNode->fileBlocks != COOKFS_NUMBLOCKS_DIRECTORY) {
         CookfsLog(printf("Cookfs_FsindexListEntry - not directory"))
         return NULL;
@@ -735,6 +967,7 @@ Cookfs_FsindexEntry **Cookfs_FsindexListEntry(Cookfs_FsindexEntry *dirNode, int 
  */
 
 Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj, int *itemCountPtr) {
+    Cookfs_FsindexWantRead(i);
 
     CookfsLog(printf("Cookfs_FsindexList - start"))
 
@@ -790,7 +1023,7 @@ void Cookfs_FsindexListFree(Cookfs_FsindexEntry **items) {
  *----------------------------------------------------------------------
  */
 
-Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks, int useHash) {
+static Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(Cookfs_Fsindex *fsindex, int fileNameLength, int numBlocks, int useHash) {
     int size0 = sizeof(Cookfs_FsindexEntry);
     int fileNameBytes;
 
@@ -809,6 +1042,12 @@ Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks,
     e->fileBlocks = numBlocks;
     e->fileNameLen = fileNameLength;
     e->isFileBlocksInitialized = NULL;
+    e->fsindex = fsindex;
+    e->refcount = 0;
+    e->isInactive = 0;
+#ifdef TCL_THREADS
+    e->mxRefCount = NULL;
+#endif /* TCL_THREADS */
     if (numBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
 	/* create directory structure - either a hash table or static child array */
         CookfsLog(printf("Cookfs_FsindexEntryAlloc - directory, useHash=%d", useHash))
@@ -854,7 +1093,7 @@ Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(int fileNameLength, int numBlocks,
  *----------------------------------------------------------------------
  */
 
-void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
+static void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
     //CookfsLog(printf("Cookfs_FsindexEntryFree: %p with fileBlocks [%d]", e, e->fileBlocks));
     if (e->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
 	/* for directory, recursively free all children */
@@ -888,7 +1127,20 @@ void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
     }
 
     /* free entry structure itself */
-    ckfree((void *) e);
+    if (e->refcount) {
+        CookfsLog(printf("Cookfs_FsindexEntryFree: move entry %p to"
+            " inactive list", (void *)e));
+        e->isInactive = 1;
+        e->next = e->fsindex->inactiveItems;
+        e->fsindex->inactiveItems = e;
+    } else {
+        CookfsLog(printf("Cookfs_FsindexEntryFree: release entry %p",
+            (void *)e));
+#ifdef TCL_THREADS
+        Tcl_MutexFinalize(&e->mxRefCount);
+#endif /* TCL_THREADS */
+        ckfree((void *) e);
+    }
 }
 
 
@@ -912,6 +1164,7 @@ void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
  */
 
 Tcl_Obj *Cookfs_FsindexGetMetadata(Cookfs_Fsindex *i, const char *paramName) {
+    Cookfs_FsindexWantRead(i);
     Tcl_HashEntry *hashEntry;
     hashEntry = Tcl_FindHashEntry(&i->metadataHash, paramName);
     if (hashEntry != NULL) {
@@ -943,6 +1196,7 @@ Tcl_Obj *Cookfs_FsindexGetMetadata(Cookfs_Fsindex *i, const char *paramName) {
 void Cookfs_FsindexSetMetadataRaw(Cookfs_Fsindex *i, const char *paramName,
     const unsigned char *dataPtr, Tcl_Size dataSize)
 {
+    Cookfs_FsindexWantWrite(i);
     int isNew;
     Tcl_HashEntry *hashEntry;
     hashEntry = Tcl_CreateHashEntry(&i->metadataHash, paramName, &isNew);
@@ -991,6 +1245,7 @@ void Cookfs_FsindexSetMetadata(Cookfs_Fsindex *i, const char *paramName, Tcl_Obj
  */
 
 int Cookfs_FsindexUnsetMetadata(Cookfs_Fsindex *i, const char *paramName) {
+    Cookfs_FsindexWantWrite(i);
     Tcl_HashEntry *hashEntry;
     hashEntry = Tcl_FindHashEntry(&i->metadataHash, paramName);
     if (hashEntry != NULL) {
@@ -1023,6 +1278,7 @@ int Cookfs_FsindexUnsetMetadata(Cookfs_Fsindex *i, const char *paramName) {
  *----------------------------------------------------------------------
  */
 Cookfs_FsindexEntry *CookfsFsindexFindElement(const Cookfs_Fsindex *i, Cookfs_PathObj *pathObj, int listSize) {
+    Cookfs_FsindexWantRead(i);
     int idx;
     Tcl_HashEntry *hashEntry;
     Cookfs_FsindexEntry *currentNode;
@@ -1100,6 +1356,7 @@ Cookfs_FsindexEntry *CookfsFsindexFindElement(const Cookfs_Fsindex *i, Cookfs_Pa
  */
 
 static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexEntry **dirPtr, Cookfs_PathObj *pathObj, int command, Cookfs_FsindexEntry *newFileNode) {
+    Cookfs_FsindexWantRead(i);
     Cookfs_FsindexEntry *currentNode;
 
     if (pathObj->elementCount == 0) {

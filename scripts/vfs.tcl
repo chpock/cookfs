@@ -799,7 +799,7 @@ proc cookfs::tcl::vfs::open {fsid relative mode} {
             } elseif {$fs(tclreaderchannel)} {
                 set channel [::cookfs::tcl::readerchannel $fsid $chunklist]
             } else {
-                set channel [::cookfs::c::readerchannel $fs(pages) $fs(index) $chunklist]
+                set channel [::cookfs::c::readerchannel $fs(pages) $fs(index) $relative]
             }
             return [list $channel ""]
         }

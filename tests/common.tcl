@@ -156,6 +156,15 @@ proc testOptimizedList { base files fsindex } {
 
 }
 
+proc testMultipleMatch { result args } {
+    foreach match $args {
+        if { [string match $match $result] } {
+            return ok
+        }
+    }
+    return $result
+}
+
 proc testIfEqual {a b} {
     if {(![file exists $a]) || (![file exists $b])} {
         return "file exists $a: [file exists $a]\nfile exists $b: [file exists $b]"

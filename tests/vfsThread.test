@@ -1,0 +1,1070 @@
+
+tcltest::test cookfsVfsThread-1.1 "Test that shared vfs is available in child thread" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set file $file]
+} -body {
+    thread::send $tid [list file attribute $file -vfs]
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid
+} -result 1
+
+tcltest::test cookfsVfsThread-1.2 "Test that not shared vfs is unavailable in child thread" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set file $file]
+} -body {
+    thread::send $tid [list file attribute $file -vfs]
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid
+} -returnCodes error -match glob -result {bad option "-vfs": must be *}
+
+tcltest::test cookfsVfsThread-1.3 "Test that shared vfs is available in child thread and unavailable after unmount" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set file $file]
+} -body {
+    set result [list]
+    lappend result [thread::send $tid [list file attribute $file -vfs]]
+    cookfs::Unmount $file
+    lappend result [catch [list thread::send $tid [list file attribute $file -vfs]]]
+} -cleanup {
+    catch { thread::release $tid }
+    catch {cookfs::Unmount $file}
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid result
+} -result {1 1}
+
+tcltest::test cookfsVfsThread-1.4 "Test that shared vfs is available in parent thread and unavailable after unmount" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set file $file]
+    thread::send $tid [list package require cookfs]
+} -body {
+    thread::send $tid [list cookfs::Mount $file $file -compression none -shared]
+    set result [list]
+    lappend result [file attribute $file -vfs]
+    thread::send $tid [list cookfs::Unmount $file]
+    lappend result [catch [list file attribute $file -vfs]]
+} -cleanup {
+    catch { thread::release $tid }
+    catch {cookfs::Unmount $file}
+    tcltest::removeFile $file
+    unset -nocomplain file tid result
+} -result {1 1}
+
+tcltest::test cookfsVfsThread-1.5 "Test that shared vfs is available in parent thread and unavailable after thread released" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set tid [thread::create -joinable thread::wait]
+    thread::send $tid [list set file $file]
+    thread::send $tid [list package require cookfs]
+} -body {
+    thread::send $tid [list cookfs::Mount $file $file -compression none -shared]
+    set result [list]
+    lappend result [file attribute $file -vfs]
+    thread::release $tid
+    thread::join $tid
+    lappend result [catch [list file attribute $file -vfs]]
+} -cleanup {
+    catch {thread::release $tid}
+    catch {cookfs::Unmount $file}
+    tcltest::removeFile $file
+    unset -nocomplain file tid result
+} -result {1 1}
+
+tcltest::test cookfsVfsThread-1.6 "Test that not shared vfs is unavailable in parent thread" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set file $file]
+    thread::send $tid [list package require cookfs]
+} -body {
+    thread::send $tid [list cookfs::Mount $file $file -compression none]
+    catch [list file attribute $file -vfs] result
+    thread::send $tid [list cookfs::Unmount $file]
+    set result
+} -cleanup {
+    catch { thread::release $tid }
+    catch {cookfs::Unmount $file}
+    tcltest::removeFile $file
+    unset -nocomplain file tid result
+} -match glob -result {bad option "-vfs": must be *}
+
+tcltest::test cookfsVfsThread-2.1 "Test that -handle is empty in child thread" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set file $file]
+} -body {
+    thread::send $tid [list file attribute $file -handle]
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid
+} -result {}
+
+tcltest::test cookfsVfsThread-3.1 "Test simple read files from other thread from small buffer" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 128 -smallfilebuffer 1024 -pagesize 1024]
+    set file1 [tcltest::makeBinFile {TEST01} test1 $file]
+    set file2 [tcltest::makeBinFile {TEST02} test2 $file]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set file $file]
+    thread::send $tid [list set file1 $file1]
+    thread::send $tid [list set file2 $file2]
+} -body {
+    thread::send $tid {
+        set result [read [set f [open $file1 rb]]][close $f]
+        append result [read [set f [open $file2 rb]]][close $f]
+    }
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid file1 file2
+} -result {TEST01TEST02}
+
+tcltest::test cookfsVfsThread-3.2 "Test simple read files from other thread from pages" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 1 -smallfilebuffer 0 -pagesize 3]
+    set file1 [tcltest::makeBinFile {TEST01X} test1 $file]
+    set file2 [tcltest::makeBinFile {TEST02Y} test2 $file]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set file $file]
+    thread::send $tid [list set file1 $file1]
+    thread::send $tid [list set file2 $file2]
+} -body {
+    thread::send $tid {
+        set result [read [set f [open $file1 rb]]][close $f]
+        append result [read [set f [open $file2 rb]]][close $f]
+    }
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid file1 file2
+} -result {TEST01XTEST02Y}
+
+tcltest::test cookfsVfsThread-4.1 "Test error for tcl commands for shared VFS" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+} -body {
+    catch { cookfs::Mount $file $file -compression none -shared -compresscommand foo } err
+    set result $err
+    catch { cookfs::Mount $file $file -compression none -shared -decompresscommand foo } err
+    if { $result ne $err } { append result "\n$err" }
+    catch { cookfs::Mount $file $file -compression none -shared -asynccompresscommand foo } err
+    if { $result ne $err } { append result "\n$err" }
+    catch { cookfs::Mount $file $file -compression none -shared -asyncdecompresscommand foo } err
+    if { $result ne $err } { append result "\n$err" }
+    set result
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file result err
+} -result {cannot use tcl commands in thread-shared mode}
+
+tcltest::test cookfsVfsThread-5.1 "High load, random reads from multiple threads" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression zlib -shared -smallfilesize 1 -smallfilebuffer 0 -pagesize 2048]
+    lassign [randomDatas 3 32768] data1 data2 data3
+    # A random data will not be compressed. Add something suitable for compression.
+    # Also, this will lead to duplicated pages.
+    append data1 [string repeat "TEST" 1024]
+    append data2 [string repeat "TEST" 2048]
+    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set file2 [tcltest::makeBinFile $data2 test2 $file]
+    set file3 [tcltest::makeBinFile $data3 test3 $file]
+
+    set mx [thread::rwmutex create]
+
+    set tid1 [thread::create thread::wait]
+    thread::send $tid1 [list set rfile $file1]
+    thread::send $tid1 [list set rdata $data1]
+
+    set tid2 [thread::create thread::wait]
+    thread::send $tid2 [list set rfile $file2]
+    thread::send $tid2 [list set rdata $data2]
+
+    set tid3 [thread::create thread::wait]
+    thread::send $tid3 [list set rfile $file3]
+    thread::send $tid3 [list set rdata $data3]
+
+    foreach tid [list $tid1 $tid2 $tid3] {
+        thread::send $tid [list set mx $mx]
+        thread::send $tid [list set file $file]
+    }
+} -body {
+    # lock mx on write
+    thread::rwmutex wlock $mx
+    foreach tid [list $tid1 $tid2 $tid3] {
+        thread::send -async $tid {
+            thread::rwmutex rlock $mx
+            if { [catch {
+                for { set i 0 } { $i < 100 } { incr i } {
+                    set fp [open $rfile rb]
+                    set data [read $fp]
+                    close $fp
+                    if { $data ne $rdata } {
+                        return -code error "\ni: $i\nexpected: $rdata\ngot: $data\n"
+                    }
+                }
+                set ok ok
+            } result]} {
+                set result "ERROR: $result"
+            }
+            thread::rwmutex unlock $mx
+        }
+    }
+    # Give 10ms for threads to start
+    after 10
+    # unlock mx mutex, the threads will start to read files
+    thread::rwmutex unlock $mx
+    # Give 10ms for threads to lock mx mutex
+    after 10
+    # Now try locking the mutex again, since all threads read locked mutex,
+    # we will wait for all threads to finish the job
+    thread::rwmutex wlock $mx
+    # we no longer need the mutex
+    thread::rwmutex unlock $mx
+    thread::rwmutex destroy $mx
+    # let's retrieve the results
+    set result [list]
+    foreach tid [list $tid1 $tid2 $tid3] {
+        lappend result [thread::send $tid [list set result]]
+    }
+    set result
+} -cleanup {
+    foreach tid [list $tid1 $tid2 $tid3] {
+        thread::release $tid
+    }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid tid1 tid2 tid3 mx file1 file2 file3 data1 data2 data3 result
+} -result {ok ok ok}
+
+
+tcltest::test cookfsVfsThread-5.2 "High load, random reads from multiple threads (files are in small file buffer)" -constraints {threaded enabledCVfs enabledTclCmds} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    # we need small file buffer 32k*3 + 4*1024 + 4*2048 = 108k
+    # Let's make the buffer with 128k bytes
+    set fsid [cookfs::Mount $file $file -compression none -shared \
+        -smallfilesize 0x20000 -smallfilebuffer 0x20000 -pagesize 0x20000]
+    lassign [randomDatas 3 32768] data1 data2 data3
+    # A random data will not be compressed. Add something suitable for compression.
+    # Also, this will lead to duplicated pages.
+    append data1 [string repeat "TEST" 1024]
+    append data2 [string repeat "TEST" 2048]
+    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set file2 [tcltest::makeBinFile $data2 test2 $file]
+    set file3 [tcltest::makeBinFile $data3 test3 $file]
+
+    set mx [thread::rwmutex create]
+
+    set tid1 [thread::create thread::wait]
+    thread::send $tid1 [list set rfile $file1]
+    thread::send $tid1 [list set rdata $data1]
+
+    set tid2 [thread::create thread::wait]
+    thread::send $tid2 [list set rfile $file2]
+    thread::send $tid2 [list set rdata $data2]
+
+    set tid3 [thread::create thread::wait]
+    thread::send $tid3 [list set rfile $file3]
+    thread::send $tid3 [list set rdata $data3]
+
+    foreach tid [list $tid1 $tid2 $tid3] {
+        thread::send $tid [list set mx $mx]
+        thread::send $tid [list set file $file]
+    }
+} -body {
+    set result [list]
+    # Make sure there are no pages
+    lappend result [[$fsid getpages] length]
+    # lock mx on write
+    thread::rwmutex wlock $mx
+    foreach tid [list $tid1 $tid2 $tid3] {
+        thread::send -async $tid {
+            thread::rwmutex rlock $mx
+            if { [catch {
+                for { set i 0 } { $i < 10 } { incr i } {
+                    set fp [open $rfile rb]
+                    set data [read $fp]
+                    close $fp
+                    if { $data ne $rdata } {
+                        return -code error "\ni: $i\nexpected: $rdata\ngot: $data\n"
+                    }
+                }
+                set ok ok
+            } result]} {
+                set result "ERROR: $result"
+            }
+            thread::rwmutex unlock $mx
+        }
+    }
+    # unlock mx mutex, the threads will start to read files
+    thread::rwmutex unlock $mx
+    # Give 10ms for threads to lock mx mutex
+    after 10
+    # Now try locking the mutex again, since all threads read locked mutex,
+    # we will wait for all threads to finish the job
+    thread::rwmutex wlock $mx
+    # we no longer need the mutex
+    thread::rwmutex unlock $mx
+    thread::rwmutex destroy $mx
+    # let's retrieve the results
+    foreach tid [list $tid1 $tid2 $tid3] {
+        lappend result [thread::send $tid [list set result]]
+    }
+    set result
+} -cleanup {
+    foreach tid [list $tid1 $tid2 $tid3] {
+        thread::release $tid
+    }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid tid1 tid2 tid3 mx file1 file2 file3 data1 data2 data3 result
+} -result {0 ok ok ok}
+
+tcltest::test cookfsVfsThread-5.3 "Test a case when 1 thread reads a big pages, another thread reads file on many pages" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 1 -smallfilebuffer 0 -pagesize 16]
+    lassign [randomDatas 1 32768] data1
+    # one file with 32768 bytes will be split to 16 bytes pages = 2048 pages
+    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    # change page size by close/open the vfs
+    cookfs::Unmount $file
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 1 -smallfilebuffer 0 -pagesize 65536]
+    lassign [randomDatas 1 163840] data2
+    # one file with 163840 bytes will be split to 64k bytes pages = 2.5 pages
+    set file2 [tcltest::makeBinFile $data2 test2 $file]
+
+    set mx [thread::rwmutex create]
+
+    set tid1 [thread::create thread::wait]
+    thread::send $tid1 [list set rfile $file1]
+    thread::send $tid1 [list set rdata $data1]
+
+    set tid2 [thread::create thread::wait]
+    thread::send $tid2 [list set rfile $file2]
+    thread::send $tid2 [list set rdata $data2]
+
+    foreach tid [list $tid1 $tid2] {
+        thread::send $tid [list set mx $mx]
+        thread::send $tid [list set file $file]
+    }
+} -body {
+    # lock mx on write
+    thread::rwmutex wlock $mx
+    foreach tid [list $tid1 $tid2] {
+        thread::send -async $tid {
+            thread::rwmutex rlock $mx
+            if { [catch {
+                for { set i 0 } { $i < 10 } { incr i } {
+                    set fp [open $rfile rb]
+                    set data [read $fp]
+                    close $fp
+                    if { $data ne $rdata } {
+                        return -code error "\ni: $i\nexpected: $rdata\ngot: $data\n"
+                    }
+                }
+                set ok ok
+            } result]} {
+                set result "ERROR: $result"
+            }
+            thread::rwmutex unlock $mx
+        }
+    }
+    # unlock mx mutex, the threads will start to read files
+    thread::rwmutex unlock $mx
+    # Give 10ms for threads to lock mx mutex
+    after 10
+    # Now try locking the mutex again, since all threads read locked mutex,
+    # we will wait for all threads to finish the job
+    thread::rwmutex wlock $mx
+    # we no longer need the mutex
+    thread::rwmutex unlock $mx
+    thread::rwmutex destroy $mx
+    # let's retrieve the results
+    set result [list]
+    foreach tid [list $tid1 $tid2] {
+        lappend result [thread::send $tid [list set result]]
+    }
+    set result
+} -cleanup {
+    foreach tid [list $tid1 $tid2] {
+        catch { thread::release $tid }
+    }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid tid1 tid2 mx file1 file2 data1 data2 result
+} -result {ok ok}
+
+tcltest::test cookfsVfsThread-6.1 "High load, write files from multiple threads" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression zlib -shared -smallfilesize 1 -smallfilebuffer 0 -pagesize 2048]
+    lassign [randomDatas 3 32768] data1 data2 data3
+    # A random data will not be compressed. Add something suitable for compression.
+    # Also, this will lead to duplicated pages.
+    append data1 [string repeat "TEST" 1024]
+    append data2 [string repeat "TEST" 2048]
+    set file1 [file join $file test1]
+    set file2 [file join $file test2]
+    set file3 [file join $file test3]
+
+    set mx [thread::rwmutex create]
+
+    set tid1 [thread::create thread::wait]
+    thread::send $tid1 [list set rfile $file1]
+    thread::send $tid1 [list set rdata $data1]
+
+    set tid2 [thread::create thread::wait]
+    thread::send $tid2 [list set rfile $file2]
+    thread::send $tid2 [list set rdata $data2]
+
+    set tid3 [thread::create thread::wait]
+    thread::send $tid3 [list set rfile $file3]
+    thread::send $tid3 [list set rdata $data3]
+
+    foreach tid [list $tid1 $tid2 $tid3] {
+        thread::send $tid [list set mx $mx]
+        thread::send $tid [list set file $file]
+    }
+} -body {
+    # lock mx on write
+    thread::rwmutex wlock $mx
+    foreach tid [list $tid1 $tid2 $tid3] {
+        thread::send -async $tid {
+            thread::rwmutex rlock $mx
+            if { [catch {
+                for { set i 0 } { $i < 10 } { incr i } {
+                    set fp [open "$rfile.$i" wb]
+                    puts -nonewline $fp "$i$rdata"
+                    close $fp
+                }
+                set ok ok
+            } result]} {
+                set result "ERROR: $result"
+            }
+            thread::rwmutex unlock $mx
+        }
+    }
+    # unlock mx mutex, the threads will start to read files
+    thread::rwmutex unlock $mx
+    # Give 10ms for threads to lock mx mutex
+    after 10
+    # Now try locking the mutex again, since all threads read locked mutex,
+    # we will wait for all threads to finish the job
+    thread::rwmutex wlock $mx
+    # we no longer need the mutex
+    thread::rwmutex unlock $mx
+    thread::rwmutex destroy $mx
+    # let's retrieve the results
+    set result [list]
+    foreach tid [list $tid1 $tid2 $tid3] {
+        lappend result [thread::send $tid [list set result]]
+    }
+    # if result is not ok from each thread, then something is wrong and there
+    # is no point in reading the generated files.
+    if { $result ne {ok ok ok} } {
+        foreach { filex datax } [list $file1 $data1 $file2 $data2 $file3 $data3] {
+            for { set i 0 } { $i < 10 } { incr i } {
+                set fp [open "$filex.$i" rb]
+                set rdata [read $fp]
+                close $fp
+                if { [string equal "$i$datax" $rdata] } { continue }
+                lappend result "[file tail $filex].$i - doesn't match"
+            }
+        }
+    }
+    set result
+} -cleanup {
+    foreach tid [list $tid1 $tid2 $tid3] {
+        catch { thread::release $tid }
+    }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid tid1 tid2 tid3 mx file1 file2 file3 data1 data2 data3 result filex i fp datax rdata
+} -result {ok ok ok}
+
+tcltest::test cookfsVfsThread-7.1 "VFS terminated while other thread reads a big file" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
+    set data1 [string repeat "TEST" 0x100000]
+    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set mx [thread::rwmutex create]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set mx $mx]
+    thread::send $tid [list set file $file]
+    thread::send $tid [list set rfile $file1]
+    thread::send $tid [list set rdata $data1]
+} -body {
+    # lock mx on write
+    thread::rwmutex wlock $mx
+    thread::send -async $tid {
+        set fp [open $rfile rb]
+        thread::rwmutex rlock $mx
+        catch {
+            for { set i 0 } { $i < 10000 } { incr i } {
+                set data [read $fp]
+                seek $fp 0
+            }
+            set ok notok
+        } result
+        thread::rwmutex unlock $mx
+    }
+    # unlock mx mutex, the threads will start to read files
+    thread::rwmutex unlock $mx
+    # Give 10ms for thread to lock mx mutex
+    after 10
+    cookfs::Unmount $file
+    # Now try locking the mutex again, since the thread read locked mutex,
+    # we will wait for the thread to finish the job
+    thread::rwmutex wlock $mx
+    # we no longer need the mutex
+    thread::rwmutex unlock $mx
+    thread::rwmutex destroy $mx
+    # let's retrieve the results
+    # We accept multiple results. The exact result depends on the state
+    # of the thread when the VFS was unmounted
+    testMultipleMatch [thread::send $tid [list set result]] \
+        {error during seek on "*": no such device} \
+        {error reading "*": I/O error}
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid data1 file1 mx tid
+} -result ok
+
+tcltest::test cookfsVfsThread-7.2 "VFS terminated while other thread writes a big file" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
+    set data1 [string repeat "TEST" 0x100000]
+    set file1 [file join $file test1]
+    set mx [thread::rwmutex create]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set mx $mx]
+    thread::send $tid [list set file $file]
+    thread::send $tid [list set rfile $file1]
+    thread::send $tid [list set rdata $data1]
+} -body {
+    # lock mx on write
+    thread::rwmutex wlock $mx
+    thread::send -async $tid {
+        set fp [open $rfile wb]
+        thread::rwmutex rlock $mx
+        catch {
+            for { set i 0 } { $i < 10000 } { incr i } {
+                puts -nonewline $fp $rdata
+                close $fp
+                set fp [open $rfile wb]
+            }
+            set ok notok
+        } result
+        thread::rwmutex unlock $mx
+    }
+    # unlock mx mutex, the threads will start to read files
+    thread::rwmutex unlock $mx
+    # Give 10ms for thread to lock mx mutex
+    after 10
+    cookfs::Unmount $file
+    # Now try locking the mutex again, since the thread read locked mutex,
+    # we will wait for the thread to finish the job
+    thread::rwmutex wlock $mx
+    # we no longer need the mutex
+    thread::rwmutex unlock $mx
+    thread::rwmutex destroy $mx
+    # let's retrieve the results
+    # We accept multiple results. The exact result depends on the state
+    # of the thread when the VFS was unmounted
+    testMultipleMatch [thread::send $tid [list set result]] \
+        {stalled * object detected} \
+        {couldn't open "*": not a directory}
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid data1 file1 mx tid
+} -result ok
+
+tcltest::test cookfsVfsThread-7.3 "VFS terminated while other thread opens a file for reading (from small file buffer)" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0x100000 -pagesize 0x100000]
+    set data1 "test"
+    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set mx [thread::rwmutex create]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set mx $mx]
+    thread::send $tid [list set file $file]
+    thread::send $tid [list set rfile $file1]
+    thread::send $tid [list set rdata $data1]
+} -body {
+    # lock mx on write
+    thread::rwmutex wlock $mx
+    thread::send -async $tid {
+        thread::rwmutex rlock $mx
+        # If this test works as expected, then this thread will be able to open
+        # the file multiple times before the VFS is unmounted. So, here we also
+        # count hoy many times the file was successfully opened.
+        set count 0
+        catch {
+            for { set i 0 } { $i < 10000 } { incr i } {
+                set fp [open $rfile rb]
+                incr count
+                after 1
+                close $fp
+            }
+            set ok notok
+        } result
+        # Add a 0 or 1 flag to the result whether the file has been opened
+        # at least once.
+        set result [list [expr { $count > 0 }] $result]
+        thread::rwmutex unlock $mx
+    }
+    # unlock mx mutex, the threads will start to read files
+    thread::rwmutex unlock $mx
+    # Give 10ms for thread to lock mx mutex
+    after 10
+    cookfs::Unmount $file
+    # Now try locking the mutex again, since the thread read locked mutex,
+    # we will wait for the thread to finish the job
+    thread::rwmutex wlock $mx
+    # we no longer need the mutex
+    thread::rwmutex unlock $mx
+    thread::rwmutex destroy $mx
+    # let's retrieve the results
+    # We accept multiple results. The exact result depends on the state
+    # of the thread when the VFS was unmounted
+    testMultipleMatch [thread::send $tid [list set result]] \
+        {1 {couldn't open "*": not a directory}} \
+        {1 {couldn't open "*": no such file or directory}} \
+        {1 {couldn't open "*": no such device}}
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid data1 file1 mx tid
+} -result ok
+
+tcltest::test cookfsVfsThread-7.4 "VFS terminated while other thread opens a file for reading (from pages)" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
+    set data1 "test"
+    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set mx [thread::rwmutex create]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set mx $mx]
+    thread::send $tid [list set file $file]
+    thread::send $tid [list set rfile $file1]
+    thread::send $tid [list set rdata $data1]
+} -body {
+    # lock mx on write
+    thread::rwmutex wlock $mx
+    thread::send -async $tid {
+        thread::rwmutex rlock $mx
+        # If this test works as expected, then this thread will be able to open
+        # the file multiple times before the VFS is unmounted. So, here we also
+        # count hoy many times the file was successfully opened.
+        set count 0
+        catch {
+            for { set i 0 } { $i < 10000 } { incr i } {
+                set fp [open $rfile rb]
+                incr count
+                after 1
+                close $fp
+            }
+            set ok notok
+        } result
+        # Add a 0 or 1 flag to the result whether the file has been opened
+        # at least once.
+        set result [list [expr { $count > 0 }] $result]
+        thread::rwmutex unlock $mx
+    }
+    # unlock mx mutex, the threads will start to read files
+    thread::rwmutex unlock $mx
+    # Give 10ms for thread to lock mx mutex
+    after 10
+    cookfs::Unmount $file
+    # Now try locking the mutex again, since the thread read locked mutex,
+    # we will wait for the thread to finish the job
+    thread::rwmutex wlock $mx
+    # we no longer need the mutex
+    thread::rwmutex unlock $mx
+    thread::rwmutex destroy $mx
+    # let's retrieve the results
+    testMultipleMatch [thread::send $tid [list set result]] \
+        {1 {couldn't open "*": not a directory}} \
+        {1 {couldn't open "*": no such file or directory}} \
+        {1 {could not read "*": no such device}} \
+        {1 {couldn't open "*": no such device}}
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid data1 file1 mx tid
+} -result ok
+
+tcltest::test cookfsVfsThread-7.5 "VFS terminated while other thread opens a file for writing" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
+    set data1 "test"
+    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set mx [thread::rwmutex create]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set mx $mx]
+    thread::send $tid [list set file $file]
+    thread::send $tid [list set rfile $file1]
+    thread::send $tid [list set rdata $data1]
+} -body {
+    # lock mx on write
+    thread::rwmutex wlock $mx
+    thread::send -async $tid {
+        thread::rwmutex rlock $mx
+        # If this test works as expected, then this thread will be able to open
+        # the file multiple times before the VFS is unmounted. So, here we also
+        # count hoy many times the file was successfully opened.
+        set count 0
+        catch {
+            for { set i 0 } { $i < 10000 } { incr i } {
+                set fp [open "$rfile.$i" wb]
+                incr count
+                after 1
+                close $fp
+            }
+            set ok notok
+        } result
+        # Add a 0 or 1 flag to the result whether the file has been opened
+        # at least once.
+        set result [list [expr { $count > 0 }] $result]
+        thread::rwmutex unlock $mx
+    }
+    # unlock mx mutex, the threads will start to read files
+    thread::rwmutex unlock $mx
+    # Give 10ms for thread to lock mx mutex
+    after 10
+    cookfs::Unmount $file
+    # Now try locking the mutex again, since the thread read locked mutex,
+    # we will wait for the thread to finish the job
+    thread::rwmutex wlock $mx
+    # we no longer need the mutex
+    thread::rwmutex unlock $mx
+    thread::rwmutex destroy $mx
+    # let's retrieve the results
+    # We accept multiple results. The exact result depends on the state
+    # of the thread when the VFS was unmounted
+    testMultipleMatch [thread::send $tid [list set result]] \
+        {1 {couldn't open "*": not a directory}} \
+        {1 {couldn't open "*": no such file or directory}} \
+        {1 {couldn't open "*": no such device}} \
+        {1 {stalled * object detected}} \
+        {1 {error during seek on "*": no such device}}
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid data1 file1 mx tid
+} -result ok
+
+tcltest::test cookfsVfsThread-7.6 "VFS terminated while other thread accesses file stats" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
+    set data1 "test"
+    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set mx [thread::rwmutex create]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set mx $mx]
+    thread::send $tid [list set file $file]
+    thread::send $tid [list set rfile $file1]
+    thread::send $tid [list set rdata $data1]
+} -body {
+    # lock mx on write
+    thread::rwmutex wlock $mx
+    thread::send -async $tid {
+        thread::rwmutex rlock $mx
+        # If this test works as expected, then this thread will be able to stat
+        # the file multiple times before the VFS is unmounted. So, here we also
+        # count how many times stat was read successfully
+        set count 0
+        set start [clock seconds]
+        catch {
+            while { [expr { [clock seconds] - $start }] < 3 } {
+                for { set i 0 } { $i < 10000000 } { incr i } {
+                    file stat $rfile x
+                    incr count
+                }
+            }
+            set ok notok
+        } result
+        # Add a 0 or 1 flag to the result whether file stat was read
+        # at least once.
+        set result [list [expr { $count > 0 }] $result]
+        thread::rwmutex unlock $mx
+    }
+    # unlock mx mutex, the threads will start to read files
+    thread::rwmutex unlock $mx
+    # Give 10ms for thread to lock mx mutex
+    after 10
+    cookfs::Unmount $file
+    # Now try locking the mutex again, since the thread read locked mutex,
+    # we will wait for the thread to finish the job
+    thread::rwmutex wlock $mx
+    # we no longer need the mutex
+    thread::rwmutex unlock $mx
+    thread::rwmutex destroy $mx
+    # let's retrieve the results
+    # We accept multiple results. The exact result depends on the state
+    # of the thread when the VFS was unmounted
+    testMultipleMatch [thread::send $tid [list set result]] \
+        {1 {couldn't open "*": not a directory}} \
+        {1 {couldn't open "*": no such file or directory}} \
+        {1 {could not read "*": not a directory}} \
+        {1 {could not read "*": no such device}}
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid data1 file1 mx tid
+} -result ok
+
+tcltest::test cookfsVfsThread-7.7 "VFS terminated while other thread gets file attributes" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
+    set data1 "test"
+    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set mx [thread::rwmutex create]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set mx $mx]
+    thread::send $tid [list set file $file]
+    thread::send $tid [list set rfile $file1]
+    thread::send $tid [list set rdata $data1]
+} -body {
+    # lock mx on write
+    thread::rwmutex wlock $mx
+    thread::send -async $tid {
+        thread::rwmutex rlock $mx
+        # If this test works as expected, then this thread will be able to stat
+        # the file multiple times before the VFS is unmounted. So, here we also
+        # count how many times stat was read successfully
+        set count 0
+        set start [clock seconds]
+        catch {
+            while { [expr { [clock seconds] - $start }] < 3 } {
+                for { set i 0 } { $i < 1000000 } { incr i } {
+                    file attributes $rfile
+                    incr count
+                }
+            }
+            set ok notok
+        } result
+        # Add a 0 or 1 flag to the result whether file stat was read
+        # at least once.
+        set result [list [expr { $count > 0 }] $result]
+        thread::rwmutex unlock $mx
+    }
+    # unlock mx mutex, the threads will start to read files
+    thread::rwmutex unlock $mx
+    # Give 10ms for thread to lock mx mutex
+    after 10
+    cookfs::Unmount $file
+    # Now try locking the mutex again, since the thread read locked mutex,
+    # we will wait for the thread to finish the job
+    thread::rwmutex wlock $mx
+    # we no longer need the mutex
+    thread::rwmutex unlock $mx
+    thread::rwmutex destroy $mx
+    # let's retrieve the results
+    # We accept multiple results. The exact result depends on the state
+    # of the thread when the VFS was unmounted
+    testMultipleMatch [thread::send $tid [list set result]] \
+        {1 {could not read "*": not a directory}} \
+        {1 {could not read "*": no such file or directory}} \
+        {1 {could not read "*": invalid argument}}
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid data1 file1 mx tid
+} -result ok
+
+tcltest::test cookfsVfsThread-7.8 "VFS terminated while other thread gets directory listing" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
+    set dir [tcltest::makeDirectory $file onedir/seconddir]
+    set data1 "test"
+    set file1 [tcltest::makeBinFile $data1 test1 $dir]
+    set mx [thread::rwmutex create]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set mx $mx]
+    thread::send $tid [list set file $file]
+    thread::send $tid [list set rfile $file1]
+    thread::send $tid [list set rdata $data1]
+    thread::send $tid [list set dir $dir]
+} -body {
+    # lock mx on write
+    thread::rwmutex wlock $mx
+    thread::send -async $tid {
+        thread::rwmutex rlock $mx
+        # If this test works as expected, then this thread will be able to check
+        # directory multiple times before the VFS is unmounted. So, here we also
+        # count how many times the directory was checked successfully
+        set count 0
+        set start [clock seconds]
+        catch {
+            while { [expr { [clock seconds] - $start }] < 3 } {
+                for { set i 0 } { $i < 10000000 } { incr i } {
+                    # We can not use just "glob -directory $dir *" here and expect
+                    # that this command will fail when $dir is not a directory.
+                    # Tcl9 doesn't throw an error and returns empty list for this
+                    # case. So, in order to be compatible with Tcl9, we need to
+                    # check whether glob's result is an empty list.
+                    if { ![llength [glob -nocomplain -directory $dir *]] } {
+                        error "empty glob"
+                    }
+                    incr count
+                }
+            }
+            set ok notok
+        } result
+        # Add a 0 or 1 flag to the result whether the directory was successfully
+        # checked at least once.
+        set result [list [expr { $count > 0 }] $result]
+        thread::rwmutex unlock $mx
+    }
+    # unlock mx mutex, the threads will start to read files
+    thread::rwmutex unlock $mx
+    # Give 10ms for thread to lock mx mutex
+    after 10
+    cookfs::Unmount $file
+    # Now try locking the mutex again, since the thread read locked mutex,
+    # we will wait for the thread to finish the job
+    thread::rwmutex wlock $mx
+    # we no longer need the mutex
+    thread::rwmutex unlock $mx
+    thread::rwmutex destroy $mx
+    # let's retrieve the results
+    thread::send $tid [list set result]
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid data1 file1 mx tid dir
+} -result {1 {empty glob}}
+
+# In this case, the file will be opened by writerchannel because it is in
+# small file buffer. It will be read into the buffer from the beginning.
+# Thus, all operations (read/search/close) will succeed.
+tcltest::test cookfsVfsThread-8.1 "Accessing a file opened for reading (small file buffer) that has been deleted from another thread" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0x100000 -pagesize 0x100000]
+    set file1 [tcltest::makeBinFile {TEST} test1 $file]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set file1 $file1]
+} -body {
+    set result [list]
+    set fp [open $file1 rb]
+    lappend result [thread::send $tid [list file delete $file1]]
+    lappend result [read $fp]
+    lappend result [seek $fp 0]
+    lappend result [close $fp]
+    cookfs::Unmount $file
+    set result
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid file1 fp result
+} -result {{} TEST {} {}}
+
+tcltest::test cookfsVfsThread-8.2 "Accessing a file opened for reading (from pages) that has been deleted from another thread" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
+    set file1 [tcltest::makeBinFile {TEST} test1 $file]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set file1 $file1]
+} -body {
+    set result [list]
+    set fp [open $file1 rb]
+    lappend result [thread::send $tid [list file delete $file1]]
+    lappend result [read $fp]
+    lappend result [seek $fp 0]
+    lappend result [close $fp]
+    cookfs::Unmount $file
+    set result
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid file1 fp result
+} -result {{} TEST {} {}}
+
+tcltest::test cookfsVfsThread-8.3 "Accessing a file opened for writing (to small file buffer) file that has been deleted from another thread" -constraints {threaded enabledCVfs enabledTclCmds} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0x100000 -pagesize 0x100000]
+    set file1 [tcltest::makeFile {TEST} test1 $file]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set file1 $file1]
+} -body {
+    set result [list]
+    lappend result [[$fsid getpages] length]
+    set fp [open $file1 rb+]
+    lappend result [thread::send $tid [list file delete $file1]]
+    lappend result [string trimright [read $fp] \n]
+    lappend result [puts -nonewline $fp "foo"]
+    lappend result [seek $fp 0]
+    lappend result [puts -nonewline $fp "bar"]
+    lappend result [close $fp]
+    cookfs::Unmount $file
+    # Mount the VFS again to check pages count after unmounting. The test file
+    # should not be saved, so the number of pages should be the same as at
+    # the beginning of the test.
+    set fsid [cookfs::Mount $file $file -readonly]
+    lappend result [[$fsid getpages] length]
+    cookfs::Unmount $file
+    set result
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid file1 fp result
+} -result {0 {} TEST {} {} {} {} 0}
+
+tcltest::test cookfsVfsThread-8.4 "Accessing a file opened for writing (to small file buffer) file that has been deleted from another thread" -constraints {threaded enabledCVfs enabledTclCmds} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 1 -smallfilebuffer 0 -pagesize 0x12]
+    set file1 [tcltest::makeFile {TEST} test1 $file]
+    set tid [thread::create thread::wait]
+    thread::send $tid [list set file1 $file1]
+} -body {
+    set result [list]
+    lappend result [[$fsid getpages] length]
+    set fp [open $file1 rb+]
+    lappend result [thread::send $tid [list file delete $file1]]
+    lappend result [string trimright [read $fp] \n]
+    # The file has original 5 bytes + 4*0x10 bytes = 69 bytes.
+    # The page size is 0x12 bytes. Thus, if the test fails, the number of pages
+    # will be increased by 4 ( 69 / 0x12 )
+    lappend result [puts -nonewline $fp [string repeat "TEST" 0x10]]
+    lappend result [close $fp]
+    cookfs::Unmount $file
+    # Mount the VFS again to check pages count after unmounting. The test file
+    # should not be saved, so the number of pages should be the same as at
+    # the beginning of the test.
+    set fsid [cookfs::Mount $file $file]
+    lappend result [[$fsid getpages] length]
+    cookfs::Unmount $file
+    set result
+} -cleanup {
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid file1 fp result
+} -result {1 {} TEST {} {} 1}

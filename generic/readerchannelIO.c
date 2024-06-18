@@ -7,6 +7,8 @@
  */
 
 #include "cookfs.h"
+#include "readerchannel.h"
+#include "readerchannelIO.h"
 #include <errno.h>
 
 int Cookfs_Readerchannel_Close(ClientData instanceData, Tcl_Interp *interp) {
@@ -34,25 +36,45 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
     int blockRead;
 
     CookfsLog(printf("Cookfs_Readerchannel_Input: ===> read %d, current offset: %"
-        TCL_LL_MODIFIER "d", bufSize, instData->currentOffset))
+        TCL_LL_MODIFIER "d", bufSize, instData->currentOffset));
 
-    if (instData->currentBlock >= instData->bufSize) {
-	CookfsLog(printf("Cookfs_Readerchannel_Input: EOF reached"))
-	return 0;
+    if (!Cookfs_FsindexLockRead(instData->fsindex, NULL)) {
+        return 0;
+    }
+
+    int blockCount = Cookfs_FsindexEntryGetBlockCount(instData->entry);
+    if (blockCount < 0) {
+        CookfsLog(printf("Cookfs_Readerchannel_Input: stalled fsindex entry"));
+        Cookfs_FsindexUnlock(instData->fsindex);
+        return 0;
+    }
+
+tryagain:
+
+    if (instData->currentBlock >= blockCount) {
+        CookfsLog(printf("Cookfs_Readerchannel_Input: <=== bytesRead=%d (EOF)", bytesRead));
+        Cookfs_FsindexUnlock(instData->fsindex);
+        return bytesRead;
     }
 
     while (bytesRead < bufSize) {
+        int pageIndex, pageOffset, pageSize;
 	bytesLeft = bufSize - bytesRead;
-	blockLeft = instData->buf[instData->currentBlock + 2] - instData->currentBlockOffset;
+	if (!Cookfs_FsindexEntryGetBlock(instData->entry, instData->currentBlock,
+	    &pageIndex, &pageOffset, &pageSize))
+	{
+	    CookfsLog(printf("Cookfs_Readerchannel_Input: stalled fsindex entry"));
+	    Cookfs_FsindexUnlock(instData->fsindex);
+	    return 0;
+	}
+	blockLeft = pageSize - instData->currentBlockOffset;
 	CookfsLog(printf("Cookfs_Readerchannel_Input: blockLeft = %d, bytesRead = %d", blockLeft, bytesRead))
 
 	if (blockLeft == 0) {
-	    instData->currentBlock += 3;
-	    CookfsLog(printf("Cookfs_Readerchannel_Input: block %d - %d", instData->currentBlock, instData->bufSize))
-	    if (instData->currentBlock >= instData->bufSize) {
-		break;
-	    }
+	    instData->currentBlock++;
 	    instData->currentBlockOffset = 0;
+	    CookfsLog(printf("Cookfs_Readerchannel_Input: move to the next block %d", instData->currentBlock));
+	    goto tryagain;
 	}
 
 	/* read as many bytes as left in chunk, or as many as requested */
@@ -61,8 +83,6 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	}  else  {
 	    blockRead = bytesLeft;
 	}
-
-	int pageIndex = instData->buf[instData->currentBlock + 0];
 
 	if (instData->cachedPageObj != NULL) {
 	    if (instData->cachedPageNum == pageIndex) {
@@ -82,6 +102,9 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	   we are reading a file for the first time. This will avoid tick-tocks when reading
 	   a large file with multiple pages.
 	*/
+	if (!Cookfs_PagesLockRead(instData->pages, NULL)) {
+	    goto error;
+	}
 	if (instData->firstTimeRead) {
 	    /*
 	       Check to see if the page we are interested in is cached. This will avoid tick-tocks
@@ -97,22 +120,25 @@ int Cookfs_Readerchannel_Input(ClientData instanceData, char *buf, int bufSize, 
 	// possible error message from Cookfs_PageGet()
 	instData->cachedPageObj = Cookfs_PageGet(instData->pages, pageIndex,
 	    pageWeight, NULL);
+        // Do not increate refcount for cachedPageObj as Cookfs_PageGet() returns
+        // pages with refcount=1.
+
+	Cookfs_PagesUnlock(instData->pages);
 	CookfsLog(printf("Cookfs_Readerchannel_Input: got the page: %p",
 	    (void *)instData->cachedPageObj))
 	if (instData->cachedPageObj == NULL) {
 	    goto error;
 	}
-	Cookfs_PageObjIncrRefCount(instData->cachedPageObj);
 	instData->cachedPageNum = pageIndex;
 
 gotPage:
 
-	CookfsLog(printf("Cookfs_Readerchannel_Input: copying %d+%d", instData->buf[instData->currentBlock + 1], instData->currentBlockOffset))
+	CookfsLog(printf("Cookfs_Readerchannel_Input: copying %d+%d", pageOffset, instData->currentBlockOffset))
 	// validate enough data is available in the buffer
-	if (Cookfs_PageObjSize(instData->cachedPageObj) < (instData->buf[instData->currentBlock + 1] + instData->currentBlockOffset + blockRead)) {
+	if (Cookfs_PageObjSize(instData->cachedPageObj) < (pageOffset + instData->currentBlockOffset + blockRead)) {
 	    goto error;
 	}
-	memcpy(buf + bytesRead, instData->cachedPageObj + instData->buf[instData->currentBlock + 1] + instData->currentBlockOffset, blockRead);
+	memcpy(buf + bytesRead, instData->cachedPageObj + pageOffset + instData->currentBlockOffset, blockRead);
 	instData->currentBlockOffset += blockRead;
 	bytesRead += blockRead;
 	instData->currentOffset += blockRead;
@@ -120,7 +146,7 @@ gotPage:
 	    TCL_LL_MODIFIER "d", instData->currentOffset));
 	// If we have reached the end of the current page, we probably don't need
 	// it anymore and can release it.
-	if (instData->currentBlockOffset == instData->buf[instData->currentBlock + 2]) {
+	if (instData->currentBlockOffset == pageSize) {
 	    CookfsLog(printf("Cookfs_Readerchannel_Input: release the page"));
 	    Cookfs_PageObjDecrRefCount(instData->cachedPageObj);
 	    instData->cachedPageObj = NULL;
@@ -129,10 +155,13 @@ gotPage:
 	}
     }
 
+    Cookfs_FsindexUnlock(instData->fsindex);
+
     CookfsLog(printf("Cookfs_Readerchannel_Input: <=== bytesRead=%d", bytesRead))
     return bytesRead;
 
 error:
+    Cookfs_FsindexUnlock(instData->fsindex);
     *errorCodePtr = EIO;
     return -1;
 }
@@ -149,16 +178,33 @@ Tcl_WideInt Cookfs_Readerchannel_WideSeek(ClientData instanceData, Tcl_WideInt o
     Cookfs_ReaderChannelInstData *instData = (Cookfs_ReaderChannelInstData *) instanceData;
 
     CookfsLog(printf("Cookfs_Readerchannel_WideSeek: current=%d offset=%d mode=%d", ((int) instData->currentOffset), ((int) offset), seekMode))
+
+    if (!Cookfs_FsindexLockRead(instData->fsindex, NULL)) {
+        *errorCodePtr = ENODEV; // inappropriate use of device
+        return -1;
+    }
+
+    Tcl_WideInt fileSize = Cookfs_FsindexEntryGetFilesize(instData->entry);
+    if (fileSize < 0) {
+        CookfsLog(printf("Cookfs_Readerchannel_Input: stalled fsindex entry"));
+        *errorCodePtr = ENODEV; // inappropriate use of device
+        Cookfs_FsindexUnlock(instData->fsindex);
+        return -1;
+    }
+    // We read-locked fsindex, so we don't expect the entry to become invalid,
+    // and we don't check for errors here.
+    int blockCount = Cookfs_FsindexEntryGetBlockCount(instData->entry);
+
     if (seekMode == SEEK_CUR) {
 	offset += instData->currentOffset;
     }  else if (seekMode == SEEK_END) {
-	offset += instData->fileSize;
+	offset += fileSize;
     }
     CookfsLog(printf("Cookfs_Readerchannel_WideSeek: step 1 offset=%d", (int) offset))
     if (offset < 0) {
 	offset = 0;
-    }  else if (offset > instData->fileSize) {
-	offset = instData->fileSize;
+    }  else if (offset > fileSize) {
+	offset = fileSize;
     }
     CookfsLog(printf("Cookfs_Readerchannel_WideSeek: step 2 offset=%d", (int) offset))
 
@@ -171,15 +217,20 @@ Tcl_WideInt Cookfs_Readerchannel_WideSeek(ClientData instanceData, Tcl_WideInt o
 	instData->currentBlockOffset = 0;
 
 	while (bytesLeft > 0) {
-	    /* either block is larger than left bytes or not */
-	    CookfsLog(printf("Cookfs_Readerchannel_WideSeek: compare %d < %d", instData->buf[instData->currentBlock + 2], (int) bytesLeft))
-	    if (instData->buf[instData->currentBlock + 2] < bytesLeft) {
-		/* move to next block */
-		bytesLeft -= instData->buf[instData->currentBlock + 2];
-		instData->currentOffset += instData->buf[instData->currentBlock + 2];
-		instData->currentBlock += 3;
+            int pageIndex, pageOffset, pageSize;
+	    // We read-locked fsindex, so we don't expect the entry to become invalid,
+	    // and we don't check for errors here.
+	    Cookfs_FsindexEntryGetBlock(instData->entry, instData->currentBlock,
+	        &pageIndex, &pageOffset, &pageSize);
 
-		if (instData->currentBlock >= instData->bufSize) {
+	    /* either block is larger than left bytes or not */
+	    CookfsLog(printf("Cookfs_Readerchannel_WideSeek: compare %d < %d", pageSize, (int) bytesLeft))
+	    if (pageSize < bytesLeft) {
+		/* move to next block */
+		bytesLeft -= pageSize;
+		instData->currentOffset += pageSize;
+		instData->currentBlock++;
+		if (instData->currentBlock >= blockCount) {
 		    break;
 		}
 	    }  else  {
@@ -191,6 +242,7 @@ Tcl_WideInt Cookfs_Readerchannel_WideSeek(ClientData instanceData, Tcl_WideInt o
 
 	CookfsLog(printf("Cookfs_Readerchannel_WideSeek: end offset: block=%d blockoffset=%d offset=%d", instData->currentBlock, instData->currentBlockOffset, ((int) instData->currentOffset)))
     }
+    Cookfs_FsindexUnlock(instData->fsindex);
     *errorCodePtr = 0;
     return instData->currentOffset;
 }

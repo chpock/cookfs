@@ -3,6 +3,11 @@
 #ifndef COOKFS_VFS_H
 #define COOKFS_VFS_H 1
 
+#include "pageObj.h"
+#include "pages.h"
+#include "fsindex.h"
+#include "writer.h"
+
 /* Tcl public API */
 
 typedef struct Cookfs_Vfs {
@@ -11,6 +16,9 @@ typedef struct Cookfs_Vfs {
 
     Tcl_Interp *interp;
     Tcl_Command commandToken;
+#ifdef TCL_THREADS
+    Tcl_ThreadId threadId;
+#endif /* TCL_THREADS */
 
     int isDead;
 #ifdef COOKFS_USETCLCMDS
@@ -20,16 +28,16 @@ typedef struct Cookfs_Vfs {
     int isCurrentDirTime;
     int isVolume;
     int isReadonly;
+    int isShared;
 
     Cookfs_Pages *pages;
     Cookfs_Fsindex *index;
     Cookfs_Writer *writer;
 
-    struct Cookfs_Vfs* nextVfs;
 } Cookfs_Vfs;
 
 Cookfs_Vfs *Cookfs_VfsInit(Tcl_Interp* interp, Tcl_Obj* mountPoint,
-    int isVolume, int isCurrentDirTime, int isReadonly,
+    int isVolume, int isCurrentDirTime, int isReadonly, int isShared,
     Cookfs_Pages *pages, Cookfs_Fsindex *index,
     Cookfs_Writer *writer);
 
@@ -45,5 +53,8 @@ int Cookfs_VfsRegisterInTclvfs(Cookfs_Vfs *vfs);
 #endif
 
 Tcl_Obj *CookfsGetVfsObjectCmd(Tcl_Interp* interp, Cookfs_Vfs *vfs);
+
+int Cookfs_CookfsVfsLock(Cookfs_Vfs *vfsToLock);
+int Cookfs_CookfsVfsUnlock(Cookfs_Vfs *vfsToUnlock);
 
 #endif /* COOKFS_VFS_H */

@@ -9,6 +9,9 @@
 
 
 #include "cookfs.h"
+#include "fsindex.h"
+#include "fsindexInt.h"
+#include "fsindexIO.h"
 
 #define COOKFS_FSINDEX_MAXENTRYSIZE 8192
 #define COOKFS_FSINDEX_BUFFERINCREASE 65536
@@ -34,23 +37,6 @@ static int CookfsFsindexImportMetadata(Cookfs_Fsindex *fsIndex, unsigned char *b
  *
  *  subdirectories are inlined completely and recursively
  */
-
-#ifdef COOKFS_USECPAGES
-
-Cookfs_PageObj Cookfs_FsindexToPageObj(Cookfs_Fsindex *fsindex) {
-    Cookfs_PageObj rc;
-    Tcl_Obj *obj = Cookfs_FsindexToObject(fsindex);
-    if (obj != NULL) {
-        Tcl_IncrRefCount(obj);
-        rc = Cookfs_PageObjNewFromByteArray(obj);
-        Tcl_DecrRefCount(obj);
-    } else {
-        rc = NULL;
-    }
-    return rc;
-}
-
-#endif /* COOKFS_USECPAGES */
 
 /*
  *----------------------------------------------------------------------
@@ -92,75 +78,6 @@ Tcl_Obj *Cookfs_FsindexToObject(Cookfs_Fsindex *fsindex) {
     return result;
 }
 
-#ifdef COOKFS_USECPAGES
-
-/*
- *----------------------------------------------------------------------
- *
- * Cookfs_FsindexFromPages --
- *
- *	Imports fsindex information from pages object
- *
- * Results:
- *	Pointer to imported Cookfs_Fsindex; NULL in case of import error
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-Cookfs_Fsindex *Cookfs_FsindexFromPages(Tcl_Interp *interp, Cookfs_Fsindex *fsindex, Cookfs_Pages *pages) {
-
-    CookfsLog(printf("Cookfs_FsindexFromPages: fsindex [%p] pages [%p]",
-        (void *)fsindex, (void *)pages));
-
-    Cookfs_Fsindex *rc;
-
-    CookfsLog(printf("Cookfs_FsindexFromPages: get index data from pages..."));
-    Cookfs_PageObj indexDataObj = Cookfs_PagesGetIndex(pages);
-
-    Tcl_Size indexDataLen;
-    if (indexDataObj == NULL) {
-        CookfsLog(printf("Cookfs_FsindexFromPages: got NULL as index data"));
-        indexDataLen = 0;
-    } else {
-        Cookfs_PageObjIncrRefCount(indexDataObj);
-        indexDataLen = Cookfs_PageObjSize(indexDataObj);
-        CookfsLog(printf("Cookfs_FsindexFromPages: got index data %"
-            TCL_SIZE_MODIFIER "d bytes", indexDataLen));
-        // If data is empty, then free the object now as at the end we
-        // will release the object only if indexDataLen > 0
-        if (!indexDataLen) {
-            Cookfs_PageObjDecrRefCount(indexDataObj);
-        }
-    }
-
-    if (indexDataLen) {
-        CookfsLog(printf("Cookfs_FsindexFromPages: import from the object..."));
-        rc = Cookfs_FsindexFromPageObj(interp, fsindex, indexDataObj);
-        Cookfs_PageObjDecrRefCount(indexDataObj);
-    } else {
-        if (fsindex == NULL) {
-            CookfsLog(printf("Cookfs_FsindexFromPages: create a new clean index"));
-            rc = Cookfs_FsindexInit(interp, NULL);
-        } else {
-            rc = fsindex;
-            Cookfs_FsindexCleanup(rc);
-            CookfsLog(printf("Cookfs_FsindexFromPages: cleanup the old index"));
-        }
-    }
-
-    CookfsLog(printf("Cookfs_FsindexFromPages: return [%p]", (void *)rc));
-    return rc;
-}
-
-Cookfs_Fsindex *Cookfs_FsindexFromPageObj(Tcl_Interp *interp, Cookfs_Fsindex *fsindex, Cookfs_PageObj o) {
-    return Cookfs_FsindexFromBytes(interp, fsindex, o, Cookfs_PageObjSize(o));
-}
-
-#endif /* COOKFS_USECPAGES */
-
 Cookfs_Fsindex *Cookfs_FsindexFromTclObj(Tcl_Interp *interp, Cookfs_Fsindex *fsindex, Tcl_Obj *o) {
     Tcl_Size size;
     unsigned char *bytes = Tcl_GetByteArrayFromObj(o, &size);
@@ -199,18 +116,27 @@ Cookfs_Fsindex *Cookfs_FsindexFromBytes(Tcl_Interp *interp, Cookfs_Fsindex *fsin
     /* initialize empty fsindex */
     result = Cookfs_FsindexInit(interp, fsindex);
 
+    // If no destination index is specified, we create a new index.
+    // In this case, lock it. Otherwise, it is caller responsability
+    // to lock the index.
+    if (fsindex == NULL) {
+        if (!Cookfs_FsindexLockWrite(result, NULL)) {
+            goto error;
+        }
+    }
+
     if (result == NULL) {
         CookfsLog(printf("Cookfs_FsindexFromObject - unable to initialize Fsindex object"))
-        return NULL;
+        goto error;
     }
 
     if (size < COOKFS_FSINDEX_HEADERLENGTH) {
         CookfsLog(printf("Cookfs_FsindexFromObject - unable to compare header 1"))
-        return NULL;
+        goto error;
     }
     if (memcmp(bytes, COOKFS_FSINDEX_HEADERSTRING, COOKFS_FSINDEX_HEADERLENGTH) != 0) {
         CookfsLog(printf("Cookfs_FsindexFromObject - unable to compare header 2"))
-        return NULL;
+        goto error;
     }
 
     /* import root entry; import of subdirectories happens recursively */
@@ -219,7 +145,6 @@ Cookfs_Fsindex *Cookfs_FsindexFromBytes(Tcl_Interp *interp, Cookfs_Fsindex *fsin
     CookfsLog(printf("Cookfs_FsindexFromObject - Import directory done -"
         " %d vs %" TCL_SIZE_MODIFIER "d", i, size))
     if (i < size) {
-        // cppcheck-suppress unreadVariable symbolName=i
         i = CookfsFsindexImportMetadata(result, bytes, size, i);
     }
 
@@ -230,6 +155,16 @@ Cookfs_Fsindex *Cookfs_FsindexFromBytes(Tcl_Interp *interp, Cookfs_Fsindex *fsin
 
     CookfsLog(printf("Cookfs_FsindexFromObject - END"))
 
+    goto done;
+
+error:
+    result = NULL;
+
+done:
+    // Unlock the index if it was created by this function.
+    if (fsindex == NULL) {
+        Cookfs_FsindexUnlock(result);
+    }
     /* return imported fsindex */
     return result;
 }

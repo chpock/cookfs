@@ -7,6 +7,14 @@
  */
 
 #include "cookfs.h"
+#include "vfs.h"
+#include "fsindexIO.h"
+#include "vfsCmd.h"
+#include "vfsVfs.h"
+#include "pagesCompr.h"
+#include "pagesCmd.h"
+#include "fsindexCmd.h"
+#include "writerCmd.h"
 
 typedef int (Cookfs_MountHandleCommandProc)(Cookfs_Vfs *vfs,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
@@ -71,6 +79,7 @@ Cookfs_VfsProps *Cookfs_VfsPropsInit(Cookfs_VfsProps *p) {
         p->smallfilebuffer = 4194304;
         p->nodirectorymtime = 0;
         p->pagehash = NULL;
+        p->shared = 0;
     }
     return p;
 }
@@ -94,6 +103,12 @@ void Cookfs_VfsPropSetVolume(Cookfs_VfsProps *p, int volume) {
 void Cookfs_VfsPropSetWritetomemory(Cookfs_VfsProps *p, int writetomemory) {
     if (p != NULL) {
         p->writetomemory = writetomemory;
+    }
+}
+
+void Cookfs_VfsPropSetShared(Cookfs_VfsProps *p, int shared) {
+    if (p != NULL) {
+        p->shared = shared;
     }
 }
 
@@ -138,7 +153,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         "-asyncdecompressqueuesize", "-decompresscommand", "-endoffset",
         "-setmetadata", "-readonly", "-writetomemory", "-pagesize",
         "-pagecachesize", "-volume", "-smallfilesize", "-smallfilebuffer",
-        "-nodirectorymtime", "-pagehash",
+        "-nodirectorymtime", "-pagehash", "-shared",
         NULL
     };
 
@@ -151,7 +166,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         OPT_ASYNCDECOMPRESSQUEUESIZE, OPT_DECOMPRESSCOMMAND, OPT_ENDOFFSET,
         OPT_SETMETADATA, OPT_READONLY, OPT_WRITETOMEMORY, OPT_PAGESIZE,
         OPT_PAGECACHESIZE, OPT_VOLUME, OPT_SMALLFILESIZE, OPT_SMALLFILEBUFFER,
-        OPT_NODIRECTORYMTIME, OPT_PAGEHASH
+        OPT_NODIRECTORYMTIME, OPT_PAGEHASH, OPT_SHARED
     };
 
     Cookfs_VfsProps props;
@@ -198,6 +213,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         PROCESS_OPT_SWITCH(OPT_WRITETOMEMORY, props.writetomemory);
         PROCESS_OPT_SWITCH(OPT_VOLUME, props.volume);
         PROCESS_OPT_SWITCH(OPT_NODIRECTORYMTIME, props.nodirectorymtime);
+        PROCESS_OPT_SWITCH(OPT_SHARED, props.shared);
 
         // Other options require a single argument
         if (++idx == objc) {
@@ -314,12 +330,31 @@ int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
 
     Tcl_Obj *normalized;
 
+#ifndef TCL_THREADS
+    if (props->shared) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("shared VFS between threads"
+            " is not supported by this package build", -1));
+        goto error;
+    }
+#endif
+
     if (props->smallfilesize > props->pagesize) {
         CookfsLog(printf("Cookfs_Mount: ERROR: smallfilesize [%"
             TCL_LL_MODIFIER "d] > pagesize [%" TCL_LL_MODIFIER "d]",
             props->smallfilesize, props->pagesize));
         Tcl_SetObjResult(interp, Tcl_NewStringObj("smallfilesize cannot be"
             " larger than pagesize", -1));
+        goto error;
+    }
+
+    if (props->shared && (
+        props->compresscommand != NULL ||
+        props->decompresscommand != NULL ||
+        props->asynccompresscommand != NULL ||
+        props->asyncdecompresscommand != NULL))
+    {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("cannot use tcl commands"
+            " in thread-shared mode", -1));
         goto error;
     }
 
@@ -442,7 +477,8 @@ skipArchive:
     }
 #endif
 
-    Cookfs_PagesLock(pages, 1);
+    Cookfs_PagesLockHard(pages);
+    Cookfs_PagesLockWrite(pages, NULL);
 
     // set whether compression should always be enabled
     CookfsLog(printf("Cookfs_Mount: set pages always compress: %d",
@@ -465,10 +501,29 @@ skipPages:
     if (props->fsindexobject == NULL) {
 #endif
         CookfsLog(printf("Cookfs_Mount: creating the index object"));
-        if (pages == NULL) {
+        Cookfs_PageObj indexDataObj = NULL;
+        if (pages != NULL) {
+            indexDataObj = Cookfs_PagesGetIndex(pages);
+            if (indexDataObj == NULL) {
+                CookfsLog(printf("Cookfs_FsindexFromPages: got NULL as"
+                    " index data"));
+            } else {
+                Cookfs_PageObjIncrRefCount(indexDataObj);
+                CookfsLog(printf("Cookfs_FsindexFromPages: got index data %"
+                    TCL_SIZE_MODIFIER "d bytes",
+                    Cookfs_PageObjSize(indexDataObj)));
+                if (!Cookfs_PageObjSize(indexDataObj)) {
+                    Cookfs_PageObjDecrRefCount(indexDataObj);
+                    indexDataObj = NULL;
+                }
+            }
+        }
+        if (indexDataObj == NULL) {
             index = Cookfs_FsindexInit(interp, NULL);
         } else {
-            index = Cookfs_FsindexFromPages(interp, NULL, pages);
+            index = Cookfs_FsindexFromBytes(interp, NULL, indexDataObj,
+                Cookfs_PageObjSize(indexDataObj));
+            Cookfs_PageObjDecrRefCount(indexDataObj);
         }
         if (index == NULL) {
             Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create"
@@ -487,7 +542,8 @@ skipPages:
     }
 #endif
 
-    Cookfs_FsindexLock(index, 1);
+    Cookfs_FsindexLockHard(index);
+    Cookfs_FsindexLockWrite(index, NULL);
 
     const char *pagehashMetadataKey = "cookfs.pagehash";
 
@@ -495,7 +551,7 @@ skipPages:
         goto skipPagesBootstrap;
     }
 
-    if (pages->dataNumPages) {
+    if (Cookfs_PagesGetLength(pages)) {
         CookfsLog(printf("Cookfs_Mount: pages contain data"));
         Tcl_Obj *pagehashActual = Cookfs_FsindexGetMetadata(index,
             pagehashMetadataKey);
@@ -638,7 +694,7 @@ skipPagesBootstrap:
     // If writetomemory is specified, create writable VFS
     vfs = Cookfs_VfsInit(interp, localActual, props->volume,
         (props->nodirectorymtime ? 0 : 1),
-        ((!props->writetomemory && props->readonly) ? 1 : 0),
+        ((!props->writetomemory && props->readonly) ? 1 : 0), props->shared,
         pages, index, writer);
     if (vfs == NULL) {
         CookfsLog(printf("Cookfs_Mount: failed to create the vfs object"));
@@ -697,6 +753,11 @@ skipPagesBootstrap:
         Cookfs_VfsPropsFree(props);
     }
 
+    Cookfs_FsindexUnlock(index);
+    if (pages != NULL) {
+        Cookfs_PagesUnlock(pages);
+    }
+
     return TCL_OK;
 
 error:
@@ -709,6 +770,14 @@ error:
     }
     if (localActual != NULL) {
         Tcl_DecrRefCount(localActual);
+    }
+
+    if (index != NULL) {
+        Cookfs_FsindexUnlock(index);
+    }
+
+    if (pages != NULL) {
+        Cookfs_PagesUnlock(pages);
     }
 
     // If VFS object exists, release only that object. Everything else
@@ -727,7 +796,7 @@ error:
 #else
         if (index != NULL) {
 #endif
-            Cookfs_FsindexLock(index, 0);
+            Cookfs_FsindexUnlockHard(index);
             Cookfs_FsindexFini(index);
         }
         // If no pages object was specified and a pages object was created by
@@ -737,7 +806,7 @@ error:
 #else
         if (pages != NULL) {
 #endif
-            Cookfs_PagesLock(pages, 0);
+            Cookfs_PagesUnlockHard(pages);
             Cookfs_PagesFini(pages);
         }
     }
@@ -1012,7 +1081,8 @@ static int CookfsMountHandleCommandGetwriter(Cookfs_Vfs *vfs, Tcl_Interp *interp
 static int CookfsMountHandleCommandGetmetadata(Cookfs_Vfs *vfs,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-    return CookfsFsindexCmdGetMetadata(vfs->index, interp, objc, objv);
+    return Cookfs_FsindexCmdForward(COOKFS_FSINDEX_FORWARD_COMMAND_GETMETADATA,
+        vfs->index, interp, objc, objv);
 }
 
 static int CookfsMountHandleCommandSetmetadata(Cookfs_Vfs *vfs,
@@ -1022,7 +1092,8 @@ static int CookfsMountHandleCommandSetmetadata(Cookfs_Vfs *vfs,
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Archive is read-only", -1));
         return TCL_ERROR;
     }
-    return CookfsFsindexCmdSetMetadata(vfs->index, interp, objc, objv);
+    return Cookfs_FsindexCmdForward(COOKFS_FSINDEX_FORWARD_COMMAND_SETMETADATA,
+        vfs->index, interp, objc, objv);
 }
 
 static int CookfsMountHandleCommandAside(Cookfs_Vfs *vfs, Tcl_Interp *interp,
@@ -1037,12 +1108,34 @@ static int CookfsMountHandleCommandAside(Cookfs_Vfs *vfs, Tcl_Interp *interp,
         return TCL_ERROR;
     }
 
+    int rc = TCL_ERROR;
+
+    // Write lock writer/fsindex/pages
+    Tcl_Obj *err = NULL;
+    if (Cookfs_WriterLockWrite(vfs->writer, &err)) {
+        if (Cookfs_FsindexLockWrite(vfs->index, &err)) {
+            rc = TCL_OK;
+        } else {
+            Cookfs_WriterUnlock(vfs->writer);
+        }
+    }
+
+    if (rc != TCL_OK) {
+        if (err == NULL) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to aquire"
+                " the locks", -1));
+        } else {
+            Tcl_SetObjResult(interp, err);
+        }
+        return TCL_ERROR;
+    }
+
     if (Cookfs_WriterGetWritetomemory(vfs->writer)) {
         CookfsLog(printf("CookfsMountHandleCommandAside: ERROR: write to memory"
             " option enabled"));
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Write to memory option"
             " enabled; not creating add-aside archive", -1));
-        return TCL_ERROR;
+        goto error;
     } else {
         CookfsLog(printf("CookfsMountHandleCommandAside: writer"
             " writetomemory: false"));
@@ -1052,24 +1145,57 @@ static int CookfsMountHandleCommandAside(Cookfs_Vfs *vfs, Tcl_Interp *interp,
     // TODO: pass a pointer to err instead of NULL and handle the corresponding
     // error message
     if (Cookfs_WriterPurge(vfs->writer, NULL) != TCL_OK) {
-        return TCL_ERROR;
+        goto error;
     }
 
     CookfsLog(printf("CookfsMountHandleCommandAside: run pages aside..."));
-    if (CookfsPagesCmdAside(vfs->pages, interp, objc, objv) != TCL_OK) {
-        return TCL_ERROR;
+    if (Cookfs_PagesCmdForward(COOKFS_PAGES_FORWARD_COMMAND_ASIDE,
+        vfs->pages, interp, objc, objv) != TCL_OK)
+    {
+        goto error;
     }
 
     CookfsLog(printf("CookfsMountHandleCommandAside: refresh index..."));
-    if (Cookfs_FsindexFromPages(interp, vfs->index, vfs->pages) == NULL) {
-        return TCL_ERROR;
+    Cookfs_PageObj indexDataObj = NULL;
+    if (Cookfs_PagesLockRead(vfs->pages, NULL)) {
+        indexDataObj = Cookfs_PagesGetIndex(vfs->pages);
+        Cookfs_PagesUnlock(vfs->pages);
+    }
+    if (indexDataObj == NULL) {
+        CookfsLog(printf("CookfsMountHandleCommandAside: got NULL as"
+            " index data"));
+    } else {
+        Cookfs_PageObjIncrRefCount(indexDataObj);
+        CookfsLog(printf("CookfsMountHandleCommandAside: got index data %"
+            TCL_SIZE_MODIFIER "d bytes",
+            Cookfs_PageObjSize(indexDataObj)));
+        if (!Cookfs_PageObjSize(indexDataObj)) {
+            Cookfs_PageObjDecrRefCount(indexDataObj);
+            indexDataObj = NULL;
+        }
+    }
+    if (indexDataObj == NULL) {
+        Cookfs_FsindexCleanup(vfs->index);
+    } else {
+        Cookfs_FsindexFromBytes(interp, vfs->index, indexDataObj,
+            Cookfs_PageObjSize(indexDataObj));
+        Cookfs_PageObjDecrRefCount(indexDataObj);
     }
 
     CookfsLog(printf("CookfsMountHandleCommandAside: set writable mode"));
     Cookfs_VfsSetReadonly(vfs, 0);
 
     CookfsLog(printf("CookfsMountHandleCommandAside: ok"));
-    return TCL_OK;
+
+    goto done;
+
+error:
+    rc = TCL_ERROR;
+
+done:
+    Cookfs_FsindexUnlock(vfs->index);
+    Cookfs_WriterUnlock(vfs->writer);
+    return rc;
 }
 
 static int CookfsMountHandleCommandWritetomemory(Cookfs_Vfs *vfs,
@@ -1079,8 +1205,12 @@ static int CookfsMountHandleCommandWritetomemory(Cookfs_Vfs *vfs,
         Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
+    if (!Cookfs_WriterLockWrite(vfs->writer, NULL)) {
+        return TCL_ERROR;
+    }
     Cookfs_WriterSetWritetomemory(vfs->writer, 1);
     Cookfs_VfsSetReadonly(vfs, 0);
+    Cookfs_WriterUnlock(vfs->writer);
     return TCL_OK;
 }
 
@@ -1091,8 +1221,12 @@ static int CookfsMountHandleCommandFilesize(Cookfs_Vfs *vfs,
         Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
+    if (!Cookfs_PagesLockRead(vfs->pages, NULL)) {
+        return TCL_ERROR;
+    }
     Tcl_SetObjResult(interp, Tcl_NewWideIntObj(Cookfs_GetFilesize(
         vfs->pages)));
+    Cookfs_PagesUnlock(vfs->pages);
     return TCL_OK;
 }
 
@@ -1103,8 +1237,12 @@ static int CookfsMountHandleCommandSmallfilebuffersize(Cookfs_Vfs *vfs,
         Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
+    if (!Cookfs_WriterLockRead(vfs->writer, NULL)) {
+        return TCL_ERROR;
+    }
     Tcl_WideInt size = Cookfs_WriterGetSmallfilebuffersize(vfs->writer);
     Tcl_SetObjResult(interp, Tcl_NewWideIntObj(size));
+    Cookfs_WriterUnlock(vfs->writer);
     return TCL_OK;
 }
 
@@ -1120,19 +1258,25 @@ static int CookfsMountHandleCommandCompression(Cookfs_Vfs *vfs,
         //always purge small files cache when compression changes
         // TODO: pass a pointer to err variable instead of NULL and handle
         // the corresponding error message
+        if (!Cookfs_WriterLockWrite(vfs->writer, NULL)) {
+            return TCL_ERROR;
+        }
         int ret = Cookfs_WriterPurge(vfs->writer, NULL);
+        Cookfs_WriterUnlock(vfs->writer);
         if (ret != TCL_OK) {
             return ret;
         }
     }
 
-    return CookfsPagesCmdCompression(vfs->pages, interp, objc, objv);
+    return Cookfs_PagesCmdForward(COOKFS_PAGES_FORWARD_COMMAND_COMPRESSION,
+        vfs->pages, interp, objc, objv);
 }
 
 static int CookfsMountHandleCommandWritefiles(Cookfs_Vfs *vfs,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
-    return CookfsWriterHandleCommandWrite(vfs->writer, interp, objc, objv);
+    return Cookfs_WriterCmdForward(COOKFS_WRITER_FORWARD_COMMAND_WRITE,
+        vfs->writer, interp, objc, objv);
 }
 
 static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
@@ -1148,6 +1292,7 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
     }
 
     Tcl_Size i;
+    int rc = TCL_OK;
 
     Tcl_Obj **fileTails;
     Tcl_Size fileCount;
@@ -1158,23 +1303,35 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
     }
 
     Cookfs_Pages *pages = vfs->pages;
+    Cookfs_Fsindex *index = vfs->index;
 
-    if (!pages->dataNumPages) {
-        CookfsLog(printf("CookfsMountHandleCommandOptimizelist: there is"
-            " no pages, return the list as is"));
-        Tcl_SetObjResult(interp, objv[2]);
-        return TCL_OK;
+    if (!Cookfs_FsindexLockRead(index, NULL)) {
+        return TCL_ERROR;
     }
-
-    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: alloc pageFiles"));
-    Tcl_Obj **pageFiles = ckalloc(sizeof(Tcl_Obj *) * pages->dataNumPages);
-    if (pageFiles == NULL) {
-        Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to alloc"
-            " pageFiles", -1));
+    if (!Cookfs_PagesLockRead(pages, NULL)) {
+        Cookfs_FsindexUnlock(index);
         return TCL_ERROR;
     }
 
-    for (i = 0; i < pages->dataNumPages; i++) {
+    int pagesLen = Cookfs_PagesGetLength(pages);
+
+    if (!pagesLen) {
+        CookfsLog(printf("CookfsMountHandleCommandOptimizelist: there is"
+            " no pages, return the list as is"));
+        Tcl_SetObjResult(interp, objv[2]);
+        goto done;
+    }
+
+    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: alloc pageFiles"));
+    Tcl_Obj **pageFiles = ckalloc(sizeof(Tcl_Obj *) * pagesLen);
+    if (pageFiles == NULL) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to alloc"
+            " pageFiles", -1));
+        rc = TCL_ERROR;
+        goto done;
+    }
+
+    for (i = 0; i < pagesLen; i++) {
         pageFiles[i] = NULL;
     }
 
@@ -1183,8 +1340,6 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
 
     Tcl_Obj *baseTemplate = Tcl_NewListObj(1, &objv[2]);
     Tcl_IncrRefCount(baseTemplate);
-
-    Cookfs_Fsindex *index = vfs->index;
 
     CookfsLog(printf("CookfsMountHandleCommandOptimizelist: checking %"
         TCL_SIZE_MODIFIER "d files", fileCount));
@@ -1219,14 +1374,14 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
             CookfsLog(printf("CookfsMountHandleCommandOptimizelist: got NULL"
                 " entry"));
             listToAdd = largeFiles;
-        } else if (entry->fileBlocks != 1) {
+        } else if (Cookfs_FsindexEntryGetBlockCount(entry) != 1) {
             CookfsLog(printf("CookfsMountHandleCommandOptimizelist: fileBlocks"
-                " [%d] is not 1", entry->fileBlocks));
+                " [%d] is not 1", Cookfs_FsindexEntryGetBlockCount(entry)));
             listToAdd = largeFiles;
         } else {
             // Check if the file has correct page number
-            pageNum = entry->data.fileInfo.fileBlockOffsetSize[0];
-            if (pageNum < 0 || pageNum >= pages->dataNumPages) {
+            Cookfs_FsindexEntryGetBlock(entry, 0, &pageNum, NULL, NULL);
+            if (pageNum < 0 || pageNum >= pagesLen) {
                 CookfsLog(printf("CookfsMountHandleCommandOptimizelist:"
                     " incorrect page number: %d", pageNum));
                 listToAdd = largeFiles;
@@ -1261,7 +1416,7 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
     Tcl_Obj *smallFiles = Tcl_NewListObj(0, NULL);
     Tcl_IncrRefCount(smallFiles);
 
-    for (i = 0; i < pages->dataNumPages; i++) {
+    for (i = 0; i < pagesLen; i++) {
         if (pageFiles[i] != NULL) {
             CookfsLog(printf("CookfsMountHandleCommandOptimizelist: add files"
                 " from page %" TCL_SIZE_MODIFIER "d to small file list", i));
@@ -1282,6 +1437,8 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
         Tcl_GetString(smallFiles)));
     Tcl_DecrRefCount(smallFiles);
 
-    return TCL_OK;
-
+done:
+    Cookfs_PagesUnlock(pages);
+    Cookfs_FsindexUnlock(index);
+    return rc;
 }

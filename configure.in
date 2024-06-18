@@ -52,7 +52,7 @@ TEA_PREFIX
 
 TEA_SETUP_COMPILER
 
-TEA_ADD_SOURCES([cookfs.c common.c md5.h bindata.c hashes.c pathObj.c])
+TEA_ADD_SOURCES([cookfs.c common.c md5.h bindata.c hashes.c pathObj.c threads.c])
 TEA_ADD_HEADERS([])
 TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/generic`\"])
 TEA_ADD_LIBS([])
@@ -230,7 +230,7 @@ COOKFS_PKGCONFIG_FEATURE_METADATA=1
 if test ${USECREADERCHAN} = yes; then
     AC_DEFINE(COOKFS_USECREADERCHAN)
     COOKFS_PKGCONFIG_USECREADERCHAN=1
-    TEA_ADD_SOURCES([readerchannel.c readerchannelIO.c])
+    TEA_ADD_SOURCES([readerchannel.c readerchannelIO.c readerchannelCmd.c])
 else
     COOKFS_PKGCONFIG_USECREADERCHAN=0
     # c-vfs requires c-readerchannel
@@ -249,7 +249,7 @@ then
 
     AC_DEFINE(COOKFS_USECWRITERCHAN)
     COOKFS_PKGCONFIG_USECWRITERCHAN=1
-    TEA_ADD_SOURCES([writerchannel.c writerchannelIO.c])
+    TEA_ADD_SOURCES([writerchannel.c writerchannelIO.c writerchannelCmd.c])
 
     AC_DEFINE(COOKFS_USECVFS)
     COOKFS_PKGCONFIG_USECVFS=1

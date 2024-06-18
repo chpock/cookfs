@@ -14,6 +14,10 @@ catch {
     package require vfs
 }
 
+catch {
+    package require Thread
+}
+
 if {[info tclversion] == "8.5"} {
     package require rechan
 }
@@ -52,6 +56,8 @@ tcltest::testConstraint enabledTclCmds  [cookfs::pkgconfig get tcl-commands]
 tcltest::testConstraint disabledTclCmds [expr { ![cookfs::pkgconfig get tcl-commands] }]
 
 tcltest::testConstraint packageTclvfs [expr { ![catch { package present vfs }] }]
+
+tcltest::testConstraint threaded [::tcl::pkgconfig get threaded]
 
 tcltest::testConstraint tcl86 [expr { $::tcl_version < 9.0 }]
 tcltest::testConstraint tcl90 [expr { $::tcl_version >= 9.0 }]

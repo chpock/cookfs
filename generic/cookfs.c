@@ -9,6 +9,30 @@
 
 #include "cookfs.h"
 
+#ifdef COOKFS_USECPAGES
+#include "pagesCmd.h"
+#endif /* COOKFS_USECPAGES */
+
+#ifdef COOKFS_USECFSINDEX
+#include "fsindexCmd.h"
+#endif /* COOKFS_USECFSINDEX */
+
+#ifdef COOKFS_USECREADERCHAN
+#include "readerchannelCmd.h"
+#endif /* COOKFS_USECREADERCHAN */
+
+#ifdef COOKFS_USECWRITER
+#include "writerCmd.h"
+#endif /* COOKFS_USECWRITER */
+
+#ifdef COOKFS_USECVFS
+#include "vfsCmd.h"
+#endif /* COOKFS_USECVFS */
+
+#ifdef COOKFS_USECWRITERCHAN
+#include "writerchannelCmd.h"
+#endif /* COOKFS_USECWRITERCHAN */
+
 /*
  *----------------------------------------------------------------------
  *
@@ -31,9 +55,23 @@
 #define MIN_TCL_VERSION "8.5"
 #endif
 
+#ifdef __SANITIZE_ADDRESS__
+#include <sanitizer/common_interface_defs.h>
+#include <signal.h>
+void abort_handler(int sig) {
+    UNUSED(sig);
+    fprintf(stderr, "\nAborted. Backtrace:\n\n");
+    __sanitizer_print_stack_trace();
+}
+#endif /* __SANITIZE_ADDRESS__ */
+
 DLLEXPORT int
 Cookfs_Init(Tcl_Interp *interp) // cppcheck-suppress unusedFunction
 {
+
+#ifdef __SANITIZE_ADDRESS__
+    signal(SIGABRT, abort_handler);
+#endif /* __SANITIZE_ADDRESS__ */
 
     if (Tcl_InitStubs(interp, MIN_TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;

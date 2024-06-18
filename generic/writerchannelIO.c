@@ -7,6 +7,8 @@
  */
 
 #include "cookfs.h"
+#include "writerchannel.h"
+#include "writerchannelIO.h"
 #include <errno.h>
 
 #if TCL_MAJOR_VERSION < 9
@@ -174,18 +176,24 @@ void Cookfs_Writerchannel_CloseHandler(ClientData clientData) {
 
     CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: write file..."));
     Tcl_Obj *err = NULL;
-    if (Cookfs_WriterAddFile(instData->writer, instData->pathObj,
+    if (!Cookfs_WriterLockWrite(instData->writer, &err)) {
+        goto done;
+    }
+    if (Cookfs_WriterAddFile(instData->writer, instData->pathObj, instData->entry,
         COOKFS_WRITER_SOURCE_BUFFER, instData->buffer, instData->currentSize,
         &err) == TCL_OK)
     {
         // buffer is owned by writer now. Set to null to avoid releasing it.
         instData->buffer = NULL;
         instData->bufferSize = 0;
-    } else {
-        instData->closeResult = err;
-        if (instData->closeResult != NULL) {
-            Tcl_IncrRefCount(instData->closeResult);
-        }
+    }
+    Cookfs_WriterUnlock(instData->writer);
+
+done:
+
+    instData->closeResult = err;
+    if (instData->closeResult != NULL) {
+        Tcl_IncrRefCount(instData->closeResult);
     }
 
 }

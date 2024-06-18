@@ -20,7 +20,7 @@ jobs:
           submodules: recursive
       - name: Setup Environment (compiler=${{ matrix.compiler }})
         run: |
-          sudo apt-get install tcl8.6-dev
+          sudo apt-get install tcl8.6-dev tcl-thread
           mkdir "$HOME/install dir"
           echo "CFGOPT_COMMON=--with-tcl=/usr/lib/tcl8.6" >> $GITHUB_ENV
           echo "CC=$COMPILER" >> $GITHUB_ENV

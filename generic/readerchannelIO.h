@@ -3,7 +3,6 @@
 #ifndef COOKFS_READERCHANNELIO_H
 #define COOKFS_READERCHANNELIO_H 1
 
-#ifdef COOKFS_USECREADERCHAN
 int Cookfs_Readerchannel_Close(ClientData instanceData, Tcl_Interp *interp);
 int Cookfs_Readerchannel_Close2(ClientData instanceData, Tcl_Interp *interp, int flags);
 
@@ -18,8 +17,6 @@ Tcl_WideInt Cookfs_Readerchannel_WideSeek(ClientData instanceData, Tcl_WideInt o
 void Cookfs_Readerchannel_Watch(ClientData instanceData, int mask);
 
 Tcl_DriverThreadActionProc Cookfs_Readerchannel_ThreadAction;
-
-#endif /* COOKFS_USECREADERCHAN */
 
 #endif /* COOKFS_READERCHANNELIO_H */
 

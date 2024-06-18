@@ -116,6 +116,7 @@
 <li class="doctools_section"><a href="#section6">COOKFS METADATA</a></li>
 <li class="doctools_section"><a href="#section7">ASIDE AND WRITE TO MEMORY</a></li>
 <li class="doctools_section"><a href="#section8">CACHING</a></li>
+<li class="doctools_section"><a href="#section9">MULTI-THREADING SUPPORT</a></li>
 <li class="doctools_section"><a href="#see-also">See Also</a></li>
 <li class="doctools_section"><a href="#keywords">Keywords</a></li>
 <li class="doctools_section"><a href="#copyright">Copyright</a></li>
@@ -298,6 +299,9 @@ Defaults to <b class="const">md5</b>, can also be <b class="const">crc32</b>. Ma
 <dd><p>Do not create cookfs::fsindex object, use specified fsindex object. Mainly for internal use.</p></dd>
 <dt><b class="option">-pagesobject</b> <i class="arg">pagesObject</i></dt>
 <dd><p>Do not create cookfs::pages object, use specified pages object. Mainly for internal use.</p></dd>
+<dt><b class="option">-shared</b></dt>
+<dd><p>Create a multi-threaded cookfs that is available to all application threads.</p>
+<p>See <span class="sectref"><a href="#section9">MULTI-THREADING SUPPORT</a></span> for more details on multi-threading support in cookfs.</p></dd>
 </dl>
 </div>
 <div id="section4" class="doctools_section"><h2><a name="section4">COOKFS STORAGE</a></h2>
@@ -433,6 +437,31 @@ of small files. To avoid &quot;age&quot; overflow for other pages when reading t
 the field &quot;age&quot; will only increase the first time this page is read. If this page
 already exists in the cache, then the field &quot;age&quot; for cache items
 will not be increased.</p>
+</div>
+<div id="section9" class="doctools_section"><h2><a name="section9">MULTI-THREADING SUPPORT</a></h2>
+<p>By default, cookfs are created that are only available within a single
+application thread, but to all interpreters.</p>
+<p>Using the <i class="arg">-shared</i> parameter, you can create a cookfs that will be
+available to all application threads.</p>
+<p>The following nuances must be taken into account when working in multi-threaded mode:</p>
+<p>1. cookfs remains bound to the thread and interpreter in which it was created.
+This means that cookfs can only be unmounted in its own thread. Also, when
+the bound thread and/or interpreter is terminated, the cookfs will be unmounted
+and become unavailable to all other threads.</p>
+<p>2. <i class="arg">cookfsHandle</i> and internal <b class="sectref">cookfs::pages</b>/<b class="sectref">cookfs::fsindex</b>
+objects are only available in bound thread. Other threads can only use
+standard Tcl commands like <b class="const">file</b>, <b class="const">open</b>, etc to access and
+manipulate files in cookfs.</p>
+<p>3. Tcl callbacks are not available for multi-threaded cookfs.
+In particular, it means that compression type <b class="const">custom</b> is not available in this mode.
+The following list of options is not available for multi-threaded cookfs:</p>
+<ul class="doctools_itemized">
+<li><p><i class="arg">-compresscommand</i></p></li>
+<li><p><i class="arg">-decompresscommand</i></p></li>
+<li><p><i class="arg">-asynccompresscommand</i></p></li>
+<li><p><i class="arg">-asyncdecompresscommand</i></p></li>
+</ul>
+<p>4. The multi-thread cookfs is only available when package is built with <b class="const">c-vfs</b> option enabled.</p>
 </div>
 <div id="see-also" class="doctools_section"><h2><a name="see-also">See Also</a></h2>
 <p>cookfs_fsindex, cookfs_pages</p>

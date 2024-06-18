@@ -32,6 +32,9 @@ typedef struct Cookfs_PathObjElement {
 } Cookfs_PathObjElement;
 
 typedef struct Cookfs_PathObj {
+#ifdef TCL_THREADS
+    Tcl_Mutex mx;
+#endif /* TCL_THREADS */
     int refCount;
     char *fullName;
     char *fullName0;
@@ -43,33 +46,8 @@ typedef struct Cookfs_PathObj {
 } Cookfs_PathObj;
 
 
-
-#define Cookfs_PathObjIncrRefCount(p) \
-    (p)->refCount++
-
-/*
-#define Cookfs_PathObjIncrRefCount(p) \
-    { \
-        (p)->refCount++; \
-        CookfsLog(printf("Cookfs_PathObjIncrRefCount: %p", (void *)p)); \
-    }
-*/
-
-#define Cookfs_PathObjDecrRefCount(p) \
-    { \
-        if (!(--p->refCount)) { ckfree(p); } \
-    }
-
-/*
-#define Cookfs_PathObjDecrRefCount(p) \
-    { \
-        CookfsLog(printf("Cookfs_PathObjDecrRefCount: %p", (void *)p)); \
-        if (!(--p->refCount)) { \
-            ckfree(p); \
-            CookfsLog(printf("Cookfs_PathObjDecrRefCount: release %p", (void *)p)); \
-        } \
-    }
-*/
+void Cookfs_PathObjIncrRefCount(Cookfs_PathObj *p);
+void Cookfs_PathObjDecrRefCount(Cookfs_PathObj *p);
 
 Cookfs_PathObj *Cookfs_PathObjNewFromTclObj(Tcl_Obj *path);
 Cookfs_PathObj *Cookfs_PathObjNewFromStr(const char* pathStr,
