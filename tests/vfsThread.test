@@ -957,7 +957,7 @@ tcltest::test cookfsVfsThread-7.8 "VFS terminated while other thread gets direct
     catch { cookfs::Unmount $file }
     tcltest::removeFile $file
     unset -nocomplain file fsid data1 file1 mx tid dir
-} -result {1 {no files matched glob pattern "*"}}
+} -result {1 {empty glob}}
 
 # In this case, the file will be opened by writerchannel because it is in
 # small file buffer. It will be read into the buffer from the beginning.
