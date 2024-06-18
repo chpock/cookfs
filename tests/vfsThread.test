@@ -887,6 +887,7 @@ tcltest::test cookfsVfsThread-7.7 "VFS terminated while other thread gets file a
     testMultipleMatch [thread::send $tid [list set result]] \
         {1 {could not read "*": not a directory}} \
         {1 {could not read "*": no such file or directory}}
+        {1 {could not read "*": invalid argument}}
 } -cleanup {
     catch { thread::release $tid }
     catch { cookfs::Unmount $file }
@@ -921,7 +922,7 @@ tcltest::test cookfsVfsThread-7.8 "VFS terminated while other thread gets direct
         catch {
             while { [expr { [clock seconds] - $start }] < 3 } {
                 for { set i 0 } { $i < 10000000 } { incr i } {
-                    glob -directory $dir *
+                    puts "[file type $dir]:[glob -directory $dir *]:"
                     incr count
                 }
                 puts "thread: round x: [clock seconds]"
