@@ -67,9 +67,17 @@ int Cookfs_RWMutexLockRead(Cookfs_RWMutex mx) {
             mx->numRWait++;
             Tcl_ConditionWait(&mx->condRead, &mx->mx, NULL);
             mx->numRWait--;
+            // If we detect an exclusive lock mode after the condRead event,
+            // we return false. We do not expect a thread that aquired
+            // an exclusive lock to wait for conditions to be met.
+            if (mx->threadId != NULL) {
+                ret = 0;
+                goto done;
+            }
         }
         mx->numLocks++;
     }
+done:
     Tcl_MutexUnlock(&mx->mx);
     return ret;
 }

@@ -639,6 +639,11 @@ void Cookfs_FsindexFini(Cookfs_Fsindex *i) {
     } else {
         CookfsLog(printf("No tcl command"));
     }
+
+    // Unlock fsindex now. It is possible that some threads are waiting for
+    // read/write events. Let them go on and fail because of a dead object.
+    Cookfs_FsindexUnlock(i);
+
     if (i->lockSoft) {
         CookfsLog(printf("The fsindex object is soft-locked"))
 #ifdef TCL_THREADS

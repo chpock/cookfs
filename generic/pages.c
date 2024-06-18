@@ -697,6 +697,10 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
         CookfsLog(printf("No tcl command"));
     }
 
+    // Unlock pages now. It is possible that some threads are waiting for
+    // read/write events. Let them go on and fail because of a dead object.
+    Cookfs_PagesUnlock(p);
+
     if (p->lockSoft) {
         CookfsLog(printf("The page object is soft-locked"))
 #ifdef TCL_THREADS
