@@ -1,14 +1,14 @@
 [manpage_begin cookfs n 1.7.0]
 [copyright {2010-2011 Wojciech Kocjan <wojciech@kocjan.org>}]
 [copyright {2024 Konstantin Kushnir <chpock@gmail.com>}]
-[moddesc   {vfs::cookfs}]
-[titledesc {vfs::cookfs}]
+[moddesc   {cookfs}]
+[titledesc {cookfs}]
 [require Tcl 8.5]
-[require vfs::cookfs [opt 1.7.0]]
+[require cookfs [opt 1.7.0]]
 
 [description]
 
-Package [package vfs::cookfs] is a Tcl virtual filesystem (VFS) that allows
+Package [package cookfs] is a Tcl virtual filesystem (VFS) that allows
 storing one or more files in a single file. This is similar to mk4vfs, zipvfs
 and many other archive formats.
 
@@ -203,7 +203,7 @@ See [sectref {COOKFS STORAGE}] for more details on how cookfs stores files, inde
 [def "[option -volume]"]
 Register mount point as Tcl volume - useful for creating mount points in locations that do not exist - such as [arg archive://].
 
-[def "[option -compression] [arg {none|zlib|bzip2|xz|custom}][opt :[arg level]]"]
+[def "[option -compression] [arg {none|zlib|bz2|lzma|custom}][opt :[arg level]]"]
 
 Compression to use for storing new files.
 
@@ -332,13 +332,13 @@ the maximum compression level will be used for the chosen compression method.
 For example:
 [example {
 # This will mount an archive with the zlib compression method and with default level (9)
-vfs::cookfs::Mount archive archive -compression zlib
+cookfs::Mount archive archive -compression zlib
 
 # This will mount an archive with the lzma compression method and with compression level 3
-vfs::cookfs::Mount archive archive -compression lzma:3
+cookfs::Mount archive archive -compression lzma:3
 
 # This will mount an archive with the bzip2 compression method and with the maximum compression level for that method (9)
-vfs::cookfs::Mount archive archive -compression bz2:255
+cookfs::Mount archive archive -compression bz2:255
 }]
 
 [para]
@@ -358,8 +358,8 @@ can be from 0 to 9.
 use bzip2 for compression; requires specifying [const {--enable-bz2}] when building
 cookfs. Compression levels can be from 1 to 9.
 
-[item] [const xz] -
-use xz for compression; requires specifying [const {--enable-xz}] when building
+[item] [const lzma] -
+use lzma for compression; requires specifying [const {--enable-lzma}] when building
 cookfs. Compression levels can be from 0 to 9.
 
 [item] [const custom] -
@@ -385,7 +385,7 @@ proc testd {d} {
     return $rc
 }
 
-vfs::cookfs::Mount archive archive -compression custom -compresscommand testc -decompresscommand testd
+cookfs::Mount archive archive -compression custom -compresscommand testc -decompresscommand testd
 }]
 
 [para]
