@@ -154,12 +154,24 @@ static void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, void *p) {
 
 static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     UNUSED(clientData);
-    static char *options[] = { "-readonly", "-readwrite", "-compression", "-cachesize", "-endoffset", "-compresscommand", "-decompresscommand", "-asynccompresscommand", "-asyncdecompresscommand", "-alwayscompress", "-asyncdecompressqueuesize", NULL };
-    enum { optReadonly = 0, optReadwrite, optCompression, optCachesize, optEndoffset, optCompressCommand, optDecompressCommand, optAsyncCompressCommand, optAsyncDecompressCommand, optAlwaysCompress, optAsyncDecompressQueue };
+    static char *options[] = {
+        "-readonly", "-readwrite", "-compression", "-cachesize",
+        "-endoffset", "-compresscommand", "-decompresscommand",
+        "-asynccompresscommand", "-asyncdecompresscommand",
+        "-alwayscompress", "-asyncdecompressqueuesize",
+        NULL
+    };
+    enum {
+        optReadonly = 0, optReadwrite, optCompression, optCachesize,
+        optEndoffset, optCompressCommand, optDecompressCommand,
+        optAsyncCompressCommand, optAsyncDecompressCommand,
+        optAlwaysCompress, optAsyncDecompressQueue
+    };
     Cookfs_Pages *pages;
     int idx;
     int oReadOnly = 0;
     int oCompression;
+    int oCompressionLevel;
     int tobjc = objc;
     int oCachesize = -1;
     int useFoffset = 0;
@@ -296,7 +308,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
         tobjv++;
     }
 
-    if (Cookfs_CompressionFromObj(interp, compression, &oCompression) != TCL_OK) {
+    if (Cookfs_CompressionFromObj(interp, compression, &oCompression, &oCompressionLevel) != TCL_OK) {
         return TCL_ERROR;
     }
 
@@ -306,9 +318,10 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
 
     /* Create cookfs instance */
     Tcl_Obj *err = NULL;
-    pages = Cookfs_PagesInit(interp, tobjv[1], oReadOnly, oCompression, NULL,
-        useFoffset, foffset, 0, asyncDecompressQueueSize, compressCmd,
-        decompressCmd, asyncCompressCmd, asyncDecompressCmd, &err);
+    pages = Cookfs_PagesInit(interp, tobjv[1], oReadOnly, oCompression,
+        oCompressionLevel, NULL, useFoffset, foffset, 0,
+        asyncDecompressQueueSize, compressCmd, decompressCmd,
+        asyncCompressCmd, asyncDecompressCmd, &err);
     if (err != NULL) {
         Tcl_SetObjResult(interp, err);
     }
@@ -785,8 +798,8 @@ static int CookfsPagesCmdAside(Cookfs_Pages *pages, Tcl_Interp *interp, int objc
            the corresponding error message below if Cookfs_PagesInit()
            failed. */
         asidePages = Cookfs_PagesInit(pages->interp, objv[2], 0,
-            pages->fileCompression, NULL, 0, 0, 1, 0, NULL, NULL, NULL, NULL,
-            NULL);
+            pages->fileCompression, pages->fileCompressionLevel,
+            NULL, 0, 0, 1, 0, NULL, NULL, NULL, NULL, NULL);
 
         if (asidePages == NULL) {
             CookfsLog(printf("Failed to create add-aside pages object"))
@@ -819,24 +832,23 @@ static int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, in
     }
 
     int oCompression;
+    int oCompressionLevel;
 
     if (objc == 2) {
         if (!Cookfs_PagesLockRead(pages, NULL)) {
             return TCL_ERROR;
         }
-        oCompression = Cookfs_PagesGetCompression(pages);
+        oCompression = Cookfs_PagesGetCompression(pages, NULL);
     } else {
-        if (Tcl_GetIndexFromObj(interp, objv[2], (const char **) cookfsCompressionOptions,
-            "compression", 0, &oCompression) != TCL_OK)
-        {
-            return TCL_ERROR;
-        }
-        /* map compression from cookfsCompressionOptionMap */
-        oCompression = cookfsCompressionOptionMap[oCompression];
         if (!Cookfs_PagesLockWrite(pages, NULL)) {
             return TCL_ERROR;
         }
-        Cookfs_PagesSetCompression(pages, oCompression);
+        if (Cookfs_CompressionFromObj(interp, objv[2], &oCompression,
+            &oCompressionLevel) != TCL_OK)
+        {
+            return TCL_ERROR;
+        }
+        Cookfs_PagesSetCompression(pages, oCompression, oCompressionLevel);
     }
     Cookfs_PagesUnlock(pages);
 

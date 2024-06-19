@@ -167,7 +167,7 @@ proc cookfs::createArchive {archivefile filelist {bootstrap ""}} {
     set indexdata "\u0000CFS2.200[createArchiveFileIndex $fileindex]"
 
     puts -nonewline $fh $indexdata
-    puts -nonewline $fh [binary format IIca* [string length $indexdata] [llength $pagelist] 0 CFS0002]
+    puts -nonewline $fh [binary format IIcca* [string length $indexdata] [llength $pagelist] 0 0 CFS0002]
     close $fh
 }
 

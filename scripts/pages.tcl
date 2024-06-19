@@ -262,6 +262,17 @@ proc cookfs::tcl::pages::decompress {name data} {
 }
 
 proc cookfs::tcl::pages::compression2cid {name} {
+    set name [split $name :]
+    set level [lindex $name 1]
+    set name [lindex $name 0]
+    if { [string length $level] } {
+        if { ![string is integer -strict $level] } {
+            return -code error "expected integer but got \"$level\""
+        } elseif { $level < 0 || $level > 255 } {
+            return -code error "the compression level is expected to be\
+                an unsigned integer between 0 and 255, but got \"$level\""
+        }
+    }
     switch -- $name {
         none {
             return 0
@@ -312,23 +323,23 @@ proc cookfs::tcl::pages::readIndex {name msgVariable} {
     upvar #0 $name c
     upvar 1 $msgVariable msg
     if {[catch {
-        seek $c(fh) [expr {$c(endoffset) - 16}] start
-        set fc [read $c(fh) 16]
+        seek $c(fh) [expr {$c(endoffset) - 17}] start
+        set fc [read $c(fh) 17]
     }]} {
         set msg "$errorMessage: index not found"
         return 0
     }
-    if {[string length $fc] != 16} {
+    if {[string length $fc] != 17} {
         set msg "$errorMessage: unable to read index suffix"
         return 0
     }
-    if {[string range $fc 9 15] != "$c(cfsname)"} {
+    if {[string range $fc 10 16] != "$c(cfsname)"} {
         set msg "$errorMessage: invalid file signature"
         return 0
     }
     binary scan [string range $fc 0 7] II idxsize numpages
 
-    set idxoffset [expr {$c(endoffset) - (16 + $idxsize + ($numpages * 20))}]
+    set idxoffset [expr {$c(endoffset) - (17 + $idxsize + ($numpages * 20))}]
     set c(indexoffset) $idxoffset
 
     if {$idxoffset < 0} {
@@ -480,7 +491,7 @@ proc cookfs::tcl::pages::cleanup {name} {
         puts -nonewline $c(fh) [binary format I* $c(idx.sizelist)]
         set idx [compress $name $c(indexdata)]
         puts -nonewline $c(fh) $idx
-        puts -nonewline $c(fh) [binary format IIca* [string length $idx] [llength $c(idx.sizelist)] [compression2cid $c(compression)] $c(cfsname)]
+        puts -nonewline $c(fh) [binary format IIcca* [string length $idx] [llength $c(idx.sizelist)] [compression2cid $c(compression)] 255 $c(cfsname)]
         set eo [tell $c(fh)]
         if {$eo < $c(endoffset)} {
             catch {chan truncate $c(fh)}

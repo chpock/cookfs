@@ -5507,15 +5507,6 @@ else
     #TEA_ADD_LIBS([-lsuperfly])
 fi
 
-# Treat compiler warnings as errors on all platforms except MacOS.
-# 7z SDK has some warning on MacOS 10.12.
-if test "${TCL_SHLIB_SUFFIX}" != ".dylib"; then
-
-    PKG_CFLAGS="$PKG_CFLAGS -Werror"
-
-
-fi
-
 
 
 
@@ -9234,6 +9225,18 @@ else
 fi
 
 
+
+# Treat compiler warnings as errors on all platforms except MacOS.
+# 7z SDK has some warning on MacOS 10.12.
+#
+# There are expected compiler warnings in bzip2 sources. Don't tread warnings
+# as errors if bzip2 is enabled.
+if test "${TCL_SHLIB_SUFFIX}" != ".dylib" && test "${USEBZ2}" != yes; then
+
+    PKG_CFLAGS="$PKG_CFLAGS -Werror"
+
+
+fi
 
 #--------------------------------------------------------------------
 # This macro generates a line to use when building a library.  It

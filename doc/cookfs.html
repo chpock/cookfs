@@ -270,7 +270,7 @@ better compression ratio.</p>
 <p>See <span class="sectref"><a href="#section4">COOKFS STORAGE</a></span> for more details on how cookfs stores files, index and metadata.</p></dd>
 <dt><b class="option">-volume</b></dt>
 <dd><p>Register mount point as Tcl volume - useful for creating mount points in locations that do not exist - such as <i class="arg">archive://</i>.</p></dd>
-<dt><b class="option">-compression</b> <i class="arg">none|zlib|bzip2|xz|custom</i></dt>
+<dt><b class="option">-compression</b> <i class="arg">none|zlib|bzip2|xz|custom</i><span class="opt">?:<i class="arg">level</i>?</span></dt>
 <dd><p>Compression to use for storing new files.</p>
 <p>See <span class="sectref"><a href="#section5">COMPRESSSION</a></span> for more details on compression in cookfs.</p></dd>
 <dt><b class="option">-compresscommand</b> <i class="arg">tcl command</i></dt>
@@ -339,21 +339,43 @@ also compressed to reduce file size.</p>
 <p>Compression is specified as <i class="arg">-compression</i> option when mounting an archive.
 This option applies to newly stored pages and whenever a file index should be
 saved. Existing pages are not re-compressed on compression change.</p>
+<p>The <i class="arg">-compression</i> option accepts a compression method and an optional
+compression level, separated by a colon character (<b class="const">:</b>). The compression
+level must be an unsigned integer in the range of 0 to 255. Different compression
+methods define the compression level differently. However, it is safe to specify
+a compression level that is lower or higher than what is supported by
+a particular method. In these cases, the minimum or maximum level will be used
+according to the specific compression method. This means that it is possible
+and safe to specify level 255 for any method, and the maximum level
+will be used.</p>
+<p>By default, if no compression level is specified or is an empty string,
+the maximum compression level will be used for the chosen compression method.</p>
+<p>For example:</p>
+<pre class="doctools_example">
+# This will mount an archive with the zlib compression method and with default level (9)
+vfs::cookfs::Mount archive archive -compression zlib
+# This will mount an archive with the lzma compression method and with compression level 3
+vfs::cookfs::Mount archive archive -compression lzma:3
+# This will mount an archive with the bzip2 compression method and with the maximum compression level for that method (9)
+vfs::cookfs::Mount archive archive -compression bz2:255
+</pre>
 <p>Cookfs provides the following compressions:</p>
 <ul class="doctools_itemized">
 <li><p><b class="const">none</b> -
 no compression is used at all; mainly used for testing purposes or when
-content should not be packed at all</p></li>
+content should not be packed at all. The compression level is ignored in this case.</p></li>
 <li><p><b class="const">zlib</b> -
-use zlib compression to compress - same as with mk4vfs and zipvfs</p></li>
+use zlib compression to compress - same as with mk4vfs and zipvfs. Compression levels
+can be from 0 to 9.</p></li>
 <li><p><b class="const">bz2</b> -
 use bzip2 for compression; requires specifying <b class="const">--enable-bz2</b> when building
-cookfs</p></li>
+cookfs. Compression levels can be from 1 to 9.</p></li>
 <li><p><b class="const">xz</b> -
 use xz for compression; requires specifying <b class="const">--enable-xz</b> when building
-cookfs</p></li>
+cookfs. Compression levels can be from 0 to 9.</p></li>
 <li><p><b class="const">custom</b> -
-use Tcl commands for compressing and decompressing pages</p></li>
+use Tcl commands for compressing and decompressing pages. The compression level
+is ignored in this case.</p></li>
 </ul>
 <p>For <b class="const">custom</b> compression, <i class="arg">-compresscommand</i> and <i class="arg">-decompresscommand</i>
 have to be specified. These commands will be used to compress data and will be called

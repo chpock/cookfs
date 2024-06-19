@@ -30,7 +30,8 @@ enum {
     cookfsCompressionOptMax
 };
 
-int Cookfs_CompressionFromObj(Tcl_Interp *interp, Tcl_Obj *obj, int *compressionPtr);
+int Cookfs_CompressionFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
+    int *compressionPtr, int *compressionLevelPtr);
 
 void Cookfs_PagesInitCompr(Cookfs_Pages *rc);
 void Cookfs_PagesFiniCompr(Cookfs_Pages *rc);
