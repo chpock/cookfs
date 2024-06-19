@@ -785,8 +785,11 @@ static Tcl_WideInt Cookfs_PageSearchStamp(Cookfs_Pages *p) {
 
         CookfsLog(printf("Cookfs_PageSearchStamp: stamp is not found yet"));
 
-        // Leave the last 20 bytes in the buffer
-        if (bufSize > 20) {
+        // Leave the last 20 bytes in the buffer. But copy it only if bufSize is 40+ bytes.
+        // If it is less than 40 bytes, the destination area will overlap the source area.
+        // Thus, if bufSize is less than 40 bytes, the next read round will simply add
+        // new bytes from the file to the buffer.
+        if (bufSize > (20 * 2)) {
             memcpy(buf, &buf[bufSize - 20], 20);
             bufSize = 20;
         }

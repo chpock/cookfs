@@ -1512,4 +1512,45 @@ tcltest::test cookfsVfs-19.6.2 "Check unmount in child interp after interp died"
     unset -nocomplain file i result
 } -result {directory file}
 
+# This test is related to cookfsVfs-20.1.2. If something needs to be changed here,
+# the appropriate changes should be added to cookfsVfs-20.1.2.
+tcltest::test cookfsVfs-20.1.1 "Don't crash when stamp is not present" -setup {
+    set data ""
+    set index "\u0000CFS2.200"
+    # 0 file
+    append index [binary format I 0]
+    append data $index
+    # + index size + page count (0) + compression id + compression level + signature
+    append data [binary format IIcca* [string length $index] 0 0 0 CFS0002]
+    set file [tcltest::makeBinFile $data pages.cfs]
+} -body {
+    cookfs::Mount $file $file -readonly
+    # We must not crash
+    set ok ok
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain data index file ok
+} -result ok
+
+# This test differs from the previous one in that there is no byte representing
+# the compression level in the tail of the archive
+tcltest::test cookfsVfs-20.1.2 "Don't crash when stamp is not present and archive suffix is malformed" -setup {
+    set data ""
+    set index "\u0000CFS2.200"
+    # 0 file
+    append index [binary format I 0]
+    append data $index
+    # + index size + page count (0) + compression id + compression level + signature
+    append data [binary format IIca* [string length $index] 0 0 CFS0002]
+    set file [tcltest::makeBinFile $data pages.cfs]
+} -body {
+    cookfs::Mount $file $file -readonly
+    # We must not crash
+    set ok notok
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain data index file ok
+} -returnCodes error -result {Unable to create Cookfs object: page sizes not found}
 
