@@ -8910,13 +8910,6 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 
 
 
-
-    vars="-I\"`${CYGPATH} ${srcdir}/7zip/C`\""
-    for i in $vars; do
-	PKG_INCLUDES="$PKG_INCLUDES $i"
-    done
-
-
         printf "%s\n" "#define COOKFS_USELZMA 1" >>confdefs.h
 
         # Disable multi-thread
@@ -8931,13 +8924,6 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
     fi
 
     if test ${USEZSTD} = yes; then
-
-    vars="-I\"`${CYGPATH} ${srcdir}/zstd/lib`\""
-    for i in $vars; do
-	PKG_INCLUDES="$PKG_INCLUDES $i"
-    done
-
-
 
     vars="
             zstd/lib/common/xxhash.c

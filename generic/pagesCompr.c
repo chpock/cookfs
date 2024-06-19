@@ -12,12 +12,12 @@
 #include "../bzip2/bzlib.h"
 #endif
 #ifdef COOKFS_USELZMA
-#include "LzmaEnc.h"
-#include "LzmaDec.h"
-#include "Alloc.h"
+#include "../7zip/C/LzmaEnc.h"
+#include "../7zip/C/LzmaDec.h"
+#include "../7zip/C/Alloc.h"
 #endif
 #ifdef COOKFS_USEZSTD
-#include "zstd.h"
+#include "../zstd/lib/zstd.h"
 #endif
 #include "cookfs.h"
 #include "pages.h"

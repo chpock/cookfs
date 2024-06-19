@@ -176,7 +176,6 @@ if test ${USECPAGES} = yes; then
           [AC_MSG_RESULT([no, adding -mavx -mavx2]); TEA_ADD_CFLAGS([-mavx -mavx2])]
         )
         TEA_ADD_SOURCES([7zip/C/LzmaEnc.c 7zip/C/LzmaDec.c 7zip/C/LzFind.c 7zip/C/CpuArch.c])
-        TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/7zip/C`\"])
         AC_DEFINE(COOKFS_USELZMA)
         # Disable multi-thread
         AC_DEFINE(Z7_ST)
@@ -188,7 +187,6 @@ if test ${USECPAGES} = yes; then
     fi
 
     if test ${USEZSTD} = yes; then
-        TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/zstd/lib`\"])
         TEA_ADD_SOURCES([
             zstd/lib/common/xxhash.c
             zstd/lib/common/zstd_common.c
