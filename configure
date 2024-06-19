@@ -662,6 +662,7 @@ COOKFS_PKGCONFIG_USECWRITER
 COOKFS_PKGCONFIG_USECVFS
 COOKFS_PKGCONFIG_FEATURE_METADATA
 COOKFS_PKGCONFIG_USECFSINDEX
+COOKFS_PKGCONFIG_USEZSTD
 COOKFS_PKGCONFIG_USELZMA
 COOKFS_PKGCONFIG_USEBZ2
 COOKFS_PKGCONFIG_USECWRITERCHAN
@@ -788,6 +789,7 @@ enable_symbols
 enable_internal_debug
 enable_bz2
 enable_lzma
+enable_zstd
 enable_tcl_fallback
 enable_c_pages
 enable_c_fsindex
@@ -1435,7 +1437,8 @@ Optional Features:
   --enable-symbols        build with debugging symbols (default: off)
   --enable-internal-debug   Enable internal debugging mechanism. Defaults to false
   --enable-bz2              Use bz2 compression. Defaults to false
-  --enable-lzma             Use lzma compression. Defaults to true
+  --disable-lzma            Use lzma compression. Defaults to true
+  --enable-zstd             Use zstd compression. Defaults to false
   --enable-tcl-fallback     Install Tcl scripts if load fails. Defaults to false
   --disable-c-pages         Use pages handling written in C. Defaults to true
   --disable-c-fsindex       Use index handling written in C. Defaults to true
@@ -8601,6 +8604,14 @@ else $as_nop
   USELZMA=yes
 fi
 
+# Check whether --enable-zstd was given.
+if test ${enable_zstd+y}
+then :
+  enableval=$enable_zstd; USEZSTD=${enableval}
+else $as_nop
+  USEZSTD=no
+fi
+
 # Check whether --enable-tcl-fallback was given.
 if test ${enable_tcl_fallback+y}
 then :
@@ -8918,10 +8929,168 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
     else
         COOKFS_PKGCONFIG_USELZMA=0
     fi
+
+    if test ${USEZSTD} = yes; then
+
+    vars="-I\"`${CYGPATH} ${srcdir}/zstd/lib`\""
+    for i in $vars; do
+	PKG_INCLUDES="$PKG_INCLUDES $i"
+    done
+
+
+
+    vars="
+            zstd/lib/common/xxhash.c
+            zstd/lib/common/zstd_common.c
+            zstd/lib/common/error_private.c
+            zstd/lib/common/entropy_common.c
+            zstd/lib/common/fse_decompress.c
+        "
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
+		    ; then
+		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+
+    vars="
+            zstd/lib/compress/zstd_compress.c
+            zstd/lib/compress/zstd_lazy.c
+            zstd/lib/compress/zstd_fast.c
+            zstd/lib/compress/zstd_double_fast.c
+            zstd/lib/compress/zstd_opt.c
+            zstd/lib/compress/zstd_ldm.c
+            zstd/lib/compress/hist.c
+            zstd/lib/compress/zstd_compress_sequences.c
+            zstd/lib/compress/huf_compress.c
+            zstd/lib/compress/fse_compress.c
+            zstd/lib/compress/zstd_compress_literals.c
+            zstd/lib/compress/zstd_compress_superblock.c
+        "
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
+		    ; then
+		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+
+    vars="
+            zstd/lib/decompress/zstd_decompress.c
+            zstd/lib/decompress/zstd_ddict.c
+            zstd/lib/decompress/zstd_decompress_block.c
+            zstd/lib/decompress/huf_decompress.c
+        "
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
+		    ; then
+		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+        printf "%s\n" "#define COOKFS_USEZSTD 1" >>confdefs.h
+
+        # Optimizing zstd by size
+        printf "%s\n" "#define HUF_FORCE_DECOMPRESS_X1 1" >>confdefs.h
+
+        printf "%s\n" "#define ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT 1" >>confdefs.h
+
+        printf "%s\n" "#define ZSTD_NO_INLINE 1" >>confdefs.h
+
+        printf "%s\n" "#define ZSTD_STRIP_ERROR_STRINGS 1" >>confdefs.h
+
+        # Don't use ASM as we don't have the appropriate targets in the makefile yet
+        printf "%s\n" "#define ZSTD_DISABLE_ASM 1" >>confdefs.h
+
+        COOKFS_PKGCONFIG_USEZSTD=1
+    else
+        COOKFS_PKGCONFIG_USEZSTD=0
+    fi
+
 else
     COOKFS_PKGCONFIG_USECPAGES=0
     COOKFS_PKGCONFIG_FEATURE_ASIDE=0
     COOKFS_PKGCONFIG_USELZMA=0
+    COOKFS_PKGCONFIG_USEZSTD=0
 
     # Tcl implementation offers bzip2 compression only with Trf package
     COOKFS_PKGCONFIG_USEBZ2=0
@@ -9191,6 +9360,7 @@ fi
 
 
 
+
 if test ${USECPKGCONFIG} = yes; then
     COOKFS_PKGCONFIG_USECPKGCONFIG=1
     printf "%s\n" "#define COOKFS_PKGCONFIG_FEATURE_ASIDE $COOKFS_PKGCONFIG_FEATURE_ASIDE" >>confdefs.h
@@ -9206,6 +9376,8 @@ if test ${USECPKGCONFIG} = yes; then
     printf "%s\n" "#define COOKFS_PKGCONFIG_USEBZ2 $COOKFS_PKGCONFIG_USEBZ2" >>confdefs.h
 
     printf "%s\n" "#define COOKFS_PKGCONFIG_USELZMA $COOKFS_PKGCONFIG_USELZMA" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_PKGCONFIG_USEZSTD $COOKFS_PKGCONFIG_USEZSTD" >>confdefs.h
 
     printf "%s\n" "#define COOKFS_PKGCONFIG_USECFSINDEX $COOKFS_PKGCONFIG_USECFSINDEX" >>confdefs.h
 

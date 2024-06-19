@@ -211,6 +211,8 @@ proc cookfs::tcl::pages::compress {name origdata} {
         set data "\u0002[binary format I [string length $origdata]][bz2 -mode compress $origdata]"
     } elseif {$c(cid) == 3} {
         error "Lzma compression is not supported by Tcl pages"
+    } elseif {$c(cid) == 4} {
+        error "zstd compression is not supported by Tcl pages"
     }  elseif {$c(cid) == 255} {
         if {$c(compresscommand) != ""} {
             set data "\u00ff[uplevel #0 [concat $c(compresscommand) [list $origdata]]]"
@@ -286,6 +288,9 @@ proc cookfs::tcl::pages::compression2cid {name} {
         lzma {
             return 3
         }
+        zstd {
+            return 4
+        }
         custom {
             return 255
         }
@@ -308,6 +313,9 @@ proc cookfs::tcl::pages::cid2compression {name} {
         }
         3 {
             return "lzma"
+        }
+        4 {
+            return "zstd"
         }
         255 {
             return "custom"

@@ -270,7 +270,7 @@ better compression ratio.</p>
 <p>See <span class="sectref"><a href="#section4">COOKFS STORAGE</a></span> for more details on how cookfs stores files, index and metadata.</p></dd>
 <dt><b class="option">-volume</b></dt>
 <dd><p>Register mount point as Tcl volume - useful for creating mount points in locations that do not exist - such as <i class="arg">archive://</i>.</p></dd>
-<dt><b class="option">-compression</b> <i class="arg">none|zlib|bz2|lzma|custom</i><span class="opt">?:<i class="arg">level</i>?</span></dt>
+<dt><b class="option">-compression</b> <i class="arg">none|zlib|bz2|lzma|zstd|custom</i><span class="opt">?:<i class="arg">level</i>?</span></dt>
 <dd><p>Compression to use for storing new files.</p>
 <p>See <span class="sectref"><a href="#section5">COMPRESSSION</a></span> for more details on compression in cookfs.</p></dd>
 <dt><b class="option">-compresscommand</b> <i class="arg">tcl command</i></dt>
@@ -373,6 +373,9 @@ cookfs. Compression levels can be from 1 to 9.</p></li>
 <li><p><b class="const">lzma</b> -
 use lzma for compression; requires specifying <b class="const">--enable-lzma</b> when building
 cookfs. Compression levels can be from 0 to 9.</p></li>
+<li><p><b class="const">zstd</b> -
+use Zstandard for compression; requires specifying <b class="const">--enable-zstd</b> when building
+cookfs. Compression levels can be from 1 to 22.</p></li>
 <li><p><b class="const">custom</b> -
 use Tcl commands for compressing and decompressing pages. The compression level
 is ignored in this case.</p></li>
