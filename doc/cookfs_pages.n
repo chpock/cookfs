@@ -435,7 +435,7 @@ Read archive starting at specified offset, instead of reading from end of file\&
 This feature is used when cookfs archive is not stored at end of file - for example if it is
 used in tclkit and followed by mk4vfs archive\&.
 .TP
-\fB-compression\fR \fInone|zlib|bz2|lzma|custom\fR
+\fB-compression\fR \fInone|zlib|bz2|lzma|zstd|custom\fR
 Compression to use for storing new files\&.
 .sp
 See \fBcookfs\fR for more details on compression in cookfs\&.

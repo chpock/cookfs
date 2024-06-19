@@ -4,3 +4,6 @@
 [submodule "7zip"]
 	path = 7zip
 	url = https://github.com/ip7z/7zip.git
+[submodule "zstd"]
+	path = zstd
+	url = https://github.com/facebook/zstd.git

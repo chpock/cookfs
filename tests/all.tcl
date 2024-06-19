@@ -47,6 +47,7 @@ tcltest::testConstraint cookfsCompressionNone 1
 tcltest::testConstraint cookfsCompressionZlib 1
 tcltest::testConstraint cookfsCompressionBz2  [cookfs::pkgconfig get feature-bzip2]
 tcltest::testConstraint cookfsCompressionLzma [cookfs::pkgconfig get feature-lzma]
+tcltest::testConstraint cookfsCompressionZstd [cookfs::pkgconfig get feature-zstd]
 
 tcltest::testConstraint enabledCVfs     [cookfs::pkgconfig get c-vfs]
 tcltest::testConstraint disabledCVfs    [expr { ![cookfs::pkgconfig get c-vfs] }]

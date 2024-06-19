@@ -47,7 +47,7 @@ There are packages for the following platforms:
 
 Copyright (c) 2010-2011 Wojciech Kocjan, Pawel Salawa
 
-Copyright (C) 2024 Konstantin Kushnir <chpock@gmail.com>
+Copyright (c) 2024 Konstantin Kushnir <chpock@gmail.com>
 
 ## License
 
@@ -58,7 +58,12 @@ This package contains bzip2 source code, which is copyright Julian R Seward.
 License for bzip2 is contained in file "bzip2/LICENSE" and applies to all
 files under bzip2/ subdirectory.
 
-This package contains LZMA SDK, which is under the public domain.
+This package contains LZMA SDK, which is copyright Igor Pavlov.
 
 License for LZMA SDK is contained in file "7zip/DOC/License.txt" and applies to all
 files under 7zip/ subdirectory.
+
+This package contains Zstandard source code, which is copyright Meta Platforms, Inc. and affiliates.
+
+License for Zstandard is contained in file "zstd/LICENSE" and applies to all
+files under zstd/ subdirectory.

@@ -1,5 +1,5 @@
 
-foreach { cid } { none zlib bz2 lzma } {
+foreach { cid } { none zlib bz2 lzma zstd } {
 
     set constraint "cookfsCompression[string totitle $cid]"
     set test_title "cookfsCompr[string totitle $cid]"
@@ -196,6 +196,7 @@ foreach { cid } { none zlib bz2 lzma } {
         set expected [dict get {
             none {1310722 1310722 1310722 1310722 1310722}
             zlib {330139 1310722 365353 342150 330139}
+            zstd {281911 357958 330325 319779 305182}
             bz2  {275045 293163 278827 280154 275046}
             lzma {272878 311432 303553 274791 272878}
         } $cid]
@@ -235,6 +236,7 @@ foreach { cid } { none zlib bz2 lzma } {
         set expected [dict get {
             none {1310722 1310722}
             zlib {330139 342150}
+            zstd {281911 319779}
             bz2  {275045 280154}
             lzma {272878 274791}
         } $cid]
