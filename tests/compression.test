@@ -155,11 +155,11 @@ foreach { cid } { none zlib bz2 lzma zstd } {
     tcltest::test "${test_title}-5.4" {Specify negative compression level} -constraints "$constraint enabledTclCmds" -setup {
         set file [tcltest::makeFile {} cookfs.cfs]
     } -body {
-        set pg [cookfs::pages -compression "${cid}:-1" $file]
+        set pg [cookfs::pages -compression "${cid}:-2" $file]
     } -cleanup {
         catch { $pg delete }
         unset -nocomplain file pg
-    } -returnCodes error -result {the compression level is expected to be an unsigned integer between 0 and 255, but got "-1"}
+    } -returnCodes error -result {the compression level is expected to be an integer between -1 and 255, but got "-2"}
 
     tcltest::test "${test_title}-5.5" {Specify overflow compression level} -constraints "$constraint enabledTclCmds" -setup {
         set file [tcltest::makeFile {} cookfs.cfs]
@@ -168,7 +168,7 @@ foreach { cid } { none zlib bz2 lzma zstd } {
     } -cleanup {
         catch { $pg delete }
         unset -nocomplain file pg
-    } -returnCodes error -result {the compression level is expected to be an unsigned integer between 0 and 255, but got "256"}
+    } -returnCodes error -result {the compression level is expected to be an integer between -1 and 255, but got "256"}
 
     tcltest::test "${test_title}-6.1" {Test compression levels, pages} -constraints "$constraint enabledTclCmds enabledCPages" -setup {
         set file [tcltest::makeFile {} cookfs.cfs]
@@ -195,10 +195,10 @@ foreach { cid } { none zlib bz2 lzma zstd } {
         }
         set expected [dict get {
             none {1310722 1310722 1310722 1310722 1310722}
-            zlib {330139 1310722 365353 342150 330139}
-            zstd {281911 357958 330325 319779 305182}
+            zlib {335801 395825 365353 342150 330139}
+            zstd {330325 357958 330325 319779 305182}
             bz2  {275045 293163 278827 280154 275046}
-            lzma {272878 311432 303553 274791 272878}
+            lzma {274791 311432 303553 274791 272878}
         } $cid]
         if { $expected eq $result } {
             set result ok
@@ -235,10 +235,10 @@ foreach { cid } { none zlib bz2 lzma zstd } {
         }
         set expected [dict get {
             none {1310722 1310722}
-            zlib {330139 342150}
-            zstd {281911 319779}
+            zlib {335801 342150}
+            zstd {330325 319779}
             bz2  {275045 280154}
-            lzma {272878 274791}
+            lzma {274791 274791}
         } $cid]
         if { $expected eq $result } {
             set result ok

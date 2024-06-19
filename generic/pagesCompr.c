@@ -66,32 +66,24 @@ const char *cookfsCompressionOptions[] = {
 };
 
 /* names for all defined compressions */
-const char *cookfsCompressionNames[256] = {
-    "none",
-    "zlib",
-    "bz2",
-    "lzma",
-    "zstd",
-    "", "", "", "", "", "", "", "", "", "", "",
-    /* 0x10 - 0x1f */
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    /* 0x10 - 0x1f */
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    /* 0xf0 - 0xfe */
-    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-    "custom"
+const char *cookfsCompressionNames[15] = {
+    "none",  /*  0 */
+    "zlib",  /*  1 */
+    "bz2",   /*  2 */
+    "lzma",  /*  3 */
+    "zstd",  /*  4 */
+    "", "", "", "", "", "", "", "", "", /* 5 - 13 */
+    "custom" /* 14 */
+};
+
+const unsigned char cookfsCompressionLevels[15] = {
+    0,  /* none   -  0 */
+    6,  /* zlib   -  1 */
+    9,  /* bz2    -  2 */
+    5,  /* lzma   -  3 */
+    3,  /* zstd   -  4 */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, /* 5 - 13 */
+    0   /* custom - 14 */
 };
 
 const int cookfsCompressionOptionMap[] = {
@@ -140,7 +132,7 @@ int Cookfs_CompressionFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
 #else
     int compression = COOKFS_COMPRESSION_ZLIB;
 #endif
-    int compressionLevel = 255;
+    int compressionLevel = -1;
 
     if (obj != NULL) {
 
@@ -193,9 +185,9 @@ int Cookfs_CompressionFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
         if (Tcl_GetIntFromObj(interp, level, &compressionLevel) != TCL_OK) {
             goto error;
         }
-        if (compressionLevel < 0 || compressionLevel > 255) {
+        if (compressionLevel < -1 || compressionLevel > 255) {
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("the compression level"
-                " is expected to be an unsigned integer between 0 and 255,"
+                " is expected to be an integer between -1 and 255,"
                 " but got \"%d\"", compressionLevel));
             goto error;
         }
@@ -215,6 +207,9 @@ error:
 
 done:
     *compressionPtr = compression;
+    if (compressionLevel == -1) {
+        compressionLevel = cookfsCompressionLevels[compression];
+    }
     *compressionLevelPtr = compressionLevel;
     CookfsLog(printf("Cookfs_CompressionFromObj: return method [%d]"
         " level [%d]", compression, compressionLevel));
@@ -1212,8 +1207,8 @@ static int CookfsWritePageZlib(Cookfs_Pages *p, unsigned char *bytes, int origSi
     Tcl_ZlibStream zshandle;
 
     int level = p->fileCompressionLevel;
-    if (level < 0) {
-        level = 0;
+    if (level < 1) {
+        level = 1;
     } else if (level >= 255) {
         level = 9;
     }

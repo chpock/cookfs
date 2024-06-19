@@ -270,9 +270,9 @@ proc cookfs::tcl::pages::compression2cid {name} {
     if { [string length $level] } {
         if { ![string is integer -strict $level] } {
             return -code error "expected integer but got \"$level\""
-        } elseif { $level < 0 || $level > 255 } {
+        } elseif { $level < -1 || $level > 255 } {
             return -code error "the compression level is expected to be\
-                an unsigned integer between 0 and 255, but got \"$level\""
+                an integer between -1 and 255, but got \"$level\""
         }
     }
     switch -- $name {

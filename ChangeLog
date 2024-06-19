@@ -1,5 +1,6 @@
 2024-06-20 Konstantin Kushnir <chpock@gmail.com>
 	* Add support for Zstandard compression
+	* Use resonable default compression levels
 
 2024-06-19 Konstantin Kushnir <chpock@gmail.com>
 	* Add support for specifying the compression level

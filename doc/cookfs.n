@@ -566,7 +566,7 @@ saved\&. Existing pages are not re-compressed on compression change\&.
 .PP
 The \fI-compression\fR option accepts a compression method and an optional
 compression level, separated by a colon character (\fB:\fR)\&. The compression
-level must be an unsigned integer in the range of 0 to 255\&. Different compression
+level must be an integer in the range of -1 to 255\&. Different compression
 methods define the compression level differently\&. However, it is safe to specify
 a compression level that is lower or higher than what is supported by
 a particular method\&. In these cases, the minimum or maximum level will be used
@@ -574,14 +574,14 @@ according to the specific compression method\&. This means that it is possible
 and safe to specify level 255 for any method, and the maximum level
 will be used\&.
 .PP
-By default, if no compression level is specified or is an empty string,
-the maximum compression level will be used for the chosen compression method\&.
+If no compression level is specified, or it is an empty string or -1, then
+the default level value specific to the chosen compression method will be used\&.
 .PP
 For example:
 .CS
 
 
-# This will mount an archive with the zlib compression method and with default level (9)
+# This will mount an archive with the zlib compression method and with default level (6)
 cookfs::Mount archive archive -compression zlib
 
 # This will mount an archive with the lzma compression method and with compression level 3
@@ -600,19 +600,22 @@ content should not be packed at all\&. The compression level is ignored in this 
 .IP \(bu
 \fBzlib\fR -
 use zlib compression to compress - same as with mk4vfs and zipvfs\&. Compression levels
-can be from 0 to 9\&.
+can be from 1 to 9\&. The default compression level is 6\&.
 .IP \(bu
 \fBbz2\fR -
 use bzip2 for compression; requires specifying \fB--enable-bz2\fR when building
-cookfs\&. Compression levels can be from 1 to 9\&.
+cookfs\&. Compression levels can be from 1 to 9\&. The default compression level is 9\&.
+The compression level for this method means the block size and is counted as
+the level multiplied by 100k bytes\&. The default compression level of 9 corresponds
+to a block size of 900 KB\&.
 .IP \(bu
 \fBlzma\fR -
 use lzma for compression; requires specifying \fB--enable-lzma\fR when building
-cookfs\&. Compression levels can be from 0 to 9\&.
+cookfs\&. Compression levels can be from 0 to 9\&. The default compression level is 5\&.
 .IP \(bu
 \fBzstd\fR -
 use Zstandard for compression; requires specifying \fB--enable-zstd\fR when building
-cookfs\&. Compression levels can be from 1 to 22\&.
+cookfs\&. Compression levels can be from 1 to 22\&. The default compression level is 3\&.
 .IP \(bu
 \fBcustom\fR -
 use Tcl commands for compressing and decompressing pages\&. The compression level
