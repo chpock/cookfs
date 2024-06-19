@@ -1,6 +1,7 @@
 2024-06-19 Konstantin Kushnir <chpock@gmail.com>
 	* Add support for specifying the compression level
 	* Add minor fixes to documentation according to recent changes
+	* Fix possible crash with malformed archives
 
 2024-06-18 Konstantin Kushnir <chpock@gmail.com>
 	* Add multi-threading support
