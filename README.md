@@ -12,7 +12,7 @@ It is designed only for use as Tcl VFS and provides multiple optimizations espec
 
 ## Compatibility
 
-This package requires Tcl 8.5 or later, however it has only been tested with Tcl 8.6.14.
+This package requires Tcl 8.5 or later, however it has only been tested with Tcl 8.6.14 and Tcl 9.0b2
 
 Tcl variant of Cookfs also requires the [tclvfs](https://core.tcl-lang.org/tclvfs/index) package.
 
