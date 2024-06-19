@@ -1,5 +1,2 @@
 * Add support for encrypted/password protected files
-* Add support for zstd
-* Add support for compressing options (compression level or anything else?)
 * Consider mapping archive to memory to improve performance on readonly VFS
-* Add ability use the same VFS from all threads
