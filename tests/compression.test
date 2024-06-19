@@ -125,4 +125,128 @@ foreach { cid } { none zlib bz2 lzma } {
         unset -nocomplain pg page_size ok file dir
     }
 
+    tcltest::test "${test_title}-5.1" {Specify no compression level} -constraints "$constraint enabledTclCmds" -setup {
+        set file [tcltest::makeFile {} cookfs.cfs]
+    } -body {
+        set pg [cookfs::pages -compression "${cid}" $file]
+    } -cleanup {
+        catch { $pg delete }
+        unset -nocomplain file pg
+    } -match glob -result {::cookfs::*::pages::handle*}
+
+    tcltest::test "${test_title}-5.2" {Specify empty compression level} -constraints "$constraint enabledTclCmds" -setup {
+        set file [tcltest::makeFile {} cookfs.cfs]
+    } -body {
+        set pg [cookfs::pages -compression "${cid}:" $file]
+    } -cleanup {
+        catch { $pg delete }
+        unset -nocomplain file pg
+    } -match glob -result {::cookfs::*::pages::handle*}
+
+    tcltest::test "${test_title}-5.3" {Specify wrong compression level} -constraints "$constraint enabledTclCmds" -setup {
+        set file [tcltest::makeFile {} cookfs.cfs]
+    } -body {
+        set pg [cookfs::pages -compression "${cid}:a" $file]
+    } -cleanup {
+        catch { $pg delete }
+        unset -nocomplain file pg
+    } -returnCodes error -result {expected integer but got "a"}
+
+    tcltest::test "${test_title}-5.4" {Specify negative compression level} -constraints "$constraint enabledTclCmds" -setup {
+        set file [tcltest::makeFile {} cookfs.cfs]
+    } -body {
+        set pg [cookfs::pages -compression "${cid}:-1" $file]
+    } -cleanup {
+        catch { $pg delete }
+        unset -nocomplain file pg
+    } -returnCodes error -result {the compression level is expected to be an unsigned integer between 0 and 255, but got "-1"}
+
+    tcltest::test "${test_title}-5.5" {Specify overflow compression level} -constraints "$constraint enabledTclCmds" -setup {
+        set file [tcltest::makeFile {} cookfs.cfs]
+    } -body {
+        set pg [cookfs::pages -compression "${cid}:256" $file]
+    } -cleanup {
+        catch { $pg delete }
+        unset -nocomplain file pg
+    } -returnCodes error -result {the compression level is expected to be an unsigned integer between 0 and 255, but got "256"}
+
+    tcltest::test "${test_title}-6.1" {Test compression levels, pages} -constraints "$constraint enabledTclCmds enabledCPages" -setup {
+        set file [tcltest::makeFile {} cookfs.cfs]
+        set data [makeRandomText]
+    } -body {
+        set pg [cookfs::pages -compression "$cid" $file]
+        $pg add 0$data
+        $pg compression "${cid}:0"
+        $pg add 1$data
+        $pg compression "${cid}:3"
+        $pg add 2$data
+        $pg compression "${cid}:5"
+        $pg add 3$data
+        $pg compression "${cid}:9"
+        $pg add 4$data
+        set pglen [$pg length]
+        set result [list]
+        for { set i 0 } { $i < $pglen } { incr i } {
+            if { $i == [expr { $pglen - 1 }] } {
+                lappend result [expr { [$pg filesize] - [$pg dataoffset $i] }]
+            } else {
+                lappend result [expr { [$pg dataoffset [expr { $i + 1 }]] - [$pg dataoffset $i] }]
+            }
+        }
+        set expected [dict get {
+            none {1310722 1310722 1310722 1310722 1310722}
+            zlib {330139 1310722 365353 342150 330139}
+            bz2  {275045 293163 278827 280154 275046}
+            lzma {272878 311432 303553 274791 272878}
+        } $cid]
+        if { $expected eq $result } {
+            set result ok
+        } else {
+            set result " - not ok\nexpected: $expected\nresult: $result"
+        }
+        list $pglen $result
+    } -cleanup {
+        catch { $pg delete }
+        unset -nocomplain pg file data pglen i result expected
+    } -result {5 ok}
+
+    tcltest::test "${test_title}-6.2" {Test compression levels, VFS} -constraints "$constraint enabledTclCmds enabledCPages" -setup {
+        set file [tcltest::makeFile {} cookfs.cfs]
+        set data [makeRandomText]
+    } -body {
+        set fsid [cookfs::Mount $file $file -compression "$cid" -pagesize 0x1000000 -smallfilebuffer 0]
+        set fp [open [file join $file 1] wb]
+        puts -nonewline $fp 0$data
+        close $fp
+        $fsid compression "${cid}:5"
+        set fp [open [file join $file 2] wb]
+        puts -nonewline $fp 3$data
+        close $fp
+        set pg [$fsid getpages]
+        set pglen [$pg length]
+        set result [list]
+        for { set i 0 } { $i < $pglen } { incr i } {
+            if { $i == [expr { $pglen - 1 }] } {
+                lappend result [expr { [$pg filesize] - [$pg dataoffset $i] }]
+            } else {
+                lappend result [expr { [$pg dataoffset [expr { $i + 1 }]] - [$pg dataoffset $i] }]
+            }
+        }
+        set expected [dict get {
+            none {1310722 1310722}
+            zlib {330139 342150}
+            bz2  {275045 280154}
+            lzma {272878 274791}
+        } $cid]
+        if { $expected eq $result } {
+            set result ok
+        } else {
+            set result " - not ok\nexpected: $expected\nresult: $result"
+        }
+        list $pglen $result
+    } -cleanup {
+        catch { cookfs::Unmount $file }
+        unset -nocomplain fsid pg file data pglen i result expected fp
+    } -result {2 ok}
+
 }

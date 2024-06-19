@@ -1,3 +1,6 @@
+2024-06-19 Konstantin Kushnir <chpock@gmail.com>
+	* Add support for specifying the compression level
+
 2024-06-18 Konstantin Kushnir <chpock@gmail.com>
 	* Add multi-threading support
 

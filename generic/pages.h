@@ -12,8 +12,8 @@ typedef struct _Cookfs_Pages Cookfs_Pages;
 Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName);
 
 Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
-    int fileReadOnly, int fileCompression, char *fileSignature,
-    int useFoffset, Tcl_WideInt foffset, int isAside,
+    int fileReadOnly, int fileCompression, int fileCompressionLevel,
+    char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside,
     int asyncDecompressQueueSize, Tcl_Obj *compressCommand,
     Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand,
     Tcl_Obj *asyncDecompressCommand, Tcl_Obj **err);
@@ -36,8 +36,9 @@ void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size);
 int Cookfs_PagesGetAlwaysCompress(Cookfs_Pages *p);
 */
 void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress);
-int Cookfs_PagesGetCompression(Cookfs_Pages *p);
-void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression);
+int Cookfs_PagesGetCompression(Cookfs_Pages *p, int *fileCompressionLevel);
+void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression,
+    int fileCompressionLevel);
 
 /* Not used as for now
 int Cookfs_PagesIsReadonly(Cookfs_Pages *p);

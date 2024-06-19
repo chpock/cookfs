@@ -117,25 +117,95 @@ const int cookfsCompressionOptionMap[] = {
  *----------------------------------------------------------------------
  */
 
-int Cookfs_CompressionFromObj(Tcl_Interp *interp, Tcl_Obj *obj, int *compressionPtr) {
+int Cookfs_CompressionFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
+    int *compressionPtr, int *compressionLevelPtr)
+{
+    CookfsLog(printf("Cookfs_CompressionFromObj: from [%s]",
+        obj == NULL ? "<NULL>" : Tcl_GetString(obj)));
+
 #ifdef COOKFS_USELZMA
     int compression = COOKFS_COMPRESSION_LZMA;
 #else
     int compression = COOKFS_COMPRESSION_ZLIB;
 #endif
+    int compressionLevel = 255;
 
     if (obj != NULL) {
-        if (Tcl_GetIndexFromObj(interp, obj,
+
+        Tcl_Obj *method;
+        Tcl_Obj *level = NULL;
+
+        Tcl_Size len;
+        char *str = Tcl_GetStringFromObj(obj, &len);
+        char *colonPos = strrchr(str, ':');
+        if (colonPos == NULL) {
+            // If no colon is found, assume obj is a compression method
+            method = Tcl_DuplicateObj(obj);
+            CookfsLog(printf("Cookfs_CompressionFromObj: only method is"
+                " specified"));
+        } else if (colonPos[1] == '\0') {
+            // If colos is in the last position, create a new object
+            // and delete the last character
+            method = Tcl_NewStringObj(str, len - 1);
+            CookfsLog(printf("Cookfs_CompressionFromObj: method and an empty"
+                " level is specified"));
+        } else {
+            // Split obj to method obj (before the colon) and level obj
+            // (after the colon)
+            method = Tcl_NewStringObj(str, colonPos - str);
+            level = Tcl_NewStringObj(++colonPos, -1);
+            Tcl_IncrRefCount(level);
+            CookfsLog(printf("Cookfs_CompressionFromObj: method [%s] and"
+                " level [%s] are specified", Tcl_GetString(method),
+                Tcl_GetString(level)));
+        }
+        Tcl_IncrRefCount(method);
+
+        if (Tcl_GetIndexFromObj(interp, method,
             (const char **)cookfsCompressionOptions, "compression", 0,
             &compression) != TCL_OK)
         {
-            return TCL_ERROR;
+            CookfsLog(printf("Cookfs_CompressionFromObj: failed to detect"
+                " compression method"));
+            goto error;
         }
         /* map compression from cookfsCompressionOptionMap */
         compression = cookfsCompressionOptionMap[compression];
+        CookfsLog(printf("Cookfs_CompressionFromObj: detected"
+            " compression: %d", compression));
+
+        if (level == NULL) {
+            goto nolevel;
+        }
+
+        if (Tcl_GetIntFromObj(interp, level, &compressionLevel) != TCL_OK) {
+            goto error;
+        }
+        if (compressionLevel < 0 || compressionLevel > 255) {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf("the compression level"
+                " is expected to be an unsigned integer between 0 and 255,"
+                " but got \"%d\"", compressionLevel));
+            goto error;
+        }
+        Tcl_DecrRefCount(level);
+
+nolevel:
+        Tcl_DecrRefCount(method);
+        goto done;
+
+error:
+        Tcl_DecrRefCount(method);
+        if (level != NULL) {
+            Tcl_DecrRefCount(level);
+        }
+        return TCL_ERROR;
     }
 
+done:
     *compressionPtr = compression;
+    *compressionLevelPtr = compressionLevel;
+    CookfsLog(printf("Cookfs_CompressionFromObj: return method [%d]"
+        " level [%d]", compression, compressionLevel));
     return TCL_OK;
 }
 
@@ -1123,7 +1193,14 @@ static int CookfsWritePageZlib(Cookfs_Pages *p, unsigned char *bytes, int origSi
     Tcl_Obj *cobj;
     Tcl_ZlibStream zshandle;
 
-    if (Tcl_ZlibStreamInit(NULL, TCL_ZLIB_STREAM_DEFLATE, TCL_ZLIB_FORMAT_RAW, 9, NULL, &zshandle) != TCL_OK) {
+    int level = p->fileCompressionLevel;
+    if (level < 0) {
+        level = 0;
+    } else if (level >= 255) {
+        level = 9;
+    }
+
+    if (Tcl_ZlibStreamInit(NULL, TCL_ZLIB_STREAM_DEFLATE, TCL_ZLIB_FORMAT_RAW, level, NULL, &zshandle) != TCL_OK) {
 	CookfsLog(printf("Cookfs_WritePage: Tcl_ZlibStreamInit failed!"))
 	return -1;
     }
@@ -1244,7 +1321,12 @@ static int CookfsWritePageLzma(Cookfs_Pages *p, unsigned char *bytes, int origSi
 
     CLzmaEncProps props;
     LzmaEncProps_Init(&props);
-    props.level = 9;
+    props.level = p->fileCompressionLevel;
+    if (props.level < 0) {
+        props.level = 0;
+    } else if (props.level >= 255) {
+        props.level = 9;
+    }
     props.reduceSize = origSize;
     LzmaEncProps_Normalize(&props);
 
@@ -1263,7 +1345,7 @@ static int CookfsWritePageLzma(Cookfs_Pages *p, unsigned char *bytes, int origSi
     // LzmaEncode()
     size_t destLen = origSize - 4 - LZMA_PROPS_SIZE;
 
-    CookfsLog(printf("CookfsWritePageLzma: call LzmaEncode() ..."));
+    CookfsLog(printf("CookfsWritePageLzma: call LzmaEncode() level %d ...", props.level));
     SizeT propsSize = LZMA_PROPS_SIZE;
     SRes res = LzmaEncode(&dest[4 + LZMA_PROPS_SIZE], &destLen, bytes,
         origSize, &props, &dest[4], &propsSize, 0, NULL, &g_CookfsLzmaAlloc,
@@ -1501,6 +1583,13 @@ static int CookfsWritePageBz2(Cookfs_Pages *p, unsigned char *bytes, int origSiz
     unsigned char *dest;
     Tcl_Obj *destObj;
 
+    int level = p->fileCompressionLevel;
+    if (level < 1) {
+        level = 1;
+    } else if (level >= 255) {
+        level = 9;
+    }
+
     source = bytes;
     destObj = Tcl_NewByteArrayObj(NULL, 0);
     size = origSize * 2 + 1024;
@@ -1508,7 +1597,7 @@ static int CookfsWritePageBz2(Cookfs_Pages *p, unsigned char *bytes, int origSiz
     dest = Tcl_GetByteArrayFromObj(destObj, NULL);
 
     Cookfs_Int2Binary(&origSize, (unsigned char *) dest, 1);
-    if (BZ2_bzBuffToBuffCompress((char *) (dest + 4), (unsigned int *) &size, (char *) source, (unsigned int) origSize, 5, 0, 0) != BZ_OK) {
+    if (BZ2_bzBuffToBuffCompress((char *) (dest + 4), (unsigned int *) &size, (char *) source, (unsigned int) origSize, level, 0, 0) != BZ_OK) {
 	CookfsLog(printf("Cookfs_WritePage: BZ2_bzBuffToBuffCompress failed"))
 	return -1;
     }

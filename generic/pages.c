@@ -12,7 +12,7 @@
 #include "pagesInt.h"
 #include "pagesCompr.h"
 
-#define COOKFS_SUFFIX_BYTES 16
+#define COOKFS_SUFFIX_BYTES 17
 
 // read by 512kb chunks
 #define COOKFS_SEARCH_STAMP_CHUNK 524288
@@ -282,8 +282,9 @@ Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName) {
  *----------------------------------------------------------------------
  */
 Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
-    int fileReadOnly, int fileCompression, char *fileSignature, int useFoffset,
-    Tcl_WideInt foffset, int isAside, int asyncDecompressQueueSize,
+    int fileReadOnly, int fileCompression, int fileCompressionLevel,
+    char *fileSignature, int useFoffset, Tcl_WideInt foffset,
+    int isAside, int asyncDecompressQueueSize,
     Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand,
     Tcl_Obj *asyncCompressCommand, Tcl_Obj *asyncDecompressCommand,
     Tcl_Obj **err)
@@ -339,7 +340,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     /* initialize parameters */
     rc->fileLastOp = COOKFS_LASTOP_UNKNOWN;
     rc->fileCompression = fileCompression;
-    rc->fileCompressionLevel = 9;
+    rc->fileCompressionLevel = fileCompressionLevel;
     rc->dataNumPages = 0;
     rc->dataPagesDataSize = 256;
     rc->dataPagesSize = (int *) ckalloc(rc->dataPagesDataSize * sizeof(int));
@@ -382,7 +383,9 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     rc->cacheSize = 0;
     rc->cacheMaxAge = COOKFS_MAX_CACHE_AGE;
 
-    CookfsLog(printf("Opening file %s as %s with compression %d", Tcl_GetStringFromObj(fileName, NULL), (rc->fileReadOnly ? "r" : "w+"), fileCompression))
+    CookfsLog(printf("Opening file %s as %s with compression %d level %d",
+        Tcl_GetStringFromObj(fileName, NULL), (rc->fileReadOnly ? "rb" : "ab+"),
+        fileCompression, fileCompressionLevel));
 
     /* open file for reading / writing */
     CookfsLog(printf("Cookfs_PagesInit - Tcl_FSOpenFileChannel"))
@@ -393,7 +396,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     }
 
     rc->fileChannel = Tcl_FSOpenFileChannel(interp, fileName,
-	(rc->fileReadOnly ? "r" : "RDWR CREAT"), 0666);
+	(rc->fileReadOnly ? "rb" : "ab+"), 0666);
 
     if (rc->fileChannel == NULL) {
 	/* convert error message from previous error */
@@ -413,24 +416,6 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
 	}
         CookfsLog(printf("Cookfs_PagesInit - cleaning up"))
 	Cookfs_PagesFini(rc);
-	return NULL;
-    }
-
-    /* initialize binary encoding */
-    if (Tcl_SetChannelOption(NULL, rc->fileChannel, "-encoding", "binary") != TCL_OK) {
-	CookfsLog(printf("Unable to set -encoding option"))
-	Cookfs_PagesFini(rc);
-	if (interp != NULL) {
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to initialize channel encoding", -1));
-	}
-	return NULL;
-    }
-    if (Tcl_SetChannelOption(NULL, rc->fileChannel, "-translation", "binary") != TCL_OK) {
-	CookfsLog(printf("Unable to set -translation option"))
-	Cookfs_PagesFini(rc);
-	if (interp != NULL) {
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to initialize channel translation", -1));
-	}
 	return NULL;
     }
 
@@ -476,10 +461,12 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     /* force compression since we want to use target compression anyway */
     if (!rc->fileReadOnly) {
 	rc->fileCompression = fileCompression;
-	rc->fileCompressionLevel = 9;
+	rc->fileCompressionLevel = fileCompressionLevel;
     }
 
-    CookfsLog(printf("Opening file %s - compression %d", Tcl_GetStringFromObj(fileName, NULL), rc->fileCompression))
+    CookfsLog(printf("Opening file %s - compression %d level %d",
+        Tcl_GetStringFromObj(fileName, NULL),
+        rc->fileCompression, rc->fileCompressionLevel));
 
     return rc;
 }
@@ -561,7 +548,8 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
 
         /* provide compression type and file signature */
         buf[8] = p->fileCompression;
-        memcpy(buf + 9, p->fileSignature, 7);
+        buf[9] = p->fileCompressionLevel;
+        memcpy(buf + 10, p->fileSignature, 7);
 
         obj = Tcl_NewByteArrayObj(buf, COOKFS_SUFFIX_BYTES);
         Tcl_IncrRefCount(obj);
@@ -1838,8 +1826,11 @@ void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress) {
  *----------------------------------------------------------------------
  */
 
-int Cookfs_PagesGetCompression(Cookfs_Pages *p) {
+int Cookfs_PagesGetCompression(Cookfs_Pages *p, int *fileCompressionLevel) {
     Cookfs_PagesWantRead(p);
+    if (fileCompressionLevel != NULL) {
+        *fileCompressionLevel = p->fileCompressionLevel;
+    }
     return p->fileCompression;
 }
 
@@ -1860,12 +1851,17 @@ int Cookfs_PagesGetCompression(Cookfs_Pages *p) {
  *----------------------------------------------------------------------
  */
 
-void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression) {
+void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression,
+    int fileCompressionLevel)
+{
     Cookfs_PagesWantWrite(p);
-    if (p->fileCompression != fileCompression) {
-	// ensure all async pages are written
-	while(Cookfs_AsyncCompressWait(p, 1)) {};
+    if (p->fileCompression != fileCompression ||
+        p->fileCompressionLevel != fileCompressionLevel)
+    {
+        // ensure all async pages are written
+        while(Cookfs_AsyncCompressWait(p, 1)) {};
         p->fileCompression = fileCompression;
+        p->fileCompressionLevel = fileCompressionLevel;
     }
 }
 
@@ -2014,6 +2010,7 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj **err) {
     int pageCount = 0;
     int indexLength = 0;
     int pageCompression = 0;
+    int pageCompressionLevel = 0;
     Tcl_WideInt fileSize = 0;
     Tcl_WideInt seekOffset = 0;
     Tcl_Obj *buffer = NULL;
@@ -2090,7 +2087,7 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj **err) {
 	return 0;
     }
     bytes = Tcl_GetByteArrayFromObj(buffer, NULL);
-    if (memcmp(bytes + 9, p->fileSignature, COOKFS_SIGNATURE_LENGTH) != 0) {
+    if (memcmp(bytes + 10, p->fileSignature, COOKFS_SIGNATURE_LENGTH) != 0) {
 	Tcl_DecrRefCount(buffer);
 	CookfsLog(printf("Invalid file signature found"))
 	if (interp != NULL) {
@@ -2101,10 +2098,13 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj **err) {
 
     /* get default compression, index length and number of pages */
     pageCompression = bytes[8] & 0xff;
+    pageCompressionLevel = bytes[9] & 0xff;
     p->fileCompression = pageCompression;
+    p->fileCompressionLevel = pageCompressionLevel;
     Cookfs_Binary2Int(bytes, &indexLength, 1);
     Cookfs_Binary2Int(bytes + 4, &pageCount, 1);
-    CookfsLog(printf("Pages=%d; compression=%d", pageCount, pageCompression))
+    CookfsLog(printf("Pages=%d; compression=%d level=%d", pageCount,
+        pageCompression, pageCompressionLevel))
     Tcl_DecrRefCount(buffer);
 
     CookfsLog(printf("indexLength=%d pageCount=%d foffset=%d", indexLength, pageCount, p->useFoffset))
