@@ -3,7 +3,7 @@
 '\" Copyright (c) 2010-2011 Wojciech Kocjan <wojciech@kocjan\&.org>
 '\" Copyright (c) 2024 Konstantin Kushnir <chpock@gmail\&.com>
 '\"
-.TH "cookfs" n 1\&.7\&.0 cookfs "vfs::cookfs"
+.TH "cookfs" n 1\&.7\&.0 cookfs "cookfs"
 .\" The -*- nroff -*- definitions below are for supplemental macros used
 .\" in Tcl/Tk manual entries.
 .\"
@@ -273,11 +273,11 @@ Database Class:	\\fB\\$3\\fR
 ..
 .BS
 .SH NAME
-cookfs \- vfs::cookfs
+cookfs \- cookfs
 .SH SYNOPSIS
 package require \fBTcl 8\&.5\fR
 .sp
-package require \fBvfs::cookfs ?1\&.7\&.0?\fR
+package require \fBcookfs ?1\&.7\&.0?\fR
 .sp
 \fB::cookfs::Mount\fR ?\fIoptions\fR? \fIarchive\fR \fIlocal\fR ?\fIoptions\fR?
 .sp
@@ -307,7 +307,7 @@ package require \fBvfs::cookfs ?1\&.7\&.0?\fR
 .sp
 .BE
 .SH DESCRIPTION
-Package \fBvfs::cookfs\fR is a Tcl virtual filesystem (VFS) that allows
+Package \fBcookfs\fR is a Tcl virtual filesystem (VFS) that allows
 storing one or more files in a single file\&. This is similar to mk4vfs, zipvfs
 and many other archive formats\&.
 .PP
@@ -474,7 +474,7 @@ See \fBCOOKFS STORAGE\fR for more details on how cookfs stores files, index and 
 \fB-volume\fR
 Register mount point as Tcl volume - useful for creating mount points in locations that do not exist - such as \fIarchive://\fR\&.
 .TP
-\fB-compression\fR \fInone|zlib|bzip2|xz|custom\fR?:\fIlevel\fR?
+\fB-compression\fR \fInone|zlib|bz2|lzma|custom\fR?:\fIlevel\fR?
 Compression to use for storing new files\&.
 .sp
 See \fBCOMPRESSSION\fR for more details on compression in cookfs\&.
@@ -582,13 +582,13 @@ For example:
 
 
 # This will mount an archive with the zlib compression method and with default level (9)
-vfs::cookfs::Mount archive archive -compression zlib
+cookfs::Mount archive archive -compression zlib
 
 # This will mount an archive with the lzma compression method and with compression level 3
-vfs::cookfs::Mount archive archive -compression lzma:3
+cookfs::Mount archive archive -compression lzma:3
 
 # This will mount an archive with the bzip2 compression method and with the maximum compression level for that method (9)
-vfs::cookfs::Mount archive archive -compression bz2:255
+cookfs::Mount archive archive -compression bz2:255
 
 .CE
 .PP
@@ -606,8 +606,8 @@ can be from 0 to 9\&.
 use bzip2 for compression; requires specifying \fB--enable-bz2\fR when building
 cookfs\&. Compression levels can be from 1 to 9\&.
 .IP \(bu
-\fBxz\fR -
-use xz for compression; requires specifying \fB--enable-xz\fR when building
+\fBlzma\fR -
+use lzma for compression; requires specifying \fB--enable-lzma\fR when building
 cookfs\&. Compression levels can be from 0 to 9\&.
 .IP \(bu
 \fBcustom\fR -
@@ -632,7 +632,7 @@ proc testd {d} {
     return $rc
 }
 
-vfs::cookfs::Mount archive archive -compression custom -compresscommand testc -decompresscommand testd
+cookfs::Mount archive archive -compression custom -compresscommand testc -decompresscommand testd
 
 .CE
 .PP

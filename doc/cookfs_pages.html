@@ -1,7 +1,7 @@
 <!DOCTYPE html><html><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>cookfs::pages - vfs::cookfs::pages</title>
+<title>cookfs::pages - cookfs::pages</title>
 <style type="text/css"><!--
     HTML {
 	background: 	#FFFFFF;
@@ -100,9 +100,9 @@
 <!-- cookfs::pages.n
    -->
 <body><div class="doctools">
-<h1 class="doctools_title">cookfs::pages(n) 1.7.0 cookfs_pages &quot;vfs::cookfs::pages&quot;</h1>
+<h1 class="doctools_title">cookfs::pages(n) 1.7.0 cookfs_pages &quot;cookfs::pages&quot;</h1>
 <div id="name" class="doctools_section"><h2><a name="name">Name</a></h2>
-<p>cookfs::pages - vfs::cookfs::pages</p>
+<p>cookfs::pages - cookfs::pages</p>
 </div>
 <div id="toc" class="doctools_section"><h2><a name="toc">Table Of Contents</a></h2>
 <ul class="doctools_toc">
@@ -120,7 +120,7 @@
 <div class="doctools_synopsis">
 <ul class="doctools_requirements">
 <li>package require <b class="pkgname">Tcl 8.5</b></li>
-<li>package require <b class="pkgname">vfs::cookfs <span class="opt">?1.7.0?</span></b></li>
+<li>package require <b class="pkgname">cookfs <span class="opt">?1.7.0?</span></b></li>
 </ul>
 <ul class="doctools_syntax">
 <li><a href="#1"><b class="cmd">::cookfs::pages</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i></a></li>
@@ -233,7 +233,7 @@ for efficient access.</p></dd>
 <dd><p>Read archive starting at specified offset, instead of reading from end of file.</p>
 <p>This feature is used when cookfs archive is not stored at end of file - for example if it is
 used in tclkit and followed by mk4vfs archive.</p></dd>
-<dt><b class="option">-compression</b> <i class="arg">none|zlib|bzip2|xz|custom</i></dt>
+<dt><b class="option">-compression</b> <i class="arg">none|zlib|bz2|lzma|custom</i></dt>
 <dd><p>Compression to use for storing new files.</p>
 <p>See <b class="sectref">cookfs</b> for more details on compression in cookfs.</p></dd>
 <dt><b class="option">-compresscommand</b> <i class="arg">tcl command</i></dt>

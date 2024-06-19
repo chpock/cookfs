@@ -1,7 +1,7 @@
 <!DOCTYPE html><html><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>cookfs - vfs::cookfs</title>
+<title>cookfs - cookfs</title>
 <style type="text/css"><!--
     HTML {
 	background: 	#FFFFFF;
@@ -100,9 +100,9 @@
 <!-- cookfs.n
    -->
 <body><div class="doctools">
-<h1 class="doctools_title">cookfs(n) 1.7.0 cookfs &quot;vfs::cookfs&quot;</h1>
+<h1 class="doctools_title">cookfs(n) 1.7.0 cookfs &quot;cookfs&quot;</h1>
 <div id="name" class="doctools_section"><h2><a name="name">Name</a></h2>
-<p>cookfs - vfs::cookfs</p>
+<p>cookfs - cookfs</p>
 </div>
 <div id="toc" class="doctools_section"><h2><a name="toc">Table Of Contents</a></h2>
 <ul class="doctools_toc">
@@ -126,7 +126,7 @@
 <div class="doctools_synopsis">
 <ul class="doctools_requirements">
 <li>package require <b class="pkgname">Tcl 8.5</b></li>
-<li>package require <b class="pkgname">vfs::cookfs <span class="opt">?1.7.0?</span></b></li>
+<li>package require <b class="pkgname">cookfs <span class="opt">?1.7.0?</span></b></li>
 </ul>
 <ul class="doctools_syntax">
 <li><a href="#1"><b class="cmd">::cookfs::Mount</b> <span class="opt">?<i class="arg">options</i>?</span> <i class="arg">archive</i> <i class="arg">local</i> <span class="opt">?<i class="arg">options</i>?</span></a></li>
@@ -146,7 +146,7 @@
 </div>
 </div>
 <div id="section1" class="doctools_section"><h2><a name="section1">Description</a></h2>
-<p>Package <b class="package">vfs::cookfs</b> is a Tcl virtual filesystem (VFS) that allows
+<p>Package <b class="package">cookfs</b> is a Tcl virtual filesystem (VFS) that allows
 storing one or more files in a single file. This is similar to mk4vfs, zipvfs
 and many other archive formats.</p>
 <p>The main difference is that cookfs was designed for Tcl-related use and is
@@ -270,7 +270,7 @@ better compression ratio.</p>
 <p>See <span class="sectref"><a href="#section4">COOKFS STORAGE</a></span> for more details on how cookfs stores files, index and metadata.</p></dd>
 <dt><b class="option">-volume</b></dt>
 <dd><p>Register mount point as Tcl volume - useful for creating mount points in locations that do not exist - such as <i class="arg">archive://</i>.</p></dd>
-<dt><b class="option">-compression</b> <i class="arg">none|zlib|bzip2|xz|custom</i><span class="opt">?:<i class="arg">level</i>?</span></dt>
+<dt><b class="option">-compression</b> <i class="arg">none|zlib|bz2|lzma|custom</i><span class="opt">?:<i class="arg">level</i>?</span></dt>
 <dd><p>Compression to use for storing new files.</p>
 <p>See <span class="sectref"><a href="#section5">COMPRESSSION</a></span> for more details on compression in cookfs.</p></dd>
 <dt><b class="option">-compresscommand</b> <i class="arg">tcl command</i></dt>
@@ -353,11 +353,11 @@ the maximum compression level will be used for the chosen compression method.</p
 <p>For example:</p>
 <pre class="doctools_example">
 # This will mount an archive with the zlib compression method and with default level (9)
-vfs::cookfs::Mount archive archive -compression zlib
+cookfs::Mount archive archive -compression zlib
 # This will mount an archive with the lzma compression method and with compression level 3
-vfs::cookfs::Mount archive archive -compression lzma:3
+cookfs::Mount archive archive -compression lzma:3
 # This will mount an archive with the bzip2 compression method and with the maximum compression level for that method (9)
-vfs::cookfs::Mount archive archive -compression bz2:255
+cookfs::Mount archive archive -compression bz2:255
 </pre>
 <p>Cookfs provides the following compressions:</p>
 <ul class="doctools_itemized">
@@ -370,8 +370,8 @@ can be from 0 to 9.</p></li>
 <li><p><b class="const">bz2</b> -
 use bzip2 for compression; requires specifying <b class="const">--enable-bz2</b> when building
 cookfs. Compression levels can be from 1 to 9.</p></li>
-<li><p><b class="const">xz</b> -
-use xz for compression; requires specifying <b class="const">--enable-xz</b> when building
+<li><p><b class="const">lzma</b> -
+use lzma for compression; requires specifying <b class="const">--enable-lzma</b> when building
 cookfs. Compression levels can be from 0 to 9.</p></li>
 <li><p><b class="const">custom</b> -
 use Tcl commands for compressing and decompressing pages. The compression level
@@ -391,7 +391,7 @@ proc testd {d} {
     set rc [vfs::zip -mode decompress [binary format H* [string range $d 8 end]]]
     return $rc
 }
-vfs::cookfs::Mount archive archive -compression custom -compresscommand testc -decompresscommand testd
+cookfs::Mount archive archive -compression custom -compresscommand testc -decompresscommand testd
 </pre>
 <p>See <span class="sectref"><a href="#section4">COOKFS STORAGE</a></span> for more details on how files are stored in cookfs.</p>
 <p>Default values for <i class="arg">-pagesize</i>, <i class="arg">-smallfilesize</i> and
