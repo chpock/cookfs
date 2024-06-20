@@ -588,7 +588,8 @@ tcltest::test cookfsVfsThread-7.2 "VFS terminated while other thread writes a bi
     # of the thread when the VFS was unmounted
     testMultipleMatch [thread::send $tid [list set result]] \
         {stalled * object detected} \
-        {couldn't open "*": not a directory}
+        {couldn't open "*": not a directory} \
+        {couldn't open "*": no such file or directory}
 } -cleanup {
     catch { thread::release $tid }
     catch { cookfs::Unmount $file }
