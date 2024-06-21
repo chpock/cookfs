@@ -34,6 +34,11 @@ enum {
     cookfsCompressionOptMax
 };
 
+/* let's gain at least 16 bytes and/or 5% to compress it */
+#define SHOULD_COMPRESS(p, origSize, size) ((p->alwaysCompress) || ((size < (origSize - 16)) && ((size) <= (origSize - (origSize / 20)))))
+
+void CookfsWriteCompression(Cookfs_Pages *p, int compression);
+
 int Cookfs_CompressionFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
     int *compressionPtr, int *compressionLevelPtr);
 

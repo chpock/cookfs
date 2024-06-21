@@ -1,3 +1,6 @@
+2024-06-21 Konstantin Kushnir <chpock@gmail.com>
+	* Refactor compression functions
+
 2024-06-20 Konstantin Kushnir <chpock@gmail.com>
 	* Add support for Zstandard compression
 	* Use resonable default compression levels
