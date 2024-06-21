@@ -8,38 +8,23 @@
  * (c) 2024 Konstantin Kushnir
  */
 
-#ifdef COOKFS_USEBZ2
-#include "../bzip2/bzlib.h"
-#endif
-#ifdef COOKFS_USELZMA
-#include "../7zip/C/LzmaEnc.h"
-#include "../7zip/C/LzmaDec.h"
-#include "../7zip/C/Alloc.h"
-#endif
-#ifdef COOKFS_USEZSTD
-#include "../zstd/lib/zstd.h"
-#endif
 #include "cookfs.h"
 #include "pages.h"
 #include "pagesInt.h"
 #include "pagesCompr.h"
-
-#define COOKFS_SUFFIX_BYTES 16
-
-/* let's gain at least 16 bytes and/or 5% to compress it */
-#define SHOULD_COMPRESS(p, origSize, size) ((p->alwaysCompress) || ((size < (origSize - 16)) && ((size) <= (origSize - (origSize / 20)))))
+#include "pagesComprZlib.h"
+#ifdef COOKFS_USEBZ2
+#include "pagesComprBz2.h"
+#endif
+#ifdef COOKFS_USELZMA
+#include "pagesComprLzma.h"
+#endif
+#ifdef COOKFS_USEZSTD
+#include "pagesComprZstd.h"
+#endif
 
 /* declarations of static and/or internal functions */
 static Tcl_Obj **CookfsCreateCompressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd, int *lenPtr, int additionalElements);
-static void CookfsWriteCompression(Cookfs_Pages *p, int compression);
-static Cookfs_PageObj CookfsReadPageZlib(Cookfs_Pages *p, int size, Tcl_Obj **err);
-static int CookfsWritePageZlib(Cookfs_Pages *p, unsigned char *bytes, int origSize);
-static Cookfs_PageObj CookfsReadPageBz2(Cookfs_Pages *p, int size, Tcl_Obj **err);
-static int CookfsWritePageBz2(Cookfs_Pages *p, unsigned char *bytes, int origSize);
-static Cookfs_PageObj CookfsReadPageLzma(Cookfs_Pages *p, int size, Tcl_Obj **err);
-static int CookfsWritePageLzma(Cookfs_Pages *p, unsigned char *bytes, int origSize);
-static Cookfs_PageObj CookfsReadPageZstd(Cookfs_Pages *p, int size, Tcl_Obj **err);
-static int CookfsWritePageZstd(Cookfs_Pages *p, unsigned char *bytes, int origSize);
 static Cookfs_PageObj CookfsReadPageCustom(Cookfs_Pages *p, int size, Tcl_Obj **err);
 static int CookfsWritePageCustom(Cookfs_Pages *p, unsigned char *bytes, int origSize);
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
@@ -515,11 +500,23 @@ Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompres
             case COOKFS_COMPRESSION_CUSTOM:
 		return CookfsReadPageCustom(p, size, err);
             case COOKFS_COMPRESSION_BZ2:
+#ifdef COOKFS_USEBZ2
 		return CookfsReadPageBz2(p, size, err);
+#else
+		return NULL;
+#endif /* COOKFS_USEBZ2 */
             case COOKFS_COMPRESSION_LZMA:
+#ifdef COOKFS_USELZMA
 		return CookfsReadPageLzma(p, size, err);
+#else
+		return NULL;
+#endif /* COOKFS_USELZMA */
             case COOKFS_COMPRESSION_ZSTD:
+#ifdef COOKFS_USEZSTD
 		return CookfsReadPageZstd(p, size, err);
+#else
+		return NULL;
+#endif /* COOKFS_USEZSTD */
         }
     }
     return NULL;
@@ -600,21 +597,29 @@ int Cookfs_WritePage(Cookfs_Pages *p, int idx, unsigned char *bytes, int origSiz
 		case COOKFS_COMPRESSION_ZLIB:
 		    size = CookfsWritePageZlib(p, bytes, origSize);
 		    break;
-
 		case COOKFS_COMPRESSION_CUSTOM:
 		    size = CookfsWritePageCustom(p, bytes, origSize);
 		    break;
-
 		case COOKFS_COMPRESSION_BZ2:
+#ifdef COOKFS_USEBZ2
 		    size = CookfsWritePageBz2(p, bytes, origSize);
+#else
+		    size = -1;
+#endif /* COOKFS_USEBZ2 */
 		    break;
-
 		case COOKFS_COMPRESSION_LZMA:
+#ifdef COOKFS_USELZMA
 		    size = CookfsWritePageLzma(p, bytes, origSize);
+#else
+		    size = -1;
+#endif /* COOKFS_USELZMA */
 		    break;
-
 		case COOKFS_COMPRESSION_ZSTD:
+#ifdef COOKFS_USEZSTD
 		    size = CookfsWritePageZstd(p, bytes, origSize);
+#else
+		    size = -1;
+#endif /* COOKFS_USEZSTD */
 		    break;
 	    }
 
@@ -1009,9 +1014,6 @@ void Cookfs_AsyncDecompressFinalize(Cookfs_Pages *p) {
     }
 }
 
-
-/* definitions of static and/or internal functions */
-
 /*
  *----------------------------------------------------------------------
  *
@@ -1028,7 +1030,7 @@ void Cookfs_AsyncDecompressFinalize(Cookfs_Pages *p) {
  *----------------------------------------------------------------------
  */
 
-static void CookfsWriteCompression(Cookfs_Pages *p, int compression) {
+void CookfsWriteCompression(Cookfs_Pages *p, int compression) {
     Tcl_Obj *byteObj;
     unsigned char byte[4];
     byte[0] = (unsigned char) compression;
@@ -1038,6 +1040,7 @@ static void CookfsWriteCompression(Cookfs_Pages *p, int compression) {
     Tcl_DecrRefCount(byteObj);
 }
 
+/* definitions of static and/or internal functions */
 
 /*
  *----------------------------------------------------------------------
@@ -1076,713 +1079,6 @@ static Tcl_Obj **CookfsCreateCompressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd
     *lenPtr = listObjc + additionalElements;
     return rc;
 }
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CookfsReadPageZlib --
- *
- *	Read zlib compressed page
- *
- * Results:
- *	Binary data as Tcl_Obj
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-static Cookfs_PageObj CookfsReadPageZlib(Cookfs_Pages *p, int size, Tcl_Obj **err) {
-    UNUSED(err);
-#ifdef USE_ZLIB_TCL86
-    /* use Tcl 8.6 API for decompression */
-    Tcl_Obj *data;
-    Tcl_Obj *cobj;
-    Tcl_ZlibStream zshandle;
-    int count;
-
-    if (Tcl_ZlibStreamInit(NULL, TCL_ZLIB_STREAM_INFLATE, TCL_ZLIB_FORMAT_RAW, 9, NULL, &zshandle) != TCL_OK) {
-	CookfsLog(printf("Unable to initialize zlib"))
-	return NULL;
-    }
-    data = Tcl_NewObj();
-    Tcl_IncrRefCount(data);
-    count = Tcl_ReadChars(p->fileChannel, data, size, 0);
-
-    CookfsLog(printf("Reading - %d vs %d", count, size))
-    if (count != size) {
-	CookfsLog(printf("Unable to read - %d != %d", count, size))
-	Tcl_DecrRefCount(data);
-	return NULL;
-    }
-
-    CookfsLog(printf("Writing"))
-    /* write compressed information */
-    if (Tcl_ZlibStreamPut(zshandle, data, TCL_ZLIB_FINALIZE) != TCL_OK) {
-	CookfsLog(printf("Unable to decompress - writing"))
-	Tcl_ZlibStreamClose(zshandle);
-	Tcl_DecrRefCount(data);
-	return NULL;
-    }
-    Tcl_DecrRefCount(data);
-
-    CookfsLog(printf("Reading"))
-    /* read resulting object */
-    cobj = Tcl_NewObj();
-    Tcl_IncrRefCount(cobj);
-    while (!Tcl_ZlibStreamEof(zshandle)) {
-	if (Tcl_ZlibStreamGet(zshandle, cobj, -1) != TCL_OK) {
-	    Tcl_DecrRefCount(cobj);
-	    Tcl_ZlibStreamClose(zshandle);
-	    CookfsLog(printf("Unable to decompress - reading"))
-	    return NULL;
-	}
-    }
-    Cookfs_PageObj rc = Cookfs_PageObjNewFromByteArray(cobj);
-    Tcl_DecrRefCount(cobj);
-    Tcl_ZlibStreamClose(zshandle);
-    CookfsLog(printf("Returning = [%s]", rc == NULL ? "NULL" : "SET"))
-    return rc;
-#else
-    /* use vfs::zip command for decompression */
-    Tcl_Obj *prevResult;
-    Tcl_Obj *compressed;
-    Tcl_Obj *data;
-    int count;
-
-    compressed = Tcl_NewObj();
-    Tcl_IncrRefCount(compressed);
-    count = Tcl_ReadChars(p->fileChannel, compressed, size, 0);
-
-    CookfsLog(printf("Reading - %d vs %d", count, size))
-    if (count != size) {
-	CookfsLog(printf("Unable to read - %d != %d", count, size))
-	Tcl_DecrRefCount(compressed);
-	return NULL;
-    }
-    p->zipCmdDecompress[p->zipCmdOffset] = compressed;
-    prevResult = Tcl_GetObjResult(p->interp);
-    Tcl_IncrRefCount(prevResult);
-    if (Tcl_EvalObjv(p->interp, p->zipCmdLength, p->zipCmdDecompress, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
-	CookfsLog(printf("Unable to decompress"))
-	Tcl_DecrRefCount(compressed);
-	return NULL;
-    }
-    Tcl_DecrRefCount(compressed);
-    data = Tcl_GetObjResult(p->interp);
-    Tcl_IncrRefCount(data);
-    Tcl_SetObjResult(p->interp, prevResult);
-    Tcl_DecrRefCount(prevResult);
-    Cookfs_PageObj rc = Cookfs_PageObjNewFromByteArray(data);
-    Tcl_DecrRefCount(data);
-    return rc;
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CookfsWritePageZlib --
- *
- *	Write page using zlib compression
- *
- * Results:
- *	Number of bytes written; -1 in case compression failed or
- *	compressing was not efficient enough (see SHOULD_COMPRESS macro)
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-static int CookfsWritePageZlib(Cookfs_Pages *p, unsigned char *bytes, int origSize) {
-#ifdef USE_ZLIB_TCL86
-    Tcl_Size size = origSize;
-    /* use Tcl 8.6 API for zlib compression */
-    Tcl_Obj *cobj;
-    Tcl_ZlibStream zshandle;
-
-    int level = p->fileCompressionLevel;
-    if (level < 1) {
-        level = 1;
-    } else if (level >= 255) {
-        level = 9;
-    }
-
-    if (Tcl_ZlibStreamInit(NULL, TCL_ZLIB_STREAM_DEFLATE, TCL_ZLIB_FORMAT_RAW, level, NULL, &zshandle) != TCL_OK) {
-	CookfsLog(printf("Cookfs_WritePage: Tcl_ZlibStreamInit failed!"))
-	return -1;
-    }
-
-    Tcl_Obj *data = Tcl_NewByteArrayObj(bytes, origSize);
-    Tcl_IncrRefCount(data);
-    if (Tcl_ZlibStreamPut(zshandle, data, TCL_ZLIB_FINALIZE) != TCL_OK) {
-	Tcl_DecrRefCount(data);
-	Tcl_ZlibStreamClose(zshandle);
-	CookfsLog(printf("Cookfs_WritePage: Tcl_ZlibStreamPut failed"))
-	return -1;
-    }
-    Tcl_DecrRefCount(data);
-
-    cobj = Tcl_NewObj();
-    if (Tcl_ZlibStreamGet(zshandle, cobj, -1) != TCL_OK) {
-	Tcl_IncrRefCount(cobj);
-	Tcl_DecrRefCount(cobj);
-	Tcl_ZlibStreamClose(zshandle);
-	CookfsLog(printf("Cookfs_WritePage: Tcl_ZlibStreamGet failed"))
-	return -1;
-    }
-    Tcl_ZlibStreamClose(zshandle);
-    Tcl_IncrRefCount(cobj);
-    Tcl_GetByteArrayFromObj(cobj, &size);
-
-    if (SHOULD_COMPRESS(p, origSize, size)) {
-	CookfsWriteCompression(p, COOKFS_COMPRESSION_ZLIB);
-	Tcl_WriteObj(p->fileChannel, cobj);
-    }  else  {
-	size = -1;
-    }
-    Tcl_DecrRefCount(cobj);
-#else
-    int size = origSize;
-    /* use vfs::zip command for compression */
-    Tcl_Obj *prevResult;
-    Tcl_Obj *compressed;
-
-    Tcl_Obj data = Tcl_NewByteArrayObj(bytes, origSize);
-    Tcl_IncrRefCount(data);
-    p->zipCmdCompress[p->zipCmdOffset] = data;
-    prevResult = Tcl_GetObjResult(p->interp);
-    Tcl_IncrRefCount(prevResult);
-    if (Tcl_EvalObjv(p->interp, p->zipCmdLength, p->zipCmdCompress, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
-	CookfsLog(printf("Unable to compress: %s", Tcl_GetString(Tcl_GetObjResult(p->interp))));
-	Tcl_SetObjResult(p->interp, prevResult);
-	Tcl_DecrRefCount(data);
-	return -1;
-    }
-    Tcl_DecrRefCount(data);
-    compressed = Tcl_GetObjResult(p->interp);
-    Tcl_IncrRefCount(compressed);
-    Tcl_SetObjResult(p->interp, prevResult);
-    Tcl_DecrRefCount(prevResult);
-    Tcl_GetByteArrayFromObj(compressed, &size);
-
-    if (SHOULD_COMPRESS(p, origSize, size)) {
-	CookfsWriteCompression(p, COOKFS_COMPRESSION_ZLIB);
-	Tcl_WriteObj(p->fileChannel, compressed);
-    }  else  {
-	size = -1;
-    }
-    Tcl_DecrRefCount(compressed);
-#endif
-    return size;
-}
-
-#ifdef COOKFS_USELZMA
-static void *CookfsLzmaAlloc(ISzAllocPtr p, size_t size) {
-    UNUSED(p);
-    return ckalloc(size);
-}
-
-static void CookfsLzmaFree(ISzAllocPtr p, void *address) {
-    UNUSED(p);
-    ckfree(address);
-}
-
-const ISzAlloc g_CookfsLzmaAlloc = {
-    CookfsLzmaAlloc,
-    CookfsLzmaFree
-};
-#endif
-
-/*
- *----------------------------------------------------------------------
- *
- * CookfsWritePageLzma --
- *
- *	Write page using lzma compression
- *
- * Results:
- *	Number of bytes written; -1 in case compression failed. This function
- *      doesn't return -1 compressing was not efficient enough.
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-static int CookfsWritePageLzma(Cookfs_Pages *p, unsigned char *bytes, int origSize) {
-#ifdef COOKFS_USELZMA
-
-    CookfsLog(printf("CookfsWritePageLzma: want to compress %d bytes",
-        origSize));
-
-    // Output size should be 4 (original size) + 5 (LZMA_PROPS_SIZE)
-    // + compressed data
-    // So, the minimum compressed size is 9 bytes + compressed data.
-    // Let's refuse to compress 16 bytes or less.
-    if (origSize <= 16) {
-        CookfsLog(printf("CookfsWritePageLzma: too few bytes for"
-            " compression"));
-        return -1;
-    }
-
-    CLzmaEncProps props;
-    LzmaEncProps_Init(&props);
-    props.level = p->fileCompressionLevel;
-    if (props.level < 0) {
-        props.level = 0;
-    } else if (props.level >= 255) {
-        props.level = 9;
-    }
-    props.reduceSize = origSize;
-    LzmaEncProps_Normalize(&props);
-
-    Tcl_Obj *destObj = Tcl_NewByteArrayObj(NULL, 0);
-    Tcl_IncrRefCount(destObj);
-
-    // Let's allocate a destination buffer of the same size as the source
-    // buffer. In case of buffer overflow, lzma should return
-    // SZ_ERROR_OUTPUT_EOF. Then we'll know that the compression was
-    // ineffective.
-
-    unsigned char *dest = Tcl_SetByteArrayLength(destObj, origSize);
-
-    // The destination buffer will also contain the original size + lzma
-    // properties. Calculate here what buffer size should be passed to
-    // LzmaEncode()
-    size_t destLen = origSize - 4 - LZMA_PROPS_SIZE;
-
-    CookfsLog(printf("CookfsWritePageLzma: call LzmaEncode() level %d ...", props.level));
-    SizeT propsSize = LZMA_PROPS_SIZE;
-    SRes res = LzmaEncode(&dest[4 + LZMA_PROPS_SIZE], &destLen, bytes,
-        origSize, &props, &dest[4], &propsSize, 0, NULL, &g_CookfsLzmaAlloc,
-        &g_CookfsLzmaAlloc);
-    CookfsLog(printf("CookfsWritePageLzma: got: %s",
-        (res == SZ_OK ? "SZ_OK" :
-        (res == SZ_ERROR_MEM ? "SZ_ERROR_MEM" :
-        (res == SZ_ERROR_PARAM ? "SZ_ERROR_PARAM" :
-        (res == SZ_ERROR_WRITE ? "SZ_ERROR_WRITE" :
-        (res == SZ_ERROR_OUTPUT_EOF ? "SZ_ERROR_OUTPUT_EOF" :
-        (res == SZ_ERROR_PROGRESS ? "SZ_ERROR_PROGRESS" :
-        (res == SZ_ERROR_THREAD ? "SZ_ERROR_THREAD" : "UNKNOWN")))))))));
-
-    // Continue with the compression only when res == SZ_OK
-    if (res == SZ_OK) {
-
-        // Increase output size by pre-defined bytes (origSize + lzma
-        // properties)
-        destLen += 4 + LZMA_PROPS_SIZE;
-        CookfsLog(printf("CookfsWritePageLzma: got encoded size: %zu", destLen));
-        if (SHOULD_COMPRESS(p, (unsigned int)origSize, destLen)) {
-            // Write the original size to the beginning of the buffer
-            CookfsLog(printf("CookfsWritePageLzma: write page"));
-            Tcl_SetByteArrayLength(destObj, destLen);
-            Cookfs_Int2Binary(&origSize, dest, 1);
-            CookfsWriteCompression(p, COOKFS_COMPRESSION_LZMA);
-            Tcl_WriteObj(p->fileChannel, destObj);
-        } else {
-            res = SZ_ERROR_OUTPUT_EOF;
-        }
-
-    }
-
-    Tcl_DecrRefCount(destObj);
-    if (res == SZ_OK) {
-        return destLen;
-    } else {
-        return -1;
-    }
-#else
-    UNUSED(p);
-    UNUSED(bytes);
-    UNUSED(origSize);
-    return -1;
-#endif
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * CookfsReadPageLzma --
- *
- *	Read lzma compressed page
- *
- * Results:
- *	Binary data as Tcl_Obj
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-static Cookfs_PageObj CookfsReadPageLzma(Cookfs_Pages *p, int size, Tcl_Obj **err) {
-    UNUSED(err);
-#ifdef COOKFS_USELZMA
-
-    CookfsLog(printf("CookfsReadPageLzma: start. Want to read %d bytes.", size));
-
-    Tcl_Obj *data = Tcl_NewObj();
-    Tcl_IncrRefCount(data);
-    int count = Tcl_ReadChars(p->fileChannel, data, size, 0);
-
-    if (count != size) {
-        CookfsLog(printf("CookfsReadPageLzma: failed to read, got only %d"
-            " bytes", count));
-        Tcl_DecrRefCount(data);
-        return NULL;
-    }
-
-    unsigned char *source = Tcl_GetByteArrayFromObj(data, NULL);
-    if (source == NULL) {
-        CookfsLog(printf("CookfsReadPageLzma: Tcl_GetByteArrayFromObj failed"));
-        Tcl_DecrRefCount(data);
-        return NULL;
-    }
-
-    int destSize;
-    Cookfs_Binary2Int(source, &destSize, 1);
-
-    Cookfs_PageObj destObj = Cookfs_PageObjAlloc(destSize);
-    if (destObj == NULL) {
-        CookfsLog(printf("CookfsReadPageLzma: ERROR: failed to alloc"));
-        Tcl_DecrRefCount(data);
-        return NULL;
-    }
-
-    CookfsLog(printf("CookfsReadPageLzma: uncompressed size=%d from %d",
-        destSize, size));
-
-    CookfsLog(printf("CookfsReadPageLzma: call LzmaDecode() ..."));
-    SizeT destSizeResult = destSize;
-    ELzmaStatus status;
-    // Source buffer also contains the original size and lzma properties
-    SizeT srcLen = size - 4 - LZMA_PROPS_SIZE;
-    SRes res = LzmaDecode(destObj, &destSizeResult,
-        &source[4 + LZMA_PROPS_SIZE], &srcLen, &source[4], LZMA_PROPS_SIZE,
-        LZMA_FINISH_END, &status, &g_CookfsLzmaAlloc);
-    CookfsLog(printf("CookfsReadPageLzma: result: %s; status: %s",
-        (res == SZ_OK ? "SZ_OK" :
-        (res == SZ_ERROR_DATA ? "SZ_ERROR_DATA" :
-        (res == SZ_ERROR_MEM ? "SZ_ERROR_MEM" :
-        (res == SZ_ERROR_UNSUPPORTED ? "SZ_ERROR_UNSUPPORTED" :
-        (res == SZ_ERROR_INPUT_EOF ? "SZ_ERROR_INPUT_EOF" :
-        (res == SZ_ERROR_FAIL ? "SZ_ERROR_FAIL" : "UNKNOWN")))))),
-        (res == SZ_OK ?
-            (status == LZMA_STATUS_FINISHED_WITH_MARK ? "FINISHED_WITH_MARK" :
-            (status == LZMA_STATUS_NOT_FINISHED ? "NOT_FINISHED" :
-            (status == LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK ?
-            "MAYBE_FINISHED_WITHOUT_MARK" : "UNKNOWN-OK"))) : "UNKNOWN")));
-    CookfsLog(printf("CookfsReadPageLzma: consumed bytes %zu got bytes %zu",
-        srcLen, destSizeResult));
-
-    Tcl_DecrRefCount(data);
-
-    if ((res != SZ_OK) || (destSizeResult != (unsigned int)destSize) ||
-        (srcLen != ((unsigned int)size - 4 - LZMA_PROPS_SIZE)) ||
-        ((status != LZMA_STATUS_FINISHED_WITH_MARK) &&
-        (status != LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK)))
-    {
-        CookfsLog(printf("CookfsReadPageLzma: failed"))
-        Cookfs_PageObjIncrRefCount(destObj);
-        Cookfs_PageObjDecrRefCount(destObj);
-        return NULL;
-    }
-
-    return destObj;
-
-#else
-    UNUSED(p);
-    UNUSED(size);
-    return NULL;
-#endif
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * CookfsReadPageBz2 --
- *
- *	Read bzip2 compressed page
- *
- * Results:
- *	Binary data as Tcl_Obj
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-static Cookfs_PageObj CookfsReadPageBz2(Cookfs_Pages *p, int size, Tcl_Obj **err) {
-    UNUSED(err);
-#ifdef COOKFS_USEBZ2
-    int destSize;
-    int count;
-    unsigned char *source;
-    Tcl_Obj *data;
-
-    data = Tcl_NewObj();
-    Tcl_IncrRefCount(data);
-    count = Tcl_ReadChars(p->fileChannel, data, size, 0);
-
-    if (count != size) {
-	Tcl_DecrRefCount(data);
-	return NULL;
-    }
-
-    source = Tcl_GetByteArrayFromObj(data, NULL);
-    if (source == NULL) {
-	Tcl_DecrRefCount(data);
-	CookfsLog(printf("CookfsReadPageBz2: Tcl_GetByteArrayFromObj failed"))
-	return NULL;
-    }
-
-    Cookfs_Binary2Int(source, &destSize, 1);
-    Cookfs_PageObj destObj = Cookfs_PageObjAlloc(destSize);
-    if (destObj == NULL) {
-	Tcl_DecrRefCount(data);
-	CookfsLog(printf("CookfsReadPageBz2: failed to alloc"))
-	return NULL;
-    }
-
-    CookfsLog(printf("CookfsReadPageBz2: uncompressed size=%d from %d", destSize, size))
-
-    if (BZ2_bzBuffToBuffDecompress((char *) destObj, (unsigned int *) &destSize, (char *) source + 4, (unsigned int) size - 4, 0, 0) != BZ_OK) {
-	Tcl_DecrRefCount(data);
-	Cookfs_PageObjIncrRefCount(destObj);
-	Cookfs_PageObjDecrRefCount(destObj);
-	CookfsLog(printf("CookfsReadPageBz2: BZ2_bzBuffToBuffDecompress failed"))
-	return NULL;
-    }
-
-    Tcl_DecrRefCount(data);
-
-    return destObj;
-#else
-    UNUSED(p);
-    UNUSED(size);
-    return NULL;
-#endif
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * CookfsWritePageBz2 --
- *
- *	Write page using bzip2 compression
- *
- * Results:
- *	Number of bytes written; -1 in case compression failed or
- *	compressing was not efficient enough (see SHOULD_COMPRESS macro)
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-static int CookfsWritePageBz2(Cookfs_Pages *p, unsigned char *bytes, int origSize) {
-#ifdef COOKFS_USEBZ2
-    int size;
-    unsigned char *source;
-    unsigned char *dest;
-    Tcl_Obj *destObj;
-
-    int level = p->fileCompressionLevel;
-    if (level < 1) {
-        level = 1;
-    } else if (level >= 255) {
-        level = 9;
-    }
-
-    source = bytes;
-    destObj = Tcl_NewByteArrayObj(NULL, 0);
-    size = origSize * 2 + 1024;
-    Tcl_SetByteArrayLength(destObj, size + 4);
-    dest = Tcl_GetByteArrayFromObj(destObj, NULL);
-
-    Cookfs_Int2Binary(&origSize, (unsigned char *) dest, 1);
-    if (BZ2_bzBuffToBuffCompress((char *) (dest + 4), (unsigned int *) &size, (char *) source, (unsigned int) origSize, level, 0, 0) != BZ_OK) {
-	CookfsLog(printf("Cookfs_WritePage: BZ2_bzBuffToBuffCompress failed"))
-	return -1;
-    }
-
-    CookfsLog(printf("Cookfs_WritePage: size=%d (to %d)", origSize, size))
-    size += 4;
-    Tcl_SetByteArrayLength(destObj, size);
-
-    Tcl_IncrRefCount(destObj);
-    if (SHOULD_COMPRESS(p, origSize, size)) {
-	CookfsWriteCompression(p, COOKFS_COMPRESSION_BZ2);
-	Tcl_WriteObj(p->fileChannel, destObj);
-    }  else  {
-	size = -1;
-    }
-    Tcl_DecrRefCount(destObj);
-
-    return size;
-#else
-    UNUSED(p);
-    UNUSED(bytes);
-    UNUSED(origSize);
-    return -1;
-#endif
-}
-
-static int CookfsWritePageZstd(Cookfs_Pages *p, unsigned char *bytes,
-    int origSize)
-{
-#ifdef COOKFS_USEZSTD
-
-    CookfsLog(printf("CookfsWritePageZstd: want to compress %d bytes",
-        origSize));
-
-    size_t resultSize;
-
-    Tcl_Obj *destObj = Tcl_NewByteArrayObj(NULL, 0);
-    Tcl_IncrRefCount(destObj);
-
-    size_t destSize = ZSTD_compressBound((size_t) origSize);
-    if (ZSTD_isError(destSize)) {
-        CookfsLog(printf("CookfsWritePageZstd: ZSTD_compressBound()"
-            " failed with: %s", ZSTD_getErrorName(destSize)));
-        resultSize = 0;
-        goto done;
-    }
-
-    // Allocate additional 4 bytes for uncompressed page size
-    unsigned char *dest = Tcl_SetByteArrayLength(destObj, destSize + 4);
-
-    int level = p->fileCompressionLevel;
-
-    if (level < 1) {
-        level = 1;
-    } else if (level > 22) {
-        level = 22;
-    }
-
-    CookfsLog(printf("CookfsWritePageZstd: call ZSTD_compress() level %d ...",
-        level));
-
-    // Leave 4 bytes in the buffer for uncompressed page size
-    resultSize = ZSTD_compress(dest + 4, destSize, bytes, origSize, level);
-
-    if (ZSTD_isError(resultSize)) {
-        CookfsLog(printf("CookfsWritePageZstd: call got error: %s",
-            ZSTD_getErrorName(resultSize)));
-        resultSize = 0;
-        goto done;
-    }
-
-    // Add 4 bytes to resultSize, which is the size of the uncompressed page
-    resultSize += 4;
-    CookfsLog(printf("CookfsWritePageZstd: got encoded size: %zu", resultSize));
-    if (SHOULD_COMPRESS(p, (unsigned int)origSize, resultSize)) {
-        CookfsLog(printf("CookfsWritePageZstd: write page"));
-        Tcl_SetByteArrayLength(destObj, resultSize);
-        // Write the original size to the beginning of the buffer
-        Cookfs_Int2Binary(&origSize, dest, 1);
-        CookfsWriteCompression(p, COOKFS_COMPRESSION_ZSTD);
-        Tcl_WriteObj(p->fileChannel, destObj);
-    } else {
-        CookfsLog(printf("CookfsWritePageZstd: compression is inefficient"));
-        resultSize = 0;
-    }
-
-done:
-    Tcl_DecrRefCount(destObj);
-    if (resultSize) {
-        return resultSize;
-    } else {
-        return -1;
-    }
-#else
-    UNUSED(p);
-    UNUSED(bytes);
-    UNUSED(origSize);
-    return -1;
-#endif
-}
-
-static Cookfs_PageObj CookfsReadPageZstd(Cookfs_Pages *p, int size, Tcl_Obj **err) {
-    UNUSED(err);
-#ifdef COOKFS_USEZSTD
-
-    CookfsLog(printf("CookfsReadPageZstd: start. Want to read %d bytes.", size));
-
-    Tcl_Obj *data = Tcl_NewObj();
-    Tcl_IncrRefCount(data);
-    int count = Tcl_ReadChars(p->fileChannel, data, size, 0);
-
-    if (count != size) {
-        CookfsLog(printf("CookfsReadPageZstd: failed to read, got only %d"
-            " bytes", count));
-        Tcl_DecrRefCount(data);
-        return NULL;
-    }
-
-    unsigned char *source = Tcl_GetByteArrayFromObj(data, NULL);
-    if (source == NULL) {
-        CookfsLog(printf("CookfsReadPageZstd: Tcl_GetByteArrayFromObj failed"));
-        Tcl_DecrRefCount(data);
-        return NULL;
-    }
-
-    int destSize;
-    Cookfs_Binary2Int(source, &destSize, 1);
-
-    Cookfs_PageObj destObj = Cookfs_PageObjAlloc(destSize);
-    if (destObj == NULL) {
-        CookfsLog(printf("CookfsReadPageZstd: ERROR: failed to alloc"));
-        Tcl_DecrRefCount(data);
-        return NULL;
-    }
-
-    CookfsLog(printf("CookfsReadPageZstd: uncompressed size=%d from %d",
-        destSize, size));
-
-    CookfsLog(printf("CookfsReadPageZstd: call ZSTD_decompress() ..."));
-    size_t resultSize = ZSTD_decompress(destObj, destSize, source + 4,
-        size - 4);
-    Tcl_DecrRefCount(data);
-
-    if (ZSTD_isError(resultSize)) {
-        CookfsLog(printf("CookfsReadPageZstd: call got error: %s",
-            ZSTD_getErrorName(resultSize)));
-        goto unpackError;
-    }
-
-    CookfsLog(printf("CookfsReadPageZstd: got %zu bytes", resultSize));
-
-    if (resultSize != (unsigned int)destSize) {
-        CookfsLog(printf("CookfsReadPageZstd: ERROR: result size doesn't"
-            " match original size"));
-        goto unpackError;
-    }
-
-    return destObj;
-
-unpackError:
-
-    Cookfs_PageObjIncrRefCount(destObj);
-    Cookfs_PageObjDecrRefCount(destObj);
-    return NULL;
-
-#else
-    UNUSED(p);
-    UNUSED(size);
-    return NULL;
-#endif
-}
-
 
 /*
  *----------------------------------------------------------------------

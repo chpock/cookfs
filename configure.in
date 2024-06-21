@@ -141,11 +141,12 @@ if test ${USECPAGES} = yes; then
     AC_DEFINE(COOKFS_USECPAGES)
     COOKFS_PKGCONFIG_USECPAGES=1
     COOKFS_PKGCONFIG_FEATURE_ASIDE=1
-    TEA_ADD_SOURCES([pageObj.c pages.c pagesCompr.c pagesCmd.c])
+    TEA_ADD_SOURCES([pageObj.c pages.c pagesCompr.c pagesComprZlib.c pagesCmd.c])
 
     # enable bz2 files only if pages are handled using C
     if test ${USEBZ2} = yes; then
         BUILDCCODE=yes
+        TEA_ADD_SOURCES([pagesComprBz2.c])
         TEA_ADD_SOURCES([bzip2/blocksort.c bzip2/huffman.c bzip2/crctable.c bzip2/randtable.c bzip2/compress.c bzip2/decompress.c bzip2/bzlib.c])
         AC_DEFINE(COOKFS_USEBZ2)
         COOKFS_PKGCONFIG_USEBZ2=1
@@ -175,6 +176,7 @@ if test ${USECPAGES} = yes; then
           [AC_MSG_RESULT(yes)],
           [AC_MSG_RESULT([no, adding -mavx -mavx2]); TEA_ADD_CFLAGS([-mavx -mavx2])]
         )
+        TEA_ADD_SOURCES([pagesComprLzma.c])
         TEA_ADD_SOURCES([7zip/C/LzmaEnc.c 7zip/C/LzmaDec.c 7zip/C/LzFind.c 7zip/C/CpuArch.c])
         AC_DEFINE(COOKFS_USELZMA)
         # Disable multi-thread
@@ -187,6 +189,7 @@ if test ${USECPAGES} = yes; then
     fi
 
     if test ${USEZSTD} = yes; then
+        TEA_ADD_SOURCES([pagesComprZstd.c])
         TEA_ADD_SOURCES([
             zstd/lib/common/xxhash.c
             zstd/lib/common/zstd_common.c
