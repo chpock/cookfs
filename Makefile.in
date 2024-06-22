@@ -314,11 +314,16 @@ $(PKG_STUB_LIB_FILE): $(PKG_STUB_OBJECTS)
 # As necessary, add $(srcdir):$(srcdir)/compat:....
 #========================================================================
 
-VPATH = $(srcdir):$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win:$(srcdir)/bzip2:$(srcdir)/7zip/C:$(srcdir)/zstd/lib:$(srcdir)/zstd/lib/common:$(srcdir)/zstd/lib/compress:$(srcdir)/zstd/lib/decompress
+VPATH = $(srcdir):$(srcdir)/generic:$(srcdir)/unix:$(srcdir)/win:$(srcdir)/bzip2:$(srcdir)/7zip/C:$(srcdir)/zstd/lib:$(srcdir)/zstd/lib/common:$(srcdir)/zstd/lib/compress:$(srcdir)/zstd/lib/decompress:$(srcdir)/brotli/c/common:$(srcdir)/brotli/c/enc:$(srcdir)/brotli/c/dec
 
 override TESTFLAGS += -verbose "body error start"
 
 .c.@OBJEXT@:
+	$(COMPILE) -c `@CYGPATH@ $<` -o $@
+
+# This is a hack to build huffman.o because of a conflict between
+# the huffman.c files from the bzip2 and brotli sources.
+brotli_huffman.@OBJEXT@: brotli/c/dec/huffman.c
 	$(COMPILE) -c `@CYGPATH@ $<` -o $@
 
 %.tcl: $(srcdir)/scripts/%.tcl

@@ -1,5 +1,5 @@
 
-foreach { cid } { none zlib bz2 lzma zstd } {
+foreach { cid } { none zlib bz2 lzma zstd brotli } {
 
     set constraint "cookfsCompression[string totitle $cid]"
     set test_title "cookfsCompr[string totitle $cid]"
@@ -194,11 +194,12 @@ foreach { cid } { none zlib bz2 lzma zstd } {
             }
         }
         set expected [dict get {
-            none {1310722 1310722 1310722 1310722 1310722}
-            zlib {335801 395825 365353 342150 330139}
-            zstd {330325 357958 330325 319779 305182}
-            bz2  {275045 293163 278827 280154 275046}
-            lzma {274791 311432 303553 274791 272878}
+            none   {1310722 1310722 1310722 1310722 1310722}
+            zlib   {335801 395825 365353 342150 330139}
+            zstd   {330325 357958 330325 319779 305182}
+            brotli {298922 400110 336878 301264 295253}
+            bz2    {275045 293163 278827 280154 275046}
+            lzma   {274791 311432 303553 274791 272878}
         } $cid]
         if { $expected eq $result } {
             set result ok
@@ -234,11 +235,12 @@ foreach { cid } { none zlib bz2 lzma zstd } {
             }
         }
         set expected [dict get {
-            none {1310722 1310722}
-            zlib {335801 342150}
-            zstd {330325 319779}
-            bz2  {275045 280154}
-            lzma {274791 274791}
+            none   {1310722 1310722}
+            zlib   {335801 342150}
+            zstd   {330325 319779}
+            brotli {298922 301264}
+            bz2    {275045 280154}
+            lzma   {274791 274791}
         } $cid]
         if { $expected eq $result } {
             set result ok

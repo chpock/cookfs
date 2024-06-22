@@ -22,6 +22,9 @@
 #ifdef COOKFS_USEZSTD
 #include "pagesComprZstd.h"
 #endif
+#ifdef COOKFS_USEBROTLI
+#include "pagesComprBrotli.h"
+#endif
 
 /* declarations of static and/or internal functions */
 static Tcl_Obj **CookfsCreateCompressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd, int *lenPtr, int additionalElements);
@@ -46,29 +49,34 @@ const char *cookfsCompressionOptions[] = {
 #ifdef COOKFS_USEZSTD
     "zstd",
 #endif
+#ifdef COOKFS_USEBROTLI
+    "brotli",
+#endif
     "custom",
     NULL
 };
 
 /* names for all defined compressions */
 const char *cookfsCompressionNames[15] = {
-    "none",  /*  0 */
-    "zlib",  /*  1 */
-    "bz2",   /*  2 */
-    "lzma",  /*  3 */
-    "zstd",  /*  4 */
-    "", "", "", "", "", "", "", "", "", /* 5 - 13 */
-    "custom" /* 14 */
+    "none",   /*  0 */
+    "zlib",   /*  1 */
+    "bz2",    /*  2 */
+    "lzma",   /*  3 */
+    "zstd",   /*  4 */
+    "brotli", /*  5 */
+    "", "", "", "", "", "", "", "", /* 6 - 13 */
+    "custom"  /* 14 */
 };
 
 const unsigned char cookfsCompressionLevels[15] = {
-    0,  /* none   -  0 */
-    6,  /* zlib   -  1 */
-    9,  /* bz2    -  2 */
-    5,  /* lzma   -  3 */
-    3,  /* zstd   -  4 */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, /* 5 - 13 */
-    0   /* custom - 14 */
+    0, /* none   -  0 */
+    6, /* zlib   -  1 */
+    9, /* bz2    -  2 */
+    5, /* lzma   -  3 */
+    3, /* zstd   -  4 */
+    6, /* brotli -  5 */
+    0, 0, 0, 0, 0, 0, 0, 0, /* 6 - 13 */
+    0  /* custom - 14 */
 };
 
 const int cookfsCompressionOptionMap[] = {
@@ -82,6 +90,9 @@ const int cookfsCompressionOptionMap[] = {
 #endif
 #ifdef COOKFS_USEZSTD
     COOKFS_COMPRESSION_ZSTD,
+#endif
+#ifdef COOKFS_USEBROTLI
+    COOKFS_COMPRESSION_BROTLI,
 #endif
     COOKFS_COMPRESSION_CUSTOM,
     -1 /* dummy entry */
@@ -517,6 +528,12 @@ Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompres
 #else
 		return NULL;
 #endif /* COOKFS_USEZSTD */
+            case COOKFS_COMPRESSION_BROTLI:
+#ifdef COOKFS_USEBROTLI
+		return CookfsReadPageBrotli(p, size, err);
+#else
+		return NULL;
+#endif /* COOKFS_USEBROTLI */
         }
     }
     return NULL;
@@ -617,6 +634,13 @@ int Cookfs_WritePage(Cookfs_Pages *p, int idx, unsigned char *bytes, int origSiz
 		case COOKFS_COMPRESSION_ZSTD:
 #ifdef COOKFS_USEZSTD
 		    size = CookfsWritePageZstd(p, bytes, origSize);
+#else
+		    size = -1;
+#endif /* COOKFS_USEZSTD */
+		    break;
+		case COOKFS_COMPRESSION_BROTLI:
+#ifdef COOKFS_USEBROTLI
+		    size = CookfsWritePageBrotli(p, bytes, origSize);
 #else
 		    size = -1;
 #endif /* COOKFS_USEZSTD */

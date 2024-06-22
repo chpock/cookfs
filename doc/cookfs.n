@@ -474,7 +474,7 @@ See \fBCOOKFS STORAGE\fR for more details on how cookfs stores files, index and 
 \fB-volume\fR
 Register mount point as Tcl volume - useful for creating mount points in locations that do not exist - such as \fIarchive://\fR\&.
 .TP
-\fB-compression\fR \fInone|zlib|bz2|lzma|zstd|custom\fR?:\fIlevel\fR?
+\fB-compression\fR \fInone|zlib|bz2|lzma|zstd|brotli|custom\fR?:\fIlevel\fR?
 Compression to use for storing new files\&.
 .sp
 See \fBCOMPRESSSION\fR for more details on compression in cookfs\&.
@@ -616,6 +616,10 @@ cookfs\&. Compression levels can be from 0 to 9\&. The default compression level
 \fBzstd\fR -
 use Zstandard for compression; requires specifying \fB--enable-zstd\fR when building
 cookfs\&. Compression levels can be from 1 to 22\&. The default compression level is 3\&.
+.IP \(bu
+\fBbrotli\fR -
+use brotli for compression; requires specifying \fB--enable-brotli\fR when building
+cookfs\&. Compression levels can be from 0 to 22\&. The default compression level is 6\&.
 .IP \(bu
 \fBcustom\fR -
 use Tcl commands for compressing and decompressing pages\&. The compression level

@@ -94,6 +94,7 @@ static Tcl_Config const cookfs_pkgconfig[] = {
     {"feature-bzip2",    STRINGIFY(COOKFS_PKGCONFIG_USEBZ2)},
     {"feature-lzma",     STRINGIFY(COOKFS_PKGCONFIG_USELZMA)},
     {"feature-zstd",     STRINGIFY(COOKFS_PKGCONFIG_USEZSTD)},
+    {"feature-brotli",   STRINGIFY(COOKFS_PKGCONFIG_USEBROTLI)},
     {"feature-metadata", STRINGIFY(COOKFS_PKGCONFIG_FEATURE_METADATA)},
     {"tcl-commands",     STRINGIFY(COOKFS_PKGCONFIG_USETCLCMDS)},
     {NULL, NULL}

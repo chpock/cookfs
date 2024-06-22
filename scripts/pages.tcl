@@ -213,6 +213,8 @@ proc cookfs::tcl::pages::compress {name origdata} {
         error "Lzma compression is not supported by Tcl pages"
     } elseif {$c(cid) == 4} {
         error "zstd compression is not supported by Tcl pages"
+    } elseif {$c(cid) == 5} {
+        error "brotli compression is not supported by Tcl pages"
     }  elseif {$c(cid) == 255} {
         if {$c(compresscommand) != ""} {
             set data "\u00ff[uplevel #0 [concat $c(compresscommand) [list $origdata]]]"
@@ -291,6 +293,9 @@ proc cookfs::tcl::pages::compression2cid {name} {
         zstd {
             return 4
         }
+        brotli {
+            return 5
+        }
         custom {
             return 255
         }
@@ -316,6 +321,9 @@ proc cookfs::tcl::pages::cid2compression {name} {
         }
         4 {
             return "zstd"
+        }
+        5 {
+            return "brotli"
         }
         255 {
             return "custom"
