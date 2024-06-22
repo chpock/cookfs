@@ -203,7 +203,7 @@ See [sectref {COOKFS STORAGE}] for more details on how cookfs stores files, inde
 [def "[option -volume]"]
 Register mount point as Tcl volume - useful for creating mount points in locations that do not exist - such as [arg archive://].
 
-[def "[option -compression] [arg {none|zlib|bz2|lzma|zstd|custom}][opt :[arg level]]"]
+[def "[option -compression] [arg {none|zlib|bz2|lzma|zstd|brotli|custom}][opt :[arg level]]"]
 
 Compression to use for storing new files.
 
@@ -368,6 +368,10 @@ cookfs. Compression levels can be from 0 to 9. The default compression level is 
 [item] [const zstd] -
 use Zstandard for compression; requires specifying [const {--enable-zstd}] when building
 cookfs. Compression levels can be from 1 to 22. The default compression level is 3.
+
+[item] [const brotli] -
+use brotli for compression; requires specifying [const {--enable-brotli}] when building
+cookfs. Compression levels can be from 0 to 22. The default compression level is 6.
 
 [item] [const custom] -
 use Tcl commands for compressing and decompressing pages. The compression level

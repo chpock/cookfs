@@ -15,6 +15,7 @@ extern const int cookfsCompressionOptionMap[];
 #define COOKFS_COMPRESSION_BZ2       2
 #define COOKFS_COMPRESSION_LZMA      3
 #define COOKFS_COMPRESSION_ZSTD      4
+#define COOKFS_COMPRESSION_BROTLI    5
 #define COOKFS_COMPRESSION_CUSTOM   14
 #define COOKFS_COMPRESSION_ANY      15
 
@@ -30,6 +31,9 @@ enum {
 #ifdef COOKFS_USEZSTD
     cookfsCompressionOptZstd,
 #endif /* COOKFS_USEZSTD */
+#ifdef COOKFS_USEBROTLI
+    cookfsCompressionOptBrotli,
+#endif /* COOKFS_USEBROTLI */
     cookfsCompressionOptCustom,
     cookfsCompressionOptMax
 };

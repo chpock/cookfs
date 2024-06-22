@@ -67,3 +67,8 @@ This package contains Zstandard source code, which is copyright Meta Platforms, 
 
 License for Zstandard is contained in file "zstd/LICENSE" and applies to all
 files under zstd/ subdirectory.
+
+This package contains brotli source code, which is copyright the Brotli Authors.
+
+License for brotli is contained in file "brotli/LICENSE" and applies to all
+files under brotli/ subdirectory.

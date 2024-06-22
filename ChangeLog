@@ -1,3 +1,6 @@
+2024-06-23 Konstantin Kushnir <chpock@gmail.com>
+	* Add support for brotli compression
+
 2024-06-21 Konstantin Kushnir <chpock@gmail.com>
 	* Refactor compression functions
 

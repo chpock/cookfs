@@ -24,6 +24,7 @@ c-vfs bool
 c-writer bool
 c-writerchannel bool
 feature-aside bool
+feature-brotli bool
 feature-bzip2 bool
 feature-lzma bool
 feature-metadata bool

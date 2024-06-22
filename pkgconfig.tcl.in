@@ -17,10 +17,11 @@ proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
 
 	    tcl-commands	"@COOKFS_PKGCONFIG_USETCLCMDS@"
 
-	    feature-aside "@COOKFS_PKGCONFIG_FEATURE_ASIDE@"
-	    feature-bzip2 "@COOKFS_PKGCONFIG_USEBZ2@"
-	    feature-lzma  "@COOKFS_PKGCONFIG_USELZMA@"
-	    feature-zstd  "@COOKFS_PKGCONFIG_USEZSTD@"
+	    feature-aside    "@COOKFS_PKGCONFIG_FEATURE_ASIDE@"
+	    feature-bzip2    "@COOKFS_PKGCONFIG_USEBZ2@"
+	    feature-lzma     "@COOKFS_PKGCONFIG_USELZMA@"
+	    feature-zstd     "@COOKFS_PKGCONFIG_USEZSTD@"
+	    feature-brotli   "@COOKFS_PKGCONFIG_USEBROTLI@"
 	    feature-metadata "@COOKFS_PKGCONFIG_FEATURE_METADATA@"
 	}
 	set pkgconfigInitialized 1
