@@ -6,40 +6,19 @@
 #ifndef COOKFS_PAGESCOMPR_H
 #define COOKFS_PAGESCOMPR_H 1
 
-extern const char *cookfsCompressionOptions[];
-extern const char *cookfsCompressionNames[];
-extern const int cookfsCompressionOptionMap[];
-
 #define COOKFS_COMPRESSION_NONE      0
 #define COOKFS_COMPRESSION_ZLIB      1
 #define COOKFS_COMPRESSION_BZ2       2
 #define COOKFS_COMPRESSION_LZMA      3
 #define COOKFS_COMPRESSION_ZSTD      4
 #define COOKFS_COMPRESSION_BROTLI    5
-#define COOKFS_COMPRESSION_CUSTOM   14
-#define COOKFS_COMPRESSION_ANY      15
-
-enum {
-    cookfsCompressionOptNone,
-    cookfsCompressionOptZlib,
-#ifdef COOKFS_USEBZ2
-    cookfsCompressionOptBz2,
-#endif /* COOKFS_USEBZ2 */
-#ifdef COOKFS_USELZMA
-    cookfsCompressionOptLzma,
-#endif /* COOKFS_USELZMA */
-#ifdef COOKFS_USEZSTD
-    cookfsCompressionOptZstd,
-#endif /* COOKFS_USEZSTD */
-#ifdef COOKFS_USEBROTLI
-    cookfsCompressionOptBrotli,
-#endif /* COOKFS_USEBROTLI */
-    cookfsCompressionOptCustom,
-    cookfsCompressionOptMax
-};
+#define COOKFS_COMPRESSION_CUSTOM  254
+#define COOKFS_COMPRESSION_ANY     255
 
 /* let's gain at least 16 bytes and/or 5% to compress it */
 #define SHOULD_COMPRESS(p, origSize, size) ((p->alwaysCompress) || ((size < (origSize - 16)) && ((size) <= (origSize - (origSize / 20)))))
+
+const char *Cookfs_CompressionGetName(int compression);
 
 void CookfsWriteCompression(Cookfs_Pages *p, int compression);
 

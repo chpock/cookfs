@@ -852,7 +852,7 @@ static int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, in
     }
     Cookfs_PagesUnlock(pages);
 
-    Tcl_SetObjResult(interp, Tcl_NewStringObj(cookfsCompressionNames[oCompression], -1));
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(Cookfs_CompressionGetName(oCompression), -1));
 
     return TCL_OK;
 

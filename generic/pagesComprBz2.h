@@ -11,6 +11,8 @@
 #ifndef COOKFS_PAGESCOMPRBZ2_H
 #define COOKFS_PAGESCOMPRBZ2_H 1
 
+#define COOKFS_DEFAULT_COMPRESSION_LEVEL_BZ2 9
+
 Cookfs_PageObj CookfsReadPageBz2(Cookfs_Pages *p, int size, Tcl_Obj **err);
 int CookfsWritePageBz2(Cookfs_Pages *p, unsigned char *bytes, int origSize);
 
