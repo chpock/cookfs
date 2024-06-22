@@ -11,6 +11,8 @@
 #ifndef COOKFS_PAGESCOMPRZLIB_H
 #define COOKFS_PAGESCOMPRZLIB_H 1
 
+#define COOKFS_DEFAULT_COMPRESSION_LEVEL_ZLIB 6
+
 Cookfs_PageObj CookfsReadPageZlib(Cookfs_Pages *p, int size, Tcl_Obj **err);
 int CookfsWritePageZlib(Cookfs_Pages *p, unsigned char *bytes, int origSize);
 

@@ -56,29 +56,6 @@ const char *cookfsCompressionOptions[] = {
     NULL
 };
 
-/* names for all defined compressions */
-const char *cookfsCompressionNames[15] = {
-    "none",   /*  0 */
-    "zlib",   /*  1 */
-    "bz2",    /*  2 */
-    "lzma",   /*  3 */
-    "zstd",   /*  4 */
-    "brotli", /*  5 */
-    "", "", "", "", "", "", "", "", /* 6 - 13 */
-    "custom"  /* 14 */
-};
-
-const unsigned char cookfsCompressionLevels[15] = {
-    0, /* none   -  0 */
-    6, /* zlib   -  1 */
-    9, /* bz2    -  2 */
-    5, /* lzma   -  3 */
-    3, /* zstd   -  4 */
-    6, /* brotli -  5 */
-    0, 0, 0, 0, 0, 0, 0, 0, /* 6 - 13 */
-    0  /* custom - 14 */
-};
-
 const int cookfsCompressionOptionMap[] = {
     COOKFS_COMPRESSION_NONE,
     COOKFS_COMPRESSION_ZLIB,
@@ -97,6 +74,56 @@ const int cookfsCompressionOptionMap[] = {
     COOKFS_COMPRESSION_CUSTOM,
     -1 /* dummy entry */
 };
+
+const char *Cookfs_CompressionGetName(int compression) {
+    switch (compression) {
+    case COOKFS_COMPRESSION_NONE:
+        return "none";
+    case COOKFS_COMPRESSION_ZLIB:
+        return "zlib";
+    case COOKFS_COMPRESSION_BZ2:
+        return "bz2";
+    case COOKFS_COMPRESSION_LZMA:
+        return "lzma";
+    case COOKFS_COMPRESSION_ZSTD:
+        return "zstd";
+    case COOKFS_COMPRESSION_BROTLI:
+        return "brotli";
+    case COOKFS_COMPRESSION_CUSTOM:
+        return "custom";
+    case COOKFS_COMPRESSION_ANY:
+        return "any";
+    default:
+        return "unknown";
+    }
+}
+
+static int Cookfs_CompressionGetDefaultLevel(int compression) {
+    switch (compression) {
+    case COOKFS_COMPRESSION_NONE:
+        return 0;
+    case COOKFS_COMPRESSION_ZLIB:
+        return COOKFS_DEFAULT_COMPRESSION_LEVEL_ZLIB;
+#ifdef COOKFS_USEBZ2
+    case COOKFS_COMPRESSION_BZ2:
+        return COOKFS_DEFAULT_COMPRESSION_LEVEL_BZ2;
+#endif
+#ifdef COOKFS_USELZMA
+    case COOKFS_COMPRESSION_LZMA:
+        return COOKFS_DEFAULT_COMPRESSION_LEVEL_LZMA;
+#endif
+#ifdef COOKFS_USEZSTD
+    case COOKFS_COMPRESSION_ZSTD:
+        return COOKFS_DEFAULT_COMPRESSION_LEVEL_ZSTD;
+#endif
+#ifdef COOKFS_USEBROTLI
+    case COOKFS_COMPRESSION_BROTLI:
+        return COOKFS_DEFAULT_COMPRESSION_LEVEL_BROTLI;
+#endif
+    default:
+        return 255;
+    }
+}
 
 /*
  *----------------------------------------------------------------------
@@ -204,7 +231,7 @@ error:
 done:
     *compressionPtr = compression;
     if (compressionLevel == -1) {
-        compressionLevel = cookfsCompressionLevels[compression];
+        compressionLevel = Cookfs_CompressionGetDefaultLevel(compression);
     }
     *compressionLevelPtr = compressionLevel;
     CookfsLog(printf("Cookfs_CompressionFromObj: return method [%d]"
