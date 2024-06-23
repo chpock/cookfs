@@ -1,4 +1,7 @@
 2024-06-23 Konstantin Kushnir <chpock@gmail.com>
+	* RELEASE TAG 1.7.0
+
+2024-06-23 Konstantin Kushnir <chpock@gmail.com>
 	* Add support for brotli compression
 	* Refactor code
 

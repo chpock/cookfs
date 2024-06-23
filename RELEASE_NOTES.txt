@@ -1,3 +1,20 @@
+===============================================================================
+Release version 1.7.0
+
+Notable changes:
+
+1. Added multithreading support. It is now possible to mount cookfs
+in multithreaded mode. In this mode cookfs will be available to all
+application threads in read-write mode.
+
+2. Added ability to specify compression level for all supported
+compression algorithms. The optimal level is used by default.
+
+3. Added support for Zstandard compression (not enabled by default).
+
+4. Added support for brotli compression (not enabled by default).
+
+===============================================================================
 Release version 1.6.0
 
 Notable changes:
