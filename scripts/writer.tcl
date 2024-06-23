@@ -374,4 +374,4 @@ proc cookfs::tcl::writer::write {wrid args} {
 
 interp alias {} cookfs::writer {} cookfs::tcl::writer
 
-package provide cookfs::tcl::writer 1.7.0
+package provide cookfs::tcl::writer 1.8.0

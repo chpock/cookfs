@@ -859,4 +859,4 @@ if { ![llength [info commands vfs::cookfs::Mount]] } {
     interp alias {} vfs::cookfs::Mount {} cookfs::tcl::Mount
 }
 
-package provide cookfs::tcl::vfs 1.7.0
+package provide cookfs::tcl::vfs 1.8.0
