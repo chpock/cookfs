@@ -47,6 +47,7 @@ static void Cookfs_HmacInit(HMAC_CTX *ctx, unsigned char *key,
         Sha256_Init(&ctx->inner);
         Sha256_Update(&ctx->inner, key, keySize);
         Sha256_Final(&ctx->inner, k);
+        // cppcheck-suppress unreadVariable symbolName=key
         key = k;
         keySize = SHA256_DIGEST_SIZE;
     } else {
@@ -90,7 +91,7 @@ void Cookfs_Pbkdf2Hmac(unsigned char *secret, Tcl_Size secretSize,
     unsigned int dklen, unsigned char *output)
 {
     CookfsLog2(printf("enter; secretSize: %" TCL_SIZE_MODIFIER "d, saltSize: %"
-        TCL_SIZE_MODIFIER "d, iter: %d, dklen: %d", secretSize, saltSize,
+        TCL_SIZE_MODIFIER "d, iter: %u, dklen: %u", secretSize, saltSize,
         iterations, dklen));
 
     HMAC_CTX ctx;
@@ -191,9 +192,9 @@ fallback_tcl:
                     " from Tcl: %s", Tcl_GetString(Tcl_GetObjResult(interp))));
                 goto fallback_c;
             }
-            int want_copy = (i + sizeof(r) > (unsigned)size ?
-                (unsigned)size - i : sizeof(r));
-            CookfsLog2(printf("copy %d bytes from Tcl rng generator",
+            unsigned int want_copy = ((unsigned)i + sizeof(r) > (unsigned)size ?
+                (unsigned)size - (unsigned)i : sizeof(r));
+            CookfsLog2(printf("copy %u bytes from Tcl rng generator",
                 want_copy));
             memcpy(&buf[i], (void *)&r, want_copy);
         }
@@ -219,9 +220,9 @@ fallback_c:
     int r;
     for (Tcl_Size i = 0; i < size; i += sizeof(r)) {
         r = rand();
-        int want_copy = (i + sizeof(r) > (unsigned)size ?
-            (unsigned)size - i : sizeof(r));
-        CookfsLog2(printf("copy %d bytes from C rng generator",
+        unsigned int want_copy = ((unsigned)i + sizeof(r) > (unsigned)size ?
+            (unsigned)size - (unsigned)i : sizeof(r));
+        CookfsLog2(printf("copy %u bytes from C rng generator",
             want_copy));
         memcpy(&buf[i], (void *)&r, want_copy);
     }
