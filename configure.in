@@ -149,6 +149,11 @@ if test ${USECCRYPT} = yes; then
     if test "${TEA_PLATFORM}" = "windows" ; then
         TEA_ADD_LIBS([-lbcrypt])
     fi
+    # Include CpuArch.c only if we are not using c-lzma. Otherwise, this file
+    # will be included when processing the lzma option.
+    if test ${USECPAGES} != yes || test ${USELZMA} != yes; then
+        TEA_ADD_SOURCES([7zip/C/CpuArch.c])
+    fi
 else
     COOKFS_PKGCONFIG_USECCRYPT=0
     COOKFS_PKGCONFIG_FEATURE_CRYPT=0
