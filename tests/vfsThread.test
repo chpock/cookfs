@@ -1069,3 +1069,86 @@ tcltest::test cookfsVfsThread-8.4 "Accessing a file opened for writing (to small
     tcltest::removeFile $file
     unset -nocomplain file fsid tid file1 fp result
 } -result {1 {} TEST {} {} 1}
+
+tcltest::test cookfsVfsThread-9.1 "Test 2 threads, 1 thread reads, 2 thread writes" -constraints {threaded enabledCVfs} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0 -smallfilebuffer 0 -pagesize 0x100]
+    for { set i 0 } { $i < 20 } { incr i } {
+        set fd [open [file join $file "ORIG_$i"] wb]
+        puts -nonewline $fd $i[string repeat ORIG 0x100]
+        close $fd
+    }
+    set mx [thread::rwmutex create]
+    set tid1 [thread::create thread::wait]
+    thread::send $tid1 [list set mx $mx]
+    thread::send $tid1 [list set file $file]
+    set tid2 [thread::create thread::wait]
+    thread::send $tid2 [list set mx $mx]
+    thread::send $tid2 [list set file $file]
+} -body {
+    # lock mx on write
+    thread::rwmutex wlock $mx
+    thread::send -async $tid1 {
+        thread::rwmutex rlock $mx
+        set start [clock seconds]
+        if { [catch {
+            while { [expr { [clock seconds] - $start }] < 3 } {
+                # Read all available files and check if they contain the expected data
+                foreach fn_full [lsort -dictionary [glob -directory $file -type f *]] {
+                    set fn [file tail $fn_full]
+                    set expected [split $fn "_"]
+                    set expected "[lindex $expected 1][string repeat [lindex $expected 0] 0x100]"
+                    set fd [open $fn_full rb]
+                    set data [read $fd]
+                    close $fd
+                    if { $data ne $expected } {
+                        return -code error "file $fn_full contains unexpected data"
+                    }
+                    puts "$fn_full - OK"
+                    # The last file from the 2nd thread is THRD_100. Get out of this
+                    # thread if we found it.
+                    if { $fn eq "THRD_100" } {
+                        return "ok"
+                    }
+                }
+                puts "--------NEXT ROUND----------"
+            }
+            set ok timeout
+        } result] && $result ne "ok" } {
+            set result "ERROR: $result"
+        }
+        thread::rwmutex unlock $mx
+    }
+    thread::send -async $tid2 {
+        thread::rwmutex rlock $mx
+        catch {
+            for { set i 0 } { $i < 101 } { incr i } {
+                set fd [open [file join $file "THRD_$i"] wb]
+                puts -nonewline $fd $i[string repeat THRD 0x100]
+                close $fd
+                puts "Created: [file join $file "THRD_$i"]"
+            }
+            set ok ok
+        } result
+        thread::rwmutex unlock $mx
+    }
+    # unlock mx mutex, the threads will start to read/write files
+    thread::rwmutex unlock $mx
+    # Give 10ms for thread to lock mx mutex
+    after 10
+    # Now try locking the mutex again, since the thread read locked mutex,
+    # we will wait for the threads to finish the job
+    thread::rwmutex wlock $mx
+    # we no longer need the mutex
+    thread::rwmutex unlock $mx
+    thread::rwmutex destroy $mx
+    cookfs::Unmount $file
+    # let's retrieve the results
+    list [thread::send $tid1 [list set result]] [thread::send $tid2 [list set result]]
+} -cleanup {
+    catch { thread::release $tid1 }
+    catch { thread::release $tid2 }
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid tid1 tid2 mx i fd
+} -result {ok ok}
