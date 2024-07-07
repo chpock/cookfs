@@ -14,6 +14,7 @@ proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
 	    c-readerchannel	"@COOKFS_PKGCONFIG_USECREADERCHAN@"
 	    c-writerchannel	"@COOKFS_PKGCONFIG_USECWRITERCHAN@"
 	    c-writer		"@COOKFS_PKGCONFIG_USECWRITER@"
+	    c-crypt		"@COOKFS_PKGCONFIG_USECCRYPT@"
 
 	    tcl-commands	"@COOKFS_PKGCONFIG_USETCLCMDS@"
 
@@ -23,6 +24,7 @@ proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
 	    feature-zstd     "@COOKFS_PKGCONFIG_USEZSTD@"
 	    feature-brotli   "@COOKFS_PKGCONFIG_USEBROTLI@"
 	    feature-metadata "@COOKFS_PKGCONFIG_FEATURE_METADATA@"
+	    feature-crypt    "@COOKFS_PKGCONFIG_FEATURE_CRYPT@"
 	}
 	set pkgconfigInitialized 1
     }

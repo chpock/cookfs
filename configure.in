@@ -127,6 +127,7 @@ AC_ARG_ENABLE(c-writerchannel, [  --disable-c-writerchannel Use writer handler w
 AC_ARG_ENABLE(c-pkgconfig,     [  --disable-c-pkgconfig     Use pkgconfig written in C. Defaults to true],          USECPKGCONFIG=${enableval},    USECPKGCONFIG=yes)
 AC_ARG_ENABLE(c-vfs,           [  --disable-c-vfs           Use VFS support written in C. Defaults to true],        USECVFS=${enableval},          USECVFS=yes)
 AC_ARG_ENABLE(c-writer,        [  --disable-c-writer        Use writer handler written in C. Defaults to true],     USECWRITER=${enableval},       USECWRITER=yes)
+AC_ARG_ENABLE(c-crypt,         [  --disable-c-crypt         Use crypt functions written in C. Defaults to true],    USECCRYPT=${enableval},        USECCRYPT=yes)
 AC_ARG_ENABLE(tcl-commands,    [  --disable-tcl-commands    Enable Tcl commands for objects. Defaults to true],     USETCLCMDS=${enableval},       USETCLCMDS=yes)
 
 
@@ -137,6 +138,26 @@ fi
 TEA_ADD_TCL_SOURCES([scripts/pages.tcl])
 TEA_ADD_TCL_SOURCES([scripts/readerchannel.tcl])
 TEA_ADD_TCL_SOURCES([scripts/fsindex.tcl])
+
+if test ${USECCRYPT} = yes; then
+    AC_DEFINE(COOKFS_USECRYPT)
+    AC_DEFINE(COOKFS_USECCRYPT)
+    COOKFS_PKGCONFIG_USECCRYPT=1
+    COOKFS_PKGCONFIG_FEATURE_CRYPT=1
+    TEA_ADD_SOURCES([crypt.c cryptCmd.c])
+    TEA_ADD_SOURCES([7zip/C/Aes.c 7zip/C/AesOpt.c 7zip/C/Sha256.c 7zip/C/Sha256Opt.c])
+    if test "${TEA_PLATFORM}" = "windows" ; then
+        TEA_ADD_LIBS([-lbcrypt])
+    fi
+    # Include CpuArch.c only if we are not using c-lzma. Otherwise, this file
+    # will be included when processing the lzma option.
+    if test ${USECPAGES} != yes || test ${USELZMA} != yes; then
+        TEA_ADD_SOURCES([7zip/C/CpuArch.c])
+    fi
+else
+    COOKFS_PKGCONFIG_USECCRYPT=0
+    COOKFS_PKGCONFIG_FEATURE_CRYPT=0
+fi
 
 if test ${USECPAGES} = yes; then
     AC_DEFINE(COOKFS_USECPAGES)
@@ -365,7 +386,6 @@ else
     COOKFS_PKGCONFIG_USETCLCMDS=1
 fi
 
-
 AC_SUBST(COOKFS_PKGCONFIG_FEATURE_ASIDE)
 AC_SUBST(COOKFS_PKGCONFIG_USECPAGES)
 AC_SUBST(COOKFS_PKGCONFIG_USECREADERCHAN)
@@ -379,6 +399,8 @@ AC_SUBST(COOKFS_PKGCONFIG_FEATURE_METADATA)
 AC_SUBST(COOKFS_PKGCONFIG_USECVFS)
 AC_SUBST(COOKFS_PKGCONFIG_USECWRITER)
 AC_SUBST(COOKFS_PKGCONFIG_USETCLCMDS)
+AC_SUBST(COOKFS_PKGCONFIG_USECCRYPT)
+AC_SUBST(COOKFS_PKGCONFIG_FEATURE_CRYPT)
 
 if test ${USECPKGCONFIG} = yes; then
     COOKFS_PKGCONFIG_USECPKGCONFIG=1
@@ -396,6 +418,8 @@ if test ${USECPKGCONFIG} = yes; then
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECVFS, $COOKFS_PKGCONFIG_USECVFS)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECWRITER, $COOKFS_PKGCONFIG_USECWRITER)
     AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USETCLCMDS, $COOKFS_PKGCONFIG_USETCLCMDS)
+    AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_USECCRYPT, $COOKFS_PKGCONFIG_USECCRYPT)
+    AC_DEFINE_UNQUOTED(COOKFS_PKGCONFIG_FEATURE_CRYPT, $COOKFS_PKGCONFIG_FEATURE_CRYPT)
 
     AC_DEFINE(COOKFS_USECPKGCONFIG)
 else

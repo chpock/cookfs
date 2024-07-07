@@ -8,6 +8,7 @@
  */
 
 #include "cookfs.h"
+#include "crypt.h"
 
 #ifdef COOKFS_USECPAGES
 #include "pagesCmd.h"
@@ -32,6 +33,10 @@
 #ifdef COOKFS_USECWRITERCHAN
 #include "writerchannelCmd.h"
 #endif /* COOKFS_USECWRITERCHAN */
+
+#ifdef COOKFS_USECCRYPT
+#include "cryptCmd.h"
+#endif /* COOKFS_USECCRYPT */
 
 /*
  *----------------------------------------------------------------------
@@ -117,6 +122,15 @@ Cookfs_Init(Tcl_Interp *interp) // cppcheck-suppress unusedFunction
     if (Cookfs_InitHashesCmd(interp) != TCL_OK) {
         return TCL_ERROR;
     }
+
+#if defined(COOKFS_USECCRYPT)
+    Cookfs_CryptInit();
+#if defined(COOKFS_USETCLCMDS)
+    if (Cookfs_InitCryptCmd(interp) != TCL_OK) {
+        return TCL_ERROR;
+    }
+#endif
+#endif
 
 #if defined(COOKFS_USECVFS)
     if (Cookfs_InitVfsMountCmd(interp) != TCL_OK) {
