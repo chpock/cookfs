@@ -20,9 +20,18 @@
 #include <assert.h>
 
 #ifdef COOKFS_INTERNAL_DEBUG
+#ifndef __FUNCTION_NAME__
+    #ifdef _WIN32   // WINDOWS
+        #define __FUNCTION_NAME__   __FUNCTION__
+    #else          // GCC
+        #define __FUNCTION_NAME__   __func__
+    #endif
+#endif
 #define CookfsLog(a) {a; printf("\n"); fflush(stdout);}
+#define CookfsLog2(a) {printf("%s: ", __FUNCTION_NAME__); a; printf("\n"); fflush(stdout);}
 #else
 #define CookfsLog(a) {}
+#define CookfsLog2(a) {}
 #endif
 
 #define UNUSED(expr) do { (void)(expr); } while (0)
@@ -48,6 +57,10 @@
 #else
 #define Tcl_NewSizeIntFromObj Tcl_NewWideIntObj
 #endif /* TCL_SIZE_MAX */
+
+#ifndef Tcl_BounceRefCount
+#define Tcl_BounceRefCount(x) Tcl_IncrRefCount((x));Tcl_DecrRefCount((x))
+#endif
 
 #define SET_ERROR(e) \
     if (err != NULL) { *err = (e); }
@@ -90,6 +103,8 @@ static Tcl_Config const cookfs_pkgconfig[] = {
     {"c-writerchannel",  STRINGIFY(COOKFS_PKGCONFIG_USECWRITERCHAN)},
     {"c-vfs",            STRINGIFY(COOKFS_PKGCONFIG_USECVFS)},
     {"c-writer",         STRINGIFY(COOKFS_PKGCONFIG_USECWRITER)},
+    {"c-crypt",          STRINGIFY(COOKFS_PKGCONFIG_USECCRYPT)},
+    {"feature-crypt",    STRINGIFY(COOKFS_PKGCONFIG_FEATURE_CRYPT)},
     {"feature-aside",    STRINGIFY(COOKFS_PKGCONFIG_FEATURE_ASIDE)},
     {"feature-bzip2",    STRINGIFY(COOKFS_PKGCONFIG_USEBZ2)},
     {"feature-lzma",     STRINGIFY(COOKFS_PKGCONFIG_USELZMA)},

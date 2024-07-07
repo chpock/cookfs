@@ -1,0 +1,127 @@
+
+tcltest::test cookfsCrypt-1.1.1 "Test crypt::rng without arguments" -constraints {cookfsCrypt enabledTclCmds} -body {
+    cookfs::crypt::rng
+} -returnCodes error -result {wrong # args: should be "cookfs::crypt::rng size"}
+
+tcltest::test cookfsCrypt-1.1.2 "Test crypt::rng with wrong # args" -constraints {cookfsCrypt enabledTclCmds} -body {
+    cookfs::crypt::rng 1 2
+} -returnCodes error -result {wrong # args: should be "cookfs::crypt::rng size"}
+
+tcltest::test cookfsCrypt-1.1.3 "Test crypt::rng with bad arg" -constraints {cookfsCrypt enabledTclCmds} -body {
+    cookfs::crypt::rng a
+} -returnCodes error -result {expected integer but got "a"}
+
+tcltest::test cookfsCrypt-1.2 "Test crypt::rng, get 1 random byte" -constraints {cookfsCrypt enabledTclCmds} -body {
+    string length [cookfs::crypt::rng 1]
+} -result 1
+
+tcltest::test cookfsCrypt-1.3 "Test crypt::rng, get 2 random bytes" -constraints {cookfsCrypt enabledTclCmds} -body {
+    string length [cookfs::crypt::rng 2]
+} -result 2
+
+tcltest::test cookfsCrypt-1.4 "Test crypt::rng, get 8 random bytes and ensure they are not 0" -constraints {cookfsCrypt enabledTclCmds} -body {
+    set rng [cookfs::crypt::rng 8]
+    set result [string length $rng]
+    set rng [binary encode hex $rng]
+    if { $rng eq [string repeat {00} 8] } {
+        append result " Not ok: $rng"
+    }
+    set result
+} -cleanup {
+    unset -nocomplain rng
+} -result [list 8]
+
+tcltest::test cookfsCrypt-1.5 "Test crypt::rng, get 65 random bytes and ensure they are not 0" -constraints {cookfsCrypt enabledTclCmds} -body {
+    set rng [cookfs::crypt::rng 65]
+    set result [string length $rng]
+    set rng [binary encode hex $rng]
+    if { $rng eq [string repeat {00} 65] } {
+        append result " Not ok: $rng"
+    }
+    set result
+} -cleanup {
+    unset -nocomplain rng
+} -result [list 65]
+
+tcltest::test cookfsCrypt-2.1.1 "Test crypt::pbkdf2_hmac without arguments" -constraints {cookfsCrypt enabledTclCmds} -body {
+    cookfs::crypt::pbkdf2_hmac
+} -returnCodes error -result {wrong # args: should be "cookfs::crypt::pbkdf2_hmac ?-iterations iterations? ?-dklen dklen? password salt"}
+
+tcltest::test cookfsCrypt-2.1.2 "Test crypt::pbkdf2_hmac with 1 argument" -constraints {cookfsCrypt enabledTclCmds} -body {
+    cookfs::crypt::pbkdf2_hmac a
+} -returnCodes error -result {wrong # args: should be "cookfs::crypt::pbkdf2_hmac ?-iterations iterations? ?-dklen dklen? password salt"}
+
+tcltest::test cookfsCrypt-2.1.3 "Test crypt::pbkdf2_hmac with wrong args" -constraints {cookfsCrypt enabledTclCmds} -body {
+    cookfs::crypt::pbkdf2_hmac a b c
+} -returnCodes error -result {bad option "a": must be -iterations or -dklen}
+
+tcltest::test cookfsCrypt-2.1.4 "Test crypt::pbkdf2_hmac with no value for -iterations" -constraints {cookfsCrypt enabledTclCmds} -body {
+    cookfs::crypt::pbkdf2_hmac -iterations b c
+} -returnCodes error -result {missing argument to -iterations option}
+
+tcltest::test cookfsCrypt-2.1.5 "Test crypt::pbkdf2_hmac with no value for -dklen" -constraints {cookfsCrypt enabledTclCmds} -body {
+    cookfs::crypt::pbkdf2_hmac -dklen b c
+} -returnCodes error -result {missing argument to -dklen option}
+
+tcltest::test cookfsCrypt-2.1.6 "Test crypt::pbkdf2_hmac with bad value for -iterations" -constraints {cookfsCrypt enabledTclCmds} -body {
+    cookfs::crypt::pbkdf2_hmac -iterations a b c
+} -returnCodes error -result {option -iterations requires an unsigned integer >= 1 as value, but got "a"}
+
+tcltest::test cookfsCrypt-2.1.7 "Test crypt::pbkdf2_hmac with number for -iterations" -constraints {cookfsCrypt enabledTclCmds} -body {
+    cookfs::crypt::pbkdf2_hmac -iterations 0 b c
+} -returnCodes error -result {option -iterations requires an unsigned integer >= 1 as value, but got "0"}
+
+tcltest::test cookfsCrypt-2.1.8 "Test crypt::pbkdf2_hmac with bad value for -dklen" -constraints {cookfsCrypt enabledTclCmds} -body {
+    cookfs::crypt::pbkdf2_hmac -dklen a b c
+} -returnCodes error -result {option -dklen requires an unsigned integer >= 1 as value, but got "a"}
+
+tcltest::test cookfsCrypt-2.1.9 "Test crypt::pbkdf2_hmac with number for -dklen" -constraints {cookfsCrypt enabledTclCmds} -body {
+    cookfs::crypt::pbkdf2_hmac -dklen 0 b c
+} -returnCodes error -result {option -dklen requires an unsigned integer >= 1 as value, but got "0"}
+
+tcltest::test cookfsCrypt-2.2.1 "Test crypt::pbkdf2_hmac default dklen = 32" -constraints {cookfsCrypt enabledTclCmds} -body {
+    string length [cookfs::crypt::pbkdf2_hmac a b]
+} -result 32
+
+tcltest::test cookfsCrypt-2.2.2 "Test crypt::pbkdf2_hmac with dklen = 1" -constraints {cookfsCrypt enabledTclCmds} -body {
+    string length [cookfs::crypt::pbkdf2_hmac -dklen 1 a b]
+} -result 1
+
+tcltest::test cookfsCrypt-2.2.3 "Test crypt::pbkdf2_hmac with dklen = 2" -constraints {cookfsCrypt enabledTclCmds} -body {
+    string length [cookfs::crypt::pbkdf2_hmac -dklen 2 a b]
+} -result 2
+
+tcltest::test cookfsCrypt-2.2.4 "Test crypt::pbkdf2_hmac with dklen = 201" -constraints {cookfsCrypt enabledTclCmds} -body {
+    string length [cookfs::crypt::pbkdf2_hmac -dklen 201 a b]
+} -result 201
+
+tcltest::test cookfsCrypt-2.3.1 "Test crypt::pbkdf2_hmac known test vector #1" -constraints {cookfsCrypt enabledTclCmds} -body {
+    binary encode hex [cookfs::crypt::pbkdf2_hmac -iterations 1 "password" "salt"]
+} -result {120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b}
+
+tcltest::test cookfsCrypt-2.3.2 "Test crypt::pbkdf2_hmac known test vector #2" -constraints {cookfsCrypt enabledTclCmds} -body {
+    binary encode hex [cookfs::crypt::pbkdf2_hmac -iterations 2 "password" "salt"]
+} -result {ae4d0c95af6b46d32d0adff928f06dd02a303f8ef3c251dfd6e2d85a95474c43}
+
+tcltest::test cookfsCrypt-2.3.3 "Test crypt::pbkdf2_hmac known test vector #3" -constraints {cookfsCrypt enabledTclCmds} -body {
+    binary encode hex [cookfs::crypt::pbkdf2_hmac -iterations 4096 "password" "salt"]
+} -result {c5e478d59288c841aa530db6845c4c8d962893a001ce4e11a4963873aa98134a}
+
+tcltest::test cookfsCrypt-2.3.4 "Test crypt::pbkdf2_hmac known test vector #4" -constraints {cookfsCrypt enabledTclCmds} -body {
+    binary encode hex [cookfs::crypt::pbkdf2_hmac -iterations 4096 -dklen 16 "pass\0word" "sa\0lt"]
+} -result {89b69d0516f829893c696226650a8687}
+
+tcltest::test cookfsCrypt-2.3.5 "Test crypt::pbkdf2_hmac known test vector #5" -constraints {cookfsCrypt enabledTclCmds} -body {
+    binary encode hex [cookfs::crypt::pbkdf2_hmac -iterations 4096 -dklen 40 "passwordPASSWORDpassword" "saltSALTsaltSALTsaltSALTsaltSALTsalt"]
+} -result {348c89dbcbd32b2f32d814b8116e84cf2b17347ebc1800181c4e2a1fb8dd53e1c635518c7dac47e9}
+
+tcltest::test cookfsCrypt-2.3.6 "Test crypt::pbkdf2_hmac known test vector #6" -constraints {cookfsCrypt enabledTclCmds} -body {
+    binary encode hex [cookfs::crypt::pbkdf2_hmac -iterations 2048 -dklen 64 \
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" \
+        "6d6e656d6f6e6963e383a1e383bce38388e383abe382abe38299e3838fe38299e382a6e38299e382a1e381afe3829ae381afe38299e3818fe38299e3829de38299e381a1e381a1e38299e58d81e4babae58d81e889b2"]
+} -result {3b19907cb907d1ee6e5a0ecb80bd66e2776d1f2c73f4789eafcad94fda832e970471ceb0d200ede70e63ae021044cf4b58b1011e34252ace8d94a48c287906ec}
+
+tcltest::test cookfsCrypt-2.3.7 "Test crypt::pbkdf2_hmac empty values" -constraints {cookfsCrypt enabledTclCmds} -body {
+    binary encode hex [cookfs::crypt::pbkdf2_hmac "" ""]
+} -result {f7ce0b653d2d72a4108cf5abe912ffdd777616dbbb27a70e8204f3ae2d0f6fad}
+
