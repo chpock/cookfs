@@ -1,5 +1,6 @@
 2024-07-07 Konstantin Kushnir <chpock@gmail.com>
 	* Add basic cryptographic functions
+	* Add 1 test case for threads
 
 2024-06-23 Konstantin Kushnir <chpock@gmail.com>
 	* Bumped version to 1.8.0

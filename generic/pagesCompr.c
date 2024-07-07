@@ -476,7 +476,7 @@ Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int size, int decompres
 
     p->fileLastOp = COOKFS_LASTOP_READ;
 
-    CookfsLog(printf("Cookfs_ReadPage I=%d S=%d C=%d", idx, size, p->fileCompression))
+    CookfsLog(printf("Cookfs_ReadPage #%d size:%d compression:%d", idx, size, p->fileCompression))
     if (size == 0) {
 	/* if page was empty, no need to read anything */
 	return Cookfs_PageObjAlloc(0);
@@ -612,9 +612,12 @@ void Cookfs_SeekToPage(Cookfs_Pages *p, int idx) {
 int Cookfs_WritePage(Cookfs_Pages *p, int idx, unsigned char *bytes, int origSize, Tcl_Obj *compressedData) {
     Tcl_Size size = -1;
 
+    CookfsLog2(printf("page index #%d, original size: %d", idx, origSize));
+
     // Add initial stamp if needed
     Cookfs_PageAddStamp(p, 0);
 
+    CookfsLog2(printf("fileLastOp: %d", p->fileLastOp));
     /* if last operation was not write, we need to seek
      * to make sure we're at location where we should be writing */
     if ((idx >= 0) && (p->fileLastOp != COOKFS_LASTOP_WRITE)) {

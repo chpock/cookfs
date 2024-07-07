@@ -27,6 +27,8 @@
         #define __FUNCTION_NAME__   __func__
     #endif
 #endif
+// #define CookfsLog(a) {printf("[%p] ", (void *)Tcl_GetCurrentThread()); a; printf("\n"); fflush(stdout);}
+// #define CookfsLog2(a) {printf("[%p] ", (void *)Tcl_GetCurrentThread()); printf("%s: ", __FUNCTION_NAME__); a; printf("\n"); fflush(stdout);}
 #define CookfsLog(a) {a; printf("\n"); fflush(stdout);}
 #define CookfsLog2(a) {printf("%s: ", __FUNCTION_NAME__); a; printf("\n"); fflush(stdout);}
 #else
