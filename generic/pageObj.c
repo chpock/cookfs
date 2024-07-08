@@ -70,9 +70,9 @@ Cookfs_PageObj Cookfs_PageObjAlloc(Tcl_Size size) {
 #ifdef TCL_THREADS
         s->mx = NULL;
 #endif /* TCL_THREADS */
-#ifdef COOKFS_USECCRYPT
+#ifdef COOKFS_USECCRYPTO
         memset(s->IV, 0, COOKFS_PAGEOBJ_BLOCK_SIZE);
-#endif /* COOKFS_USECCRYPT */
+#endif /* COOKFS_USECCRYPTO */
         p += sizeof(Cookfs_PageObjStruct);
     }
     CookfsLog(printf("Cookfs_PageObjAlloc: return %p", (void *)p));
@@ -89,7 +89,7 @@ Cookfs_PageObj Cookfs_PageObjNewFromByteArray(Tcl_Obj *obj) {
     return rc;
 }
 
-#ifdef COOKFS_USECCRYPT
+#ifdef COOKFS_USECCRYPTO
 
 Cookfs_PageObj Cookfs_PageObjNewFromByteArrayIV(Tcl_Obj *obj) {
     Tcl_Size size;
@@ -247,4 +247,4 @@ int Cookfs_PageObjRemovePadding(Cookfs_PageObj pg) {
 
 }
 
-#endif /* COOKFS_USECCRYPT */
+#endif /* COOKFS_USECCRYPTO */

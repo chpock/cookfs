@@ -17,7 +17,7 @@ tcltest::test cookfsPkgconfig-1 "Check pkgconfig fields and their types" -body {
 } -cleanup {
     unset -nocomplain result f v
 } -result {
-c-crypt bool
+c-crypto bool
 c-fsindex bool
 c-pages bool
 c-readerchannel bool
@@ -27,7 +27,7 @@ c-writerchannel bool
 feature-aside bool
 feature-brotli bool
 feature-bzip2 bool
-feature-crypt bool
+feature-crypto bool
 feature-lzma bool
 feature-metadata bool
 feature-zstd bool

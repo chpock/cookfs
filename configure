@@ -657,8 +657,8 @@ MAKE_LIB
 EGREP
 GREP
 COOKFS_PKGCONFIG_USECPKGCONFIG
-COOKFS_PKGCONFIG_FEATURE_CRYPT
-COOKFS_PKGCONFIG_USECCRYPT
+COOKFS_PKGCONFIG_FEATURE_CRYPTO
+COOKFS_PKGCONFIG_USECCRYPTO
 COOKFS_PKGCONFIG_USETCLCMDS
 COOKFS_PKGCONFIG_USECWRITER
 COOKFS_PKGCONFIG_USECVFS
@@ -802,7 +802,7 @@ enable_c_writerchannel
 enable_c_pkgconfig
 enable_c_vfs
 enable_c_writer
-enable_c_crypt
+enable_c_crypto
 enable_tcl_commands
 '
       ac_precious_vars='build_alias
@@ -1453,7 +1453,7 @@ Optional Features:
   --disable-c-pkgconfig     Use pkgconfig written in C. Defaults to true
   --disable-c-vfs           Use VFS support written in C. Defaults to true
   --disable-c-writer        Use writer handler written in C. Defaults to true
-  --disable-c-crypt         Use crypt functions written in C. Defaults to true
+  --disable-c-crypto        Use crypto functions written in C. Defaults to true
   --disable-tcl-commands    Enable Tcl commands for objects. Defaults to true
 
 Optional Packages:
@@ -8691,12 +8691,12 @@ else $as_nop
   USECWRITER=yes
 fi
 
-# Check whether --enable-c-crypt was given.
-if test ${enable_c_crypt+y}
+# Check whether --enable-c-crypto was given.
+if test ${enable_c_crypto+y}
 then :
-  enableval=$enable_c_crypt; USECCRYPT=${enableval}
+  enableval=$enable_c_crypto; USECCRYPTO=${enableval}
 else $as_nop
-  USECCRYPT=yes
+  USECCRYPTO=yes
 fi
 
 # Check whether --enable-tcl-commands was given.
@@ -9409,19 +9409,19 @@ else
     USECWRITERCHAN="no"
     # c-writer requires c-pages
     USECWRITER="no"
-    # c-crypt requires c-pages
-    USECCRYPT="no"
+    # c-crypto requires c-pages
+    USECCRYPTO="no"
 fi
 
-if test ${USECCRYPT} = yes; then
-    printf "%s\n" "#define COOKFS_USECRYPT 1" >>confdefs.h
+if test ${USECCRYPTO} = yes; then
+    printf "%s\n" "#define COOKFS_USECRYPTO 1" >>confdefs.h
 
-    printf "%s\n" "#define COOKFS_USECCRYPT 1" >>confdefs.h
+    printf "%s\n" "#define COOKFS_USECCRYPTO 1" >>confdefs.h
 
-    COOKFS_PKGCONFIG_USECCRYPT=1
-    COOKFS_PKGCONFIG_FEATURE_CRYPT=1
+    COOKFS_PKGCONFIG_USECCRYPTO=1
+    COOKFS_PKGCONFIG_FEATURE_CRYPTO=1
 
-    vars="crypt.c cryptCmd.c"
+    vars="crypto.c cryptoCmd.c"
     for i in $vars; do
 	case $i in
 	    \$*)
@@ -9543,8 +9543,8 @@ if test ${USECCRYPT} = yes; then
 
     fi
 else
-    COOKFS_PKGCONFIG_USECCRYPT=0
-    COOKFS_PKGCONFIG_FEATURE_CRYPT=0
+    COOKFS_PKGCONFIG_USECCRYPTO=0
+    COOKFS_PKGCONFIG_FEATURE_CRYPTO=0
 fi
 
 if test ${USECFSINDEX} = yes; then
@@ -9835,9 +9835,9 @@ if test ${USECPKGCONFIG} = yes; then
 
     printf "%s\n" "#define COOKFS_PKGCONFIG_USETCLCMDS $COOKFS_PKGCONFIG_USETCLCMDS" >>confdefs.h
 
-    printf "%s\n" "#define COOKFS_PKGCONFIG_USECCRYPT $COOKFS_PKGCONFIG_USECCRYPT" >>confdefs.h
+    printf "%s\n" "#define COOKFS_PKGCONFIG_USECCRYPTO $COOKFS_PKGCONFIG_USECCRYPTO" >>confdefs.h
 
-    printf "%s\n" "#define COOKFS_PKGCONFIG_FEATURE_CRYPT $COOKFS_PKGCONFIG_FEATURE_CRYPT" >>confdefs.h
+    printf "%s\n" "#define COOKFS_PKGCONFIG_FEATURE_CRYPTO $COOKFS_PKGCONFIG_FEATURE_CRYPTO" >>confdefs.h
 
 
     printf "%s\n" "#define COOKFS_USECPKGCONFIG 1" >>confdefs.h

@@ -1,7 +1,7 @@
 /* (c) 2014 Konstantin Kushnir */
 
-#ifndef COOKFS_CRYPT_H
-#define COOKFS_CRYPT_H 1
+#ifndef COOKFS_CRYPTO_H
+#define COOKFS_CRYPTO_H 1
 
 #include "pageObj.h"
 
@@ -10,7 +10,7 @@
 
 #define COOKFS_ENCRYPT_KEY_SIZE 32
 
-void Cookfs_CryptInit(void);
+void Cookfs_CryptoInit(void);
 
 void Cookfs_RandomGenerate(Tcl_Interp *interp, unsigned char *buf, Tcl_Size size);
 void Cookfs_Pbkdf2Hmac(unsigned char *secret, Tcl_Size secretSize,
@@ -20,4 +20,4 @@ void Cookfs_Pbkdf2Hmac(unsigned char *secret, Tcl_Size secretSize,
 void Cookfs_AesEncrypt(Cookfs_PageObj pg, unsigned char *key);
 int Cookfs_AesDecrypt(Cookfs_PageObj pg, unsigned char *key);
 
-#endif /* COOKFS_CRYPT_H */
+#endif /* COOKFS_CRYPTO_H */
