@@ -8,6 +8,102 @@
 
 #include "cookfs.h"
 #include "crypt.h"
+#include "cryptCmd.h"
+
+static int CookfsAesEncryptObjectCmd(ClientData clientData,
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{
+    UNUSED(clientData);
+
+    if ((objc != 3 && objc != 5) || (objc == 5 &&
+        strcmp(Tcl_GetString(objv[1]), "-iv") != 0))
+    {
+        Tcl_WrongNumArgs(interp, 1, objv, "?-iv iv? data key");
+        return TCL_ERROR;
+    }
+
+    Tcl_Size keyLen;
+    unsigned char *keyStr = Tcl_GetByteArrayFromObj(objv[objc - 1], &keyLen);
+
+    if (keyLen != COOKFS_ENCRYPT_KEY_SIZE) {
+        Tcl_SetObjResult(interp, Tcl_ObjPrintf("the key size must be exactly"
+            " %d bytes, but a key of %" TCL_SIZE_MODIFIER "d bytes"
+            " is specified", COOKFS_ENCRYPT_KEY_SIZE, keyLen));
+        return TCL_ERROR;
+    }
+
+    Tcl_Size ivLen;
+    unsigned char *ivStr;
+    if (objc == 5) {
+        ivStr = Tcl_GetByteArrayFromObj(objv[2], &ivLen);
+        if (ivLen != COOKFS_PAGEOBJ_BLOCK_SIZE) {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf("the IV size must be exactly"
+                " %d bytes, but an IV of %" TCL_SIZE_MODIFIER "d bytes"
+                " is specified", COOKFS_PAGEOBJ_BLOCK_SIZE, ivLen));
+            return TCL_ERROR;
+        }
+    } else {
+        ivStr = NULL;
+    }
+
+    Cookfs_PageObj pg = Cookfs_PageObjNewFromByteArray(objv[objc - 2]);
+
+    if (ivStr != NULL) {
+        Cookfs_PageObjSetIV(pg, ivStr);
+    }
+
+    Cookfs_AesEncrypt(pg, keyStr);
+
+    Tcl_SetObjResult(interp, Cookfs_PageObjCopyAsByteArrayIV(pg));
+
+    Cookfs_PageObjBounceRefCount(pg);
+
+    return TCL_OK;
+
+}
+
+static int CookfsAesDecryptObjectCmd(ClientData clientData,
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{
+    UNUSED(clientData);
+
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "data key");
+        return TCL_ERROR;
+    }
+
+    Tcl_Size keyLen;
+    unsigned char *keyStr = Tcl_GetByteArrayFromObj(objv[2], &keyLen);
+
+    if (keyLen != COOKFS_ENCRYPT_KEY_SIZE) {
+        Tcl_SetObjResult(interp, Tcl_ObjPrintf("the key size must be exactly"
+            " %d bytes, but a key of %" TCL_SIZE_MODIFIER "d bytes"
+            " is specified", COOKFS_ENCRYPT_KEY_SIZE, keyLen));
+        return TCL_ERROR;
+    }
+
+    Cookfs_PageObj pg = Cookfs_PageObjNewFromByteArrayIV(objv[1]);
+
+    if (pg == NULL) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("unencrypted data was"
+            " specified", -1));
+        return TCL_ERROR;
+    }
+
+    int rc = Cookfs_AesDecrypt(pg, keyStr);
+
+    if (rc != TCL_OK) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to decrypt"
+            " the specified data", -1));
+    } else {
+        Tcl_SetObjResult(interp, Cookfs_PageObjCopyAsByteArray(pg));
+    }
+
+    Cookfs_PageObjBounceRefCount(pg);
+
+    return rc;
+
+}
 
 static int CookfsRandomGenerateObjectCmd(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
@@ -105,10 +201,20 @@ int Cookfs_InitCryptCmd(Tcl_Interp *interp) {
     Tcl_CreateObjCommand(interp, "::cookfs::c::crypt::pbkdf2_hmac",
         CookfsPbkdf2HmacObjectCmd, (ClientData) NULL, NULL);
 
+    Tcl_CreateObjCommand(interp, "::cookfs::c::crypt::aes_encrypt",
+        CookfsAesEncryptObjectCmd, (ClientData) NULL, NULL);
+
+    Tcl_CreateObjCommand(interp, "::cookfs::c::crypt::aes_decrypt",
+        CookfsAesDecryptObjectCmd, (ClientData) NULL, NULL);
+
     Tcl_CreateAlias(interp, "::cookfs::crypt::rng", interp,
         "::cookfs::c::crypt::rng", 0, NULL);
     Tcl_CreateAlias(interp, "::cookfs::crypt::pbkdf2_hmac", interp,
         "::cookfs::c::crypt::pbkdf2_hmac", 0, NULL);
+    Tcl_CreateAlias(interp, "::cookfs::crypt::aes_encrypt", interp,
+        "::cookfs::c::crypt::aes_encrypt", 0, NULL);
+    Tcl_CreateAlias(interp, "::cookfs::crypt::aes_decrypt", interp,
+        "::cookfs::c::crypt::aes_decrypt", 0, NULL);
 
     return TCL_OK;
 

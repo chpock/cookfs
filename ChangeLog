@@ -1,3 +1,6 @@
+2024-07-08 Konstantin Kushnir <chpock@gmail.com>
+	* Add procedures for AES encryption/decryption
+
 2024-07-07 Konstantin Kushnir <chpock@gmail.com>
 	* Add basic cryptographic functions
 	* Add 1 test case for threads

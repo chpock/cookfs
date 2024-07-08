@@ -7,6 +7,7 @@
  */
 
 #include "cookfs.h"
+#include "crypt.h"
 
 // for getpid()
 #include <unistd.h>
@@ -36,6 +37,53 @@ typedef struct {
   CSha256 inner;
   CSha256 outer;
 } HMAC_CTX;
+
+#if COOKFS_PAGEOBJ_BLOCK_SIZE != AES_BLOCK_SIZE
+#error Condition COOKFS_PAGEOBJ_BLOCK_SIZE == AES_BLOCK_SIZE is not true. Is is unsupported. Buffer owerflow errors are expected in Cookfs_Aes* functions.
+#endif
+
+void Cookfs_AesEncrypt(Cookfs_PageObj pg, unsigned char *key) {
+
+    CookfsLog2(printf("enter..."));
+
+    UInt32 ivAes[AES_NUM_IVMRK_WORDS];
+
+    Cookfs_PageObjAddPadding(pg);
+
+    AesCbc_Init(ivAes, Cookfs_PageObjGetIV(pg));
+    // ivAes is a pointer to 32-bit integers. But IV size is defined in 8-bit
+    // AES_BLOCK_SIZE blocks. So here we use an offset of 4 (32 / 8).
+    Aes_SetKey_Enc(ivAes + 4, key, COOKFS_ENCRYPT_KEY_SIZE);
+
+    CookfsLog2(printf("run AesCbc_Encode() ..."));
+    AesCbc_Encode(ivAes, pg, Cookfs_PageObjSize(pg) / AES_BLOCK_SIZE);
+
+    CookfsLog2(printf("ok"));
+    return;
+
+}
+
+int Cookfs_AesDecrypt(Cookfs_PageObj pg, unsigned char *key) {
+
+    CookfsLog2(printf("enter..."));
+
+    UInt32 ivAes[AES_NUM_IVMRK_WORDS];
+
+    AesCbc_Init(ivAes, Cookfs_PageObjGetIV(pg));
+    // ivAes is a pointer to 32-bit integers. But IV size is defined in 8-bit
+    // AES_BLOCK_SIZE blocks. So here we use an offset of 4 (32 / 8).
+    Aes_SetKey_Dec(ivAes + 4, key, COOKFS_ENCRYPT_KEY_SIZE);
+
+    CookfsLog2(printf("run AesCbc_Decode() ..."));
+    AesCbc_Decode(ivAes, pg, Cookfs_PageObjSize(pg) / AES_BLOCK_SIZE);
+
+    CookfsLog2(printf("unpad data ..."));
+    int rc = Cookfs_PageObjRemovePadding(pg);
+
+    CookfsLog2(printf("return %s", (rc == TCL_OK ? "TCL_OK" : "TCL_ERROR")));
+    return rc;
+
+}
 
 static void Cookfs_HmacInit(HMAC_CTX *ctx, unsigned char *key,
     Tcl_Size keySize)

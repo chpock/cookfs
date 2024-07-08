@@ -1104,14 +1104,14 @@ tcltest::test cookfsVfsThread-9.1 "Test 2 threads, 1 thread reads, 2 thread writ
                     if { $data ne $expected } {
                         return -code error "file $fn_full contains unexpected data"
                     }
-                    puts "$fn_full - OK"
+                    # puts "$fn_full - OK"
                     # The last file from the 2nd thread is THRD_100. Get out of this
                     # thread if we found it.
                     if { $fn eq "THRD_100" } {
                         return "ok"
                     }
                 }
-                puts "--------NEXT ROUND----------"
+                # puts "--------NEXT ROUND----------"
             }
             set ok timeout
         } result] && $result ne "ok" } {
@@ -1126,7 +1126,7 @@ tcltest::test cookfsVfsThread-9.1 "Test 2 threads, 1 thread reads, 2 thread writ
                 set fd [open [file join $file "THRD_$i"] wb]
                 puts -nonewline $fd $i[string repeat THRD 0x100]
                 close $fd
-                puts "Created: [file join $file "THRD_$i"]"
+                # puts "Created: [file join $file "THRD_$i"]"
             }
             set ok ok
         } result
