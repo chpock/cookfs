@@ -27,6 +27,7 @@ static int CookfsAesEncryptObjectCmd(ClientData clientData,
 
     if (keyLen != COOKFS_ENCRYPT_KEY_SIZE) {
         Tcl_SetObjResult(interp, Tcl_ObjPrintf("the key size must be exactly"
+            // cppcheck-suppress unknownMacro
             " %d bytes, but a key of %" TCL_SIZE_MODIFIER "d bytes"
             " is specified", COOKFS_ENCRYPT_KEY_SIZE, keyLen));
         return TCL_ERROR;
