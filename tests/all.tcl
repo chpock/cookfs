@@ -43,8 +43,8 @@ if {[cookfs::pkgconfig get feature-metadata]} {
     lappend constraints cookfsMetadata
 }
 
-if {[cookfs::pkgconfig get feature-crypt]} {
-    lappend constraints cookfsCrypt
+if {[cookfs::pkgconfig get feature-crypto]} {
+    lappend constraints cookfsCrypto
 }
 
 tcltest::testConstraint cookfsCompressionNone 1

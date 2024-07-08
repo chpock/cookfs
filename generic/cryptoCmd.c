@@ -1,5 +1,5 @@
 /*
- * cryptCmd.c
+ * cryptoCmd.c
  *
  * Provides Tcl commands for cryptographic functions
  *
@@ -7,8 +7,8 @@
  */
 
 #include "cookfs.h"
-#include "crypt.h"
-#include "cryptCmd.h"
+#include "crypto.h"
+#include "cryptoCmd.h"
 
 static int CookfsAesEncryptObjectCmd(ClientData clientData,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
@@ -192,30 +192,30 @@ static int CookfsPbkdf2HmacObjectCmd(ClientData clientData,
     return TCL_OK;
 }
 
-int Cookfs_InitCryptCmd(Tcl_Interp *interp) {
+int Cookfs_InitCryptoCmd(Tcl_Interp *interp) {
 
-    Tcl_CreateNamespace(interp, "::cookfs::c::crypt", NULL, NULL);
+    Tcl_CreateNamespace(interp, "::cookfs::c::crypto", NULL, NULL);
 
-    Tcl_CreateObjCommand(interp, "::cookfs::c::crypt::rng",
+    Tcl_CreateObjCommand(interp, "::cookfs::c::crypto::rng",
         CookfsRandomGenerateObjectCmd, (ClientData) NULL, NULL);
 
-    Tcl_CreateObjCommand(interp, "::cookfs::c::crypt::pbkdf2_hmac",
+    Tcl_CreateObjCommand(interp, "::cookfs::c::crypto::pbkdf2_hmac",
         CookfsPbkdf2HmacObjectCmd, (ClientData) NULL, NULL);
 
-    Tcl_CreateObjCommand(interp, "::cookfs::c::crypt::aes_encrypt",
+    Tcl_CreateObjCommand(interp, "::cookfs::c::crypto::aes_encrypt",
         CookfsAesEncryptObjectCmd, (ClientData) NULL, NULL);
 
-    Tcl_CreateObjCommand(interp, "::cookfs::c::crypt::aes_decrypt",
+    Tcl_CreateObjCommand(interp, "::cookfs::c::crypto::aes_decrypt",
         CookfsAesDecryptObjectCmd, (ClientData) NULL, NULL);
 
-    Tcl_CreateAlias(interp, "::cookfs::crypt::rng", interp,
-        "::cookfs::c::crypt::rng", 0, NULL);
-    Tcl_CreateAlias(interp, "::cookfs::crypt::pbkdf2_hmac", interp,
-        "::cookfs::c::crypt::pbkdf2_hmac", 0, NULL);
-    Tcl_CreateAlias(interp, "::cookfs::crypt::aes_encrypt", interp,
-        "::cookfs::c::crypt::aes_encrypt", 0, NULL);
-    Tcl_CreateAlias(interp, "::cookfs::crypt::aes_decrypt", interp,
-        "::cookfs::c::crypt::aes_decrypt", 0, NULL);
+    Tcl_CreateAlias(interp, "::cookfs::crypto::rng", interp,
+        "::cookfs::c::crypto::rng", 0, NULL);
+    Tcl_CreateAlias(interp, "::cookfs::crypto::pbkdf2_hmac", interp,
+        "::cookfs::c::crypto::pbkdf2_hmac", 0, NULL);
+    Tcl_CreateAlias(interp, "::cookfs::crypto::aes_encrypt", interp,
+        "::cookfs::c::crypto::aes_encrypt", 0, NULL);
+    Tcl_CreateAlias(interp, "::cookfs::crypto::aes_decrypt", interp,
+        "::cookfs::c::crypto::aes_decrypt", 0, NULL);
 
     return TCL_OK;
 

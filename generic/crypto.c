@@ -1,5 +1,5 @@
 /*
- * crypt.c
+ * crypto.c
  *
  * Provides implementation of cryptographic functions
  *
@@ -7,7 +7,7 @@
  */
 
 #include "cookfs.h"
-#include "crypt.h"
+#include "crypto.h"
 
 // for getpid()
 #include <unistd.h>
@@ -28,7 +28,7 @@
 #include "../7zip/C/Aes.h"
 #include "../7zip/C/Sha256.h"
 
-void Cookfs_CryptInit(void) {
+void Cookfs_CryptoInit(void) {
     Sha256Prepare();
     AesGenTables();
 }

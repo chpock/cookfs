@@ -8,7 +8,7 @@
  */
 
 #include "cookfs.h"
-#include "crypt.h"
+#include "crypto.h"
 
 #ifdef COOKFS_USECPAGES
 #include "pagesCmd.h"
@@ -34,9 +34,9 @@
 #include "writerchannelCmd.h"
 #endif /* COOKFS_USECWRITERCHAN */
 
-#ifdef COOKFS_USECCRYPT
-#include "cryptCmd.h"
-#endif /* COOKFS_USECCRYPT */
+#ifdef COOKFS_USECCRYPTO
+#include "cryptoCmd.h"
+#endif /* COOKFS_USECCRYPTO */
 
 /*
  *----------------------------------------------------------------------
@@ -123,10 +123,10 @@ Cookfs_Init(Tcl_Interp *interp) // cppcheck-suppress unusedFunction
         return TCL_ERROR;
     }
 
-#if defined(COOKFS_USECCRYPT)
-    Cookfs_CryptInit();
+#if defined(COOKFS_USECCRYPTO)
+    Cookfs_CryptoInit();
 #if defined(COOKFS_USETCLCMDS)
-    if (Cookfs_InitCryptCmd(interp) != TCL_OK) {
+    if (Cookfs_InitCryptoCmd(interp) != TCL_OK) {
         return TCL_ERROR;
     }
 #endif
