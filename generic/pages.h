@@ -12,7 +12,8 @@ typedef struct _Cookfs_Pages Cookfs_Pages;
 Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName);
 
 Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
-    int fileReadOnly, int fileCompression, int fileCompressionLevel,
+    int fileReadOnly, int baseCompression, int baseCompressionLevel,
+    int currentCompression, int currentCompressionLevel,
     char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside,
     int asyncDecompressQueueSize, Tcl_Obj *compressCommand,
     Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand,

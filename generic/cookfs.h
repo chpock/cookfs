@@ -20,6 +20,7 @@
 #include <assert.h>
 
 #ifdef COOKFS_INTERNAL_DEBUG
+
 #ifndef __FUNCTION_NAME__
     #ifdef _WIN32   // WINDOWS
         #define __FUNCTION_NAME__   __FUNCTION__
@@ -27,6 +28,20 @@
         #define __FUNCTION_NAME__   __func__
     #endif
 #endif
+
+// This is an experiment to print debug messages indented according to
+// the current stack depth. The -funwind-tables compiler key must be used
+// for the backtrace() function to work.
+//
+// This feature is not currently used, but may be used in the future.
+//
+// #include <execinfo.h>
+// static inline int ___get_stack_depth() {
+//     void *buffer[200];
+//     return backtrace(buffer, 200);
+// }
+// #define CookfsLog(a) {printf("%d ", ___get_stack_depth()); a; printf("\n"); fflush(stdout);}
+
 // #define CookfsLog(a) {printf("[%p] ", (void *)Tcl_GetCurrentThread()); a; printf("\n"); fflush(stdout);}
 // #define CookfsLog2(a) {printf("[%p] ", (void *)Tcl_GetCurrentThread()); printf("%s: ", __FUNCTION_NAME__); a; printf("\n"); fflush(stdout);}
 #define CookfsLog(a) {a; printf("\n"); fflush(stdout);}

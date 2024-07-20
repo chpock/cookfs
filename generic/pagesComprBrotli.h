@@ -9,8 +9,12 @@
 #ifndef COOKFS_PAGESCOMPRBROTLI_H
 #define COOKFS_PAGESCOMPRBROTLI_H 1
 
-Cookfs_PageObj CookfsReadPageBrotli(Cookfs_Pages *p, int size, Tcl_Obj **err);
-int CookfsWritePageBrotli(Cookfs_Pages *p, unsigned char *bytes, int origSize);
+int CookfsReadPageBrotli(Cookfs_Pages *p, unsigned char *dataCompressed,
+    Tcl_Size sizeCompressed, unsigned char *dataUncompressed,
+    Tcl_Size sizeUncompressed, Tcl_Obj **err);
+
+Cookfs_PageObj CookfsWritePageBrotli(Cookfs_Pages *p, unsigned char *bytes,
+    Tcl_Size origSize);
 
 #define COOKFS_DEFAULT_COMPRESSION_LEVEL_BROTLI 6
 

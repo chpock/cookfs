@@ -12,13 +12,12 @@
 void Cookfs_PageObjIncrRefCount(Cookfs_PageObj pg) {
     Cookfs_PageObjStruct *ps = (Cookfs_PageObjStruct *)(pg -
         sizeof(Cookfs_PageObjStruct));
-    // CookfsLog(printf("Cookfs_PageObjIncrRefCount: %p", (void *)pg));
+    // CookfsLog2(printf("%p (allocated at %p)", (void *)pg, (void *)ps));
 #ifdef TCL_THREADS
     Tcl_MutexLock(&ps->mx);
 #endif /* TCL_THREADS */
     ps->refCount++;
-    // CookfsLog(printf("Cookfs_PageObjIncrRefCount: %p - count:%d",
-    //    (void *)pg, ps->refCount));
+    // CookfsLog2(printf("%p - count:%d", (void *)pg, ps->refCount));
 #ifdef TCL_THREADS
     Tcl_MutexUnlock(&ps->mx);
 #endif /* TCL_THREADS */
@@ -27,13 +26,16 @@ void Cookfs_PageObjIncrRefCount(Cookfs_PageObj pg) {
 void Cookfs_PageObjDecrRefCount(Cookfs_PageObj pg) {
     Cookfs_PageObjStruct *ps = (Cookfs_PageObjStruct *)(pg -
         sizeof(Cookfs_PageObjStruct));
-    // CookfsLog(printf("Cookfs_PageObjDecrRefCount: release %p", (void *)pg));
+    // CookfsLog2(printf("%p (allocated at %p)", (void *)pg, (void *)ps));
 #ifdef TCL_THREADS
     Tcl_MutexLock(&ps->mx);
 #endif /* TCL_THREADS */
+    // There should not be Cookfs_PageObjDecrRefCount() without
+    // a corresponding Cookfs_PageObjIncrRefCount() that was called before it.
+    // Throw an error if refcount is less than or equal to zero.
+    assert(ps->refCount > 0);
     ps->refCount--;
-    // CookfsLog(printf("Cookfs_PageObjDecrRefCount: %p - count:%d",
-    //     (void *)pg, ps->refCount));
+    // CookfsLog2(printf("%p - count:%d", (void *)pg, ps->refCount));
 #ifdef TCL_THREADS
     Tcl_MutexUnlock(&ps->mx);
 #endif /* TCL_THREADS */
@@ -41,7 +43,7 @@ void Cookfs_PageObjDecrRefCount(Cookfs_PageObj pg) {
 #ifdef TCL_THREADS
         Tcl_MutexFinalize(&ps->mx);
 #endif /* TCL_THREADS */
-        // CookfsLog(printf("Cookfs_PageObjDecrRefCount: release %p", (void *)pg));
+        // CookfsLog2(printf("release %p", (void *)pg));
         ckfree(ps);
     }
 }
@@ -59,7 +61,7 @@ static Tcl_Size Cookfs_PageObjCalculateSize(Tcl_Size size) {
 }
 
 Cookfs_PageObj Cookfs_PageObjAlloc(Tcl_Size size) {
-    CookfsLog2(printf("enter..."));
+    // CookfsLog2(printf("enter..."));
     Tcl_Size bufferSize = Cookfs_PageObjCalculateSize(size);
     Cookfs_PageObj p = ckalloc(bufferSize + sizeof(Cookfs_PageObjStruct));
     if (p != NULL) {
@@ -75,18 +77,25 @@ Cookfs_PageObj Cookfs_PageObjAlloc(Tcl_Size size) {
 #endif /* COOKFS_USECCRYPTO */
         p += sizeof(Cookfs_PageObjStruct);
     }
-    CookfsLog(printf("Cookfs_PageObjAlloc: return %p", (void *)p));
+    CookfsLog(printf("Cookfs_PageObjAlloc: return %p (allocated at %p)",
+        (void *)p, (void *)(p - sizeof(Cookfs_PageObjStruct))));
     return p;
 }
 
-Cookfs_PageObj Cookfs_PageObjNewFromByteArray(Tcl_Obj *obj) {
-    Tcl_Size size;
-    unsigned char *bytes = Tcl_GetByteArrayFromObj(obj, &size);
+Cookfs_PageObj Cookfs_PageObjNewFromString(const unsigned char *bytes,
+    Tcl_Size size)
+{
     Cookfs_PageObj rc = Cookfs_PageObjAlloc(size);
     if (rc != NULL) {
         memcpy(rc, bytes, size);
     }
     return rc;
+}
+
+Cookfs_PageObj Cookfs_PageObjNewFromByteArray(Tcl_Obj *obj) {
+    Tcl_Size size;
+    const unsigned char *bytes = Tcl_GetByteArrayFromObj(obj, &size);
+    return Cookfs_PageObjNewFromString(bytes, size);
 }
 
 #ifdef COOKFS_USECCRYPTO

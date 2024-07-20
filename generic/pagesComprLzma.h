@@ -11,7 +11,11 @@
 
 #define COOKFS_DEFAULT_COMPRESSION_LEVEL_LZMA 5
 
-Cookfs_PageObj CookfsReadPageLzma(Cookfs_Pages *p, int size, Tcl_Obj **err);
-int CookfsWritePageLzma(Cookfs_Pages *p, unsigned char *bytes, int origSize);
+int CookfsReadPageLzma(Cookfs_Pages *p, unsigned char *dataCompressed,
+    Tcl_Size sizeCompressed, unsigned char *dataUncompressed,
+    Tcl_Size sizeUncompressed, Tcl_Obj **err);
+
+Cookfs_PageObj CookfsWritePageLzma(Cookfs_Pages *p, unsigned char *bytes,
+    Tcl_Size origSize);
 
 #endif /* COOKFS_PAGESCOMPRBZ2_H */

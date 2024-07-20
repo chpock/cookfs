@@ -91,7 +91,7 @@ tcltest::test cookfsPagesAsync-1.6 "Verify multiple async pages can be read" -co
 	-asynccompresscommand testasynccompress \
 	-compresscommand testcompress -decompresscommand testdecompress $file]
     set pages {}
-    for {set i 0} {$i <1024} {incr i} {
+    for {set i 0} {$i < 1024} {incr i} {
 	set c [string repeat [format "TESTDATA%04d" $i] 4096]
 	lappend pages [$pg add $c] $c
     }

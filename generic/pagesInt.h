@@ -6,6 +6,8 @@
 #ifndef COOKFS_PAGESINT_H
 #define COOKFS_PAGESINT_H 1
 
+#include "pgindex.h"
+
 enum {
     COOKFS_LASTOP_UNKNOWN = 0,
     COOKFS_LASTOP_READ,
@@ -16,6 +18,13 @@ enum {
     COOKFS_HASH_MD5 = 0,
     COOKFS_HASH_CRC32
 };
+
+typedef enum {
+    COOKFS_ENCRYPT_NONE = 0,
+    COOKFS_ENCRYPT_FILE,
+    COOKFS_ENCRYPT_KEY,
+    COOKFS_ENCRYPT_KEY_INDEX
+} Cookfs_EncryptType;
 
 #define COOKFS_SIGNATURE_LENGTH 7
 #define COOKFS_MAX_CACHE_PAGES 256
@@ -65,8 +74,11 @@ struct _Cookfs_Pages {
     /* file */
     int isAside;
     int fileReadOnly;
-    int fileCompression;
-    int fileCompressionLevel;
+    int baseCompression;
+    int baseCompressionLevel;
+    int currentCompression;
+    int currentCompressionLevel;
+    Cookfs_EncryptType encryption;
     unsigned char fileSignature[COOKFS_SIGNATURE_LENGTH];
     int isFirstWrite;
     unsigned char fileStamp[COOKFS_SIGNATURE_LENGTH];
@@ -83,11 +95,7 @@ struct _Cookfs_Pages {
 
     /* pages */
     Tcl_WideInt dataInitialOffset;
-    Tcl_WideInt dataAllPagesSize;
-    int dataNumPages;
-    int dataPagesDataSize;
-    int *dataPagesSize;
-    unsigned char *dataPagesMD5;
+    Cookfs_PgIndex *pagesIndex;
     Cookfs_PageObj dataIndex;
     int dataPagesIsAside;
     Cookfs_Pages *dataAsidePages;

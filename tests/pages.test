@@ -72,7 +72,7 @@ tcltest::test cookfsPages-1.5 "Check dataoffset command reporting properly for e
     $pg delete
     file delete -force $file
     unset -nocomplain file pg fh
-} -returnCodes {ok} -result 15,15,20
+} -returnCodes {ok} -result 15,15,19
 
 tcltest::test cookfsPages-1.6 "Check dataoffset command reporting properly for files with prefix" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -92,7 +92,7 @@ tcltest::test cookfsPages-1.6 "Check dataoffset command reporting properly for f
     $pg delete
     file delete -force $file
     unset -nocomplain file pg fh
-} -returnCodes {ok} -result 4111,4111,4116
+} -returnCodes {ok} -result 4111,4111,4115
 
 tcltest::test cookfsPages-1.7 "Check filesize command reporting properly for empty archives" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -108,7 +108,7 @@ tcltest::test cookfsPages-1.7 "Check filesize command reporting properly for emp
     file delete -force $file
     unset -nocomplain file pg fh
     # -result is 4108 - 4096+1 byte for page prefix+15 bytes for stamp
-} -returnCodes {ok} -result 4112
+} -returnCodes {ok} -result 4111
 
 tcltest::test cookfsPages-1.8 "Check filesize command reporting properly for files with prefix" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -125,8 +125,8 @@ tcltest::test cookfsPages-1.8 "Check filesize command reporting properly for fil
     $pg delete
     file delete -force $file
     unset -nocomplain file pg fh
-    # -result is 8208 - 4096+4096+1 byte for page prefix+15 bytes for stamp
-} -returnCodes {ok} -result 8208
+    # -result is 8207 - 4096+4096+15 bytes for stamp
+} -returnCodes {ok} -result 8207
 
 tcltest::test cookfsPages-2.1 "Test that different pages get different indexes" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -919,6 +919,9 @@ tcltest::test cookfsPages-12.1 "Test changing page compression" -constraints {en
 
     $pg compression none
 
+    $pg add [string repeat "FOOBAR" 1024]
+
+    # index should be stored with initial compression, i.e. zlib
     $pg index [string repeat "INDX" 1024]
     $pg delete
 
@@ -927,12 +930,19 @@ tcltest::test cookfsPages-12.1 "Test changing page compression" -constraints {en
     set fc [read $fh]
     close $fh
 
+    # ensure we don't have "TEST" with compression "none"
     if {[string first [string repeat "TEST" 1024] $fc] >= 0} {
-        error "Pages not compressed properly"
+        error "TEST pages not compressed properly"
     }
 
-    if {[string first [string repeat "INDX" 1024] $fc] < 0} {
-        error "Index compressed incorrectly"
+    # ensure we don't have index with compression "none"
+    if {[string first [string repeat "INDX" 1024] $fc] >= 0} {
+        error "Index not compressed properly"
+    }
+
+    # ensure we don't have index with compression "none"
+    if {[string first [string repeat "FOOBAR" 1024] $fc] < 0} {
+        error "FOOBAR pages compressed incorrectly"
     }
 
     set pg [cookfs::pages $file]
@@ -977,7 +987,7 @@ tcltest::test cookfsPages-13.1 "Error message when index not found" -constraints
     catch {$pg delete}
     file delete -force $file
     unset -nocomplain file pg
-} -returnCodes {error} -match glob -result {Unable to create Cookfs object: index not found}
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object: signature not found}
 
 tcltest::test cookfsPages-13.2.1 "Error message when invalid signature found" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeBinFile {} pages.cfs]
@@ -992,7 +1002,7 @@ tcltest::test cookfsPages-13.2.1 "Error message when invalid signature found" -c
 
     set fh [open $file w]
     fconfigure $fh -translation binary
-    puts -nonewline $fh [string map [list CFS0002 CFSTEST] $fc]
+    puts -nonewline $fh [string map [list CFS0003 CFSTEST] $fc]
     close $fh
 } -body {
     set pg [cookfs::pages -readonly $file]
@@ -1000,7 +1010,7 @@ tcltest::test cookfsPages-13.2.1 "Error message when invalid signature found" -c
     catch {$pg delete}
     file delete -force $file
     unset -nocomplain file pg fh fc
-} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 181 bytes or larger.}
+} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 236 bytes or larger.}
 
 tcltest::test cookfsPages-13.2.2 "Error message for truncated file with 100 bytes before archive" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -1021,7 +1031,7 @@ tcltest::test cookfsPages-13.2.2 "Error message for truncated file with 100 byte
     catch {$pg delete}
     file delete -force $file
     unset -nocomplain file pg fh fp
-} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 1177 bytes or larger.}
+} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 1232 bytes or larger.}
 
 tcltest::test cookfsPages-13.2.3 "Error message for truncated file with 9MB bytes before archive" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -1042,7 +1052,7 @@ tcltest::test cookfsPages-13.2.3 "Error message for truncated file with 9MB byte
     catch {$pg delete}
     file delete -force $file
     unset -nocomplain file pg fp fh
-} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 9438261 bytes or larger.}
+} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 9438316 bytes or larger.}
 
 # We are looking for no more than 10 mb, so this test should not find the stamp
 # and give a generic "invalid file signature" error message.
@@ -1065,7 +1075,7 @@ tcltest::test cookfsPages-13.2.4 "Error message for truncated file with 10MB byt
     catch {$pg delete}
     file delete -force $file
     unset -nocomplain file pg fp fh
-} -returnCodes {error} -match glob -result {Unable to create Cookfs object: invalid file signature}
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object: signature not found}
 
 tcltest::test cookfsPages-13.2.5 "Error message for truncated file with 1024 bytes before archive, without pages and updated fsindex" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -1086,7 +1096,7 @@ tcltest::test cookfsPages-13.2.5 "Error message for truncated file with 1024 byt
     catch {$pg delete}
     file delete -force $file
     unset -nocomplain file pg fp fh
-} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 2081 bytes or larger.}
+} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 2125 bytes or larger.}
 
 tcltest::test cookfsPages-13.3 "Error message when unable to seek to pages" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -1114,7 +1124,7 @@ tcltest::test cookfsPages-13.3 "Error message when unable to seek to pages" -con
     catch {$pg delete}
     file delete -force $file
     unset -nocomplain file pg size fh fc
-} -returnCodes {error} -match glob -result {Unable to create Cookfs object: page sizes not found}
+} -returnCodes {error} -match glob -result {Unable to create Cookfs object: failed to read index}
 
 tcltest::test cookfsPages-13.4 "Error message when specifying invalid -endoffset" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]

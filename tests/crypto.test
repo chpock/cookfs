@@ -28,7 +28,7 @@ tcltest::test cookfsCrypto-1.4 "Test crypto::rng, get 8 random bytes and ensure 
     }
     set result
 } -cleanup {
-    unset -nocomplain rng
+    unset -nocomplain rng result
 } -result [list 8]
 
 tcltest::test cookfsCrypto-1.5 "Test crypto::rng, get 65 random bytes and ensure they are not 0" -constraints {cookfsCrypto enabledTclCmds} -body {
@@ -40,7 +40,7 @@ tcltest::test cookfsCrypto-1.5 "Test crypto::rng, get 65 random bytes and ensure
     }
     set result
 } -cleanup {
-    unset -nocomplain rng
+    unset -nocomplain rng result
 } -result [list 65]
 
 tcltest::test cookfsCrypto-2.1.1 "Test crypto::pbkdf2_hmac without arguments" -constraints {cookfsCrypto enabledTclCmds} -body {
@@ -335,7 +335,7 @@ tcltest::test cookfsCrypto-5.3 "Test crypto::aes_* with known test vectors #3" -
     lappend result $count
     join $result \n
 } -cleanup {
-    unset -nocomplain result count t_num t_key t_data t_cipher
+    unset -nocomplain result count t_num t_iv t_key t_data t_cipher
 } -result 4
 
 # Tests from:

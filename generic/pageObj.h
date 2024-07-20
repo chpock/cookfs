@@ -44,11 +44,17 @@ void Cookfs_PageObjDecrRefCount(Cookfs_PageObj pg);
     (((Cookfs_PageObjStruct *)((Cookfs_PageObj)(p) - \
         sizeof(Cookfs_PageObjStruct)))->effectiveSize)
 
+#define Cookfs_PageObjSetSize(p,n) \
+    (((Cookfs_PageObjStruct *)((Cookfs_PageObj)(p) - \
+        sizeof(Cookfs_PageObjStruct)))->effectiveSize) = (n)
+
 #define Cookfs_PageObjCopyAsByteArray(p) \
     Tcl_NewByteArrayObj(p, Cookfs_PageObjSize(p))
 
 Cookfs_PageObj Cookfs_PageObjAlloc(Tcl_Size size);
 Cookfs_PageObj Cookfs_PageObjNewFromByteArray(Tcl_Obj *obj);
+Cookfs_PageObj Cookfs_PageObjNewFromString(const unsigned char *bytes,
+    Tcl_Size size);
 
 #ifdef COOKFS_USECCRYPTO
 

@@ -170,8 +170,8 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     Cookfs_Pages *pages;
     int idx;
     int oReadOnly = 0;
-    int oCompression;
-    int oCompressionLevel;
+    int oCompression = -1;
+    int oCompressionLevel = -1;
     int tobjc = objc;
     int oCachesize = -1;
     int useFoffset = 0;
@@ -308,8 +308,12 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
         tobjv++;
     }
 
-    if (Cookfs_CompressionFromObj(interp, compression, &oCompression, &oCompressionLevel) != TCL_OK) {
-        return TCL_ERROR;
+    if (compression != NULL) {
+        if (Cookfs_CompressionFromObj(interp, compression, &oCompression,
+            &oCompressionLevel) != TCL_OK)
+        {
+            return TCL_ERROR;
+        }
     }
 
     if (tobjc != 2) {
@@ -319,8 +323,8 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     /* Create cookfs instance */
     Tcl_Obj *err = NULL;
     pages = Cookfs_PagesInit(interp, tobjv[1], oReadOnly, oCompression,
-        oCompressionLevel, NULL, useFoffset, foffset, 0,
-        asyncDecompressQueueSize, compressCmd, decompressCmd,
+        oCompressionLevel, oCompression, oCompressionLevel, NULL, useFoffset,
+        foffset, 0, asyncDecompressQueueSize, compressCmd, decompressCmd,
         asyncCompressCmd, asyncDecompressCmd, &err);
     if (err != NULL) {
         Tcl_SetObjResult(interp, err);
@@ -798,7 +802,8 @@ static int CookfsPagesCmdAside(Cookfs_Pages *pages, Tcl_Interp *interp, int objc
            the corresponding error message below if Cookfs_PagesInit()
            failed. */
         asidePages = Cookfs_PagesInit(pages->interp, objv[2], 0,
-            pages->fileCompression, pages->fileCompressionLevel,
+            pages->baseCompression, pages->baseCompressionLevel,
+            pages->currentCompression, pages->currentCompressionLevel,
             NULL, 0, 0, 1, 0, NULL, NULL, NULL, NULL, NULL);
 
         if (asidePages == NULL) {

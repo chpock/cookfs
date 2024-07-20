@@ -8754,7 +8754,7 @@ if test ${USECPAGES} = yes; then
     COOKFS_PKGCONFIG_USECPAGES=1
     COOKFS_PKGCONFIG_FEATURE_ASIDE=1
 
-    vars="pageObj.c pages.c pagesCompr.c pagesComprZlib.c pagesCmd.c"
+    vars="pgindex.c pageObj.c pages.c pagesCompr.c pagesAsync.c pagesComprZlib.c pagesComprCustom.c pagesCmd.c"
     for i in $vars; do
 	case $i in
 	    \$*)
