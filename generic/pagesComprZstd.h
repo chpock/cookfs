@@ -11,7 +11,11 @@
 
 #define COOKFS_DEFAULT_COMPRESSION_LEVEL_ZSTD 3
 
-Cookfs_PageObj CookfsReadPageZstd(Cookfs_Pages *p, int size, Tcl_Obj **err);
-int CookfsWritePageZstd(Cookfs_Pages *p, unsigned char *bytes, int origSize);
+int CookfsReadPageZstd(Cookfs_Pages *p, unsigned char *dataCompressed,
+    Tcl_Size sizeCompressed, unsigned char *dataUncompressed,
+    Tcl_Size sizeUncompressed, Tcl_Obj **err);
+
+Cookfs_PageObj CookfsWritePageZstd(Cookfs_Pages *p, unsigned char *bytes,
+    Tcl_Size origSize);
 
 #endif /* COOKFS_PAGESCOMPRBZ2_H */

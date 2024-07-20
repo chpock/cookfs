@@ -6,6 +6,35 @@
 
 namespace eval cookfs {}
 
+proc cookfs::createArchivePageIndex {pagelist} {
+    set rc ""
+
+    # add page count
+    append rc [binary format I [llength $pagelist]]
+
+    set data_compression ""
+    set data_compressionLevel ""
+    set data_encryption ""
+    set data_sizeCompressed ""
+    set data_sizeUncompressed ""
+    set data_hash ""
+
+    foreach page $pagelist {
+        append data_compression [binary format c 0]
+        append data_compressionLevel [binary format c 0]
+        append data_encryption [binary format c 0]
+        append data_sizeCompressed [binary format I [string length $page]]
+        append data_sizeUncompressed [binary format I [string length $page]]
+        append data_hash [binary format c16 {0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0}]
+    }
+
+    append rc $data_compression $data_compressionLevel $data_encryption
+    append rc $data_sizeCompressed $data_sizeUncompressed $data_hash
+
+    return $rc
+}
+
+
 proc cookfs::createArchiveFileIndex {filelist} {
     set rc ""
 
@@ -150,24 +179,34 @@ proc cookfs::createArchive {archivefile filelist {bootstrap ""}} {
     }
     fconfigure $fh -translation binary
     foreach page $pagelist {
-        puts -nonewline $fh \u0000$page
+        puts -nonewline $fh $page
     }
 
-    # add fake md5 indexes
-    foreach page $pagelist {
-        puts -nonewline $fh [binary format IIII 0 0 0 0]
-    }
+    set pgindexdata [createArchivePageIndex $pagelist]
+    puts -nonewline $fh $pgindexdata
 
-    # add page indexes
-    foreach page $pagelist {
-        puts -nonewline $fh [binary format I [expr {[string length $page] + 1}]]
-    }
+    set fsindexdata "CFS2.200[createArchiveFileIndex $fileindex]"
+    puts -nonewline $fh $fsindexdata
 
-    # TODO: add index
-    set indexdata "\u0000CFS2.200[createArchiveFileIndex $fileindex]"
+    # write archive footer
+    # base compression type + base compression level + encryption
+    puts -nonewline $fh [binary format ccc 0 0 0]
 
-    puts -nonewline $fh $indexdata
-    puts -nonewline $fh [binary format IIcca* [string length $indexdata] [llength $pagelist] 0 0 CFS0002]
+    # write pgindex info:
+    # compression + compression level + hash(16 bytes) + size compressed + size uncompressed
+    puts -nonewline $fh [binary format ccc16II \
+        0 0 {0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0} \
+        [string length $pgindexdata] [string length $pgindexdata]]
+
+    # write fsindex info:
+    # compression + compression level + hash(16 bytes) + size compressed + size uncompressed
+    puts -nonewline $fh [binary format ccc16II \
+        0 0 {0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0} \
+        [string length $fsindexdata] [string length $fsindexdata]]
+
+    # write signature
+    puts -nonewline $fh "CFS0003"
+
     close $fh
 }
 

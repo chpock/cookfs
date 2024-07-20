@@ -13,133 +13,79 @@
 #include "pagesCompr.h"
 #include "pagesComprZstd.h"
 
-int CookfsWritePageZstd(Cookfs_Pages *p, unsigned char *bytes, int origSize) {
+Cookfs_PageObj CookfsWritePageZstd(Cookfs_Pages *p, unsigned char *bytes,
+    Tcl_Size origSize)
+{
 
-    CookfsLog(printf("CookfsWritePageZstd: want to compress %d bytes",
+    CookfsLog2(printf("want to compress %" TCL_SIZE_MODIFIER "d bytes",
         origSize));
 
-    size_t resultSize;
-
-    Tcl_Obj *destObj = Tcl_NewByteArrayObj(NULL, 0);
-    Tcl_IncrRefCount(destObj);
-
-    size_t destSize = ZSTD_compressBound((size_t) origSize);
-    if (ZSTD_isError(destSize)) {
-        CookfsLog(printf("CookfsWritePageZstd: ZSTD_compressBound()"
-            " failed with: %s", ZSTD_getErrorName(destSize)));
-        resultSize = 0;
-        goto done;
+    size_t resultSize = ZSTD_compressBound((size_t) origSize);
+    if (ZSTD_isError(resultSize)) {
+        CookfsLog2(printf("ZSTD_compressBound() failed with: %s",
+            ZSTD_getErrorName(resultSize)));
+        return NULL;
+    }
+    Cookfs_PageObj rc = Cookfs_PageObjAlloc(resultSize);
+    if (rc == NULL) {
+        CookfsLog2(printf("ERROR: could not alloc output buffer"));
+        return NULL;
     }
 
-    // Allocate additional 4 bytes for uncompressed page size
-    unsigned char *dest = Tcl_SetByteArrayLength(destObj, destSize + 4);
-
-    int level = p->fileCompressionLevel;
-
+    int level = p->currentCompressionLevel;
     if (level < 1) {
         level = 1;
     } else if (level > 22) {
         level = 22;
     }
 
-    CookfsLog(printf("CookfsWritePageZstd: call ZSTD_compress() level %d ...",
-        level));
-
-    // Leave 4 bytes in the buffer for uncompressed page size
-    resultSize = ZSTD_compress(dest + 4, destSize, bytes, origSize, level);
+    CookfsLog2(printf("call ZSTD_compress() level %d ...", level));
+    resultSize = ZSTD_compress(rc, resultSize, bytes, origSize, level);
 
     if (ZSTD_isError(resultSize)) {
-        CookfsLog(printf("CookfsWritePageZstd: call got error: %s",
-            ZSTD_getErrorName(resultSize)));
-        resultSize = 0;
-        goto done;
+        CookfsLog2(printf("got error: %s", ZSTD_getErrorName(resultSize)));
+        Cookfs_PageObjBounceRefCount(rc);
+        return NULL;
     }
 
-    // Add 4 bytes to resultSize, which is the size of the uncompressed page
-    resultSize += 4;
-    CookfsLog(printf("CookfsWritePageZstd: got encoded size: %zu", resultSize));
-    if (SHOULD_COMPRESS(p, (unsigned int)origSize, resultSize)) {
-        CookfsLog(printf("CookfsWritePageZstd: write page"));
-        Tcl_SetByteArrayLength(destObj, resultSize);
-        // Write the original size to the beginning of the buffer
-        Cookfs_Int2Binary(&origSize, dest, 1);
-        CookfsWriteCompression(p, COOKFS_COMPRESSION_ZSTD);
-        Tcl_WriteObj(p->fileChannel, destObj);
-    } else {
-        CookfsLog(printf("CookfsWritePageZstd: compression is inefficient"));
-        resultSize = 0;
-    }
+    CookfsLog2(printf("got encoded size: %zu", resultSize));
+    Cookfs_PageObjSetSize(rc, resultSize);
 
-done:
-    Tcl_DecrRefCount(destObj);
-    if (resultSize) {
-        return resultSize;
-    } else {
-        return -1;
-    }
+    return rc;
+
 }
 
-Cookfs_PageObj CookfsReadPageZstd(Cookfs_Pages *p, int size, Tcl_Obj **err) {
+int CookfsReadPageZstd(Cookfs_Pages *p, unsigned char *dataCompressed,
+    Tcl_Size sizeCompressed, unsigned char *dataUncompressed,
+    Tcl_Size sizeUncompressed, Tcl_Obj **err)
+{
+
     UNUSED(err);
+    UNUSED(p);
 
-    CookfsLog(printf("CookfsReadPageZstd: start. Want to read %d bytes.", size));
+    CookfsLog2(printf("input buffer %p (%" TCL_SIZE_MODIFIER "d bytes) ->"
+        " output buffer %p (%" TCL_SIZE_MODIFIER "d bytes)",
+        (void *)dataCompressed, sizeCompressed,
+        (void *)dataUncompressed, sizeUncompressed));
 
-    Tcl_Obj *data = Tcl_NewObj();
-    Tcl_IncrRefCount(data);
-    int count = Tcl_ReadChars(p->fileChannel, data, size, 0);
-
-    if (count != size) {
-        CookfsLog(printf("CookfsReadPageZstd: failed to read, got only %d"
-            " bytes", count));
-        Tcl_DecrRefCount(data);
-        return NULL;
-    }
-
-    unsigned char *source = Tcl_GetByteArrayFromObj(data, NULL);
-    if (source == NULL) {
-        CookfsLog(printf("CookfsReadPageZstd: Tcl_GetByteArrayFromObj failed"));
-        Tcl_DecrRefCount(data);
-        return NULL;
-    }
-
-    int destSize;
-    Cookfs_Binary2Int(source, &destSize, 1);
-
-    Cookfs_PageObj destObj = Cookfs_PageObjAlloc(destSize);
-    if (destObj == NULL) {
-        CookfsLog(printf("CookfsReadPageZstd: ERROR: failed to alloc"));
-        Tcl_DecrRefCount(data);
-        return NULL;
-    }
-
-    CookfsLog(printf("CookfsReadPageZstd: uncompressed size=%d from %d",
-        destSize, size));
-
-    CookfsLog(printf("CookfsReadPageZstd: call ZSTD_decompress() ..."));
-    size_t resultSize = ZSTD_decompress(destObj, destSize, source + 4,
-        size - 4);
-    Tcl_DecrRefCount(data);
+    CookfsLog2(printf("call ZSTD_decompress() ..."));
+    size_t resultSize = ZSTD_decompress(dataUncompressed, sizeUncompressed,
+        dataCompressed, sizeCompressed);
 
     if (ZSTD_isError(resultSize)) {
-        CookfsLog(printf("CookfsReadPageZstd: call got error: %s",
-            ZSTD_getErrorName(resultSize)));
-        goto unpackError;
+        CookfsLog2(printf("call got error: %s", ZSTD_getErrorName(resultSize)));
+        return TCL_ERROR;
     }
 
-    CookfsLog(printf("CookfsReadPageZstd: got %zu bytes", resultSize));
+    CookfsLog2(printf("got %zu bytes", resultSize));
 
-    if (resultSize != (unsigned int)destSize) {
-        CookfsLog(printf("CookfsReadPageZstd: ERROR: result size doesn't"
-            " match original size"));
-        goto unpackError;
+    if (resultSize != (size_t)sizeUncompressed) {
+        CookfsLog2(printf("ERROR: result size doesn't match original size"));
+        return TCL_ERROR;
     }
 
-    return destObj;
+    CookfsLog2(printf("return: ok"));
+    return TCL_OK;
 
-unpackError:
-
-    Cookfs_PageObjIncrRefCount(destObj);
-    Cookfs_PageObjDecrRefCount(destObj);
-    return NULL;
 }
 

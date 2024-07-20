@@ -3,8 +3,6 @@
  *
  * Provides zlib functions for pages compression
  *
- * (c) 2010-2011 Wojciech Kocjan, Pawel Salawa
- * (c) 2011-2014 Wojciech Kocjan
  * (c) 2024 Konstantin Kushnir
  */
 
@@ -14,206 +12,147 @@
 #include "pagesCompr.h"
 #include "pagesComprZlib.h"
 
-/*
- *----------------------------------------------------------------------
- *
- * CookfsReadPageZlib --
- *
- *	Read zlib compressed page
- *
- * Results:
- *	Binary data as Tcl_Obj
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
+int CookfsReadPageZlib(Cookfs_Pages *p, unsigned char *dataCompressed,
+    Tcl_Size sizeCompressed, unsigned char *dataUncompressed,
+    Tcl_Size sizeUncompressed, Tcl_Obj **err)
+{
 
-Cookfs_PageObj CookfsReadPageZlib(Cookfs_Pages *p, int size, Tcl_Obj **err) {
     UNUSED(err);
+    UNUSED(p);
+
+    CookfsLog2(printf("input buffer %p (%" TCL_SIZE_MODIFIER "d bytes) ->"
+        " output buffer %p (%" TCL_SIZE_MODIFIER "d bytes)",
+        (void *)dataCompressed, sizeCompressed,
+        (void *)dataUncompressed, sizeUncompressed));
+
 #ifdef USE_ZLIB_TCL86
     /* use Tcl 8.6 API for decompression */
-    Tcl_Obj *data;
-    Tcl_Obj *cobj;
+    int res;
     Tcl_ZlibStream zshandle;
-    int count;
 
-    if (Tcl_ZlibStreamInit(NULL, TCL_ZLIB_STREAM_INFLATE, TCL_ZLIB_FORMAT_RAW, 9, NULL, &zshandle) != TCL_OK) {
-	CookfsLog(printf("Unable to initialize zlib"))
-	return NULL;
-    }
-    data = Tcl_NewObj();
-    Tcl_IncrRefCount(data);
-    count = Tcl_ReadChars(p->fileChannel, data, size, 0);
-
-    CookfsLog(printf("Reading - %d vs %d", count, size))
-    if (count != size) {
-	CookfsLog(printf("Unable to read - %d != %d", count, size))
-	Tcl_DecrRefCount(data);
-	return NULL;
+    CookfsLog2(printf("initialize zlib handle"))
+    res = Tcl_ZlibStreamInit(NULL, TCL_ZLIB_STREAM_INFLATE,
+        TCL_ZLIB_FORMAT_RAW, 9, NULL, &zshandle);
+    if (res != TCL_OK) {
+        CookfsLog2(printf("Unable to initialize zlib"));
+        return TCL_ERROR;
     }
 
-    CookfsLog(printf("Writing"))
-    /* write compressed information */
-    if (Tcl_ZlibStreamPut(zshandle, data, TCL_ZLIB_FINALIZE) != TCL_OK) {
-	CookfsLog(printf("Unable to decompress - writing"))
-	Tcl_ZlibStreamClose(zshandle);
-	Tcl_DecrRefCount(data);
-	return NULL;
-    }
-    Tcl_DecrRefCount(data);
+    Tcl_Obj *sourceObj = Tcl_NewByteArrayObj(dataCompressed, sizeCompressed);
+    Tcl_IncrRefCount(sourceObj);
 
-    CookfsLog(printf("Reading"))
-    /* read resulting object */
-    cobj = Tcl_NewObj();
-    Tcl_IncrRefCount(cobj);
+    CookfsLog2(printf("call Tcl_ZlibStreamPut() ..."));
+    res = Tcl_ZlibStreamPut(zshandle, sourceObj, TCL_ZLIB_FINALIZE);
+    Tcl_DecrRefCount(sourceObj);
+
+    if (res != TCL_OK) {
+        CookfsLog2(printf("return: ERROR"));
+        Tcl_ZlibStreamClose(zshandle);
+        return TCL_ERROR;
+    }
+
+    Tcl_Obj *destObj = Tcl_NewObj();
+    Tcl_IncrRefCount(destObj);
+
+    CookfsLog2(printf("reading from the handle..."));
     while (!Tcl_ZlibStreamEof(zshandle)) {
-	if (Tcl_ZlibStreamGet(zshandle, cobj, -1) != TCL_OK) {
-	    Tcl_DecrRefCount(cobj);
-	    Tcl_ZlibStreamClose(zshandle);
-	    CookfsLog(printf("Unable to decompress - reading"))
-	    return NULL;
-	}
+        if (Tcl_ZlibStreamGet(zshandle, destObj, -1) != TCL_OK) {
+            Tcl_DecrRefCount(destObj);
+            Tcl_ZlibStreamClose(zshandle);
+            CookfsLog2(printf("return: ERROR (while reading)"));
+            return TCL_ERROR;
+        }
     }
-    Cookfs_PageObj rc = Cookfs_PageObjNewFromByteArray(cobj);
-    Tcl_DecrRefCount(cobj);
+
     Tcl_ZlibStreamClose(zshandle);
-    CookfsLog(printf("Returning = [%s]", rc == NULL ? "NULL" : "SET"))
-    return rc;
+
+    Tcl_Size destObjSize;
+    unsigned char *destStr = Tcl_GetByteArrayFromObj(destObj, &destObjSize);
+
+    if (destObjSize != sizeUncompressed) {
+        CookfsLog2(printf("ERROR: result size doesn't match original size"));
+        Tcl_DecrRefCount(destObj);
+        return TCL_ERROR;
+    }
+
+    CookfsLog2(printf("copy data to the output buffer"));
+    memcpy(dataUncompressed, destStr, destObjSize);
+
+    Tcl_DecrRefCount(destObj);
+
+    CookfsLog2(printf("return: ok"));
+    return TCL_OK;
+
 #else
-    /* use vfs::zip command for decompression */
-    Tcl_Obj *prevResult;
-    Tcl_Obj *compressed;
-    Tcl_Obj *data;
-    int count;
-
-    compressed = Tcl_NewObj();
-    Tcl_IncrRefCount(compressed);
-    count = Tcl_ReadChars(p->fileChannel, compressed, size, 0);
-
-    CookfsLog(printf("Reading - %d vs %d", count, size))
-    if (count != size) {
-	CookfsLog(printf("Unable to read - %d != %d", count, size))
-	Tcl_DecrRefCount(compressed);
-	return NULL;
-    }
-    p->zipCmdDecompress[p->zipCmdOffset] = compressed;
-    prevResult = Tcl_GetObjResult(p->interp);
-    Tcl_IncrRefCount(prevResult);
-    if (Tcl_EvalObjv(p->interp, p->zipCmdLength, p->zipCmdDecompress, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
-	CookfsLog(printf("Unable to decompress"))
-	Tcl_DecrRefCount(compressed);
-	return NULL;
-    }
-    Tcl_DecrRefCount(compressed);
-    data = Tcl_GetObjResult(p->interp);
-    Tcl_IncrRefCount(data);
-    Tcl_SetObjResult(p->interp, prevResult);
-    Tcl_DecrRefCount(prevResult);
-    Cookfs_PageObj rc = Cookfs_PageObjNewFromByteArray(data);
-    Tcl_DecrRefCount(data);
-    return rc;
-#endif
+#error Only Tcl8.6 with zlib is supported.
+#endif /* USE_ZLIB_TCL86 */
 }
 
 
-/*
- *----------------------------------------------------------------------
- *
- * CookfsWritePageZlib --
- *
- *	Write page using zlib compression
- *
- * Results:
- *	Number of bytes written; -1 in case compression failed or
- *	compressing was not efficient enough (see SHOULD_COMPRESS macro)
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
+Cookfs_PageObj CookfsWritePageZlib(Cookfs_Pages *p, unsigned char *bytes,
+    Tcl_Size origSize)
+{
 
-int CookfsWritePageZlib(Cookfs_Pages *p, unsigned char *bytes, int origSize) {
+    CookfsLog2(printf("want to compress %" TCL_SIZE_MODIFIER "d bytes",
+        origSize));
+
 #ifdef USE_ZLIB_TCL86
-    Tcl_Size size = origSize;
     /* use Tcl 8.6 API for zlib compression */
-    Tcl_Obj *cobj;
     Tcl_ZlibStream zshandle;
+    int res;
 
-    int level = p->fileCompressionLevel;
+    int level = p->currentCompressionLevel;
     if (level < 1) {
         level = 1;
     } else if (level >= 255) {
         level = 9;
     }
 
-    if (Tcl_ZlibStreamInit(NULL, TCL_ZLIB_STREAM_DEFLATE, TCL_ZLIB_FORMAT_RAW, level, NULL, &zshandle) != TCL_OK) {
-	CookfsLog(printf("Cookfs_WritePage: Tcl_ZlibStreamInit failed!"))
-	return -1;
+    CookfsLog2(printf("initialize zlib handle"))
+    res = Tcl_ZlibStreamInit(NULL, TCL_ZLIB_STREAM_DEFLATE,
+        TCL_ZLIB_FORMAT_RAW, level, NULL, &zshandle);
+    if (res != TCL_OK) {
+        CookfsLog2(printf("ERROR: Tcl_ZlibStreamInit failed"));
+        return NULL;
     }
 
-    Tcl_Obj *data = Tcl_NewByteArrayObj(bytes, origSize);
-    Tcl_IncrRefCount(data);
-    if (Tcl_ZlibStreamPut(zshandle, data, TCL_ZLIB_FINALIZE) != TCL_OK) {
-	Tcl_DecrRefCount(data);
-	Tcl_ZlibStreamClose(zshandle);
-	CookfsLog(printf("Cookfs_WritePage: Tcl_ZlibStreamPut failed"))
-	return -1;
-    }
-    Tcl_DecrRefCount(data);
+    Tcl_Obj *inputData = Tcl_NewByteArrayObj(bytes, origSize);
+    Tcl_IncrRefCount(inputData);
 
-    cobj = Tcl_NewObj();
-    if (Tcl_ZlibStreamGet(zshandle, cobj, -1) != TCL_OK) {
-	Tcl_IncrRefCount(cobj);
-	Tcl_DecrRefCount(cobj);
-	Tcl_ZlibStreamClose(zshandle);
-	CookfsLog(printf("Cookfs_WritePage: Tcl_ZlibStreamGet failed"))
-	return -1;
+    CookfsLog2(printf("call Tcl_ZlibStreamPut() ..."));
+    res = Tcl_ZlibStreamPut(zshandle, inputData, TCL_ZLIB_FINALIZE);
+    Tcl_DecrRefCount(inputData);
+    if (res != TCL_OK) {
+        CookfsLog2(printf("ERROR: failed"));
+        Tcl_ZlibStreamClose(zshandle);
+        return NULL;
     }
+
+    Tcl_Obj *outputObj = Tcl_NewObj();
+    Tcl_IncrRefCount(outputObj);
+
+    CookfsLog2(printf("reading from the handle..."));
+    res = Tcl_ZlibStreamGet(zshandle, outputObj, -1);
     Tcl_ZlibStreamClose(zshandle);
-    Tcl_IncrRefCount(cobj);
-    Tcl_GetByteArrayFromObj(cobj, &size);
-
-    if (SHOULD_COMPRESS(p, origSize, size)) {
-	CookfsWriteCompression(p, COOKFS_COMPRESSION_ZLIB);
-	Tcl_WriteObj(p->fileChannel, cobj);
-    }  else  {
-	size = -1;
+    if (res != TCL_OK) {
+        CookfsLog2(printf("return: ERROR (while reading)"));
+        Tcl_DecrRefCount(outputObj);
+        return NULL;
     }
-    Tcl_DecrRefCount(cobj);
+
+    Cookfs_PageObj rc = Cookfs_PageObjNewFromByteArray(outputObj);
+    Tcl_DecrRefCount(outputObj);
+    if (rc == NULL) {
+        CookfsLog2(printf("return: ERROR (failed to alloc)"));
+        return NULL;
+    }
+
+    CookfsLog2(printf("got encoded size: %" TCL_SIZE_MODIFIER "d",
+        Cookfs_PageObjSize(rc)));
+
+    return rc;
+
 #else
-    int size = origSize;
-    /* use vfs::zip command for compression */
-    Tcl_Obj *prevResult;
-    Tcl_Obj *compressed;
-
-    Tcl_Obj data = Tcl_NewByteArrayObj(bytes, origSize);
-    Tcl_IncrRefCount(data);
-    p->zipCmdCompress[p->zipCmdOffset] = data;
-    prevResult = Tcl_GetObjResult(p->interp);
-    Tcl_IncrRefCount(prevResult);
-    if (Tcl_EvalObjv(p->interp, p->zipCmdLength, p->zipCmdCompress, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) {
-	CookfsLog(printf("Unable to compress: %s", Tcl_GetString(Tcl_GetObjResult(p->interp))));
-	Tcl_SetObjResult(p->interp, prevResult);
-	Tcl_DecrRefCount(data);
-	return -1;
-    }
-    Tcl_DecrRefCount(data);
-    compressed = Tcl_GetObjResult(p->interp);
-    Tcl_IncrRefCount(compressed);
-    Tcl_SetObjResult(p->interp, prevResult);
-    Tcl_DecrRefCount(prevResult);
-    Tcl_GetByteArrayFromObj(compressed, &size);
-
-    if (SHOULD_COMPRESS(p, origSize, size)) {
-	CookfsWriteCompression(p, COOKFS_COMPRESSION_ZLIB);
-	Tcl_WriteObj(p->fileChannel, compressed);
-    }  else  {
-	size = -1;
-    }
-    Tcl_DecrRefCount(compressed);
-#endif
-    return size;
+#error Only Tcl8.6 with zlib is supported.
+#endif /* USE_ZLIB_TCL86 */
 }

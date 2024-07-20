@@ -24,7 +24,8 @@ proc cookfs::tcl::pages {args} {
         firstwrite 0
         readonly 0
         cachelist {}
-        compression zlib
+        compression {}
+        base_compression {}
         compresscommand ""
         asynccompresscommand ""
         asyncdecompresscommand ""
@@ -32,8 +33,8 @@ proc cookfs::tcl::pages {args} {
         cachesize 8
         indexdata ""
         endoffset ""
-        cfsname "CFS0002"
-        cfsstamp "CFSS002"
+        cfsname "CFS0003"
+        cfsstamp "CFSS003"
         lastop read
         hash crc32
         alwayscompress 0
@@ -95,13 +96,17 @@ proc cookfs::tcl::pages {args} {
         }
     }
 
-    if {[catch {
-        set c(cid) [pages::compression2cid $c(compression)]
-    } err]} {
-        error $err $err
-    }
     if {[llength $args] != 1} {
         error "No filename provided"
+    }
+
+    if { $c(compression) ne "" } {
+        if {[catch {
+            set c(cid) [pages::compression2cid $c(compression)]
+            set c(cid_base) $c(cid)
+        } err]} {
+            error $err $err
+        }
     }
 
     if {[catch {
@@ -144,10 +149,11 @@ proc cookfs::tcl::pages {args} {
             seek $c(fh) $c(endoffset) start
         }  else  {
             set c(endoffset) [tell $c(fh)]
+            set msg "$pages::errorMessage: signature not found"
         }
     }
 
-    if {[pages::readIndex $name msg]} {
+    if {![info exists msg] && [pages::readIndex $name msg]} {
         set c(haschanged) 0
         set c(indexChanged) 0
     }  else  {
@@ -168,6 +174,18 @@ proc cookfs::tcl::pages {args} {
         set c(indexChanged) 1
         set c(idx.md5list) {}
         set c(idx.sizelist) {}
+        set c(idx.comprlist) {}
+        set c(idx.comprlevellist) {}
+        set c(idx.encryptionlist) {}
+        set c(idx.sizeoriglist) {}
+    }
+
+    if { ![info exists c(cid_base)] } {
+        set c(cid_base) [pages::compression2cid "zlib"]
+    }
+
+    if { ![info exists c(cid)] } {
+        set c(cid) $c(cid_base)
     }
 
     interp alias {} $name {} ::cookfs::tcl::pages::handle $name
@@ -197,27 +215,32 @@ proc cookfs::tcl::pages::crc32 { v } {
 
 proc cookfs::tcl::pages::compress {name origdata} {
     upvar #0 $name c
+
+    set cid $c(cid)
+    set level 0
+
     if {[string length $origdata] == 0} {
-        return ""
+        return [list $cid $level ""]
     }
-    if {$c(cid) == 1} {
+
+    if {$cid == 1} {
         if {$c(_usezlib)} {
-            set data "\u0001[zlib deflate $origdata]"
+            set data [zlib deflate $origdata]
         }  else  {
-            set data "\u0001[vfs::zip -mode compress -nowrap 1 $origdata]"
+            set data [vfs::zip -mode compress -nowrap 1 $origdata]
         }
-    }  elseif {$c(cid) == 2} {
+    }  elseif {$cid == 2} {
         package require Trf
-        set data "\u0002[binary format I [string length $origdata]][bz2 -mode compress $origdata]"
-    } elseif {$c(cid) == 3} {
+        set data [bz2 -mode compress $origdata]
+    } elseif {$cid == 3} {
         error "Lzma compression is not supported by Tcl pages"
-    } elseif {$c(cid) == 4} {
+    } elseif {$cid == 4} {
         error "zstd compression is not supported by Tcl pages"
-    } elseif {$c(cid) == 5} {
+    } elseif {$cid == 5} {
         error "brotli compression is not supported by Tcl pages"
-    }  elseif {$c(cid) == 255} {
+    }  elseif {$cid == 255} {
         if {$c(compresscommand) != ""} {
-            set data "\u00ff[uplevel #0 [concat $c(compresscommand) [list $origdata]]]"
+            set data [uplevel #0 [concat $c(compresscommand) [list $origdata]]]
         }  else  {
             error "No compresscommand specified"
         }
@@ -226,18 +249,16 @@ proc cookfs::tcl::pages::compress {name origdata} {
     # if compression algorithm was not matched or
     #   we should not always compress and compressed data is not smaller, revert to uncompressed data
     if {(![info exists data]) || ((!$c(alwayscompress)) && ([string length $data] > [string length $origdata]))} {
-        set data "\u0000$origdata"
+        set data $origdata
+        set cid 0
     }
-    return $data
+    return [list $cid $level $data]
 }
 
-proc cookfs::tcl::pages::decompress {name data} {
+proc cookfs::tcl::pages::decompress {name cid sizeUncompress data} {
     upvar #0 $name c
     if {[string length $data] == 0} {
         return ""
-    }
-    if {[binary scan $data ca* cid data] != 2} {
-        error "Unable to decompress page"
     }
     switch -- $cid {
         0 {
@@ -252,7 +273,7 @@ proc cookfs::tcl::pages::decompress {name data} {
         }
         2 {
             package require Trf
-            return [bz2 -mode decompress [string range $data 4 end]]
+            return [bz2 -mode decompress $data]
         }
         255 - -1 {
             if {$c(decompresscommand) == ""} {
@@ -334,57 +355,114 @@ proc cookfs::tcl::pages::cid2compression {name} {
     }
 }
 
+proc cookfs::tcl::pages::unsign_list { list } {
+    set result [list]
+    foreach x $list {
+        lappend result [expr { $x & 0xff }]
+    }
+    return $result
+}
+
 proc cookfs::tcl::pages::readIndex {name msgVariable} {
     variable errorMessage
     upvar #0 $name c
     upvar 1 $msgVariable msg
+    set suffix_size 62
     if {[catch {
-        seek $c(fh) [expr {$c(endoffset) - 17}] start
-        set fc [read $c(fh) 17]
+        seek $c(fh) [expr {$c(endoffset) - $suffix_size}] start
+        set fc [read $c(fh) $suffix_size]
     }]} {
         set msg "$errorMessage: index not found"
         return 0
     }
-    if {[string length $fc] != 17} {
+    if {[string length $fc] != $suffix_size} {
         set msg "$errorMessage: unable to read index suffix"
         return 0
     }
-    if {[string range $fc 10 16] != "$c(cfsname)"} {
-        set msg "$errorMessage: invalid file signature"
+
+    binary scan $fc cccccH32IIccH32IIa* \
+        base_compression \
+        base_compressionLevel \
+        encryption \
+        pgindex_compression \
+        pgindex_compressionLevel \
+        pgindex_md5 \
+        pgindex_sizeCompressed \
+        pgindex_sizeUncompressed \
+        fsindex_compression \
+        fsindex_compressionLevel \
+        fsindex_md5 \
+        fsindex_sizeCompressed \
+        fsindex_sizeUncompressed \
+        signature
+
+    set pgindex_md5 [string toupper $pgindex_md5]
+    set fsindex_md5 [string toupper $fsindex_md5]
+
+    if {$signature ne $c(cfsname)} {
+        set msg "$errorMessage: signature not found"
         return 0
     }
-    binary scan [string range $fc 0 7] II idxsize numpages
 
-    set idxoffset [expr {$c(endoffset) - (17 + $idxsize + ($numpages * 20))}]
+    if { ($pgindex_sizeCompressed + $fsindex_sizeCompressed + $suffix_size) > $c(endoffset) } {
+        set msg "$errorMessage: failed to read index"
+        return 0
+    }
+
+    if { $pgindex_sizeCompressed + $fsindex_sizeCompressed > 0 } {
+        seek $c(fh) [expr {$c(endoffset) - $suffix_size - $pgindex_sizeCompressed - $fsindex_sizeCompressed}] start
+    }
+
+    set c(idx.md5list) {}
+    set c(idx.sizelist) {}
+    set c(idx.comprlist) {}
+    set c(idx.comprlevellist) {}
+    set c(idx.sizeoriglist) {}
+    set c(idx.encryptionlist) {}
+
+    if { $pgindex_sizeCompressed > 0 } {
+
+        set fc [read $c(fh) $pgindex_sizeCompressed]
+        set fc [decompress $name $pgindex_compression $pgindex_sizeUncompressed $fc]
+
+        binary scan [string range $fc 0 3] I numpages
+
+        binary scan [string range $fc 4 end] "c${numpages}c${numpages}c${numpages}I${numpages}I${numpages}a*" \
+            c(idx.comprlist) c(idx.comprlevellist) c(idx.encryptionlist) \
+            c(idx.sizelist) c(idx.sizeoriglist) md5data
+
+        set c(idx.comprlist) [unsign_list $c(idx.comprlist)]
+        set c(idx.comprlevellist) [unsign_list $c(idx.comprlevellist)]
+        set c(idx.encryptionlist) [unsign_list $c(idx.encryptionlist)]
+
+        binary scan $md5data H* md5hex
+        set md5hex [string toupper $md5hex]
+        for {set i 0} {$i < $numpages} {incr i} {
+            lappend c(idx.md5list) [string range $md5hex 0 31]
+            set md5hex [string range $md5hex 32 end]
+        }
+
+    }
+
+    if { $fsindex_sizeCompressed > 0 } {
+
+        set fc [read $c(fh) $fsindex_sizeCompressed]
+        set c(indexdata) [decompress $name $fsindex_compression $fsindex_sizeUncompressed $fc]
+
+    } else {
+        set c(indexdata) {}
+    }
+
+    set idxoffset [expr {$c(endoffset) - $suffix_size - $pgindex_sizeCompressed - $fsindex_sizeCompressed}]
     set c(indexoffset) $idxoffset
 
-    if {$idxoffset < 0} {
-        set msg "$errorMessage: page sizes not found"
-        return 0
-    }
-
-    seek $c(fh) $idxoffset start
-    set md5data [read $c(fh) [expr {$numpages * 16}]]
-    set sizedata [read $c(fh) [expr {$numpages * 4}]]
-
-    set idx [read $c(fh) $idxsize]
-
-    set c(indexdata) [decompress $name $idx]
-
-    set c(idx.md5list) [list]
-    set c(idx.sizelist) [list]
-
-    binary scan $md5data H* md5hex
-    set md5hex [string toupper $md5hex]
-    for {set i 0} {$i < $numpages} {incr i} {
-        lappend c(idx.md5list) [string range $md5hex 0 31]
-        set md5hex [string range $md5hex 32 end]
-    }
-    binary scan $sizedata I* c(idx.sizelist)
     foreach s $c(idx.sizelist) {
         incr idxoffset -$s
     }
     set c(startoffset) $idxoffset
+
+    set c(cid_base) $base_compression
+
     return 1
 }
 
@@ -431,9 +509,6 @@ proc cookfs::tcl::pages::addstamp {name size} {
 
 proc cookfs::tcl::pages::pagewrite {name contents} {
     upvar #0 $name c
-
-    binary scan $contents H* hd
-
     if {!$c(haschanged)} {
         seek $c(fh) $c(indexoffset) start
     }  else  {
@@ -449,9 +524,8 @@ proc cookfs::tcl::pages::pagewrite {name contents} {
     set c(haschanged) 1
 }
 
-proc cookfs::tcl::pages::pageAdd {name contents} {
+proc cookfs::tcl::pages::getHash {name contents} {
     upvar #0 $name c
-
     if {$c(hash) == "crc32"} {
         set md5 [string toupper [format %08x%08x%08x%08x \
             0 0 [string length $contents] [crc32 $contents] \
@@ -459,6 +533,13 @@ proc cookfs::tcl::pages::pageAdd {name contents} {
     }  else  {
         set md5 [string toupper [md5::md5 -hex $contents]]
     }
+    return $md5
+}
+
+proc cookfs::tcl::pages::pageAdd {name contents} {
+    upvar #0 $name c
+
+    set md5 [getHash $name $contents]
 
     set idx 0
     foreach imd5 $c(idx.md5list) {
@@ -472,6 +553,8 @@ proc cookfs::tcl::pages::pageAdd {name contents} {
 
     set idx [llength $c(idx.sizelist)]
     lappend c(idx.md5list) $md5
+    lappend c(idx.sizeoriglist) [string length $contents]
+    lappend c(idx.encryptionlist) 0
 
     if {($c(cid) == 255) && ([string length $c(asynccompresscommand)] != 0)} {
         lappend c(idx.sizelist) -1
@@ -479,8 +562,10 @@ proc cookfs::tcl::pages::pageAdd {name contents} {
     }  else  {
 	# ensure no writes are in progress
 	while {[asyncCompressWait $name true]} {}
-        set contents [compress $name $contents]
+	lassign [compress $name $contents] cid level contents
         lappend c(idx.sizelist) [string length $contents]
+        lappend c(idx.comprlist) $cid
+        lappend c(idx.comprlevellist) $level
         pagewrite $name $contents
     }
 
@@ -501,13 +586,81 @@ proc cookfs::tcl::pages::cleanup {name} {
             incr offset $i
         }
         seek $c(fh) $offset start
-        # write MD5 indexes
-        puts -nonewline $c(fh) [binary format H* [join $c(idx.md5list) ""]]
-        # write size indexes
-        puts -nonewline $c(fh) [binary format I* $c(idx.sizelist)]
-        set idx [compress $name $c(indexdata)]
-        puts -nonewline $c(fh) $idx
-        puts -nonewline $c(fh) [binary format IIcca* [string length $idx] [llength $c(idx.sizelist)] [compression2cid $c(compression)] 255 $c(cfsname)]
+
+        set base_compression $c(cid)
+        set base_compressionLevel 0
+        set encryption 0
+
+        # Make sure we use base compression and compression level for
+        # pgindex/fsindex data
+        set c(cid) $c(cid_base)
+
+        if { [llength $c(idx.sizelist)] } {
+
+            set pgindex ""
+            append pgindex [binary format I [llength $c(idx.sizelist)]]
+            append pgindex [binary format c* $c(idx.comprlist)]
+            append pgindex [binary format c* $c(idx.comprlevellist)]
+            append pgindex [binary format c* $c(idx.encryptionlist)]
+            append pgindex [binary format I* $c(idx.sizelist)]
+            append pgindex [binary format I* $c(idx.sizeoriglist)]
+            append pgindex [binary format H* [join $c(idx.md5list) ""]]
+
+            set pgindex_sizeUncompressed [string length $pgindex]
+
+            set pgindex_md5 [getHash $name $pgindex]
+
+            lassign [compress $name $pgindex] pgindex_compression pgindex_compressionLevel pgindex
+
+            set pgindex_sizeCompressed [string length $pgindex]
+
+            puts -nonewline $c(fh) $pgindex
+
+        } else {
+            set pgindex_compression 0
+            set pgindex_compressionLevel 0
+            set pgindex_sizeUncompressed 0
+            set pgindex_sizeCompressed 0
+            set pgindex_md5 [string repeat "0" 32]
+        }
+
+        set fsindex_sizeUncompressed [string length $c(indexdata)]
+
+        if { $fsindex_sizeUncompressed } {
+
+            set fsindex_md5 [getHash $name $c(indexdata)]
+
+            lassign [compress $name $c(indexdata)] fsindex_compression fsindex_compressionLevel fsindex
+
+            set fsindex_sizeCompressed [string length $fsindex]
+
+            puts -nonewline $c(fh) $fsindex
+
+        } else {
+            set fsindex_compression 0
+            set fsindex_compressionLevel 0
+            set fsindex_sizeCompressed 0
+            set fsindex_md5 [string repeat "0" 32]
+        }
+
+        set suffix [binary format cccccH32IIccH32IIa* \
+            $base_compression \
+            $base_compressionLevel \
+            $encryption \
+            $pgindex_compression \
+            $pgindex_compressionLevel \
+            $pgindex_md5 \
+            $pgindex_sizeCompressed \
+            $pgindex_sizeUncompressed \
+            $fsindex_compression \
+            $fsindex_compressionLevel \
+            $fsindex_md5 \
+            $fsindex_sizeCompressed \
+            $fsindex_sizeUncompressed \
+            $c(cfsname)]
+
+        puts -nonewline $c(fh) $suffix
+
         set eo [tell $c(fh)]
         if {$eo < $c(endoffset)} {
             catch {chan truncate $c(fh)}
@@ -683,11 +836,12 @@ proc cookfs::tcl::pages::tickTock {name} {
 }
 
 proc cookfs::tcl::pages::pageGet {name idx weight} {
+    upvar #0 $name c
     asyncPreload $name [expr {$idx + 1}]
 
     if {![pageGetStored $name $idx $weight fc] && ![cacheGet $name $idx $weight fc]} {
         set fc [pageGetData $name $idx]
-        set fc [decompress $name $fc]
+        set fc [decompress $name [lindex $c(idx.comprlist) $idx] [lindex $c(idx.sizeoriglist) $idx] $fc]
         cacheAdd $name $idx $weight $fc
     }
 
@@ -718,12 +872,15 @@ proc cookfs::tcl::pages::asyncCompressWait {name require} {
                 error "asyncCompressWait returned $idx, expecting [lindex $c(asyncwrites) 0]"
             }
             set origContents $c(asyncwrites,$idx)
+            set cid $c(cid)
+            set level 0
             if {((!$c(alwayscompress)) && ([string length $contents] > [string length $origContents]))} {
-                set contents \u0000${origContents}
-            }  else  {
-                set contents [binary format c $c(cid)]$contents
+                set contents $origContents
+                set cid 0
             }
             lset c(idx.sizelist) $idx [string length $contents]
+            lset c(idx.comprlist) $idx $cid
+            lset c(idx.comprlevellist) $idx $level
             pagewrite $name $contents
             unset c(asyncwrites,$idx)
             set c(asyncwrites) [lrange $c(asyncwrites) 1 end]
@@ -757,13 +914,14 @@ proc cookfs::tcl::pages::asyncPreload {name idx} {
         for {set i $idx} {$i < $maxIdx} {incr i} {
             if {![pageGetStored $name $i 1000 - false] && ([lsearch $c(asyncpreloadBusy) $i] < 0)} {
                 set fc [pageGetData $name $i]
-                # validate compression type and remove it before passing for processing
-                if {[string index $fc 0] == "\u00ff"} {
+                # validate compression type
+                if {[lindex $c(idx.comprlist) $idx] == 255} {
                     #puts "PRELOAD  $i"
                     while {[asyncDecompressWait $name -1 false]} {}
-                    set fc [string range $fc 1 end]
                     uplevel #0 [concat $c(asyncdecompresscommand) [list process $i $fc]]
                     lappend c(asyncpreloadBusy) $i
+                } else {
+                    #puts "WARNING! not custom compression for page #$idx - \"[lindex $c(idx.comprlist) $idx]\""
                 }
             }
         }

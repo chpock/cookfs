@@ -1,3 +1,6 @@
+2024-07-20 Konstantin Kushnir <chpock@gmail.com>
+	* Refactor storage format
+
 2024-07-08 Konstantin Kushnir <chpock@gmail.com>
 	* Add procedures for AES encryption/decryption
 	* Rename crypt->crypto

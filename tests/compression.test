@@ -45,11 +45,11 @@ foreach { cid } { none zlib bz2 lzma zstd brotli } {
         set pg [cookfs::pages $file]
         lappend ok [$pg length]
         # the page '0' contains the 'test1' file only and it must be uncompressed
-        # i.e. its size should equal to 3 ( 1 (compression method) + 1 ("X") + 1 (newline) )
+        # i.e. its size should equal to 2 ( 1 byte ("X") + 1 byte (newline) )
         set page_size [expr { [$pg filesize] - [$pg dataoffset 0] }]
         $pg delete
         lappend ok $page_size
-    } -result {1 1 3} -cleanup {
+    } -result {1 1 2} -cleanup {
         catch { cookfs::Unmount $file }
         catch { $pg delete }
         file delete -force $file $dir
@@ -80,11 +80,11 @@ foreach { cid } { none zlib bz2 lzma zstd brotli } {
         set pg [cookfs::pages $file]
         lappend ok [$pg length]
         # the page '0' contains the 'test1' file only and it must be uncompressed
-        # i.e. its size should equal to 129 ( 1 (compression method) + 128 (data) )
+        # i.e. its size should equal to 128
         set page_size [expr { [$pg filesize] - [$pg dataoffset 0] }]
         $pg delete
         lappend ok $page_size
-    } -result {1 1 129} -cleanup {
+    } -result {1 1 128} -cleanup {
         catch { cookfs::Unmount $file }
         catch { $pg delete }
         file delete -force $file $dir
@@ -106,13 +106,13 @@ foreach { cid } { none zlib bz2 lzma zstd brotli } {
         set pg [cookfs::pages $file]
         lappend ok [$pg length]
         # the page '0' contains the 'test1' file only and it must be compressed (if method is not "none")
-        # i.e. its size should be less than 1026 ( 1 (compression method) + 1024 ("XXX...") + 1 (newline) )
+        # i.e. its size should be less than 1025 ( 1024 ("XXX...") + 1 (newline) )
         set page_size [expr { [$pg filesize] - [$pg dataoffset 0] }]
         $pg delete
         if { $cid eq "none" } {
-            if { $page_size == 1026 } { unset page_size }
+            if { $page_size == 1025 } { unset page_size }
         } {
-            if { $page_size < 1026 } { unset page_size }
+            if { $page_size < 1025 } { unset page_size }
         }
         if { [info exists page_size] } {
             lappend ok "unexpected page size: $page_size"
@@ -194,12 +194,12 @@ foreach { cid } { none zlib bz2 lzma zstd brotli } {
             }
         }
         set expected [dict get {
-            none   {1310722 1310722 1310722 1310722 1310722}
-            zlib   {335801 395825 365353 342150 330139}
-            zstd   {330325 357958 330325 319779 305182}
-            brotli {298922 400110 336878 301264 295253}
-            bz2    {275045 293163 278827 280154 275046}
-            lzma   {274791 311432 303553 274791 272878}
+            none   {1310721 1310721 1310721 1310721 1310721}
+            zlib   {335800 395824 365352 342149 330138}
+            zstd   {330320 357953 330320 319774 305177}
+            brotli {298917 400105 336873 301259 295248}
+            bz2    {275040 293158 278822 280149 275041}
+            lzma   {274786 311427 303548 274786 272873}
         } $cid]
         if { $expected eq $result } {
             set result ok
@@ -235,12 +235,12 @@ foreach { cid } { none zlib bz2 lzma zstd brotli } {
             }
         }
         set expected [dict get {
-            none   {1310722 1310722}
-            zlib   {335801 342150}
-            zstd   {330325 319779}
-            brotli {298922 301264}
-            bz2    {275045 280154}
-            lzma   {274791 274791}
+            none   {1310721 1310721}
+            zlib   {335800 342149}
+            zstd   {330320 319774}
+            brotli {298917 301259}
+            bz2    {275040 280149}
+            lzma   {274786 274786}
         } $cid]
         if { $expected eq $result } {
             set result ok

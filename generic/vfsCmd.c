@@ -440,20 +440,22 @@ skipArchive:
 #ifdef COOKFS_USETCLCMDS
     if (props->pagesobject == NULL) {
 #endif
-        int oCompression;
-        int oCompressionLevel;
-        if (Cookfs_CompressionFromObj(interp, props->compression,
-            &oCompression, &oCompressionLevel) != TCL_OK)
-        {
-            return TCL_ERROR;
+        int oCompression = -1;
+        int oCompressionLevel = -1;
+        if (props->compression != NULL) {
+            if (Cookfs_CompressionFromObj(interp, props->compression,
+                &oCompression, &oCompressionLevel) != TCL_OK)
+            {
+                return TCL_ERROR;
+            }
         }
 
         CookfsLog(printf("Cookfs_Mount: creating the pages object"));
         // TODO: pass a pointer to err variable instead of NULL and
         // handle the corresponding error message
         pages = Cookfs_PagesInit(interp, archiveActual, props->readonly,
-            oCompression, oCompressionLevel, NULL,
-            (props->endoffset == -1 ? 0 : 1), props->endoffset, 0,
+            oCompression, oCompressionLevel, oCompression, oCompressionLevel,
+            NULL, (props->endoffset == -1 ? 0 : 1), props->endoffset, 0,
             props->asyncdecompressqueuesize,
             props->compresscommand, props->decompresscommand,
             props->asynccompresscommand, props->asyncdecompresscommand,

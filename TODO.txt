@@ -1,2 +1,18 @@
 * Add support for encrypted/password protected files
 * Consider mapping archive to memory to improve performance on readonly VFS
+* Add ability to disable custom compression to reduce size footprint when it is not needed
+* Add ability to disable async compression to reduce size footprint when it is not needed
+* Add MD5 hash validation on load for pgindex data
+* Add MD5 hash validation on load for fsindex data
+* Add MD5 hash validation on load for all pages data
+* Update bzip2 and use it as a submodule. Perhaps this will get rid of its compile-time warnings.
+
+== Examples
+
+* Add simple example of tclsh with cookfs. Compare with tclsh9+zipfs (size and
+loading speed). This example will cover cookfs usage from C side.
+
+* Add an example of a Tcl archiver application that uses the cookfs format.
+It will be like any other archiver and will support file
+compression/decompression. This example will cover cookfs usage from Tcl side.
+

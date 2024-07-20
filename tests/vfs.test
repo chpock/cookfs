@@ -36,7 +36,7 @@ tcltest::test cookfsVfs-1.3 "Mount non-existant file as read-only" -setup {
     catch {cookfs::Unmount $file}
     tcltest::removeFile $file
     unset -nocomplain file
-} -returnCodes {error} -result {Unable to create Cookfs object: index not found}
+} -returnCodes {error} -result {Unable to create Cookfs object: signature not found}
 
 tcltest::test cookfsVfs-1.4 "Remounting archive" -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
@@ -536,7 +536,7 @@ tcltest::test cookfsVfs-7.1 "Test filesize command" -setup {
     catch {cookfs::Unmount $file}
     tcltest::removeFile $file
     unset -nocomplain file fh fsid
-} -returnCodes {ok} -result 69649
+} -returnCodes {ok} -result 69647
 
 tcltest::test cookfsVfs-7.2 "Test smallfilebuffersize command" -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -701,8 +701,10 @@ tcltest::test cookfsVfs-10.1 "Test changing compression without remounting" -con
     set fh [open $file w]
     close $fh
 } -body {
-    set fsid [cookfs::Mount $file $file -compression zlib -smallfilesize 32768 \
+    set fsid [cookfs::Mount $file $file -compression custom -smallfilesize 32768 \
 	-compresscommand testcompressraw -decompresscommand testdecompressraw -alwayscompress]
+
+    $fsid compression zlib
     if {[$fsid compression] != "zlib"} {
 	error "Getting compression does not return \"zlib\""
     }
@@ -1515,13 +1517,19 @@ tcltest::test cookfsVfs-19.6.2 "Check unmount in child interp after interp died"
 # This test is related to cookfsVfs-20.1.2. If something needs to be changed here,
 # the appropriate changes should be added to cookfsVfs-20.1.2.
 tcltest::test cookfsVfs-20.1.1 "Don't crash when stamp is not present" -setup {
-    set data ""
-    set index "\u0000CFS2.200"
-    # 0 file
-    append index [binary format I 0]
-    append data $index
-    # + index size + page count (0) + compression id + compression level + signature
-    append data [binary format IIcca* [string length $index] 0 0 0 CFS0002]
+    # base compression + base compression level + encryption
+    set data [binary format ccc 0 0 0]
+    # pgindex
+    # compression + compression level + 16 bytes hash + compressed size + uncompressed size
+    append data [binary format ccc16II 0 0 \
+        {0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0} \
+        0 0]
+    # fsindex
+    # compression + compression level + 16 bytes hash + compressed size + uncompressed size
+    append data [binary format ccc16II 0 0 \
+        {0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0} \
+        0 0]
+    append data "CFS0003"
     set file [tcltest::makeBinFile $data pages.cfs]
 } -body {
     cookfs::Mount $file $file -readonly
@@ -1536,13 +1544,19 @@ tcltest::test cookfsVfs-20.1.1 "Don't crash when stamp is not present" -setup {
 # This test differs from the previous one in that there is no byte representing
 # the compression level in the tail of the archive
 tcltest::test cookfsVfs-20.1.2 "Don't crash when stamp is not present and archive suffix is malformed" -setup {
-    set data ""
-    set index "\u0000CFS2.200"
-    # 0 file
-    append index [binary format I 0]
-    append data $index
-    # + index size + page count (0) + compression id + compression level + signature
-    append data [binary format IIca* [string length $index] 0 0 CFS0002]
+    # base compression + encryption
+    set data [binary format cc 0 0]
+    # pgindex
+    # compression + compression level + 16 bytes hash + compressed size + uncompressed size
+    append data [binary format ccc16II 0 0 \
+        {0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0} \
+        0 0]
+    # fsindex
+    # compression + compression level + 16 bytes hash + compressed size + uncompressed size
+    append data [binary format ccc16II 0 0 \
+        {0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0} \
+        0 0]
+    append data "CFS0003"
     set file [tcltest::makeBinFile $data pages.cfs]
 } -body {
     cookfs::Mount $file $file -readonly
@@ -1552,5 +1566,5 @@ tcltest::test cookfsVfs-20.1.2 "Don't crash when stamp is not present and archiv
     catch { cookfs::Unmount $file }
     tcltest::removeFile $file
     unset -nocomplain data index file ok
-} -returnCodes error -result {Unable to create Cookfs object: page sizes not found}
+} -returnCodes error -result {Unable to create Cookfs object: index not found}
 
