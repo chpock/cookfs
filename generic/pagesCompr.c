@@ -14,7 +14,6 @@
 #include "pagesCompr.h"
 #include "pagesComprZlib.h"
 #include "pagesComprCustom.h"
-#include <assert.h>
 #ifdef COOKFS_USEBZ2
 #include "pagesComprBz2.h"
 #endif

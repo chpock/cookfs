@@ -8,7 +8,6 @@
 
 #include "cookfs.h"
 #include "pageObj.h"
-#include "assert.h"
 
 void Cookfs_PageObjIncrRefCount(Cookfs_PageObj pg) {
     Cookfs_PageObjStruct *ps = (Cookfs_PageObjStruct *)(pg -

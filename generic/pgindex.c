@@ -8,7 +8,6 @@
 
 #include "cookfs.h"
 #include "pgindex.h"
-#include <assert.h>
 
 // How many entries are allocated at one time to reduce re-allocation
 // of memory.
