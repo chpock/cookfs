@@ -42,12 +42,20 @@
 // max read 10mb
 #define COOKFS_SEARCH_STAMP_MAX_READ 10485760
 
+// number of iterations for PBKDF2-HMAC-SHA256
+//#define COOKFS_ENCRYPT_NUMBER_OF_ITERATIONS 100000
+//#define COOKFS_ENCRYPT_NUMBER_OF_ITERATIONS 3000000
+#define COOKFS_ENCRYPT_ITERATIONS_K1 (4096*2)
+#define COOKFS_ENCRYPT_ITERATIONS_K2 (4096*20)
+#define COOKFS_ENCRYPT_LEVEL_DEFAULT 15
+#define COOKFS_ENCRYPT_LEVEL_MAX 31
+
 #define COOKFS_PAGES_ERRORMSG "Unable to create Cookfs object"
 
 /* declarations of static and/or internal functions */
 static Cookfs_PageObj CookfsPagesPageGetInt(Cookfs_Pages *p, int index, Tcl_Obj **err);
 static void CookfsPagesPageCacheMoveToTop(Cookfs_Pages *p, int index);
-static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj **err);
+static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *password, Tcl_Obj **err);
 static void CookfsTruncateFileIfNeeded(Cookfs_Pages *p, Tcl_WideInt targetOffset);
 static Tcl_WideInt Cookfs_PageSearchStamp(Cookfs_Pages *p);
 static void Cookfs_PagesFree(Cookfs_Pages *p);
@@ -264,6 +272,146 @@ Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName) {
     return (Cookfs_Pages *) (cmdInfo.objClientData);
 }
 
+static int Cookfs_PagesDecryptKey(Cookfs_Pages *p, Tcl_Obj *passObj) {
+
+    CookfsLog2(printf("enter, password: [%s]", (passObj == NULL ?
+        "NULL" : "SET")));
+
+    // This function can be called ONLY when:
+    // * encryption is not active
+    // * password has not yet been set
+    // * we have read the encrypted key from the archive, but have not yet
+    //   decrypted it
+    // * we use key-based encryption
+    assert(p->isEncryptionActive == 0);
+    assert(p->isPasswordSet == 0);
+    assert(p->isKeyDecrypted == 0);
+    assert(p->encryption == COOKFS_ENCRYPT_KEY || p->encryption == COOKFS_ENCRYPT_KEY_INDEX);
+
+    if (passObj == NULL || !Tcl_GetCharLength(passObj)) {
+        CookfsLog2(printf("ERROR: password is NULL or an empty string"));
+        return TCL_ERROR;
+    }
+
+    Tcl_Size passLen;
+    unsigned char *passStr = Tcl_GetByteArrayFromObj(passObj, &passLen);
+
+    unsigned int iterations = (p->encryptionLevel <= 15 ?
+        (p->encryptionLevel * COOKFS_ENCRYPT_ITERATIONS_K1) :
+        (p->encryptionLevel * COOKFS_ENCRYPT_ITERATIONS_K2));
+
+    unsigned char passEncrypted[COOKFS_ENCRYPT_KEY_SIZE];
+
+    CookfsLog2(printf("generate an encryption key based on the specified"
+        " password"));
+
+    Cookfs_Pbkdf2Hmac(passStr, passLen, p->passwordSalt,
+        COOKFS_ENCRYPT_PASSWORD_SALT_SIZE, iterations,
+        COOKFS_ENCRYPT_KEY_SIZE, passEncrypted);
+
+    CookfsLog2(printf("decrypt the key by encrypted password"));
+
+    memcpy(p->encryptionKey, p->encryptionEncryptedKey,
+        COOKFS_ENCRYPT_KEY_AND_HASH_SIZE);
+
+    Cookfs_AesDecryptRaw(p->encryptionKey, COOKFS_ENCRYPT_KEY_AND_HASH_SIZE,
+        p->encryptionEncryptedKeyIV, passEncrypted);
+
+    if (memcmp(&p->encryptionKey[COOKFS_ENCRYPT_KEY_SIZE],
+        p->encryptionEncryptedKeyIV, COOKFS_ENCRYPT_IV_SIZE) != 0)
+    {
+        CookfsLog2(printf("return: ERROR (failed to validate the unencrypted"
+            " key)"));
+        return TCL_ERROR;
+    }
+
+    p->isPasswordSet = 1;
+    p->isEncryptionActive = 1;
+    p->isKeyDecrypted = 1;
+
+    CookfsLog2(printf("return: ok"));
+
+    return TCL_OK;
+
+}
+
+int Cookfs_PagesSetPassword(Cookfs_Pages *p, Tcl_Obj *passObj) {
+
+    CookfsLog2(printf("enter, password: [%s]", (passObj == NULL ?
+        "NULL" : "SET")));
+
+    Cookfs_PagesWantWrite(p);
+
+    // ensure all async pages are written
+    while(Cookfs_AsyncCompressWait(p, 1)) {};
+
+    if (passObj == NULL || !Tcl_GetCharLength(passObj)) {
+        CookfsLog2(printf("reset password as it is NULL or an empty string"));
+        p->isEncryptionActive = 0;
+        return TCL_OK;
+    }
+
+    // If we are trying to set a password for key-based encryption
+    // and isKeyDecrypted is false, then we have opened the archive
+    // without a password and want to unlock the encryption key.
+    // We need to should use Cookfs_PagesDecryptKey() for that.
+    if (p->encryption == COOKFS_ENCRYPT_KEY && !p->isKeyDecrypted) {
+        return Cookfs_PagesDecryptKey(p, passObj);
+    }
+
+    if (p->encryption == COOKFS_ENCRYPT_NONE) {
+        p->encryption = COOKFS_ENCRYPT_FILE;
+    }
+
+    Tcl_Size passLen;
+    unsigned char *passStr = Tcl_GetByteArrayFromObj(passObj, &passLen);
+
+    unsigned int iterations = (p->encryptionLevel <= 15 ?
+        (p->encryptionLevel * COOKFS_ENCRYPT_ITERATIONS_K1) :
+        (p->encryptionLevel * COOKFS_ENCRYPT_ITERATIONS_K2));
+
+    if (p->encryption == COOKFS_ENCRYPT_FILE) {
+
+        CookfsLog2(printf("generate an encryption key based on the specified"
+            " password"));
+
+        Cookfs_Pbkdf2Hmac(passStr, passLen, p->passwordSalt,
+            COOKFS_ENCRYPT_PASSWORD_SALT_SIZE, iterations,
+            COOKFS_ENCRYPT_KEY_SIZE, p->encryptionKey);
+
+    } else {
+
+        unsigned char passEncrypted[COOKFS_ENCRYPT_KEY_SIZE];
+
+        CookfsLog2(printf("generate an encryption key based on the specified"
+            " password"));
+
+        Cookfs_Pbkdf2Hmac(passStr, passLen, p->passwordSalt,
+            COOKFS_ENCRYPT_PASSWORD_SALT_SIZE, iterations,
+            COOKFS_ENCRYPT_KEY_SIZE, passEncrypted);
+
+        CookfsLog2(printf("encrypt key by encrypted password"));
+
+        memcpy(p->encryptionEncryptedKey, p->encryptionKey,
+            COOKFS_ENCRYPT_KEY_AND_HASH_SIZE);
+
+        Cookfs_AesEncryptRaw(p->encryptionEncryptedKey,
+            COOKFS_ENCRYPT_KEY_AND_HASH_SIZE, p->encryptionEncryptedKeyIV,
+            passEncrypted);
+
+        // Do not mark pages as modified if we are in readonly mode.
+        if (!p->fileReadOnly) {
+            p->pagesUptodate = 0;
+        }
+
+    }
+
+    p->isPasswordSet = 1;
+    p->isEncryptionActive = 1;
+
+    return TCL_OK;
+
+}
 
 /*
  *----------------------------------------------------------------------
@@ -307,6 +455,7 @@ Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName) {
 Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     int fileReadOnly, int baseCompression, int baseCompressionLevel,
     int currentCompression, int currentCompressionLevel,
+    Tcl_Obj *password, int encryptKey, int encryptLevel,
     char *fileSignature, int useFoffset, Tcl_WideInt foffset,
     int isAside, int asyncDecompressQueueSize,
     Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand,
@@ -367,7 +516,19 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     rc->baseCompressionLevel = baseCompressionLevel;
     rc->currentCompression = currentCompression;
     rc->currentCompressionLevel = currentCompressionLevel;
-    rc->encryption = COOKFS_ENCRYPT_NONE;
+#ifdef COOKFS_USECCRYPTO
+    rc->encryption = -1;
+    rc->isPasswordSet = 0;
+    rc->isEncryptionActive = 0;
+    rc->isKeyDecrypted = 0;
+    if (encryptLevel < 0) {
+        rc->encryptionLevel = COOKFS_ENCRYPT_LEVEL_DEFAULT;
+    } else if (encryptLevel > COOKFS_ENCRYPT_LEVEL_MAX) {
+        rc->encryptionLevel = COOKFS_ENCRYPT_LEVEL_MAX;
+    } else {
+        rc->encryptionLevel = encryptLevel;
+    }
+#endif /* COOKFS_USECCRYPTO */
     rc->pagesIndex = NULL;
     rc->dataAsidePages = NULL;
     rc->dataPagesIsAside = isAside;
@@ -445,39 +606,84 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
 
     /* read index or fail */
     Cookfs_PagesLockWrite(rc, NULL);
-    int indexRead = CookfsReadIndex(interp, rc, err);
+    int indexRead = CookfsReadIndex(interp, rc, password, err);
     Cookfs_PagesUnlock(rc);
     if (!indexRead) {
 	if (rc->fileReadOnly) {
-	    // Detecting a corrupted file only if no endoffset is specified and we
-	    // tried to automatically detect the contents of the archive.
-	    if (!useFoffset) {
-	        Tcl_WideInt expectedSize = Cookfs_PageSearchStamp(rc);
-	        if (expectedSize != -1) {
-                    Tcl_SetObjResult(interp, Tcl_ObjPrintf("The archive \"%s\""
-                        " appears to be corrupted or truncated. Expected"
-                        " archive size is %" TCL_LL_MODIFIER "d bytes or"
-                        " larger.", Tcl_GetString(fileName), expectedSize));
-	        }
-	    }
-	    rc->pagesUptodate = 1;
-	    rc->indexChanged = 0;
-	    rc->shouldTruncate = 0;
-	    Cookfs_PagesFini(rc);
-	    return NULL;
-	}  else  {
-	    rc->isFirstWrite = 1;
-	    rc->dataInitialOffset = Tcl_Seek(rc->fileChannel, 0, SEEK_END);
-	    rc->pagesUptodate = 0;
-	    rc->indexChanged = 1;
-	    rc->shouldTruncate = 1;
+	    goto error;
 	}
-	CookfsLog(printf("Index not read!"))
+	rc->isFirstWrite = 1;
+	rc->dataInitialOffset = Tcl_Seek(rc->fileChannel, 0, SEEK_END);
+	rc->pagesUptodate = 0;
+	rc->indexChanged = 1;
+	rc->shouldTruncate = 1;
+	CookfsLog2(printf("Index not read!"))
     }  else  {
 	rc->pagesUptodate = 1;
 	rc->indexChanged = 0;
 	rc->shouldTruncate = 1;
     }
+
+#ifdef COOKFS_USECCRYPTO
+
+    // If we are opening an existing archive, the encryption should already be
+    // initialized.
+    if (rc->encryption != -1) {
+        CookfsLog2(printf("encryption type has already been initialized"))
+        goto skipEncryption;
+    }
+
+    if (password == NULL) {
+        if (encryptKey) {
+            rc->encryption = COOKFS_ENCRYPT_KEY;
+        } else {
+            rc->encryption = COOKFS_ENCRYPT_NONE;
+        }
+    } else {
+        if (encryptKey) {
+            rc->encryption = COOKFS_ENCRYPT_KEY_INDEX;
+        } else {
+            rc->encryption = COOKFS_ENCRYPT_FILE;
+        }
+    }
+
+    if (rc->encryption != COOKFS_ENCRYPT_NONE) {
+
+        Cookfs_RandomGenerate(interp, rc->passwordSalt,
+            COOKFS_ENCRYPT_PASSWORD_SALT_SIZE);
+
+        if (rc->encryption == COOKFS_ENCRYPT_KEY) {
+
+            Cookfs_RandomGenerate(interp, rc->encryptionKey,
+                COOKFS_ENCRYPT_KEY_SIZE);
+
+            Cookfs_RandomGenerate(interp, rc->encryptionEncryptedKeyIV,
+                COOKFS_ENCRYPT_IV_SIZE);
+
+            memcpy(&rc->encryptionKey[COOKFS_ENCRYPT_KEY_SIZE],
+                rc->encryptionEncryptedKeyIV, COOKFS_ENCRYPT_IV_SIZE);
+
+            rc->isKeyDecrypted = 1;
+
+        }
+
+    }
+
+skipEncryption:
+
+    if (!rc->isPasswordSet && password != NULL) {
+        Cookfs_PagesLockWrite(rc, NULL);
+        int res = Cookfs_PagesSetPassword(rc, password);
+        Cookfs_PagesUnlock(rc);
+        if (res != TCL_OK) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
+                ": could not decrypt the encryption key with the specified"
+                " password", -1));
+            goto error;
+        }
+    }
+
+#endif /* COOKFS_USECCRYPTO */
 
     if (rc->pagesIndex == NULL) {
         CookfsLog2(printf("pgindex is not defined, initialize a new one"));
@@ -509,6 +715,15 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     }
 
     return rc;
+
+error:
+
+    rc->pagesUptodate = 1;
+    rc->indexChanged = 0;
+    rc->shouldTruncate = 0;
+    Cookfs_PagesFini(rc);
+    return NULL;
+
 }
 
 
@@ -534,7 +749,7 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
         goto done;
     }
 
-    CookfsLog(printf("Cookfs_PagesClose - Pages up to date = %d, Index changed = %d", p->pagesUptodate, p->indexChanged))
+    CookfsLog2(printf("pages up to date = %d, Index changed = %d", p->pagesUptodate, p->indexChanged))
     /* if changes were made, save them to disk */
     if ((!p->pagesUptodate) || (p->indexChanged)) {
         unsigned char buf[COOKFS_SUFFIX_BYTES];
@@ -548,10 +763,50 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
         // Add initial stamp if needed
         Cookfs_PageAddStamp(p, 0);
 
+#ifdef COOKFS_USECCRYPTO
+        // Reset encryption if no password is set. For key-based encryption
+        // we just don't know how to encrypt key. For file-based encryption,
+        // this is the default and will be used next time a password is set.
+        if (!p->isPasswordSet) {
+            p->encryption = COOKFS_ENCRYPT_NONE;
+        }
+
+        buf[COOKFS_SUFFIX_OFFSET_ENCRYPTION] = (p->encryption & 7) |
+            ((p->encryptionLevel << 3) & 0xf8);
+
+        CookfsLog2(printf("level: %d", p->encryptionLevel));
+
+        CookfsLog2(printf("write encryption: %s level %d",
+            ((buf[COOKFS_SUFFIX_OFFSET_ENCRYPTION] & 7)
+                == COOKFS_ENCRYPT_NONE ? "NONE" :
+            ((buf[COOKFS_SUFFIX_OFFSET_ENCRYPTION] & 7)
+                == COOKFS_ENCRYPT_FILE ? "FILE" :
+            ((buf[COOKFS_SUFFIX_OFFSET_ENCRYPTION] & 7)
+                == COOKFS_ENCRYPT_KEY ? "KEY" :
+            ((buf[COOKFS_SUFFIX_OFFSET_ENCRYPTION] & 7)
+                == COOKFS_ENCRYPT_KEY_INDEX ? "KEY_INDEX" :
+            "UNKNOWN")))),
+            (buf[COOKFS_SUFFIX_OFFSET_ENCRYPTION] >> 3) & 0x1f));
+
+        // If the encryption mode is not COOKFS_ENCRYPT_KEY_INDEX, then we
+        // don't want to encrypt the indexes. Disable encryption for this case.
+        // On the other hand, explicitly enable encryption.
+        if (p->encryption != COOKFS_ENCRYPT_KEY_INDEX) {
+            CookfsLog2(printf("disable encryption as it is not"
+                " COOKFS_ENCRYPT_KEY_INDEX"));
+            p->isEncryptionActive = 0;
+        } else {
+            CookfsLog2(printf("ENABLE encryption for indexes"));
+            p->isEncryptionActive = 1;
+        }
+#else
+        buf[COOKFS_SUFFIX_OFFSET_ENCRYPTION] =
+            (COOKFS_ENCRYPT_LEVEL_DEFAULT << 3) & 0xf8;
+#endif
+
         // Fill in the basic data for the file system suffix
         buf[COOKFS_SUFFIX_OFFSET_BASE_COMPRESSION] = p->baseCompression;
         buf[COOKFS_SUFFIX_OFFSET_BASE_LEVEL] = p->baseCompressionLevel;
-        buf[COOKFS_SUFFIX_OFFSET_ENCRYPTION] = 0;
         memcpy(&buf[COOKFS_SUFFIX_OFFSET_SIGNATURE], p->fileSignature,
             COOKFS_SIGNATURE_LENGTH);
 
@@ -583,7 +838,7 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
                 &buf[COOKFS_SUFFIX_OFFSET_PGINDEX_HASH]);
 
             indexSizeCompressed = Cookfs_WritePageObj(p, pgindexIndex,
-                pgindexExportObj);
+                pgindexExportObj, &buf[COOKFS_SUFFIX_OFFSET_PGINDEX_HASH]);
 
             Cookfs_PageObjBounceRefCount(pgindexExportObj);
 
@@ -620,7 +875,7 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
                 &buf[COOKFS_SUFFIX_OFFSET_FSINDEX_HASH]);
 
             indexSizeCompressed = Cookfs_WritePageObj(p, fsindexIndex,
-                p->dataIndex);
+                p->dataIndex, &buf[COOKFS_SUFFIX_OFFSET_FSINDEX_HASH]);
             if (indexSizeCompressed < 0) {
                 Tcl_Panic("Unable to compress fsindex");
             }
@@ -645,6 +900,30 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
             Tcl_Tell(p->fileChannel)));
 
         Tcl_Write(p->fileChannel, (char *)buf, COOKFS_SUFFIX_BYTES);
+
+        if (p->encryption != COOKFS_ENCRYPT_NONE && p->isPasswordSet) {
+
+            CookfsLog2(printf("writing encryption data: password salt"));
+            Tcl_Write(p->fileChannel, (char *)p->passwordSalt,
+                COOKFS_ENCRYPT_PASSWORD_SALT_SIZE);
+
+            if (p->encryption != COOKFS_ENCRYPT_FILE) {
+
+                CookfsLog2(printf("writing encryption data: key IV"));
+                Tcl_Write(p->fileChannel, (char *)p->encryptionEncryptedKeyIV,
+                    COOKFS_ENCRYPT_IV_SIZE);
+
+                CookfsLog2(printf("writing encryption data: key"));
+                Tcl_Write(p->fileChannel, (char *)p->encryptionEncryptedKey,
+                    COOKFS_ENCRYPT_KEY_AND_HASH_SIZE);
+
+            }
+
+        } else {
+            CookfsLog2(printf("don't write encryption data: %s",
+                (p->encryption == COOKFS_ENCRYPT_NONE ? "encryption is NONE" :
+                "password is not set")));
+        }
 
         p->foffset = Tcl_Tell(p->fileChannel);
 
@@ -1027,6 +1306,57 @@ int Cookfs_PageAddTclObj(Cookfs_Pages *p, Tcl_Obj *dataObj, Tcl_Obj **err) {
     return Cookfs_PageAddRaw(p, bytes, size, err);
 }
 
+void Cookfs_PagesCalculateHash(Cookfs_Pages *p, unsigned char *bytes,
+    Tcl_Size size, unsigned char *output)
+{
+
+    if (p->pageHash == COOKFS_HASH_CRC32) {
+
+        CookfsLog2(printf("calc crc32, data: %p size %" TCL_SIZE_MODIFIER "d",
+            (void *)bytes, size));
+
+        int b[4] = { 0, 0, (int)size, 0 };
+#ifdef USE_VFS_COMMANDS_FOR_ZIP
+        Tcl_Obj *data;
+        Tcl_Obj *prevResult;
+
+        Tcl_Obj *dataObj = Tcl_NewByteArrayObj(bytes, size);
+        Tcl_IncrRefCount(dataObj);
+        p->zipCmdCrc[1] = dataObj;
+
+        prevResult = Tcl_GetObjResult(p->interp);
+        Tcl_IncrRefCount(prevResult);
+
+        if (Tcl_EvalObjv(p->interp, 2, p->zipCmdCrc, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) == TCL_OK) {
+            data = Tcl_GetObjResult(p->interp);
+            Tcl_IncrRefCount(data);
+            Tcl_GetIntFromObj(NULL, data, &b[3]);
+            Tcl_DecrRefCount(data);
+        }
+
+        p->zipCmdCrc[1] = NULL;
+        Tcl_DecrRefCount(dataObj);
+
+        Tcl_SetObjResult(p->interp, prevResult);
+        Tcl_DecrRefCount(prevResult);
+#else
+        b[3] = (int)Tcl_ZlibCRC32(Tcl_ZlibCRC32(0,NULL,0), bytes, size);
+#endif
+        /* copy to checksum memory */
+        Cookfs_Int2Binary(b, output, 4);
+    }  else  {
+
+        CookfsLog2(printf("calc md5, data: %p size %" TCL_SIZE_MODIFIER "d",
+            (void *)bytes, size));
+
+        Cookfs_MD5(bytes, size, output);
+
+    }
+
+    CookfsLog2(printf("return: [" PRINTF_MD5_FORMAT "]", PRINTF_MD5_VAR(output)));
+
+}
+
 /*
  *----------------------------------------------------------------------
  *
@@ -1055,49 +1385,26 @@ int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength,
 
     CookfsLog(printf("Cookfs_PageAdd: new page with [%d] bytes", objLength))
 
-    if (p->pageHash == COOKFS_HASH_CRC32) {
-	int b[4] = { 0, 0, objLength, 0 };
-#ifdef USE_VFS_COMMANDS_FOR_ZIP
-	Tcl_Obj *data;
-	Tcl_Obj *prevResult;
-
-	Tcl_Obj *dataObj = Tcl_NewByteArrayObj(bytes, objLength);
-	Tcl_IncrRefCount(dataObj);
-	p->zipCmdCrc[1] = dataObj;
-
-	prevResult = Tcl_GetObjResult(p->interp);
-	Tcl_IncrRefCount(prevResult);
-
-	if (Tcl_EvalObjv(p->interp, 2, p->zipCmdCrc, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) == TCL_OK) {
-	    data = Tcl_GetObjResult(p->interp);
-	    Tcl_IncrRefCount(data);
-	    Tcl_GetIntFromObj(NULL, data, &b[3]);
-	    Tcl_DecrRefCount(data);
-	}
-
-	p->zipCmdCrc[1] = NULL;
-	Tcl_DecrRefCount(dataObj);
-
-	Tcl_SetObjResult(p->interp, prevResult);
-	Tcl_DecrRefCount(prevResult);
-#else
-	b[3] = (int) Tcl_ZlibCRC32(Tcl_ZlibCRC32(0,NULL,0), bytes, objLength);
-#endif
-	/* copy to checksum memory */
-	Cookfs_Int2Binary(b, md5sum, 4);
-    }  else  {
-	Cookfs_MD5(bytes, objLength, md5sum);
-    }
+    Cookfs_PagesCalculateHash(p, bytes, objLength, md5sum);
 
     /* see if this entry already exists */
     CookfsLog(printf("Cookfs_PageAdd: Matching page (size=%d bytes)", objLength));
     idx = 0;
     while (Cookfs_PgIndexSearchByMD5(p->pagesIndex, md5sum, objLength, &idx)) {
+
+        if (Cookfs_PgIndexGetEncryption(p->pagesIndex, idx) !=
+            p->isEncryptionActive)
+        {
+            CookfsLog2(printf("found page#%d that matches the hash, but"
+                " encryption does not match", idx));
+            goto next;
+        }
+
         /* even if MD5 checksums are the same, we still need to validate contents of the page */
         Cookfs_PageObj otherPageData;
         int isMatched = 0;
 
-        CookfsLog(printf("Cookfs_PageAdd: Comparing page %d", idx))
+        CookfsLog(printf("Cookfs_PageAdd: Comparing page %d", idx));
 
         /* use -1000 weight as it is temporary page and we don't really need it in cache */
         otherPageData = Cookfs_PageGet(p, idx, -1000, err);
@@ -1109,7 +1416,18 @@ int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength,
          * if page with same checksum was found, verify its contents as we
          * do not rely on MD5 checksum - this avoids issue with MD5 collissions */
         if (otherPageData == NULL) {
-            CookfsLog(printf("Cookfs_PageAdd: Unable to verify page with same MD5 checksum"));
+            // If we are in encrypted mode, it is possible that we failed
+            // to decrypt some page. Let's ignore this error. But we need to
+            //free possible error message.
+            if (p->encryption == COOKFS_ENCRYPT_FILE) {
+                CookfsLog2(printf("ignore the error in encryption mode"));
+                if (err != NULL && *err != NULL) {
+                    Tcl_BounceRefCount(*err);
+                    *err = NULL;
+                }
+                goto next;
+            }
+            CookfsLog2(printf("unable to verify page with same MD5 checksum"));
             return -1;
         } else {
             // We are sure we will go out of bounds here because
@@ -1131,7 +1449,7 @@ int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength,
            }
            return idx;
         }
-
+next:
         idx++;
     }
 
@@ -1153,19 +1471,19 @@ int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength,
 
     // Real compression, compressionLevel and sizeUncompressed will be updated
     // by Cookfs_WritePage()
-    idx = Cookfs_PgIndexAddPage(p->pagesIndex, 0, 0, 0, -1, objLength, md5sum);
+    idx = Cookfs_PgIndexAddPage(p->pagesIndex, 0, 0, p->isEncryptionActive,
+        -1, objLength, md5sum);
 
-    if (Cookfs_AsyncPageAdd(p, idx, bytes, objLength)) {
-	p->pagesUptodate = 0;
-    }  else  {
-	dataSize = Cookfs_WritePage(p, idx, bytes, objLength, NULL);
-	if (dataSize < 0) {
-	    /* TODO: if writing failed, we can't be certain of archive state - need to handle this at vfs layer somehow */
-	    CookfsLog(printf("Unable to compress page"))
-	    return -1;
-	}
-	p->pagesUptodate = 0;
+    if (!Cookfs_AsyncPageAdd(p, idx, bytes, objLength)) {
+        dataSize = Cookfs_WritePage(p, idx, bytes, objLength, md5sum, NULL);
+        if (dataSize < 0) {
+            /* TODO: if writing failed, we can't be certain of archive state - need to handle this at vfs layer somehow */
+            CookfsLog(printf("Unable to compress page"))
+            return -1;
+        }
     }
+
+    p->pagesUptodate = 0;
 
     if (p->dataPagesIsAside) {
 	idx |= COOKFS_PAGES_ASIDE;
@@ -1698,6 +2016,25 @@ void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside) {
 	    Cookfs_PagesSetIndex(aside, p->dataIndex);
 	    CookfsLog(printf("Cookfs_PagesSetAside: done copying index."))
 	}
+#ifdef COOKFS_USECCRYPTO
+        // Copy encryption settings from base pages
+        aside->encryption = p->encryption;
+        aside->encryptionLevel = p->encryptionLevel;
+        if (p->encryption != COOKFS_ENCRYPT_NONE) {
+            aside->isPasswordSet = p->isPasswordSet;
+            aside->isEncryptionActive = p->isEncryptionActive;
+            memcpy(aside->encryptionKey, p->encryptionKey,
+                sizeof(p->encryptionKey));
+            memcpy(aside->passwordSalt, p->passwordSalt,
+                sizeof(p->passwordSalt));
+            memcpy(aside->encryptionEncryptedKeyIV,
+                p->encryptionEncryptedKeyIV,
+                sizeof(p->encryptionEncryptedKeyIV));
+            memcpy(aside->encryptionEncryptedKey,
+                p->encryptionEncryptedKey,
+                sizeof(p->encryptionEncryptedKey));
+        }
+#endif /* COOKFS_USECCRYPTO */
 	Cookfs_PagesUnlock(aside);
     }
 }
@@ -2053,7 +2390,9 @@ static Cookfs_PageObj CookfsPagesPageGetInt(Cookfs_Pages *p, int index,
         Cookfs_PgIndexGetSizeCompressed(p->pagesIndex, index),
         Cookfs_PgIndexGetSizeUncompressed(p->pagesIndex, index),
         Cookfs_PgIndexGetHashMD5(p->pagesIndex, index),
-        1, err);
+        1,
+        Cookfs_PgIndexGetEncryption(p->pagesIndex, index),
+        err);
 #ifdef TCL_THREADS
     Tcl_MutexUnlock(&p->mxIO);
 #endif /* TCL_THREADS */
@@ -2096,12 +2435,13 @@ static Cookfs_PageObj CookfsPagesPageGetInt(Cookfs_Pages *p, int index,
  *----------------------------------------------------------------------
  */
 
-static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj **err) {
+static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *password, Tcl_Obj **err) {
 
     Tcl_WideInt seekOffset = 0;
     unsigned char buf[COOKFS_SUFFIX_BYTES];
 
     UNUSED(err);
+    Tcl_Obj *local_error = NULL;
 
     CookfsLog2(printf("base offset is %d", p->useFoffset));
 
@@ -2151,13 +2491,21 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj **err) {
         }
         Tcl_DecrRefCount(byteObj);
         if (lastMatch == NULL) {
-	    p->foffset = Tcl_Seek(p->fileChannel, 0, SEEK_END);
+            p->foffset = Tcl_Seek(p->fileChannel, 0, SEEK_END);
             CookfsLog(printf("CookfsReadIndex lookup failed"))
             if (interp != NULL) {
                 Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
                     ": signature not found", -1));
             }
-	    return 0;
+
+            Tcl_WideInt expectedSize = Cookfs_PageSearchStamp(p);
+            if (expectedSize != -1) {
+                SET_ERROR(Tcl_ObjPrintf("The archive appears to be corrupted"
+                    " or truncated. Expected archive size is %" TCL_LL_MODIFIER
+                    "d bytes or larger.", expectedSize));
+            }
+
+            return 0;
         }
     }
     if (seekOffset >= 0) {
@@ -2188,7 +2536,7 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj **err) {
     if (memcmp(&buf[COOKFS_SUFFIX_OFFSET_SIGNATURE], p->fileSignature,
         COOKFS_SIGNATURE_LENGTH) != 0)
     {
-        CookfsLog(printf("Invalid file signature found"));
+        CookfsLog2(printf("Invalid file signature found"));
         if (interp != NULL) {
             Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
                 ": invalid file signature", -1));
@@ -2199,7 +2547,94 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj **err) {
     /* get default compression and encryption */
     p->baseCompression = buf[COOKFS_SUFFIX_OFFSET_BASE_COMPRESSION] & 0xff;
     p->baseCompressionLevel = buf[COOKFS_SUFFIX_OFFSET_BASE_LEVEL] & 0xff;
-    p->encryption = buf[COOKFS_SUFFIX_OFFSET_ENCRYPTION] & 0xff;
+
+    int isIndexEncrypted = 0;
+
+#ifdef COOKFS_USECCRYPTO
+    p->encryption = buf[COOKFS_SUFFIX_OFFSET_ENCRYPTION] & 0x7;
+    p->encryptionLevel = (buf[COOKFS_SUFFIX_OFFSET_ENCRYPTION] >> 3) & 0x1f;
+
+    CookfsLog2(printf("encryption: %s level %d",
+        (p->encryption == COOKFS_ENCRYPT_NONE ? "NONE" :
+        (p->encryption == COOKFS_ENCRYPT_FILE ? "FILE" :
+        (p->encryption == COOKFS_ENCRYPT_KEY ? "KEY" :
+        (p->encryption == COOKFS_ENCRYPT_KEY_INDEX ? "KEY_INDEX" :
+        "UNKNOWN")))), p->encryptionLevel));
+
+    if (p->encryption == COOKFS_ENCRYPT_NONE) {
+        goto skipEncryption;
+    }
+
+    if (p->encryption == COOKFS_ENCRYPT_KEY_INDEX) {
+        if (password == NULL || !Tcl_GetCharLength(password)) {
+            CookfsLog(printf("password for key-index encryption is missing"));
+            if (interp != NULL) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
+                    ": the required password for the encrypted archive is missing",
+                    -1));
+            }
+            return 0;
+        }
+        isIndexEncrypted = 1;
+    }
+
+    CookfsLog2(printf("read password salt"));
+    count = Tcl_Read(p->fileChannel, (char *)p->passwordSalt,
+        COOKFS_ENCRYPT_PASSWORD_SALT_SIZE);
+
+    if (count != COOKFS_ENCRYPT_PASSWORD_SALT_SIZE) {
+        CookfsLog2(printf("failed to read password salt"));
+        if (interp != NULL) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
+                ": unable to read password salt", -1));
+        }
+        return 0;
+    }
+
+    if (p->encryption != COOKFS_ENCRYPT_FILE) {
+
+        CookfsLog2(printf("read encryption key IV"));
+        count = Tcl_Read(p->fileChannel, (char *)p->encryptionEncryptedKeyIV,
+            COOKFS_ENCRYPT_IV_SIZE);
+        if (count != COOKFS_ENCRYPT_IV_SIZE) {
+            CookfsLog2(printf("failed to read encryption key IV"));
+            if (interp != NULL) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
+                    ": unable to read encryption key IV", -1));
+            }
+            return 0;
+        }
+
+        CookfsLog2(printf("read encryption key"));
+        count = Tcl_Read(p->fileChannel, (char *)p->encryptionEncryptedKey,
+            COOKFS_ENCRYPT_KEY_AND_HASH_SIZE);
+        if (count != COOKFS_ENCRYPT_KEY_AND_HASH_SIZE) {
+            CookfsLog2(printf("failed to read encryption key"));
+            if (interp != NULL) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
+                    ": unable to read encryption key", -1));
+            }
+            return 0;
+        }
+
+        if (password != NULL && Tcl_GetCharLength(password)) {
+            if (Cookfs_PagesDecryptKey(p, password) != TCL_OK) {
+                CookfsLog2(printf("failed to decrypt the encryption key"));
+                if (interp != NULL) {
+                    Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                        COOKFS_PAGES_ERRORMSG ": could not decrypt"
+                        " the encryption key with the specified password",
+                        -1));
+                }
+                return 0;
+            }
+        }
+
+    }
+
+skipEncryption: ; // empty statement
+
+#endif /* COOKFS_USECCRYPTO */
 
     /* get pgindex and fsindex sizes */
     int pgindexSizeCompressed;
@@ -2234,8 +2669,8 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj **err) {
     CookfsLog2(printf("try to seek to index data..."));
 
     /* seek to beginning of index data */
-    if (Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES - pgindexSizeCompressed
-        - fsindexSizeCompressed, SEEK_CUR) < 0)
+    if (Tcl_Seek(p->fileChannel, p->foffset - COOKFS_SUFFIX_BYTES -
+        pgindexSizeCompressed - fsindexSizeCompressed, SEEK_SET) < 0)
     {
         CookfsLog2(printf("unable to seek to index data"));
         if (interp != NULL) {
@@ -2260,7 +2695,8 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj **err) {
     unsigned char *pgindexHashMD5 = &buf[COOKFS_SUFFIX_OFFSET_PGINDEX_HASH];
 
     Cookfs_PageObj pgindexDataObj = Cookfs_ReadPage(p, -1, pgindexCompression,
-        pgindexSizeCompressed, pgindexSizeUncompressed, pgindexHashMD5, 1, err);
+        pgindexSizeCompressed, pgindexSizeUncompressed, pgindexHashMD5, 1,
+        isIndexEncrypted, &local_error);
 
     if (pgindexDataObj == NULL) {
         CookfsLog2(printf("unable to read or decompress pgindex"));
@@ -2273,6 +2709,7 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj **err) {
     Cookfs_PageObjDecrRefCount(pgindexDataObj);
 
     if (p->pagesIndex == NULL) {
+        local_error = Tcl_NewStringObj("error while parsing pages index", -1);
         goto pgindexReadError;
     }
 
@@ -2283,8 +2720,17 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj **err) {
 pgindexReadError:
 
     if (interp != NULL) {
-        Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
-            ": unable to read pgindex", -1));
+        if (local_error != NULL) {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf(COOKFS_PAGES_ERRORMSG
+                ": unable to read pages index - %s",
+                Tcl_GetString(local_error)));
+        } else {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
+                ": unable to read pages index", -1));
+        }
+    }
+    if (local_error != NULL) {
+        Tcl_BounceRefCount(local_error);
     }
     return 0;
 
@@ -2305,7 +2751,8 @@ skipPgindex:
     unsigned char *fsindexHashMD5 = &buf[COOKFS_SUFFIX_OFFSET_FSINDEX_HASH];
 
     p->dataIndex = Cookfs_ReadPage(p, -1, fsindexCompression,
-        fsindexSizeCompressed, fsindexSizeUncompressed, fsindexHashMD5, 1, err);
+        fsindexSizeCompressed, fsindexSizeUncompressed, fsindexHashMD5, 1,
+        isIndexEncrypted, &local_error);
 
     if (p->dataIndex == NULL) {
         CookfsLog2(printf("unable to read or decompress fsindex"));
@@ -2319,8 +2766,17 @@ skipPgindex:
 fsindexReadError:
 
     if (interp != NULL) {
-        Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
-            ": unable to read fsindex", -1));
+        if (local_error != NULL) {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf(COOKFS_PAGES_ERRORMSG
+                ": unable to read files index - %s",
+                Tcl_GetString(local_error)));
+        } else {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
+                ": unable to read files index", -1));
+        }
+    }
+    if (local_error != NULL) {
+        Tcl_BounceRefCount(local_error);
     }
     return 0;
 

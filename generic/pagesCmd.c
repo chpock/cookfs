@@ -16,6 +16,9 @@
 /* definitions of static and/or internal functions */
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+#ifdef COOKFS_USECCRYPTO
+static int CookfsPagesCmdPassword(Cookfs_Pages *pages, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+#endif /* COOKFS_USECCRYPTO */
 static void CookfsPagesDeleteProc(ClientData clientData);
 static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, void *p);
@@ -155,6 +158,9 @@ static void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, void *p) {
 static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     UNUSED(clientData);
     static char *options[] = {
+#ifdef COOKFS_USECCRYPTO
+        "-password", "-encryptkey", "-encryptlevel",
+#endif /* COOKFS_USECCRYPTO */
         "-readonly", "-readwrite", "-compression", "-cachesize",
         "-endoffset", "-compresscommand", "-decompresscommand",
         "-asynccompresscommand", "-asyncdecompresscommand",
@@ -162,7 +168,10 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
         NULL
     };
     enum {
-        optReadonly = 0, optReadwrite, optCompression, optCachesize,
+#ifdef COOKFS_USECCRYPTO
+        optPassword, optEncryptKey, optEncryptLevel,
+#endif /* COOKFS_USECCRYPTO */
+        optReadonly, optReadwrite, optCompression, optCachesize,
         optEndoffset, optCompressCommand, optDecompressCommand,
         optAsyncCompressCommand, optAsyncDecompressCommand,
         optAlwaysCompress, optAsyncDecompressQueue
@@ -184,6 +193,9 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     Tcl_Obj *asyncDecompressCmd = NULL;
     Tcl_Obj *decompressCmd = NULL;
     Tcl_Obj *compression = NULL;
+    Tcl_Obj *password = NULL;
+    int encryptKey = 0;
+    int encryptLevel = -1;
 
     while (tobjc > 1) {
         if (Tcl_GetIndexFromObj(interp, tobjv[1], (const char **) options, "", 0, &idx) != TCL_OK) {
@@ -196,8 +208,31 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
             case optReadwrite:
                 oReadOnly = 0;
                 break;
+#ifdef COOKFS_USECCRYPTO
+            case optEncryptKey:
+                encryptKey = 1;
+                break;
+            case optPassword:
+                if (tobjc <= 3) {
+                    goto ERROR;
+                }
+                tobjc--;
+                tobjv++;
+                password = tobjv[1];
+                break;
+            case optEncryptLevel:
+                if (tobjc <= 3) {
+                    goto ERROR;
+                }
+                tobjc--;
+                tobjv++;
+                if (Tcl_GetIntFromObj(interp, tobjv[1], &encryptLevel) != TCL_OK) {
+                    return TCL_ERROR;
+                }
+                break;
+#endif /* COOKFS_USECCRYPTO */
             case optCompression: {
-                if (tobjc < 2) {
+                if (tobjc <= 3) {
                     goto ERROR;
                 }
                 tobjc--;
@@ -206,7 +241,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 break;
             }
             case optCompressCommand: {
-                if (tobjc < 2) {
+                if (tobjc <= 3) {
                     goto ERROR;
                 }
                 tobjc--;
@@ -216,7 +251,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 break;
             }
             case optDecompressCommand: {
-                if (tobjc < 2) {
+                if (tobjc <= 3) {
                     goto ERROR;
                 }
                 tobjc--;
@@ -226,7 +261,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 break;
             }
             case optAsyncCompressCommand: {
-                if (tobjc < 2) {
+                if (tobjc <= 3) {
                     goto ERROR;
                 }
                 tobjc--;
@@ -236,7 +271,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 break;
             }
             case optAsyncDecompressCommand: {
-                if (tobjc < 2) {
+                if (tobjc <= 3) {
                     goto ERROR;
                 }
                 tobjc--;
@@ -246,7 +281,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 break;
             }
             case optEndoffset: {
-                if (tobjc < 2) {
+                if (tobjc <= 3) {
                     goto ERROR;
                 }
                 tobjc--;
@@ -261,7 +296,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
             }
             case optCachesize: {
                 int csize;
-                if (tobjc < 2) {
+                if (tobjc <= 3) {
                     goto ERROR;
                 }
                 tobjc--;
@@ -290,7 +325,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 break;
             case optAsyncDecompressQueue:
             {
-                if (tobjc < 2) {
+                if (tobjc <= 3) {
                     goto ERROR;
                 }
                 tobjc--;
@@ -323,9 +358,10 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     /* Create cookfs instance */
     Tcl_Obj *err = NULL;
     pages = Cookfs_PagesInit(interp, tobjv[1], oReadOnly, oCompression,
-        oCompressionLevel, oCompression, oCompressionLevel, NULL, useFoffset,
-        foffset, 0, asyncDecompressQueueSize, compressCmd, decompressCmd,
-        asyncCompressCmd, asyncDecompressCmd, &err);
+        oCompressionLevel, oCompression, oCompressionLevel, password,
+        encryptKey, encryptLevel, NULL, useFoffset, foffset, 0,
+        asyncDecompressQueueSize, compressCmd, decompressCmd, asyncCompressCmd,
+        asyncDecompressCmd, &err);
     if (err != NULL) {
         Tcl_SetObjResult(interp, err);
     }
@@ -350,7 +386,16 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     return TCL_OK;
 
 ERROR:
-    Tcl_WrongNumArgs(interp, 1, objv, "?-readonly|-readwrite? ?-compression mode? ?-cachesize numPages? ?-endoffset numBytes? ?-compresscommand tclCmd? ?-decompresscommand tclcmd? fileName");
+#ifdef COOKFS_USECCRYPTO
+    Tcl_WrongNumArgs(interp, 1, objv, "?-readonly|-readwrite|-encryptkey?"
+        " ?-password password? ?-encryptlevel level?"
+        " ?-compression mode? ?-cachesize numPages? ?-endoffset numBytes? ?-compresscommand tclCmd?"
+        " ?-decompresscommand tclcmd? fileName");
+#else
+    Tcl_WrongNumArgs(interp, 1, objv, "?-readonly|-readwrite?"
+        " ?-compression mode? ?-cachesize numPages? ?-endoffset numBytes? ?-compresscommand tclCmd?"
+        " ?-decompresscommand tclcmd? fileName");
+#endif /* COOKFS_USECCRYPTO */
     return TCL_ERROR;
 }
 
@@ -380,6 +425,9 @@ static int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, in
 
 static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     static char *commands[] = {
+#ifdef COOKFS_USECCRYPTO
+        "password",
+#endif /* COOKFS_USECCRYPTO */
         "add", "aside", "get", "gethead", "getheadmd5", "gettail",
         "gettailmd5", "hash", "index", "length", "dataoffset",
         "close", "delete", "cachesize", "filesize", "compression",
@@ -387,7 +435,10 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
         NULL
     };
     enum {
-        cmdAdd = 0, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail,
+#ifdef COOKFS_USECCRYPTO
+        cmdPassword,
+#endif /* COOKFS_USECCRYPTO */
+        cmdAdd, cmdAside, cmdGet, cmdGetHead, cmdGetHeadMD5, cmdGetTail,
         cmdGetTailMD5, cmdHash, cmdIndex, cmdLength, cmdDataoffset,
         cmdClose, cmdDelete, cmdCachesize, cmdFilesize, cmdCompression,
         cmdGetCache, cmdTickTock
@@ -406,6 +457,12 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
     }
 
     switch (idx) {
+#ifdef COOKFS_USECCRYPTO
+        case cmdPassword:
+        {
+            return CookfsPagesCmdPassword(p, interp, objc, objv);
+        }
+#endif /* COOKFS_USECCRYPTO */
         case cmdAdd:
         {
             if (objc != 3) {
@@ -804,7 +861,7 @@ static int CookfsPagesCmdAside(Cookfs_Pages *pages, Tcl_Interp *interp, int objc
         asidePages = Cookfs_PagesInit(pages->interp, objv[2], 0,
             pages->baseCompression, pages->baseCompressionLevel,
             pages->currentCompression, pages->currentCompressionLevel,
-            NULL, 0, 0, 1, 0, NULL, NULL, NULL, NULL, NULL);
+            NULL, 0, -1, NULL, 0, 0, 1, 0, NULL, NULL, NULL, NULL, NULL);
 
         if (asidePages == NULL) {
             CookfsLog(printf("Failed to create add-aside pages object"))
@@ -903,6 +960,40 @@ static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc,
     return TCL_OK;
 }
 
+#ifdef COOKFS_USECCRYPTO
+
+static int CookfsPagesCmdPassword(Cookfs_Pages *pages, Tcl_Interp *interp,
+    int objc, Tcl_Obj *const objv[])
+{
+
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 2, objv, "password");
+        return TCL_ERROR;
+    }
+
+    if (!Cookfs_PagesLockWrite(pages, NULL)) {
+        return TCL_ERROR;
+    }
+
+    int rc = Cookfs_PagesSetPassword(pages, objv[2]);
+
+    Cookfs_PagesUnlock(pages);
+
+    // There is only one possible failure - we have key-based encryption,
+    // we read the encrypted key from the archive, we try to decrypt
+    // the encrypted key and this decryption fails.
+    if (rc != TCL_OK) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("could not decrypt"
+            " the encryption key with the specified password", -1));
+    } else {
+        Tcl_ResetResult(interp);
+    }
+
+    return rc;
+
+}
+
+#endif /* COOKFS_USECCRYPTO */
 
 /*
  *----------------------------------------------------------------------
@@ -938,6 +1029,8 @@ int Cookfs_PagesCmdForward(Cookfs_PagesForwardCmd cmd, void *p,
         return CookfsPagesCmdAside(p, interp, objc, objv);
     case COOKFS_PAGES_FORWARD_COMMAND_COMPRESSION:
         return CookfsPagesCmdCompression(p, interp, objc, objv);
+    case COOKFS_PAGES_FORWARD_COMMAND_PASSWORD:
+        return CookfsPagesCmdPassword(p, interp, objc, objv);
     }
     return TCL_ERROR;
 }

@@ -1106,7 +1106,7 @@ next:
             if (!Cookfs_PagesLockWrite(w->pages, err)) {
                 goto fatalError;
             };
-            Tcl_Obj *pgerr;
+            Tcl_Obj *pgerr = NULL;
             pageBlock = Cookfs_PageAddRaw(w->pages, pageBuffer, pageBufferSize,
                 &pgerr);
             CookfsLog(printf("Cookfs_WriterPurge: got block index: %d",

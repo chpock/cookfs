@@ -469,20 +469,29 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
 
 Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int compression,
     int sizeCompressed, int sizeUncompressed, unsigned char *md5hash,
-    int decompress, Tcl_Obj **err)
+    int decompress, int encrypted, Tcl_Obj **err)
 {
-
-    UNUSED(md5hash);
 
     p->fileLastOp = COOKFS_LASTOP_READ;
 
     CookfsLog2(printf("page #%d compression:%d sizeCompressed:%d"
-        " sizeUncompressed:%d decompress:%d", idx, compression, sizeCompressed,
-        sizeUncompressed, decompress));
+        " sizeUncompressed:%d decompress:%d encrypted:%d", idx, compression,
+        sizeCompressed, sizeUncompressed, decompress, encrypted));
 
     assert(sizeCompressed >= 0);
     assert(sizeUncompressed >= 0);
     assert(decompress == 0 || decompress == 1);
+
+#ifdef COOKFS_USECCRYPTO
+    if (encrypted && !p->isEncryptionActive) {
+        CookfsLog2(printf("return ERROR (the page is encrypted, but no password"
+            " is set)"));
+        SET_ERROR(Tcl_NewStringObj("no password specified for decrypting", -1));
+        return NULL;
+    }
+#else
+    UNUSED(encrypted);
+#endif /* COOKFS_USECCRYPTO */
 
     if (!decompress) {
         compression = COOKFS_COMPRESSION_NONE;
@@ -490,7 +499,10 @@ Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int compression,
 
     if (sizeUncompressed == 0) {
         /* if page was empty, no need to read anything */
-        return Cookfs_PageObjAlloc(0);
+        Cookfs_PageObj rc = Cookfs_PageObjAlloc(0);
+        Cookfs_PageObjIncrRefCount(rc);
+        CookfsLog2(printf("return: ok (zero size)"));
+        return rc;
     }
 
     // Alloc memory for compressed data
@@ -498,13 +510,10 @@ Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int compression,
     if (dataCompressed == NULL) {
         CookfsLog2(printf("ERROR: unable to alloc %d bytes for page #%d",
             sizeCompressed, idx));
-        if (err != NULL) {
-            *err = Tcl_ObjPrintf("Cookfs_ReadPage(): unable to alloc %d bytes"
-                " for page #%d", sizeCompressed, idx);
-        }
+        SET_ERROR(Tcl_ObjPrintf("Cookfs_ReadPage(): unable to alloc %d bytes"
+            " for page #%d", sizeCompressed, idx));
         return NULL;
     }
-    Cookfs_PageObjIncrRefCount(dataCompressed);
 
     CookfsLog2(printf("read data..."));
     if (idx >= 0) {
@@ -516,35 +525,48 @@ Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int compression,
     if (read != sizeCompressed) {
         CookfsLog2(printf("ERROR: got only %" TCL_SIZE_MODIFIER "d bytes"
             " from channel", read));
-        if (err != NULL) {
-            *err = Tcl_ObjPrintf("Cookfs_ReadPage(): error while reading"
-                " compressed data from page#%d. Expected data size %d bytes,"
-                // cppcheck-suppress unknownMacro
-                " got %" TCL_SIZE_MODIFIER "d bytes", idx, sizeCompressed,
-                read);
-        }
-        Cookfs_PageObjDecrRefCount(dataCompressed);
+        // cppcheck-suppress unknownMacro
+        SET_ERROR(Tcl_ObjPrintf("Cookfs_ReadPage(): error while reading"
+            " compressed data from page#%d. Expected data size %d bytes,"
+            " got %" TCL_SIZE_MODIFIER "d bytes", idx, sizeCompressed, read));
+        Cookfs_PageObjBounceRefCount(dataCompressed);
         return NULL;
     }
 
+#ifdef COOKFS_USECCRYPTO
+
+    if (encrypted) {
+        CookfsLog2(printf("decrypt the page..."));
+        Cookfs_PageObjSetIV(dataCompressed, md5hash);
+        if (Cookfs_AesDecrypt(dataCompressed, p->encryptionKey) != TCL_OK) {
+            Cookfs_PageObjBounceRefCount(dataCompressed);
+            CookfsLog2(printf("return: ERROR (failed to decrypt the page)"));
+            SET_ERROR(Tcl_NewStringObj("wrong password specified for"
+                " decrypting", -1));
+            return NULL;
+        }
+    }
+
+#endif /* COOKFS_USECCRYPTO */
+
+    Cookfs_PageObj dataUncompressed;
+
     if (compression == COOKFS_COMPRESSION_NONE) {
-        CookfsLog2(printf("return: ok (raw data)"));
-        return dataCompressed;
+        dataUncompressed = dataCompressed;
+        CookfsLog2(printf("use raw data"));
+        goto skipUncompress;
     }
 
     // Alloc memory for decompressed data
-    Cookfs_PageObj dataUncompressed = Cookfs_PageObjAlloc(sizeUncompressed);
+    dataUncompressed = Cookfs_PageObjAlloc(sizeUncompressed);
     if (dataUncompressed == NULL) {
         CookfsLog2(printf("ERROR: unable to alloc %d bytes for page #%d",
             sizeUncompressed, idx));
-        if (err != NULL) {
-            *err = Tcl_ObjPrintf("Cookfs_ReadPage(): unable to alloc %d bytes"
-                " for page #%d", sizeUncompressed, idx);
-        }
-        Cookfs_PageObjDecrRefCount(dataCompressed);
+        SET_ERROR(Tcl_ObjPrintf("Cookfs_ReadPage(): unable to alloc %d bytes"
+                " for page #%d", sizeUncompressed, idx));
+        Cookfs_PageObjBounceRefCount(dataCompressed);
         return NULL;
     }
-    Cookfs_PageObjIncrRefCount(dataUncompressed);
 
     CookfsLog2(printf("uncompress data..."));
 
@@ -585,16 +607,67 @@ Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int compression,
 #endif /* COOKFS_USEBROTLI */
     }
 
-    Cookfs_PageObjDecrRefCount(dataCompressed);
+    Cookfs_PageObjBounceRefCount(dataCompressed);
 
     if (rc != TCL_OK) {
-        Cookfs_PageObjDecrRefCount(dataUncompressed);
+        Cookfs_PageObjBounceRefCount(dataUncompressed);
         CookfsLog2(printf("return: ERROR"));
+        SET_ERROR(Tcl_NewStringObj("decompression failed", -1));
         return NULL;
     }
 
-    // TODO: Add md5 hash check here
+skipUncompress: ; // empty statement
 
+    if (!decompress) {
+        CookfsLog2(printf("we were called without decompression, skip hash"
+            " verification"));
+        // If we don't do decompression of the page, when we cannot check
+        // its hash.
+        goto skipHashCheck;
+    }
+
+    unsigned char md5sum_current[16];
+
+    // It is possible that we should not check the page hash. For example,
+    // if the archive was generated by the cookfswriter.tcl script.
+    // In this case, the MD5 hash will be filled with zeros.
+    // So, now we will fill md5sum_current with zeros and then compare it
+    // with the given hash. If they match, then the given hash is filled
+    // with zeros and we will not check it.
+    memset(md5sum_current, 0, sizeof(md5sum_current));
+    if (memcmp(md5sum_current, md5hash, 16) == 0) {
+        CookfsLog2(printf("zero hash was given, skip hash verification"));
+        // If we don't do decompression of the page, when we cannot check
+        // its hash.
+        goto skipHashCheck;
+    }
+
+    Cookfs_PagesCalculateHash(p, dataUncompressed,
+        Cookfs_PageObjSize(dataUncompressed), md5sum_current);
+
+    if (memcmp(md5sum_current, md5hash, 16) != 0) {
+        Cookfs_PageObjBounceRefCount(dataUncompressed);
+        CookfsLog2(printf("return: ERROR (hash doesn't match)"));
+#ifdef COOKFS_USECCRYPTO
+        if (encrypted) {
+            SET_ERROR(Tcl_NewStringObj("failed to verify read data,"
+                " the decryption password is incorrect or the archive"
+                " is corrupted", -1));
+        } else {
+#endif /* COOKFS_USECCRYPTO */
+            SET_ERROR(Tcl_NewStringObj("failed to verify read data, archive"
+                " may be corrupted", -1));
+#ifdef COOKFS_USECCRYPTO
+        }
+#endif /* COOKFS_USECCRYPTO */
+        return NULL;
+    }
+
+skipHashCheck:
+
+    // CookfsDump(dataUncompressed, Cookfs_PageObjSize(dataUncompressed));
+
+    Cookfs_PageObjIncrRefCount(dataUncompressed);
     CookfsLog2(printf("return: ok"));
     return dataUncompressed;
 }
@@ -644,7 +717,8 @@ void Cookfs_SeekToPage(Cookfs_Pages *p, int idx) {
  */
 
 Tcl_Size Cookfs_WritePage(Cookfs_Pages *p, int idx, unsigned char *bytes,
-    Tcl_Size sizeUncompressed, Cookfs_PageObj pgCompressed)
+    Tcl_Size sizeUncompressed, unsigned char *md5hash,
+    Cookfs_PageObj pgCompressed)
 {
 
     CookfsLog2(printf("page index #%d, original size: %" TCL_SIZE_MODIFIER "d",
@@ -734,7 +808,19 @@ skipCompression:
         resultCompressionLevel = 0;
     }
 
+#ifdef COOKFS_USECCRYPTO
+    if (p->isEncryptionActive) {
+        CookfsLog2(printf("encrypt the page..."));
+        Cookfs_PageObjSetIV(pgCompressed, md5hash);
+        Cookfs_AesEncrypt(pgCompressed, p->encryptionKey);
+    }
+#else
+    UNUSED(md5hash);
+#endif /* COOKFS_USECCRYPTO */
+
     resultSize = Cookfs_PageObjSize(pgCompressed);
+
+    // CookfsDump(pgCompressed, resultSize);
 
     Tcl_Size written = Tcl_Write(p->fileChannel, (const char *)pgCompressed,
         resultSize);
@@ -755,16 +841,23 @@ done:
 }
 
 
-int Cookfs_WritePageObj(Cookfs_Pages *p, int idx, Cookfs_PageObj data) {
+int Cookfs_WritePageObj(Cookfs_Pages *p, int idx, Cookfs_PageObj data,
+    unsigned char *md5hash)
+{
     CookfsLog2(printf("data: %p", (void *)data));
-    return Cookfs_WritePage(p, idx, data, Cookfs_PageObjSize(data), NULL);
+    return Cookfs_WritePage(p, idx, data, Cookfs_PageObjSize(data), md5hash,
+        NULL);
 }
 
 int Cookfs_WriteTclObj(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compressedData) {
     Tcl_Size size;
     unsigned char *bytes = Tcl_GetByteArrayFromObj(data, &size);
     CookfsLog2(printf("data: %p", (void *)bytes));
+    // This function is only used to store the compression result for asynchronous
+    // compression. In this case, the page to be stored is already registered
+    // in pgindex. Thus, we can use md5hash info from pgindex.
     return Cookfs_WritePage(p, idx, bytes, size,
+        Cookfs_PgIndexGetHashMD5(p->pagesIndex, idx),
         Cookfs_PageObjNewFromByteArray(compressedData));
 }
 
