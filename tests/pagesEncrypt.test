@@ -77,6 +77,16 @@ tcltest::test cookfsPagesEncrypt-3.2 "Check that there are 16 bytes (password sa
     set offset [string last "CFS0003" $data]
     incr offset [string length "CFS0003"]
 
+    # Tcl fills memory with byte 0x61 during memory allocation and when
+    # memory debugging is enabled. We will use this feature to ensure
+    # that salt is initialized with random bytes. It should not be in
+    # the form of an array of 0x61 bytes.
+
+    # Ensure that the password salt is initialized with random bytes.
+    if { [string range $data $offset+0 $offset+15] eq [binary decode hex [string repeat 61 16]] } {
+        error "salt is not initialized"
+    }
+
     expr { $size - $offset }
 
 } -cleanup {
@@ -85,7 +95,7 @@ tcltest::test cookfsPagesEncrypt-3.2 "Check that there are 16 bytes (password sa
     unset -nocomplain file pg size data result offset
 } -result 16
 
-tcltest::test cookfsPagesEncrypt-3.3 "Check that there are 64 bytes additinal data after signature with key encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
+tcltest::test cookfsPagesEncrypt-3.3 "Check that there are 80 bytes additinal data after signature with key-index encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
@@ -96,6 +106,62 @@ tcltest::test cookfsPagesEncrypt-3.3 "Check that there are 64 bytes additinal da
     set data [tcltest::viewBinFile $file]
     set offset [string last "CFS0003" $data]
     incr offset [string length "CFS0003"]
+
+    # Tcl fills memory with byte 0x61 during memory allocation and when
+    # memory debugging is enabled. We will use this feature to ensure
+    # that salt and IV are initialized with random bytes. They should not
+    # be in the form of an array of 0x61 bytes.
+
+    # Ensure that the password salt is initialized with random bytes.
+    if { [string range $data $offset+0 $offset+15] eq [binary decode hex [string repeat 61 16]] } {
+        error "salt is not initialized"
+    }
+
+    # Ensure that the IV is initialized with random bytes.
+    if { [string range $data $offset+16 $offset+31] eq [binary decode hex [string repeat 61 16]] } {
+        error "IV is not initialized"
+    }
+
+    expr { $size - $offset }
+
+    # we expect 80 bytes here:
+    # 16 bytes - password salt
+    # 16 bytes - encrypted key IV
+    # 48 bytes - encrypted key + hash of the encrypted key
+
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size data result offset
+} -result 80
+
+tcltest::test cookfsPagesEncrypt-3.4 "Check that there are 80 bytes additinal data after signature with key encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey $file]
+    $pg password "foo"
+    $pg add "TEST"
+    $pg delete
+
+    set size [file size $file]
+    set data [tcltest::viewBinFile $file]
+    set offset [string last "CFS0003" $data]
+    incr offset [string length "CFS0003"]
+
+    # Tcl fills memory with byte 0x61 during memory allocation and when
+    # memory debugging is enabled. We will use this feature to ensure
+    # that salt and IV are initialized with random bytes. They should not
+    # be in the form of an array of 0x61 bytes.
+
+    # Ensure that the password salt is initialized with random bytes.
+    if { [string range $data $offset+0 $offset+15] eq [binary decode hex [string repeat 61 16]] } {
+        error "salt is not initialized"
+    }
+
+    # Ensure that the IV is initialized with random bytes.
+    if { [string range $data $offset+16 $offset+31] eq [binary decode hex [string repeat 61 16]] } {
+        error "IV is not initialized"
+    }
 
     expr { $size - $offset }
 
@@ -456,6 +522,67 @@ tcltest::test cookfsPagesEncrypt-5.4 "Test key-index encryption, deduplication" 
     unset -nocomplain file pg result num
 } -result {}
 
+tcltest::test cookfsPagesEncrypt-5.5 "Test password change for key-index encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Set a password at initialization to enable index encryption
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    $pg add "TEST0"
+    $pg delete
+
+    set size1 [file size $file]
+    set data1 [tcltest::viewBinFile $file]
+    set offset1 [string last "CFS0003" $data1]
+    incr offset1 [string length "CFS0003"]
+
+    # Open the archive with the old password
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    # Make sure we can read the encrypted page
+    if { [$pg get 0] != "TEST0" } {
+        error "Pass#0: Page#0 doesn't match"
+    }
+
+    # Change the password
+    $pg password "bar"
+    $pg delete
+
+    set size2 [file size $file]
+    set data2 [tcltest::viewBinFile $file]
+    set offset2 [string last "CFS0003" $data2]
+    incr offset2 [string length "CFS0003"]
+
+    # Open the archive with the new password
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password bar $file]
+    # Make sure we can read the encrypted page
+    if { [$pg get 0] != "TEST0" } {
+        error "Pass#1: Page#0 doesn't match"
+    }
+
+    $pg delete
+
+    # Make sure that file size and signature offsets are not changed.
+    if { $size1 != $size2 } {
+        error "\$size1 != \$size2 ($size1 != $size2)"
+    }
+    if { $offset1 != $offset2 } {
+        error "\$offset1 != \$offset2 ($offset1 != $offset2)"
+    }
+    # Make sure that the contents of the file before signing are not modified
+    if { [string range $data1 0 $offset1] != [string range $data2 0 $offset2] } {
+        error "The contents of the file have been changed"
+    }
+    # Verify that the encryption key has been changed
+    if { [string range $data1 $offset1 end] == [string range $data2 $offset2 end] } {
+        error "The encryption key have not been changed"
+    }
+
+    set ok ok
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size1 data1 offset1 size2 data2 offset2
+} -result ok
+
 tcltest::test cookfsPagesEncrypt-6.1 "Test key encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
@@ -610,3 +737,65 @@ tcltest::test cookfsPagesEncrypt-6.3 "Test key encryption, deduplication" -const
     catch {file delete -force $file}
     unset -nocomplain file pg result num
 } -result {}
+
+tcltest::test cookfsPagesEncrypt-6.4 "Test password change for key encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Do not set a password at initialization to avoid encrypting the indexes
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey $file]
+    $pg password foo
+    $pg add "TEST0"
+    $pg delete
+
+    set size1 [file size $file]
+    set data1 [tcltest::viewBinFile $file]
+    set offset1 [string last "CFS0003" $data1]
+    incr offset1 [string length "CFS0003"]
+
+    # Open the archive with the old password
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    # Make sure we can read the encrypted page
+    if { [$pg get 0] != "TEST0" } {
+        error "Pass#0: Page#0 doesn't match"
+    }
+
+    # Change the password
+    $pg password "bar"
+    $pg delete
+
+    set size2 [file size $file]
+    set data2 [tcltest::viewBinFile $file]
+    set offset2 [string last "CFS0003" $data2]
+    incr offset2 [string length "CFS0003"]
+
+    # Open the archive with the new password
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password bar $file]
+    # Make sure we can read the encrypted page
+    if { [$pg get 0] != "TEST0" } {
+        error "Pass#1: Page#0 doesn't match"
+    }
+
+    $pg delete
+
+    # Make sure that file size and signature offsets are not changed.
+    if { $size1 != $size2 } {
+        error "\$size1 != \$size2 ($size1 != $size2)"
+    }
+    if { $offset1 != $offset2 } {
+        error "\$offset1 != \$offset2 ($offset1 != $offset2)"
+    }
+    # Make sure that the contents of the file before signing are not modified
+    if { [string range $data1 0 $offset1] != [string range $data2 0 $offset2] } {
+        error "The contents of the file have been changed"
+    }
+    # Verify that the encryption key has been changed
+    if { [string range $data1 $offset1 end] == [string range $data2 $offset2 end] } {
+        error "The encryption key have not been changed"
+    }
+
+    set ok ok
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size1 data1 offset1 size2 data2 offset2
+} -result ok

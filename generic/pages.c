@@ -652,7 +652,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
         Cookfs_RandomGenerate(interp, rc->passwordSalt,
             COOKFS_ENCRYPT_PASSWORD_SALT_SIZE);
 
-        if (rc->encryption == COOKFS_ENCRYPT_KEY) {
+        if (rc->encryption != COOKFS_ENCRYPT_FILE) {
 
             Cookfs_RandomGenerate(interp, rc->encryptionKey,
                 COOKFS_ENCRYPT_KEY_SIZE);
@@ -821,10 +821,10 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
         // data and get the properties of the written data (compression,
         // compression level, size of the written data)
 
-        int indexSizeCompressed;
-        int indexSizeUncompressed;
-
         if (Cookfs_PagesGetLength(p) > 0) {
+
+            int indexSizeCompressed;
+            int indexSizeUncompressed;
 
             CookfsLog2(printf("write pgindex data..."));
             Cookfs_PageObj pgindexExportObj = Cookfs_PgIndexExport(p->pagesIndex);
@@ -851,18 +851,23 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
             buf[COOKFS_SUFFIX_OFFSET_PGINDEX_LEVEL] =
                 Cookfs_PgIndexGetCompression(p->pagesIndex, pgindexIndex) & 0xFF;
 
+            Cookfs_Int2Binary(&indexSizeCompressed,
+                &buf[COOKFS_SUFFIX_OFFSET_PGINDEX_SIZE_COMPR], 1);
+            Cookfs_Int2Binary(&indexSizeUncompressed,
+                &buf[COOKFS_SUFFIX_OFFSET_PGINDEX_SIZE_UNCOMPR], 1);
+
         } else {
             CookfsLog2(printf("pgindex data is empty"));
-            indexSizeCompressed = 0;
-            indexSizeUncompressed = 0;
+            // Fill everything related to pgindex by zeros to avoid undefined
+            // behavior.
+            memset(&buf[COOKFS_SUFFIX_OFFSET_PGINDEX_COMPRESSION], 0,
+                1 + 1 + 16 + 4 + 4);
         }
 
-        Cookfs_Int2Binary(&indexSizeCompressed,
-            &buf[COOKFS_SUFFIX_OFFSET_PGINDEX_SIZE_COMPR], 1);
-        Cookfs_Int2Binary(&indexSizeUncompressed,
-            &buf[COOKFS_SUFFIX_OFFSET_PGINDEX_SIZE_UNCOMPR], 1);
-
         if (p->dataIndex != NULL) {
+
+            int indexSizeCompressed;
+            int indexSizeUncompressed;
 
             CookfsLog2(printf("write fsindex data..."));
             indexSizeUncompressed = Cookfs_PageObjSize(p->dataIndex);
@@ -885,20 +890,23 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
             buf[COOKFS_SUFFIX_OFFSET_FSINDEX_LEVEL] =
                 Cookfs_PgIndexGetCompression(p->pagesIndex, fsindexIndex) & 0xFF;
 
+            Cookfs_Int2Binary(&indexSizeCompressed,
+                &buf[COOKFS_SUFFIX_OFFSET_FSINDEX_SIZE_COMPR], 1);
+            Cookfs_Int2Binary(&indexSizeUncompressed,
+                &buf[COOKFS_SUFFIX_OFFSET_FSINDEX_SIZE_UNCOMPR], 1);
+
         } else {
             CookfsLog2(printf("fsindex data is empty"));
-            indexSizeCompressed = 0;
-            indexSizeUncompressed = 0;
+            // Fill everything related to pgindex by zeros to avoid undefined
+            // behavior.
+            memset(&buf[COOKFS_SUFFIX_OFFSET_FSINDEX_COMPRESSION], 0,
+                1 + 1 + 16 + 4 + 4);
         }
-
-        Cookfs_Int2Binary(&indexSizeCompressed,
-            &buf[COOKFS_SUFFIX_OFFSET_FSINDEX_SIZE_COMPR], 1);
-        Cookfs_Int2Binary(&indexSizeUncompressed,
-            &buf[COOKFS_SUFFIX_OFFSET_FSINDEX_SIZE_UNCOMPR], 1);
 
         CookfsLog2(printf("offset write suffix: %" TCL_LL_MODIFIER "d",
             Tcl_Tell(p->fileChannel)));
 
+        // CookfsDump(buf, COOKFS_SUFFIX_BYTES);
         Tcl_Write(p->fileChannel, (char *)buf, COOKFS_SUFFIX_BYTES);
 
         if (p->encryption != COOKFS_ENCRYPT_NONE && p->isPasswordSet) {
