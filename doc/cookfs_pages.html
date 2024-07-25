@@ -141,6 +141,7 @@
 <li><a href="#16"><i class="arg">pagesHandle</i> <b class="method">filesize</b></a></li>
 <li><a href="#17"><i class="arg">pagesHandle</i> <b class="method">hash</b> <span class="opt">?<i class="arg">hashname</i>?</span></a></li>
 <li><a href="#18"><i class="arg">pagesHandle</i> <b class="method">close</b></a></li>
+<li><a href="#19"><i class="arg">pagesHandle</i> <b class="method">password</b> <i class="arg">secret</i></a></li>
 </ul>
 </div>
 </div>
@@ -215,6 +216,10 @@ Defaults to <b class="const">md5</b>, can also be <b class="const">crc32</b>. Ma
 <dd><p>Closes pages object and return offset to end of cookfs archive.
 This is almost an equivalent of calling <b class="method">delete</b>.</p>
 <p>This is meant for internal development and should not be used outside cookfs.</p></dd>
+<dt><a name="19"><i class="arg">pagesHandle</i> <b class="method">password</b> <i class="arg">secret</i></a></dt>
+<dd><p>Specifies the password to be used for encryption. Empty <i class="arg">secret</i> disables
+encryption for the following added files.</p>
+<p>See <b class="sectref">cookfs</b> for more details on encryption in cookfs.</p></dd>
 </dl>
 </div>
 <div id="section3" class="doctools_section"><h2><a name="section3">PAGES OPTIONS</a></h2>
@@ -242,6 +247,16 @@ used in tclkit and followed by mk4vfs archive.</p></dd>
 <dt><b class="option">-decompresscommand</b> <i class="arg">tcl command</i></dt>
 <dd><p>For <i class="arg">custom</i> compression, specifies command to use for decompressing pages.</p>
 <p>See <b class="sectref">cookfs</b> for more details on compression in cookfs.</p></dd>
+<dt><b class="option">-encryptkey</b></dt>
+<dd><p>Enables key-based encryption.</p>
+<p>See <b class="sectref">cookfs</b> for more details on encryption in cookfs.</p></dd>
+<dt><b class="option">-encryptlevel</b> <i class="arg">level</i></dt>
+<dd><p>Specifies the encryption level, which must be an unsigned integer from 0 to 31 inclusive.
+The default encryption level is 15.</p>
+<p>See <b class="sectref">cookfs</b> for more details on encryption in cookfs.</p></dd>
+<dt><b class="option">-password</b> <i class="arg">secret</i></dt>
+<dd><p>Specifies the password to be used for encryption. The <i class="arg">secret</i> argument must not be an empty string.</p>
+<p>See <b class="sectref">cookfs</b> for more details on encryption in cookfs.</p></dd>
 </dl>
 </div>
 <div id="see-also" class="doctools_section"><h2><a name="see-also">See Also</a></h2>

@@ -305,6 +305,8 @@ package require \fBcookfs ?1\&.8\&.0?\fR
 .sp
 \fIcookfsHandle\fR \fBsmallfilebuffersize\fR
 .sp
+\fIcookfsHandle\fR \fBpassword\fR \fIsecret\fR
+.sp
 .BE
 .SH DESCRIPTION
 Package \fBcookfs\fR is a Tcl virtual filesystem (VFS) that allows
@@ -426,6 +428,12 @@ The size only includes page sizes and does not include overhead for index and ad
 .TP
 \fIcookfsHandle\fR \fBsmallfilebuffersize\fR
 Returns size of all files that are queued up to be written\&.
+.TP
+\fIcookfsHandle\fR \fBpassword\fR \fIsecret\fR
+Specifies the password to be used for encryption\&. Empty \fIsecret\fR disables
+encryption for the following added files\&.
+.sp
+See \fBENCRYPTION\fR for more details on encryption in cookfs\&.
 .PP
 .SH "MOUNT OPTIONS"
 The following options can be specified when mounting a cookfs archive:
@@ -522,6 +530,22 @@ Do not create cookfs::pages object, use specified pages object\&. Mainly for int
 Create a multi-threaded cookfs that is available to all application threads\&.
 .sp
 See \fBMULTI-THREADING SUPPORT\fR for more details on multi-threading support in cookfs\&.
+.TP
+\fB-encryptkey\fR
+Enables key-based encryption\&.
+.sp
+See \fBENCRYPTION\fR for more details on encryption in cookfs\&.
+.TP
+\fB-encryptlevel\fR \fIlevel\fR
+Specifies the encryption level, which must be an unsigned integer from 0 to 31 inclusive\&.
+The default encryption level is 15\&.
+.sp
+See \fBENCRYPTION\fR for more details on encryption in cookfs\&.
+.TP
+\fB-password\fR \fIsecret\fR
+Specifies the password to be used for encryption\&. The \fIsecret\fR argument must not be an empty string\&.
+.sp
+See \fBENCRYPTION\fR for more details on encryption in cookfs\&.
 .PP
 .SH "COOKFS STORAGE"
 Cookfs uses \fBcookfs::pages\fR for storing all files and
@@ -758,6 +782,269 @@ The following list of options is not available for multi-threaded cookfs:
 .PP
 .PP
 4\&. The multi-thread cookfs is only available when package is built with \fBc-vfs\fR option enabled\&.
+.SH ENCRYPTION
+Cookfs uses strong AES-256-CBC encryption with PBKDF2-HMAC-SHA256 key derivation\&.
+Encryption strength (resistance to password brute force) can be configured
+as described in the \fBENCRYPTION STRENGTH\fR section\&.
+.PP
+Cookfs supports 2 encryption modes:
+.IP \(bu
+file-based encryption
+.IP \(bu
+key-based encryption
+.PP
+.PP
+By default, file-based encryption is used\&. More information about this mode
+is available in section \fBENCRYPTION - FILE-BASED\fR\&.
+.PP
+Key-based encryption is quite different from file-based encryption\&.
+More details about this mode can be found in section \fBENCRYPTION - KEY-BASED\fR\&.
+.PP
+The encryption mode is set once when creating an archive and cannot be changed\&.
+.SH "ENCRYPTION - FILE-BASED"
+File-based encryption mode is the simplest mode and will be active by default\&.
+In this mode, files are directly encrypted using the specified password\&.
+This means that it is possible to use different passwords for different files\&.
+.PP
+To disable encryption it is possible to set an empty password\&. After that,
+new added files will be unencrypted and there will be no access to already
+encrypted files in cookfs\&.
+.PP
+For example, this use case creates an archive with unprotected Tcl scripts\&.
+These scripts will ask the user for a password and then read other files
+using the specified password\&.
+.CS
+
+
+# This code prepares the archive\&.
+set fsid [cookfs::Mount "archive" "/mount_point"]
+
+# Copy the necessary runtime scripts
+file copy \&./my_scripts [file join "/mount_point" "scripts"]
+
+# Set the first password password
+$fsid password "my-secret-1"
+
+# Add files that will be protected by password "my-secret-1"
+file copy \&./data1 [file join "/mount_point" "data1"]
+
+# Set another password
+$fsid password "my-secret-2"
+
+# Add files that will be protected by password "my-secret-2"
+file copy \&./data2 [file join "/mount_point" "data2"]
+
+# Unmount and save the archive
+cookfs::Unmount "/mount_point"
+
+.CE
+.PP
+This code uses the archive\&.
+.CS
+
+
+# First mount the archive without a password
+set fsid [cookfs::Mount "archive" "/mount_point" -readonly]
+# Execute our scripts, which are unencrypted and stored in "scripts" directory
+source [file join "/mount_point" "scripts" "main\&.tcl"]
+# Obtain the password or ask the user to provide one
+set secret_password [get_password_from_user]
+# Set the password as the current password for accessing files in cookfs
+$fsid password $secret_password
+# Now we can read/use the files in the "data1" or "data2" directory
+# if the provided password matches the files in these locations
+
+.CE
+.PP
+If the password is set from the beginning when mounting cookfs, then all
+added files will be encrypted\&. However, it is possible to disable encryption
+by setting an empty password and then add files that will not be protected
+by encryption\&.
+.PP
+To summarize, file-base encryption has these advantages:
+.IP \(bu
+different files may be protected by different passwords
+.IP \(bu
+it is possible to open an archive without a password to read unprotected files and set a password later when you need to access protected files
+.PP
+On the other hand, there are the following disadvantages:
+.IP \(bu
+it is impossible to protect information about the file system (file names, sizes, etc\&.)
+.IP \(bu
+it is impossible to change the encryption password for a file, it is only required to recreate the file with a new password
+.PP
+.SH "ENCRYPTION - KEY-BASED"
+In this mode, files are encrypted with a random key\&. In turn, this random key
+is encrypted with the specified password and stored in the archive\&.
+When opening the archive, the random key will be decrypted with the specified
+password and will be used to decrypt all files in the archive\&.
+.PP
+The main advantage of this method is that it is possible to distribute
+the same archive but with different passwords for different users/cases\&.
+For this purpose it is not necessary to create a new archive with
+a new password each time\&. It is possible to create a base archive with
+a known secret password\&. When it is necessary to transfer this archive with
+the required password, you can simply change the password with which the encryption
+key is encrypted\&. All other data will remain unchanged\&. For cases where
+it is necessary to use the same archive but with different passwords,
+this method can save a lot of time in creating an archive for each case,
+and also improves reproducibility because all users will have exactly
+the same set of files\&.
+.PP
+This method has 2 variants when the information about the file system
+(file names, sizes, etc\&.) is encrypted and the archive cannot be opened
+without specifying the correct password, and when the information about
+the file system is not encrypted\&.
+.PP
+To use this mode it is necessary to specify the switch \fB-encryptkey\fR
+at the first mounting of cookfs\&. Information about key-based encryption mode
+will be saved in the archive and further opening of the archive will
+also use this mode\&. It is impossible to change the mode in an already
+created archive\&.
+.PP
+If both options \fB-encryptkey\fR and \fB-password\fR are used when
+mounting the archive for the first time, then key-based encryption mode with
+encryption of information about the file system (file names, sizes, etc\&.) will be set\&.
+In this case, it is necessary to specify the password when opening the
+file next time\&.
+.PP
+If at the first mounting of the archive only switch \fB-encryptkey\fR is used
+without option \fB-password\fR, then the encryption mode will be set without
+encrypting information about the file system\&. In this case it will be possible
+to open the archive without specifying a password and use unencrypted data in it\&.
+.PP
+In this mode, the \fBpassword\fR method works by setting or changing
+the password for the protected key\&.
+.PP
+For example, this use case creates an archive with unprotected Tcl scripts\&.
+These scripts will ask the user for a password and then read other files
+using the specified password\&.
+.CS
+
+
+# This code prepares the archive\&.
+# First, we will create an archive with -encryptkey and without
+# the -password option, which will allow us to further open
+# the archive without a password
+set fsid [cookfs::Mount "archive" "/mount_point" -encryptkey]
+
+# Copy the necessary runtime scripts
+file copy \&./my_scripts [file join "/mount_point" "scripts"]
+
+# Set the password password
+$fsid password "my-secret-1"
+
+# Add files that will be protected by password "my-secret-1"
+file copy \&./data1 [file join "/mount_point" "data1"]
+
+# Unmount and save the archive
+cookfs::Unmount "/mount_point"
+
+.CE
+.PP
+This code uses the archive:
+.CS
+
+
+# First mount the archive without a password
+set fsid [cookfs::Mount "archive" "/mount_point"]
+
+# Execute our scripts, which are unencrypted and stored in "scripts" directory
+source [file join "/mount_point" "scripts" "main\&.tcl"]
+
+# Obtain the password or ask the user to provide one
+set secret_password [get_password_from_user]
+
+# Set the password as the current password for accessing files in cookfs
+$fsid password $secret_password
+
+# Now we can read/use the files in the "data1" directory
+# if the provided password is correct
+
+.CE
+.PP
+This code changes the password for an already prepared archive:
+.CS
+
+
+# First mount the archive
+set fsid [cookfs::Mount "archive" "/mount_point" -password "my-secret-1"]
+
+# Set the new password
+$fsid password "my-secret-2"
+
+# Unmount and save the archive
+cookfs::Unmount "/mount_point"
+
+# After that, to access the files in the "data1" directory from that archive,
+# it is necessary to use the password my-secret-2\&.
+
+.CE
+.PP
+This example creates an archive with key-base encryption method and with
+all file system information (file names, sizes, etc\&.) encrypted:
+.CS
+
+
+# This code prepares the archive\&.
+set fsid [cookfs::Mount "archive" "/mount_point" -encryptkey -password "my-secret-1"]
+# Add files that will be protected by password "my-secret-1"
+file copy \&./data1 [file join "/mount_point" "data1"]
+# Unmount and save the archive
+cookfs::Unmount "/mount_point"
+# Now this archive is fully encrypted\&. To open it, it is necessary to set
+# a password when mounting it\&.
+
+.CE
+.PP
+To summarize, key-base encryption has these advantages:
+.IP \(bu
+it is possible to easily change the password that should be used to open files, it is not necessary to completely recreate the archive
+.IP \(bu
+it is possible to open an archive without a password to read unprotected files and set a password later when you need to access protected files
+.PP
+On the other hand, there are the following disadvantages:
+.IP \(bu
+it is impossible to protect information about the file system (file names, sizes, etc\&.)
+.IP \(bu
+it is impossible to have different passwords for different files, all files are encrypted with a single key
+.PP
+.PP
+To summarize, key-base encryption with encrypted file system information (file names, sizes, etc\&.) has these advantages:
+.IP \(bu
+it is possible to easily change the password that should be used to open files, it is not necessary to completely recreate the archive
+.IP \(bu
+all data about the contents of the archive is encrypted
+.PP
+On the other hand, there are the following disadvantages:
+.IP \(bu
+it is impossible to open the archive to read unprotected data, the password must be specified when mounting cookfs
+.IP \(bu
+it is impossible to have different passwords for different files, all files are encrypted with a single key
+.PP
+.SH "ENCRYPTION STRENGTH"
+The encryption strength can be configured as the number of iterations for
+PBKDF2-HMAC-SHA256, which can be set by parameter \fB-encryptlevel\fR\&.
+.PP
+This parameter must have a numeric value from 0 to 31 inclusive\&. The number
+of iterations for values from 0 to 15 are calculated as \fB-encryptlevel\fR*8192\&.
+The number of iterations for values 16 through 31 are calculated
+as \fB-encryptlevel\fR*81920\&. The default value is 15\&.
+.PP
+Therefore, it is possible to set the number of iterations in the following range:
+.IP \(bu
+minimum \fB-encryptlevel\fR value 0 - number of iterations 0
+.IP \(bu
+default \fB-encryptlevel\fR value 15 - number of iterations 122880
+.IP \(bu
+maximum \fB-encryptlevel\fR value 31 - number of iterations 2539520
+.PP
+.PP
+Note that the number of iterations affects the delay in setting or changing
+the password\&. The higher the number of iterations, the longer the delay will be\&.
+.PP
+The encryption level is set when the archive is created\&. It is saved in it and
+this value will be automatically used for all further opening of the archive\&.
 .SH "SEE ALSO"
 cookfs_fsindex, cookfs_pages
 .SH KEYWORDS
