@@ -468,6 +468,8 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     Tcl_Obj **err)
 {
 
+    UNUSED(err);
+
 #ifdef COOKFS_USECCRYPTO
     if (password != NULL && !Tcl_GetCharLength(password)) {
         if (interp != NULL) {
@@ -626,10 +628,18 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
 
     /* read index or fail */
     Cookfs_PagesLockWrite(rc, NULL);
-    int indexRead = CookfsReadIndex(interp, rc, password, err);
+    Tcl_Obj *index_err = NULL;
+    int indexRead = CookfsReadIndex(interp, rc, password, &index_err);
     Cookfs_PagesUnlock(rc);
     if (!indexRead) {
 	if (rc->fileReadOnly) {
+	    if (index_err != NULL) {
+	        if (interp != NULL) {
+	            Tcl_SetObjResult(interp, index_err);
+	        } else {
+	            Tcl_BounceRefCount(index_err);
+	        }
+	    }
 	    goto error;
 	}
 	rc->isFirstWrite = 1;
@@ -643,9 +653,8 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
         if (interp != NULL) {
             Tcl_ResetResult(interp);
         }
-        if (err != NULL && *err != NULL) {
-            Tcl_BounceRefCount(*err);
-            *err = NULL;
+        if (index_err != NULL) {
+            Tcl_BounceRefCount(index_err);
         }
     }  else  {
 	rc->pagesUptodate = 1;
