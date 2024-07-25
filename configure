@@ -9413,171 +9413,6 @@ else
     USECCRYPTO="no"
 fi
 
-if test ${USECCRYPTO} = yes; then
-
-    # AES requires AES/PCLMUL instructions
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for AES/PCLMUL instruction set" >&5
-printf %s "checking for AES/PCLMUL instruction set... " >&6; }
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-        #include <wmmintrin.h>
-
-int
-main (void)
-{
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"
-then :
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-else $as_nop
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, adding -maes" >&5
-printf "%s\n" "no, adding -maes" >&6; };
-    PKG_CFLAGS="$PKG_CFLAGS -maes"
-
-
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
-
-    printf "%s\n" "#define COOKFS_USECRYPTO 1" >>confdefs.h
-
-    printf "%s\n" "#define COOKFS_USECCRYPTO 1" >>confdefs.h
-
-    COOKFS_PKGCONFIG_USECCRYPTO=1
-    COOKFS_PKGCONFIG_FEATURE_CRYPTO=1
-
-    vars="crypto.c cryptoCmd.c"
-    for i in $vars; do
-	case $i in
-	    \$*)
-		# allow $-var names
-		PKG_SOURCES="$PKG_SOURCES $i"
-		PKG_OBJECTS="$PKG_OBJECTS $i"
-		;;
-	    *)
-		# check for existence - allows for generic/win/unix VPATH
-		# To add more dirs here (like 'src'), you have to update VPATH
-		# in Makefile.in as well
-		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
-		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
-		    -a ! -f "${srcdir}/macosx/$i" \
-		    ; then
-		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
-		fi
-		PKG_SOURCES="$PKG_SOURCES $i"
-		# this assumes it is in a VPATH dir
-		i=`basename $i`
-		# handle user calling this before or after TEA_SETUP_COMPILER
-		if test x"${OBJEXT}" != x ; then
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
-		else
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
-		fi
-		PKG_OBJECTS="$PKG_OBJECTS $j"
-		;;
-	esac
-    done
-
-
-
-
-    vars="7zip/C/Aes.c 7zip/C/AesOpt.c 7zip/C/Sha256.c 7zip/C/Sha256Opt.c"
-    for i in $vars; do
-	case $i in
-	    \$*)
-		# allow $-var names
-		PKG_SOURCES="$PKG_SOURCES $i"
-		PKG_OBJECTS="$PKG_OBJECTS $i"
-		;;
-	    *)
-		# check for existence - allows for generic/win/unix VPATH
-		# To add more dirs here (like 'src'), you have to update VPATH
-		# in Makefile.in as well
-		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
-		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
-		    -a ! -f "${srcdir}/macosx/$i" \
-		    ; then
-		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
-		fi
-		PKG_SOURCES="$PKG_SOURCES $i"
-		# this assumes it is in a VPATH dir
-		i=`basename $i`
-		# handle user calling this before or after TEA_SETUP_COMPILER
-		if test x"${OBJEXT}" != x ; then
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
-		else
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
-		fi
-		PKG_OBJECTS="$PKG_OBJECTS $j"
-		;;
-	esac
-    done
-
-
-
-    if test "${TEA_PLATFORM}" = "windows" ; then
-
-    vars="-lbcrypt"
-    for i in $vars; do
-	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" = "yes" ; then
-	    # Convert foo.lib to -lfoo for GCC.  No-op if not *.lib
-	    i=`echo "$i" | sed -e 's/^\([^-].*\)\.[lL][iI][bB]$/-l\1/'`
-	fi
-	PKG_LIBS="$PKG_LIBS $i"
-    done
-
-
-    fi
-    # Include CpuArch.c only if we are not using c-lzma. Otherwise, this file
-    # will be included when processing the lzma option.
-    if test ${USELZMA} != yes; then
-
-    vars="7zip/C/CpuArch.c"
-    for i in $vars; do
-	case $i in
-	    \$*)
-		# allow $-var names
-		PKG_SOURCES="$PKG_SOURCES $i"
-		PKG_OBJECTS="$PKG_OBJECTS $i"
-		;;
-	    *)
-		# check for existence - allows for generic/win/unix VPATH
-		# To add more dirs here (like 'src'), you have to update VPATH
-		# in Makefile.in as well
-		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
-		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
-		    -a ! -f "${srcdir}/macosx/$i" \
-		    ; then
-		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
-		fi
-		PKG_SOURCES="$PKG_SOURCES $i"
-		# this assumes it is in a VPATH dir
-		i=`basename $i`
-		# handle user calling this before or after TEA_SETUP_COMPILER
-		if test x"${OBJEXT}" != x ; then
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
-		else
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
-		fi
-		PKG_OBJECTS="$PKG_OBJECTS $j"
-		;;
-	esac
-    done
-
-
-
-    fi
-else
-    COOKFS_PKGCONFIG_USECCRYPTO=0
-    COOKFS_PKGCONFIG_FEATURE_CRYPTO=0
-fi
-
 if test ${USECFSINDEX} = yes; then
     printf "%s\n" "#define COOKFS_USECFSINDEX 1" >>confdefs.h
 
@@ -9803,6 +9638,173 @@ else
     COOKFS_PKGCONFIG_USECWRITER=0
     COOKFS_PKGCONFIG_USECWRITERCHAN=0
     COOKFS_PKGCONFIG_USECVFS=0
+    # c-crypto requires c-vfs
+    USECCRYPTO="no"
+fi
+
+if test ${USECCRYPTO} = yes; then
+
+    # AES requires AES/PCLMUL instructions
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for AES/PCLMUL instruction set" >&5
+printf %s "checking for AES/PCLMUL instruction set... " >&6; }
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        #include <wmmintrin.h>
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+else $as_nop
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, adding -maes" >&5
+printf "%s\n" "no, adding -maes" >&6; };
+    PKG_CFLAGS="$PKG_CFLAGS -maes"
+
+
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+
+    printf "%s\n" "#define COOKFS_USECRYPTO 1" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_USECCRYPTO 1" >>confdefs.h
+
+    COOKFS_PKGCONFIG_USECCRYPTO=1
+    COOKFS_PKGCONFIG_FEATURE_CRYPTO=1
+
+    vars="crypto.c cryptoCmd.c"
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
+		    ; then
+		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+
+    vars="7zip/C/Aes.c 7zip/C/AesOpt.c 7zip/C/Sha256.c 7zip/C/Sha256Opt.c"
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
+		    ; then
+		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+    if test "${TEA_PLATFORM}" = "windows" ; then
+
+    vars="-lbcrypt"
+    for i in $vars; do
+	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" = "yes" ; then
+	    # Convert foo.lib to -lfoo for GCC.  No-op if not *.lib
+	    i=`echo "$i" | sed -e 's/^\([^-].*\)\.[lL][iI][bB]$/-l\1/'`
+	fi
+	PKG_LIBS="$PKG_LIBS $i"
+    done
+
+
+    fi
+    # Include CpuArch.c only if we are not using c-lzma. Otherwise, this file
+    # will be included when processing the lzma option.
+    if test ${USELZMA} != yes; then
+
+    vars="7zip/C/CpuArch.c"
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
+		    ; then
+		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+    fi
+else
+    COOKFS_PKGCONFIG_USECCRYPTO=0
+    COOKFS_PKGCONFIG_FEATURE_CRYPTO=0
 fi
 
 if test ${USETCLCMDS} = no \

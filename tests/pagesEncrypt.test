@@ -239,7 +239,7 @@ tcltest::test cookfsPagesEncrypt-4.1 "Test file encryption" -constraints {enable
 } -cleanup {
     catch {$pg delete}
     catch {file delete -force $file}
-    unset -nocomplain file pg size data
+    unset -nocomplain file pg size data result pos
 } -result {}
 
 tcltest::test cookfsPagesEncrypt-4.2 "Test file encryption, password set after initialization" -constraints {enabledTclCmds cookfsCrypto} -setup {
@@ -295,7 +295,7 @@ tcltest::test cookfsPagesEncrypt-4.2 "Test file encryption, password set after i
 } -cleanup {
     catch {$pg delete}
     catch {file delete -force $file}
-    unset -nocomplain file pg size data
+    unset -nocomplain file pg size data pos result
 } -result {}
 
 
@@ -341,7 +341,7 @@ TEST01TEST
 Unable to retrieve chunk: no password specified for decrypting
 Unable to retrieve chunk: wrong password specified for decrypting}
 
-tcltest::test cookfsPagesEncrypt-4.3 "Test file encryption, deduplication" -constraints {enabledTclCmds cookfsCrypto} -setup {
+tcltest::test cookfsPagesEncrypt-4.4 "Test file encryption, deduplication" -constraints {enabledTclCmds cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression none -encryptlevel 0 $file]
@@ -393,7 +393,7 @@ tcltest::test cookfsPagesEncrypt-4.3 "Test file encryption, deduplication" -cons
 } -cleanup {
     catch {$pg delete}
     catch {file delete -force $file}
-    unset -nocomplain file pg result num
+    unset -nocomplain file pg result num p0 p1 p2 p3 p4 p5 p6
 } -result {}
 
 tcltest::test cookfsPagesEncrypt-5.1 "Test key-index encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
@@ -450,7 +450,7 @@ tcltest::test cookfsPagesEncrypt-5.1 "Test key-index encryption" -constraints {e
 } -cleanup {
     catch {$pg delete}
     catch {file delete -force $file}
-    unset -nocomplain file pg size data
+    unset -nocomplain file pg size data result pos
 } -result {}
 
 tcltest::test cookfsPagesEncrypt-5.2 "Test key-index encryption, open protected archive without password" -constraints {enabledTclCmds cookfsCrypto} -setup {
@@ -530,7 +530,7 @@ tcltest::test cookfsPagesEncrypt-5.4 "Test key-index encryption, deduplication" 
 } -cleanup {
     catch {$pg delete}
     catch {file delete -force $file}
-    unset -nocomplain file pg result num
+    unset -nocomplain file pg result num p0 p1 p2 p3 p4 p5
 } -result {}
 
 tcltest::test cookfsPagesEncrypt-5.5 "Test password change for key-index encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
@@ -591,7 +591,7 @@ tcltest::test cookfsPagesEncrypt-5.5 "Test password change for key-index encrypt
 } -cleanup {
     catch {$pg delete}
     catch {file delete -force $file}
-    unset -nocomplain file pg size1 data1 offset1 size2 data2 offset2
+    unset -nocomplain file pg size1 data1 offset1 size2 data2 offset2 ok
 } -result ok
 
 tcltest::test cookfsPagesEncrypt-6.1 "Test key encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
@@ -649,7 +649,7 @@ tcltest::test cookfsPagesEncrypt-6.1 "Test key encryption" -constraints {enabled
 } -cleanup {
     catch {$pg delete}
     catch {file delete -force $file}
-    unset -nocomplain file pg size data
+    unset -nocomplain file pg size data result pos
 } -result {}
 
 tcltest::test cookfsPagesEncrypt-6.2 "Test key encryption, without password and with wrong password" -constraints {enabledTclCmds cookfsCrypto} -setup {
@@ -686,7 +686,7 @@ tcltest::test cookfsPagesEncrypt-6.2 "Test key encryption, without password and 
 } -cleanup {
     catch {$pg delete}
     catch {file delete -force $file}
-    unset -nocomplain file pg
+    unset -nocomplain file pg result err
 } -result {TEST00TEST
 Unable to retrieve chunk: no password specified for decrypting
 could not decrypt the encryption key with the specified password
@@ -746,7 +746,7 @@ tcltest::test cookfsPagesEncrypt-6.3 "Test key encryption, deduplication" -const
 } -cleanup {
     catch {$pg delete}
     catch {file delete -force $file}
-    unset -nocomplain file pg result num
+    unset -nocomplain file pg result num p0 p1 p2 p3 p4 p5 p6
 } -result {}
 
 tcltest::test cookfsPagesEncrypt-6.4 "Test password change for key encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
@@ -808,7 +808,7 @@ tcltest::test cookfsPagesEncrypt-6.4 "Test password change for key encryption" -
 } -cleanup {
     catch {$pg delete}
     catch {file delete -force $file}
-    unset -nocomplain file pg size1 data1 offset1 size2 data2 offset2
+    unset -nocomplain file pg size1 data1 offset1 size2 data2 offset2 ok
 } -result ok
 
 tcltest::test cookfsPagesEncrypt-7.1 "Test encryption with custom compression" -constraints {enabledTclCmds cookfsCrypto} -setup {
@@ -868,7 +868,8 @@ tcltest::test cookfsPagesEncrypt-7.1 "Test encryption with custom compression" -
 } -cleanup {
     catch {$pg delete}
     catch {file delete -force $file}
-    unset -nocomplain file pg size data
+    unset -nocomplain file pg size data result pos
+    unset -nocomplain testcompresscount testdecompresscount
 } -result {}
 
 tcltest::test cookfsPagesEncrypt-8.1 "Test encryption with async compression" -constraints {enabledTclCmds cookfsCrypto} -setup {
@@ -954,5 +955,7 @@ tcltest::test cookfsPagesEncrypt-8.1 "Test encryption with async compression" -c
 } -cleanup {
     catch {$pg delete}
     catch {file delete -force $file}
-    unset -nocomplain file pg size data result
+    unset -nocomplain file pg size data result pos
+    unset -nocomplain testcompresscount testdecompresscount
+    unset -nocomplain testasynccompresscount testasynccompressqueue testasynccompressfinalized
 } -result {1}

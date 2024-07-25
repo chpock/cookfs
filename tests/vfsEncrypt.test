@@ -262,7 +262,7 @@ tcltest::test cookfsVfsEncrypt-4.3.1 "Test file encryption, no password when usi
 } -cleanup {
     catch { cookfs::Unmount $file }
     tcltest::removeFile $file
-    unset -nocomplain file fsid fs data notok
+    unset -nocomplain file fsid fs data notok fd
 } -returnCodes error -match glob -result {couldn't open "*": no password specified for decrypting}
 
 tcltest::test cookfsVfsEncrypt-4.3.2 "Test file encryption, wrong password when using writerchannel" -constraints {cookfsCrypto} -setup {
@@ -285,7 +285,7 @@ tcltest::test cookfsVfsEncrypt-4.3.2 "Test file encryption, wrong password when 
 } -cleanup {
     catch { cookfs::Unmount $file }
     tcltest::removeFile $file
-    unset -nocomplain file fsid fs data notok
+    unset -nocomplain file fsid fs data notok fd
 } -returnCodes error -match glob -result {couldn't open "*": wrong password specified for decrypting}
 
 tcltest::test cookfsVfsEncrypt-4.4.1 "Test file encryption, no password when using readerchannel" -constraints {cookfsCrypto} -setup {
@@ -308,7 +308,7 @@ tcltest::test cookfsVfsEncrypt-4.4.1 "Test file encryption, no password when usi
 } -cleanup {
     catch { cookfs::Unmount $file }
     tcltest::removeFile $file
-    unset -nocomplain file fsid fs data notok
+    unset -nocomplain file fsid fs data notok fd
 } -returnCodes error -match glob -result {couldn't open "*": no password specified for decrypting}
 
 tcltest::test cookfsVfsEncrypt-4.4.2 "Test file encryption, wrong password when using readerchannel" -constraints {cookfsCrypto} -setup {
@@ -331,7 +331,7 @@ tcltest::test cookfsVfsEncrypt-4.4.2 "Test file encryption, wrong password when 
 } -cleanup {
     catch { cookfs::Unmount $file }
     tcltest::removeFile $file
-    unset -nocomplain file fsid fs data notok
+    unset -nocomplain file fsid fs data notok fd
 } -returnCodes error -match glob -result {couldn't open "*": wrong password specified for decrypting}
 
 tcltest::test cookfsVfsEncrypt-5.1 "Test key-index encryption" -constraints {cookfsCrypto} -setup {
@@ -494,7 +494,7 @@ tcltest::test cookfsVfsEncrypt-6.2 "Test key encryption, without password and wi
 } -cleanup {
     catch { cookfs::Unmount $file }
     tcltest::removeFile $file
-    unset -nocomplain file fsid result
+    unset -nocomplain file fsid result err
 } -match glob -result {TEST00TEST
 couldn't open "*": no password specified for decrypting
 could not decrypt the encryption key with the specified password

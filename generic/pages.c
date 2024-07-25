@@ -597,7 +597,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
 
     /* clean up interpreter result prior to calling Tcl_FSOpenFileChannel() */
     if (interp != NULL) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("", 0));
+        Tcl_ResetResult(interp);
     }
 
     rc->fileChannel = Tcl_FSOpenFileChannel(interp, fileName,
@@ -637,7 +637,16 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
 	rc->pagesUptodate = 0;
 	rc->indexChanged = 1;
 	rc->shouldTruncate = 1;
-	CookfsLog2(printf("Index not read!"))
+	CookfsLog2(printf("Index not read!"));
+	// Reset the interpreter error message from CookfsReadIndex().
+	// We are going to create a new archive.
+        if (interp != NULL) {
+            Tcl_ResetResult(interp);
+        }
+        if (err != NULL && *err != NULL) {
+            Tcl_BounceRefCount(*err);
+            *err = NULL;
+        }
     }  else  {
 	rc->pagesUptodate = 1;
 	rc->indexChanged = 0;
@@ -2552,16 +2561,15 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *passwor
         if (lastMatch == NULL) {
             p->foffset = Tcl_Seek(p->fileChannel, 0, SEEK_END);
             CookfsLog(printf("CookfsReadIndex lookup failed"))
-            if (interp != NULL) {
-                Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
-                    ": signature not found", -1));
-            }
 
             Tcl_WideInt expectedSize = Cookfs_PageSearchStamp(p);
             if (expectedSize != -1) {
                 SET_ERROR(Tcl_ObjPrintf("The archive appears to be corrupted"
                     " or truncated. Expected archive size is %" TCL_LL_MODIFIER
                     "d bytes or larger.", expectedSize));
+            } else {
+                SET_ERROR(Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
+                    ": signature not found", -1));
             }
 
             return 0;

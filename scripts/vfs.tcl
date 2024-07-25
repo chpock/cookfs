@@ -552,19 +552,19 @@ proc cookfs::tcl::vfs::handler {fsid cmd root relative actualpath args} {
                 $relative $actualpath [lindex $args 0] [lindex $args 1]]
         }
         stat {
-            set rc [stat $fsid $relative $actualpath]
+            set rc [stat $fsid $relative]
         }
         open {
             # we skip permissions as we don't really have on
             set rc [open $fsid $relative [lindex $args 0]]
         }
         access {
-            stat $fsid $relative $actualpath
+            stat $fsid $relative
             set rc true
         }
         utime {
             # modify mtime and atime, assuming file exists
-            if {[catch {stat $fsid $relative $actualpath} rc]} {
+            if {[catch {stat $fsid $relative} rc]} {
                 vfs::filesystem posixerror $::cookfs::posix(ENOENT)
             }
 
@@ -631,7 +631,7 @@ proc cookfs::tcl::vfs::fileattributes {fsid root relative actualpath a} {
 }
 
 # implementation of stat
-proc cookfs::tcl::vfs::stat {fsid relative actualpath} {
+proc cookfs::tcl::vfs::stat {fsid relative} {
     upvar #0 $fsid fs
     upvar #0 $fsid.dir fsdir
 
@@ -728,7 +728,7 @@ proc cookfs::tcl::vfs::matchindirectory {fsid relative actualpath pattern types}
 proc cookfs::tcl::vfs::delete {fsid root relative actualpath type recursive} {
     upvar #0 $fsid fs
     #vfs::log [list cookfs::vfshandleDelete $fsid $relative $type $recursive]
-    if {[catch {stat $fsid $relative $actualpath} rc]} {
+    if {[catch {stat $fsid $relative} rc]} {
         vfs::filesystem posixerror $::cookfs::posix(ENOENT)
     }
 
@@ -829,7 +829,7 @@ proc cookfs::tcl::vfs::open {fsid relative mode} {
         }
         a - a+ {
             #vfs::log [list cookfs::vfshandleOpen $fsid $relative append]
-            if {[catch {stat $fsid $relative $actualpath} rc]} {
+            if {[catch {stat $fsid $relative} rc]} {
                 vfs::filesystem posixerror $::cookfs::posix(ENOENT)
             }
 
