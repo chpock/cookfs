@@ -144,8 +144,11 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
         pages, index, writer, pathObj, entry, interp,
         (entry == NULL ? 0 : Cookfs_FsindexEntryGetFilesize(entry)));
 
+    Tcl_Obj *err = NULL;
+
     if (instData == NULL) {
-        return NULL;
+        err = Tcl_NewStringObj("failed to alloc", -1);
+        goto errorReturn;
     }
 
     Cookfs_PageObj blockObj = NULL;
@@ -153,18 +156,26 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
     if (Cookfs_CreateWriterchannelCreate(instData, interp) != TCL_OK) {
         CookfsLog(printf("Cookfs_CreateWriterchannel: "
             "Cookfs_CreateWriterchannelCreate failed"))
-        goto error;
+        Cookfs_CreateWriterchannelFree(instData);
+        err = Tcl_NewStringObj("failed to create a channel", -1);
+        goto errorReturn;
     }
+
+    // We now have a channel that was associated with instData. This channel
+    // will attempt to release instData when closed. This means that we
+    // should not release instData manually (e.g. on an error), as this would
+    // result in a double release when closing the channel. Instead, we have
+    // to close the channel.
 
     if (entry == NULL) {
         goto done;
     }
 
     CookfsLog(printf("Cookfs_CreateWriterchannel: reading existing data..."));
-    if (!Cookfs_FsindexLockRead(index, NULL)) {
+    if (!Cookfs_FsindexLockRead(index, &err)) {
         goto error;
     }
-    if (!Cookfs_WriterLockRead(writer, NULL)) {
+    if (!Cookfs_WriterLockRead(writer, &err)) {
         goto error;
     }
     int firstTimeRead = 1;
@@ -199,6 +210,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
             if (blockBuffer == NULL) {
                 CookfsLog(printf("Cookfs_CreateWriterchannel: return an error"
                     " as writer failed"));
+                err = Tcl_NewStringObj("failed to get a page from writer", -1);
                 goto errorAndUnlock;
             }
 
@@ -212,7 +224,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
 
             int pageUsage = Cookfs_FsindexGetBlockUsage(index, pageIndex);
 
-            if (!Cookfs_PagesLockRead(pages, NULL)) {
+            if (!Cookfs_PagesLockRead(pages, &err)) {
                 goto errorAndUnlock;
             }
             int pageWeight = (pageUsage <= 1) ? 0 : 1;
@@ -223,9 +235,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
                 firstTimeRead = 0;
             }
 
-            // TODO: pass a pointer to err variable instead of NULL and produce
-            // the corresponding error message
-            blockObj = Cookfs_PageGet(pages, pageIndex, pageWeight, NULL);
+            blockObj = Cookfs_PageGet(pages, pageIndex, pageWeight, &err);
             // Do not increate refcount for blockObj as Cookfs_PageGet() returns
             // pages with refcount=1.
             Cookfs_PagesUnlock(pages);
@@ -234,6 +244,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
             if (blockObj == NULL) {
                 CookfsLog(printf("Cookfs_CreateWriterchannel: return an error"
                     " as pages failed"));
+                // We have an error from Cookfs_PageGet() in the err variable
                 goto errorAndUnlock;
             }
 
@@ -249,6 +260,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
         if ((pageOffset + pageSize) > blockSize) {
             CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: not enough"
                 " bytes in block, return an error"));
+            err = Tcl_NewStringObj("got malformed page", -1);
             goto errorAndUnlock;
         }
 
@@ -263,6 +275,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
             CookfsLog(printf("Cookfs_CreateWriterchannel: only [%d]"
                 " bytes were written to the channel, consider this"
                 " an error", writtenBytes));
+            err = Tcl_NewStringObj("failed to write to the buffer", -1);
             goto errorAndUnlock;
         }
 
@@ -297,9 +310,34 @@ error:
         Cookfs_PageObjDecrRefCount(blockObj);
     }
 
-    if (instData != NULL) {
-        Cookfs_CreateWriterchannelFree(instData);
+    if (instData->channel != NULL) {
+        // If we encounter an error, we must close the channel. However,
+        // the close procedure may attempt to write the file from the buffer
+        // to the archive. We have to prevent this because the file could
+        // have been read incorrectly. To do this, we will unset pathObj
+        // from instData. Then the close procedure will think we opened
+        // the file in read-only mode and will not try to modify it in archive.
+        if (instData->pathObj != NULL) {
+            Cookfs_PathObjDecrRefCount(instData->pathObj);
+            instData->pathObj = NULL;
+        }
+        Tcl_UnregisterChannel(interp, instData->channel);
     }
+
+errorReturn:
+
+    if (interp != NULL) {
+
+        if (err == NULL) {
+            err = Tcl_NewStringObj("unknown error", -1);
+        }
+
+        Tcl_SetObjResult(interp, err);
+
+    } else if (err != NULL) {
+        Tcl_BounceRefCount(err);
+    }
+
     return NULL;
 
 }

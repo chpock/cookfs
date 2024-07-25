@@ -38,6 +38,12 @@ typedef struct {
     Tcl_Obj *pagehash;
     int shared;
 
+#ifdef COOKFS_USECCRYPTO
+    Tcl_Obj *password;
+    int encryptkey;
+    int encryptlevel;
+#endif /* COOKFS_USECCRYPTO */
+
 } Cookfs_VfsProps;
 
 int Cookfs_InitVfsMountCmd(Tcl_Interp *interp);

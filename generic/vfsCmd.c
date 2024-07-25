@@ -80,6 +80,11 @@ Cookfs_VfsProps *Cookfs_VfsPropsInit(Cookfs_VfsProps *p) {
         p->nodirectorymtime = 0;
         p->pagehash = NULL;
         p->shared = 0;
+#ifdef COOKFS_USECCRYPTO
+        p->password = NULL;
+        p->encryptkey = 0;
+        p->encryptlevel = -1;
+#endif /* COOKFS_USECCRYPTO */
     }
     return p;
 }
@@ -147,7 +152,10 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
     static const char *const options[] = {
 #ifdef COOKFS_USETCLCMDS
         "-pagesobject", "-fsindexobject", "-noregister", "-bootstrap",
-#endif
+#endif /* COOKFS_USETCLCMDS */
+#ifdef COOKFS_USECCRYPTO
+        "-password", "-encryptkey", "-encryptlevel",
+#endif /* COOKFS_USECCRYPTO */
         "-nocommand", "-compression", "-alwayscompress", "-compresscommand",
         "-asynccompresscommand", "-asyncdecompresscommand",
         "-asyncdecompressqueuesize", "-decompresscommand", "-endoffset",
@@ -161,6 +169,9 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 #ifdef COOKFS_USETCLCMDS
         OPT_PAGEOBJECT, OPT_FSINDEXOBJECT, OPT_NOREGISTER, OPT_BOOTSTRAP,
 #endif
+#ifdef COOKFS_USECCRYPTO
+        OPT_PASSWORD, OPT_ENCRYPTKEY, OPT_ENCRYPTLEVEL,
+#endif /* COOKFS_USECCRYPTO */
         OPT_NOCOMMAND, OPT_COMPRESSION, OPT_ALWAYSCOMPRESS, OPT_COMPRESSCOMMAND,
         OPT_ASYNCCOMPRESSCOMMAND, OPT_ASYNCDECOMPRESSCOMMAND,
         OPT_ASYNCDECOMPRESSQUEUESIZE, OPT_DECOMPRESSCOMMAND, OPT_ENDOFFSET,
@@ -207,6 +218,9 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 #ifdef COOKFS_USETCLCMDS
         PROCESS_OPT_SWITCH(OPT_NOREGISTER, props.noregister);
 #endif
+#ifdef COOKFS_USECCRYPTO
+        PROCESS_OPT_SWITCH(OPT_ENCRYPTKEY, props.encryptkey);
+#endif /* COOKFS_USECCRYPTO */
         PROCESS_OPT_SWITCH(OPT_NOCOMMAND, props.nocommand);
         PROCESS_OPT_SWITCH(OPT_ALWAYSCOMPRESS, props.alwayscompress);
         PROCESS_OPT_SWITCH(OPT_READONLY, props.readonly);
@@ -227,6 +241,9 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         PROCESS_OPT_OBJ(OPT_FSINDEXOBJECT, props.fsindexobject);
         PROCESS_OPT_OBJ(OPT_BOOTSTRAP, props.bootstrap);
 #endif
+#ifdef COOKFS_USECCRYPTO
+        PROCESS_OPT_OBJ(OPT_PASSWORD, props.password);
+#endif /* COOKFS_USECCRYPTO */
         PROCESS_OPT_OBJ(OPT_COMPRESSION, props.compression);
         PROCESS_OPT_OBJ(OPT_COMPRESSCOMMAND, props.compresscommand);
         PROCESS_OPT_OBJ(OPT_ASYNCCOMPRESSCOMMAND, props.asynccompresscommand);
@@ -253,6 +270,22 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
             PROCESS_OPT_INT(OPT_PAGECACHESIZE, props.pagecachesize);
 
         }
+
+        // OPT_ENCRYPTLEVEL - is int
+#ifdef COOKFS_USECCRYPTO
+        if (opt == OPT_ENCRYPTLEVEL) {
+
+            int ival;
+            if (Tcl_GetIntFromObj(interp, objv[idx], &ival) != TCL_OK) {
+                Tcl_SetObjResult(interp, Tcl_ObjPrintf("integer"
+                    " argument is expected for %s option, but got \"%s\"",
+                    options[opt], Tcl_GetString(objv[idx])));
+                return TCL_ERROR;
+            }
+
+            PROCESS_OPT_INT(OPT_ENCRYPTLEVEL, props.encryptlevel);
+        }
+#endif /* COOKFS_USECCRYPTO */
 
         // Handle endoffset in a special way, since it is a signed Tcl_WideInt
         if (opt == OPT_ENDOFFSET) {
@@ -455,6 +488,11 @@ skipArchive:
         // handle the corresponding error message
         pages = Cookfs_PagesInit(interp, archiveActual, props->readonly,
             oCompression, oCompressionLevel, oCompression, oCompressionLevel,
+#ifdef COOKFS_USECCRYPTO
+            props->password, props->encryptkey, props->encryptlevel,
+#else
+            NULL, 0, -1,
+#endif /* COOKFS_USECCRYPTO */
             NULL, (props->endoffset == -1 ? 0 : 1), props->endoffset, 0,
             props->asyncdecompressqueuesize,
             props->compresscommand, props->decompresscommand,
@@ -969,6 +1007,9 @@ static Cookfs_MountHandleCommandProc CookfsMountHandleCommandGetpages;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandGetindex;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandGetwriter;
 #endif
+#ifdef COOKFS_USECCRYPTO
+static Cookfs_MountHandleCommandProc CookfsMountHandleCommandPassword;
+#endif /* COOKFS_USETCLCMDS */
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandGetmetadata;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandSetmetadata;
 static Cookfs_MountHandleCommandProc CookfsMountHandleCommandAside;
@@ -988,7 +1029,10 @@ static int CookfsMountHandleCmd(ClientData clientData, Tcl_Interp *interp,
     static const char *const commands[] = {
 #ifdef COOKFS_USETCLCMDS
         "getpages", "getindex", "getwriter",
-#endif
+#endif /* COOKFS_USETCLCMDS */
+#ifdef COOKFS_USECCRYPTO
+        "password",
+#endif /* COOKFS_USECCRYPTO */
         "getmetadata", "setmetadata", "aside", "writetomemory", "filesize",
         "smallfilebuffersize", "compression", "writeFiles", "optimizelist",
         NULL
@@ -996,7 +1040,10 @@ static int CookfsMountHandleCmd(ClientData clientData, Tcl_Interp *interp,
     enum commands {
 #ifdef COOKFS_USETCLCMDS
         cmdGetpages, cmdGetindex, cmdGetwriter,
-#endif
+#endif /* COOKFS_USETCLCMDS */
+#ifdef COOKFS_USECCRYPTO
+        cmdPassword,
+#endif /* COOKFS_USECCRYPTO */
         cmdGetmetadata, cmdSetmetadata, cmdAside, cmdWritetomemory, cmdFilesize,
         cmdSmallfilebuffersize, cmdCompression, cmdWritefiles, cmdOptimizelist
     };
@@ -1022,6 +1069,10 @@ static int CookfsMountHandleCmd(ClientData clientData, Tcl_Interp *interp,
     case cmdGetwriter:
         return CookfsMountHandleCommandGetwriter(vfs, interp, objc, objv);
 #endif
+#ifdef COOKFS_USECCRYPTO
+    case cmdPassword:
+        return CookfsMountHandleCommandPassword(vfs, interp, objc, objv);
+#endif /* COOKFS_USECCRYPTO */
     case cmdGetmetadata:
         return CookfsMountHandleCommandGetmetadata(vfs, interp, objc, objv);
     case cmdSetmetadata:
@@ -1275,6 +1326,41 @@ static int CookfsMountHandleCommandCompression(Cookfs_Vfs *vfs,
     return Cookfs_PagesCmdForward(COOKFS_PAGES_FORWARD_COMMAND_COMPRESSION,
         vfs->pages, interp, objc, objv);
 }
+
+#ifdef COOKFS_USECCRYPTO
+static int CookfsMountHandleCommandPassword(Cookfs_Vfs *vfs,
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 2, objv, "password");
+        return TCL_ERROR;
+    }
+
+    //always purge small files cache when password changes
+    // TODO: pass a pointer to err variable instead of NULL and handle
+    // the corresponding error message
+    //
+    // Perhaps when using key or key-index encryption, we should not perform
+    // a cleanup, but simply change the password. But in this case we should
+    // add here a complex logic: check current encryption type and check if
+    // password is already defined and we pass here not empty password, or
+    // oppositive case when encryption is not enabled and we pass empty
+    // password. I'm not sure it's worth implementing this logic, as such
+    // cases should be very rare.
+    //
+    if (!Cookfs_WriterLockWrite(vfs->writer, NULL)) {
+        return TCL_ERROR;
+    }
+    int ret = Cookfs_WriterPurge(vfs->writer, NULL);
+    Cookfs_WriterUnlock(vfs->writer);
+    if (ret != TCL_OK) {
+        return ret;
+    }
+
+    return Cookfs_PagesCmdForward(COOKFS_PAGES_FORWARD_COMMAND_PASSWORD,
+        vfs->pages, interp, objc, objv);
+}
+#endif /* COOKFS_USECCRYPTO */
 
 static int CookfsMountHandleCommandWritefiles(Cookfs_Vfs *vfs,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])

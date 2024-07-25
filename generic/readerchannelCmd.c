@@ -77,6 +77,7 @@ static int CookfsCreateReaderchannelCmd(ClientData clientData, Tcl_Interp *inter
 
 error:
     rc = TCL_ERROR;
+
 done:
     Cookfs_FsindexUnlock(fsindex);
     Cookfs_PathObjDecrRefCount(pathObj);

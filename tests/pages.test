@@ -1010,7 +1010,7 @@ tcltest::test cookfsPages-13.2.1 "Error message when invalid signature found" -c
     catch {$pg delete}
     file delete -force $file
     unset -nocomplain file pg fh fc
-} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 236 bytes or larger.}
+} -returnCodes error -result {The archive appears to be corrupted or truncated. Expected archive size is 236 bytes or larger.}
 
 tcltest::test cookfsPages-13.2.2 "Error message for truncated file with 100 bytes before archive" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -1031,7 +1031,7 @@ tcltest::test cookfsPages-13.2.2 "Error message for truncated file with 100 byte
     catch {$pg delete}
     file delete -force $file
     unset -nocomplain file pg fh fp
-} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 1232 bytes or larger.}
+} -returnCodes error -result {The archive appears to be corrupted or truncated. Expected archive size is 1232 bytes or larger.}
 
 tcltest::test cookfsPages-13.2.3 "Error message for truncated file with 9MB bytes before archive" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -1052,7 +1052,7 @@ tcltest::test cookfsPages-13.2.3 "Error message for truncated file with 9MB byte
     catch {$pg delete}
     file delete -force $file
     unset -nocomplain file pg fp fh
-} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 9438316 bytes or larger.}
+} -returnCodes error -result {The archive appears to be corrupted or truncated. Expected archive size is 9438316 bytes or larger.}
 
 # We are looking for no more than 10 mb, so this test should not find the stamp
 # and give a generic "invalid file signature" error message.
@@ -1096,7 +1096,7 @@ tcltest::test cookfsPages-13.2.5 "Error message for truncated file with 1024 byt
     catch {$pg delete}
     file delete -force $file
     unset -nocomplain file pg fp fh
-} -returnCodes {error} -match glob -result {The archive "*" appears to be corrupted or truncated. Expected archive size is 2125 bytes or larger.}
+} -returnCodes error -result {The archive appears to be corrupted or truncated. Expected archive size is 2125 bytes or larger.}
 
 tcltest::test cookfsPages-13.3 "Error message when unable to seek to pages" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} pages.cfs]

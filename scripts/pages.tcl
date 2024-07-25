@@ -163,8 +163,8 @@ proc cookfs::tcl::pages {args} {
             }
             catch {close $c(fh)}
             if { $size > 0 } {
-                set msg "The archive \"[lindex $args 0]\" appears to be corrupted\
-                    or truncated. Expected archive size is $size bytes or larger."
+                set msg "The archive appears to be corrupted or truncated.\
+                    Expected archive size is $size bytes or larger."
             }
             error $msg $msg
         }

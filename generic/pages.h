@@ -14,6 +14,7 @@ Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName);
 Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     int fileReadOnly, int baseCompression, int baseCompressionLevel,
     int currentCompression, int currentCompressionLevel,
+    Tcl_Obj *password, int encryptKey, int encryptLevel,
     char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside,
     int asyncDecompressQueueSize, Tcl_Obj *compressCommand,
     Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand,
@@ -45,6 +46,8 @@ void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression,
 int Cookfs_PagesIsReadonly(Cookfs_Pages *p);
 */
 
+int Cookfs_PagesSetPassword(Cookfs_Pages *p, Tcl_Obj *passObj);
+
 int Cookfs_PagesGetLength(Cookfs_Pages *p);
 
 void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside);
@@ -58,9 +61,14 @@ int Cookfs_PagesSetMaxAge(Cookfs_Pages *p, int maxAge);
 int Cookfs_PagesTickTock(Cookfs_Pages *p);
 int Cookfs_PagesIsCached(Cookfs_Pages *p, int index);
 
+int Cookfs_PagesIsEncrypted(Cookfs_Pages *p, int index);
+
 Tcl_Obj *Cookfs_PagesGetHashAsObj(Cookfs_Pages *p);
 int Cookfs_PagesSetHashByObj(Cookfs_Pages *p, Tcl_Obj *pagehash,
     Tcl_Interp *interp);
+
+void Cookfs_PagesCalculateHash(Cookfs_Pages *p, unsigned char *bytes,
+    Tcl_Size size, unsigned char *output);
 
 int Cookfs_PageAddStamp(Cookfs_Pages *p, Tcl_WideInt size);
 

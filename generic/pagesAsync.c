@@ -247,7 +247,7 @@ int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
 	    Cookfs_PgIndexGetSizeCompressed(p->pagesIndex, idx),
 	    Cookfs_PgIndexGetSizeUncompressed(p->pagesIndex, idx),
 	    Cookfs_PgIndexGetHashMD5(p->pagesIndex, idx),
-	    0, NULL);
+	    0, 0, NULL);
 	if (dataPageObj == NULL) {
 	    CookfsLog(printf("Cookfs_AsyncPagePreload: ERROR: Cookfs_ReadPage returned NULL, return 1"));
 	    return 1;

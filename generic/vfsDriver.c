@@ -446,8 +446,9 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
 
             if (channel == NULL) {
                 CookfsLog(printf("CookfsOpenFileChannel: got NULL channel"));
-                Tcl_SetErrno(EINTR); // Interrupted system call
-                goto posixerror;
+                // We expect an error message in the results of the create
+                // channel function.
+                goto interperror;
             }
 
             goto done;
@@ -507,8 +508,9 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
     if (channel == NULL) {
         CookfsLog(printf("CookfsOpenFileChannel: got NULL from"
             " Cookfs_CreateWriterchannel()"));
-        Tcl_SetErrno(EINTR); // Interrupted system call
-        goto posixerror;
+        // We expect an error message in the results of the create
+        // channel function.
+        goto interperror;
     }
 
     // Set the current position to the end of the file in case of O_WRONLY
@@ -530,10 +532,23 @@ done:
     goto ret;
 
 posixerror:
-    if (interp != NULL) {
-        Tcl_SetObjResult(interp, Tcl_ObjPrintf("couldn't open \"%s\": %s",
-            Tcl_GetString(pathPtr), Tcl_PosixError(interp)));
+
+    if (interp == NULL) {
+        goto ret;
     }
+
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(Tcl_PosixError(interp), -1));
+
+interperror:
+
+    // We go here if we expect the interp result to already contain an error
+    // message.
+    if (interp == NULL) {
+        goto ret;
+    }
+
+    Tcl_SetObjResult(interp, Tcl_ObjPrintf("couldn't open \"%s\": %s",
+        Tcl_GetString(pathPtr), Tcl_GetStringResult(interp)));
 
 ret:
     if (index != NULL) {

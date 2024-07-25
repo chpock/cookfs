@@ -119,6 +119,13 @@ This is almost an equivalent of calling [method delete].
 [para]
 This is meant for internal development and should not be used outside cookfs.
 
+[call [arg pagesHandle] [method password] [arg secret]]
+Specifies the password to be used for encryption. Empty [arg secret] disables
+encryption for the following added files.
+
+[para]
+See [sectref-external cookfs] for more details on encryption in cookfs.
+
 [list_end]
 
 [section {PAGES OPTIONS}]
@@ -163,6 +170,25 @@ For [arg custom] compression, specifies command to use for decompressing pages.
 
 [para]
 See [sectref-external cookfs] for more details on compression in cookfs.
+
+[def "[option -encryptkey]"]
+Enables key-based encryption.
+
+[para]
+See [sectref-external cookfs] for more details on encryption in cookfs.
+
+[def "[option -encryptlevel] [arg level]"]
+Specifies the encryption level, which must be an unsigned integer from 0 to 31 inclusive.
+The default encryption level is 15.
+
+[para]
+See [sectref-external cookfs] for more details on encryption in cookfs.
+
+[def "[option -password] [arg secret]"]
+Specifies the password to be used for encryption. The [arg secret] argument must not be an empty string.
+
+[para]
+See [sectref-external cookfs] for more details on encryption in cookfs.
 
 [list_end]
 

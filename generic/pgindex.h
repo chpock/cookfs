@@ -24,6 +24,7 @@ int Cookfs_PgIndexSearchByMD5(Cookfs_PgIndex *pgi, unsigned char *hashMD5,
 Tcl_WideInt Cookfs_PgIndexGetEndOffset(Cookfs_PgIndex *pgi, int num);
 Tcl_WideInt Cookfs_PgIndexGetStartOffset(Cookfs_PgIndex *pgi, int num);
 
+void Cookfs_PgIndexSetEncryption(Cookfs_PgIndex *pgi, int num, int encryption);
 void Cookfs_PgIndexSetCompression(Cookfs_PgIndex *pgi, int num,
     int compression, int compressionLevel);
 void Cookfs_PgIndexSetSizeCompressed(Cookfs_PgIndex *pgi, int num,
@@ -33,6 +34,7 @@ int Cookfs_PgIndexGetSizeUncompressed(Cookfs_PgIndex *pgi, int num);
 int Cookfs_PgIndexGetSizeCompressed(Cookfs_PgIndex *pgi, int num);
 int Cookfs_PgIndexGetCompressionLevel(Cookfs_PgIndex *pgi, int num);
 int Cookfs_PgIndexGetCompression(Cookfs_PgIndex *pgi, int num);
+int Cookfs_PgIndexGetEncryption(Cookfs_PgIndex *pgi, int num);
 unsigned char *Cookfs_PgIndexGetHashMD5(Cookfs_PgIndex *pgi, int num);
 
 Cookfs_PgIndex *Cookfs_PgIndexImport(unsigned char *bytes, int size,

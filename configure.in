@@ -302,26 +302,6 @@ else
     USECCRYPTO="no"
 fi
 
-if test ${USECCRYPTO} = yes; then
-    AC_DEFINE(COOKFS_USECRYPTO)
-    AC_DEFINE(COOKFS_USECCRYPTO)
-    COOKFS_PKGCONFIG_USECCRYPTO=1
-    COOKFS_PKGCONFIG_FEATURE_CRYPTO=1
-    TEA_ADD_SOURCES([crypto.c cryptoCmd.c])
-    TEA_ADD_SOURCES([7zip/C/Aes.c 7zip/C/AesOpt.c 7zip/C/Sha256.c 7zip/C/Sha256Opt.c])
-    if test "${TEA_PLATFORM}" = "windows" ; then
-        TEA_ADD_LIBS([-lbcrypt])
-    fi
-    # Include CpuArch.c only if we are not using c-lzma. Otherwise, this file
-    # will be included when processing the lzma option.
-    if test ${USELZMA} != yes; then
-        TEA_ADD_SOURCES([7zip/C/CpuArch.c])
-    fi
-else
-    COOKFS_PKGCONFIG_USECCRYPTO=0
-    COOKFS_PKGCONFIG_FEATURE_CRYPTO=0
-fi
-
 if test ${USECFSINDEX} = yes; then
     AC_DEFINE(COOKFS_USECFSINDEX)
     COOKFS_PKGCONFIG_USECFSINDEX=1
@@ -372,6 +352,38 @@ else
     COOKFS_PKGCONFIG_USECWRITER=0
     COOKFS_PKGCONFIG_USECWRITERCHAN=0
     COOKFS_PKGCONFIG_USECVFS=0
+    # c-crypto requires c-vfs
+    USECCRYPTO="no"
+fi
+
+if test ${USECCRYPTO} = yes; then
+
+    # AES requires AES/PCLMUL instructions
+    AC_MSG_CHECKING(for AES/PCLMUL instruction set)
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #include <wmmintrin.h>
+    ]],[])],
+        [AC_MSG_RESULT(yes)],
+        [AC_MSG_RESULT([no, adding -maes]); TEA_ADD_CFLAGS([-maes])]
+    )
+
+    AC_DEFINE(COOKFS_USECRYPTO)
+    AC_DEFINE(COOKFS_USECCRYPTO)
+    COOKFS_PKGCONFIG_USECCRYPTO=1
+    COOKFS_PKGCONFIG_FEATURE_CRYPTO=1
+    TEA_ADD_SOURCES([crypto.c cryptoCmd.c])
+    TEA_ADD_SOURCES([7zip/C/Aes.c 7zip/C/AesOpt.c 7zip/C/Sha256.c 7zip/C/Sha256Opt.c])
+    if test "${TEA_PLATFORM}" = "windows" ; then
+        TEA_ADD_LIBS([-lbcrypt])
+    fi
+    # Include CpuArch.c only if we are not using c-lzma. Otherwise, this file
+    # will be included when processing the lzma option.
+    if test ${USELZMA} != yes; then
+        TEA_ADD_SOURCES([7zip/C/CpuArch.c])
+    fi
+else
+    COOKFS_PKGCONFIG_USECCRYPTO=0
+    COOKFS_PKGCONFIG_FEATURE_CRYPTO=0
 fi
 
 if test ${USETCLCMDS} = no \

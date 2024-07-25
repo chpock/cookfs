@@ -42,40 +42,67 @@ typedef struct {
 #error Condition COOKFS_PAGEOBJ_BLOCK_SIZE == AES_BLOCK_SIZE is not true. Is is unsupported. Buffer owerflow errors are expected in Cookfs_Aes* functions.
 #endif
 
-void Cookfs_AesEncrypt(Cookfs_PageObj pg, unsigned char *key) {
+#if COOKFS_ENCRYPT_IV_SIZE != AES_BLOCK_SIZE
+#error Condition COOKFS_ENCRYPT_IV_SIZE == AES_BLOCK_SIZE is not true. Is is unsupported. Buffer owerflow errors are expected in Cookfs_Aes* functions.
+#endif
 
+void Cookfs_AesEncryptRaw(unsigned char *buffer, Tcl_Size bufferSize,
+    unsigned char *iv, unsigned char *key)
+{
     CookfsLog2(printf("enter..."));
 
     UInt32 ivAes[AES_NUM_IVMRK_WORDS];
 
-    Cookfs_PageObjAddPadding(pg);
-
-    AesCbc_Init(ivAes, Cookfs_PageObjGetIV(pg));
+    AesCbc_Init(ivAes, iv);
     // ivAes is a pointer to 32-bit integers. But IV size is defined in 8-bit
     // AES_BLOCK_SIZE blocks. So here we use an offset of 4 (32 / 8).
     Aes_SetKey_Enc(ivAes + 4, key, COOKFS_ENCRYPT_KEY_SIZE);
 
     CookfsLog2(printf("run AesCbc_Encode() ..."));
-    AesCbc_Encode(ivAes, pg, Cookfs_PageObjSize(pg) / AES_BLOCK_SIZE);
+    AesCbc_Encode(ivAes, buffer, bufferSize / AES_BLOCK_SIZE);
+
+    CookfsLog2(printf("ok"));
+
+    return;
+}
+
+void Cookfs_AesEncrypt(Cookfs_PageObj pg, unsigned char *key) {
+    CookfsLog2(printf("enter..."));
+
+    Cookfs_PageObjAddPadding(pg);
+    Cookfs_AesEncryptRaw(pg, Cookfs_PageObjSize(pg), Cookfs_PageObjGetIV(pg),
+        key);
 
     CookfsLog2(printf("ok"));
     return;
+}
 
+void Cookfs_AesDecryptRaw(unsigned char *buffer, Tcl_Size bufferSize,
+    unsigned char *iv, unsigned char *key)
+{
+    CookfsLog2(printf("enter..."));
+
+    UInt32 ivAes[AES_NUM_IVMRK_WORDS];
+
+    AesCbc_Init(ivAes, iv);
+    // ivAes is a pointer to 32-bit integers. But IV size is defined in 8-bit
+    // AES_BLOCK_SIZE blocks. So here we use an offset of 4 (32 / 8).
+    Aes_SetKey_Dec(ivAes + 4, key, COOKFS_ENCRYPT_KEY_SIZE);
+
+    CookfsLog2(printf("run AesCbc_Decode() ..."));
+    AesCbc_Decode(ivAes, buffer, bufferSize / AES_BLOCK_SIZE);
+
+    CookfsLog2(printf("ok"));
+
+    return;
 }
 
 int Cookfs_AesDecrypt(Cookfs_PageObj pg, unsigned char *key) {
 
     CookfsLog2(printf("enter..."));
 
-    UInt32 ivAes[AES_NUM_IVMRK_WORDS];
-
-    AesCbc_Init(ivAes, Cookfs_PageObjGetIV(pg));
-    // ivAes is a pointer to 32-bit integers. But IV size is defined in 8-bit
-    // AES_BLOCK_SIZE blocks. So here we use an offset of 4 (32 / 8).
-    Aes_SetKey_Dec(ivAes + 4, key, COOKFS_ENCRYPT_KEY_SIZE);
-
-    CookfsLog2(printf("run AesCbc_Decode() ..."));
-    AesCbc_Decode(ivAes, pg, Cookfs_PageObjSize(pg) / AES_BLOCK_SIZE);
+    Cookfs_AesDecryptRaw(pg, Cookfs_PageObjSize(pg), Cookfs_PageObjGetIV(pg),
+        key);
 
     CookfsLog2(printf("unpad data ..."));
     int rc = Cookfs_PageObjRemovePadding(pg);
@@ -142,17 +169,21 @@ void Cookfs_Pbkdf2Hmac(unsigned char *secret, Tcl_Size secretSize,
         TCL_SIZE_MODIFIER "d, iter: %u, dklen: %u", secretSize, saltSize,
         iterations, dklen));
 
+    HMAC_CTX ctx_init;
     HMAC_CTX ctx;
 
     unsigned char md[SHA256_DIGEST_SIZE];
 
     int counter = 1;
 
+    Cookfs_HmacInit(&ctx_init, secret, secretSize);
+
     while (dklen) {
         unsigned char c[4];
         Cookfs_Int2Binary(&counter, c, 1);
 
-        Cookfs_HmacInit(&ctx, secret, secretSize);
+        //Cookfs_HmacInit(&ctx, secret, secretSize);
+        memcpy(&ctx, &ctx_init, sizeof(ctx));
         Cookfs_HmacUpdate(&ctx, salt, saltSize);
         Cookfs_HmacUpdate(&ctx, c, sizeof(c));
         Cookfs_HmacFinal(&ctx, md);
@@ -164,7 +195,8 @@ void Cookfs_Pbkdf2Hmac(unsigned char *secret, Tcl_Size secretSize,
         CookfsLog2(printf("want_copy: %u", want_copy));
 
         for (unsigned int ic = 1; ic < iterations; ic++) {
-            Cookfs_HmacInit(&ctx, secret, secretSize);
+            memcpy(&ctx, &ctx_init, sizeof(ctx));
+            //Cookfs_HmacInit(&ctx, secret, secretSize);
             Cookfs_HmacUpdate(&ctx, md, sizeof(md));
             Cookfs_HmacFinal(&ctx, md);
             for (unsigned int i = 0; i < want_copy; i++) {

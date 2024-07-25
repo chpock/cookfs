@@ -1,3 +1,9 @@
+2024-07-25 Konstantin Kushnir <chpock@gmail.com>
+	* Add support for encryption
+	* Add MD5 validation for pgindex/fsindex data
+	* Add MD5 validation for pages
+	* Add CI configuration with --disable-c-crypto
+
 2024-07-20 Konstantin Kushnir <chpock@gmail.com>
 	* Refactor storage format
 

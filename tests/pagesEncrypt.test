@@ -1,0 +1,961 @@
+
+tcltest::test cookfsPagesEncrypt-1.1.1 "Test error when password argument has no value" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none -password $file]
+    $pg delete
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg
+} -returnCodes error -result {wrong # args: should be "cookfs::pages ?-readonly|-readwrite|-encryptkey? ?-password password? ?-encryptlevel level? ?-compression mode? ?-cachesize numPages? ?-endoffset numBytes? ?-compresscommand tclCmd? ?-decompresscommand tclcmd? fileName"}
+
+tcltest::test cookfsPagesEncrypt-1.1.2 "Test error when password argument is an empty value" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none -password "" $file]
+    $pg delete
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg
+} -returnCodes error -result {Unable to create Cookfs object: password value must not be an empty string}
+
+tcltest::test cookfsPagesEncrypt-1.2 "Test error when encryptlevel argument has no value" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none -encryptlevel $file]
+    $pg delete
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg
+} -returnCodes error -result {wrong # args: should be "cookfs::pages ?-readonly|-readwrite|-encryptkey? ?-password password? ?-encryptlevel level? ?-compression mode? ?-cachesize numPages? ?-endoffset numBytes? ?-compresscommand tclCmd? ?-decompresscommand tclcmd? fileName"}
+
+tcltest::test cookfsPagesEncrypt-2.1 "Test error for password subcommand with no args" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none $file]
+    $pg password
+    $pg delete
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg
+} -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::pages::handle* password password"}
+
+tcltest::test cookfsPagesEncrypt-2.2 "Test error for password subcommand with wrong # args" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none $file]
+    $pg password a b
+    $pg delete
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg
+} -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::pages::handle* password password"}
+
+tcltest::test cookfsPagesEncrypt-3.1 "Check that there are no additinal data after signature with no encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none $file]
+    $pg add "TEST"
+    $pg delete
+
+    set size [file size $file]
+    set data [tcltest::viewBinFile $file]
+    set offset [string last "CFS0003" $data]
+    incr offset [string length "CFS0003"]
+
+    expr { $size - $offset }
+
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size data result offset
+} -result 0
+
+tcltest::test cookfsPagesEncrypt-3.2 "Check that there are 16 bytes (password salt) additinal data after signature with file encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none -encryptlevel 0 -password foo $file]
+    $pg add "TEST"
+    $pg delete
+
+    set size [file size $file]
+    set data [tcltest::viewBinFile $file]
+    set offset [string last "CFS0003" $data]
+    incr offset [string length "CFS0003"]
+
+    # Tcl fills memory with byte 0x61 during memory allocation and when
+    # memory debugging is enabled. We will use this feature to ensure
+    # that salt is initialized with random bytes. It should not be in
+    # the form of an array of 0x61 bytes.
+
+    # Ensure that the password salt is initialized with random bytes.
+    if { [string range $data $offset+0 $offset+15] eq [binary decode hex [string repeat 61 16]] } {
+        error "salt is not initialized"
+    }
+
+    expr { $size - $offset }
+
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size data result offset
+} -result 16
+
+tcltest::test cookfsPagesEncrypt-3.3 "Check that there are 80 bytes additinal data after signature with key-index encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    $pg add "TEST"
+    $pg delete
+
+    set size [file size $file]
+    set data [tcltest::viewBinFile $file]
+    set offset [string last "CFS0003" $data]
+    incr offset [string length "CFS0003"]
+
+    # Tcl fills memory with byte 0x61 during memory allocation and when
+    # memory debugging is enabled. We will use this feature to ensure
+    # that salt and IV are initialized with random bytes. They should not
+    # be in the form of an array of 0x61 bytes.
+
+    # Ensure that the password salt is initialized with random bytes.
+    if { [string range $data $offset+0 $offset+15] eq [binary decode hex [string repeat 61 16]] } {
+        error "salt is not initialized"
+    }
+
+    # Ensure that the IV is initialized with random bytes.
+    if { [string range $data $offset+16 $offset+31] eq [binary decode hex [string repeat 61 16]] } {
+        error "IV is not initialized"
+    }
+
+    expr { $size - $offset }
+
+    # we expect 80 bytes here:
+    # 16 bytes - password salt
+    # 16 bytes - encrypted key IV
+    # 48 bytes - encrypted key + hash of the encrypted key
+
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size data result offset
+} -result 80
+
+tcltest::test cookfsPagesEncrypt-3.4 "Check that there are 80 bytes additinal data after signature with key encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey $file]
+    $pg password "foo"
+    $pg add "TEST"
+    $pg delete
+
+    set size [file size $file]
+    set data [tcltest::viewBinFile $file]
+    set offset [string last "CFS0003" $data]
+    incr offset [string length "CFS0003"]
+
+    # Tcl fills memory with byte 0x61 during memory allocation and when
+    # memory debugging is enabled. We will use this feature to ensure
+    # that salt and IV are initialized with random bytes. They should not
+    # be in the form of an array of 0x61 bytes.
+
+    # Ensure that the password salt is initialized with random bytes.
+    if { [string range $data $offset+0 $offset+15] eq [binary decode hex [string repeat 61 16]] } {
+        error "salt is not initialized"
+    }
+
+    # Ensure that the IV is initialized with random bytes.
+    if { [string range $data $offset+16 $offset+31] eq [binary decode hex [string repeat 61 16]] } {
+        error "IV is not initialized"
+    }
+
+    expr { $size - $offset }
+
+    # we expect 80 bytes here:
+    # 16 bytes - password salt
+    # 16 bytes - encrypted key IV
+    # 48 bytes - encrypted key + hash of the encrypted key
+
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size data result offset
+} -result 80
+
+tcltest::test cookfsPagesEncrypt-4.1 "Test file encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none -encryptlevel 0 -password foo $file]
+    # this page should be encrypted
+    $pg add "TEST00TEST"
+    $pg password ""
+    # this page should be not encrypted
+    $pg add "TEST01TEST"
+    $pg password "bar"
+    # this page should be encrypted
+    $pg add "TEST02TEST"
+    # index should be unencrypted
+    $pg index "TESTIDXTEST"
+    $pg delete
+
+    # check how pages were stored to archive
+    set data [tcltest::viewBinFile $file]
+    set result [list]
+    if { [set pos [string first "TEST00TEST" $data]] != -1 } {
+        lappend result "page #0: expected -1, but got $pos"
+    }
+    if { [set pos [string first "TEST01TEST" $data]] == -1 } {
+        lappend result "page #2: expected NOT -1, but got $pos"
+    }
+    if { [set pos [string first "TEST02TEST" $data]] != -1 } {
+        lappend result "page #2: expected -1, but got $pos"
+    }
+    if { [set pos [string first "TESTIDXTEST" $data]] == -1 } {
+        lappend result "index: expected NOT -1, but got $pos"
+    }
+
+    # check how pages can be read from archive
+    set pg [cookfs::pages -readonly -password foo $file]
+    if { [$pg get 0] ne "TEST00TEST" } {
+        lappend result "page #0: incorrect data"
+    }
+    if { [$pg get 1] ne "TEST01TEST" } {
+        lappend result "page #1: incorrect data"
+    }
+    $pg password "bar"
+    if { [$pg get 2] ne "TEST02TEST" } {
+        lappend result "page #2: incorrect data"
+    }
+    if { [$pg index] ne "TESTIDXTEST" } {
+        lappend result "index: incorrect data"
+    }
+
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size data result pos
+} -result {}
+
+tcltest::test cookfsPagesEncrypt-4.2 "Test file encryption, password set after initialization" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none -encryptlevel 0 $file]
+    # this page should be not encrypted
+    $pg add "TEST00TEST"
+    $pg password "foo"
+    # this page should be encrypted
+    $pg add "TEST01TEST"
+    $pg password "bar"
+    # this page should be encrypted
+    $pg add "TEST02TEST"
+    # index should be unencrypted
+    $pg index "TESTIDXTEST"
+    $pg delete
+
+    # check how pages were stored to archive
+    set data [tcltest::viewBinFile $file]
+    set result [list]
+    if { [set pos [string first "TEST00TEST" $data]] == -1 } {
+        lappend result "page #0: expected NOT -1, but got $pos"
+    }
+    if { [set pos [string first "TEST01TEST" $data]] != -1 } {
+        lappend result "page #2: expected -1, but got $pos"
+    }
+    if { [set pos [string first "TEST02TEST" $data]] != -1 } {
+        lappend result "page #2: expected -1, but got $pos"
+    }
+    if { [set pos [string first "TESTIDXTEST" $data]] == -1 } {
+        lappend result "index: expected NOT -1, but got $pos"
+    }
+
+    # check how pages can be read from archive
+    set pg [cookfs::pages -readonly $file]
+    if { [$pg get 0] ne "TEST00TEST" } {
+        lappend result "page #0: incorrect data"
+    }
+    $pg password "foo"
+    if { [$pg get 1] ne "TEST01TEST" } {
+        lappend result "page #1: incorrect data"
+    }
+    $pg password "bar"
+    if { [$pg get 2] ne "TEST02TEST" } {
+        lappend result "page #2: incorrect data"
+    }
+    if { [$pg index] ne "TESTIDXTEST" } {
+        lappend result "index: incorrect data"
+    }
+
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size data pos result
+} -result {}
+
+
+tcltest::test cookfsPagesEncrypt-4.3 "Test file encryption, wrong password" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none -encryptlevel 0 -password foo $file]
+    $pg add "TEST00TEST"
+    $pg password "bar"
+    $pg add "TEST01TEST"
+    $pg delete
+
+    set result [list]
+    set pg [cookfs::pages -readonly $file]
+    catch { $pg get 0 } err
+    # Unable to retrieve chunk: no password specified for decrypting
+    lappend result $err
+
+    $pg password foo
+    # TEST00TEST
+    lappend result [$pg get 0]
+    $pg password bar
+    # TEST01TEST
+    lappend result [$pg get 1]
+
+    $pg password ""
+    catch { $pg get 1 } err
+    # Unable to retrieve chunk: no password specified for decrypting
+    lappend result $err
+    $pg password "wrong"
+    catch { $pg get 1 } err
+    # Unable to retrieve chunk: wrong password specified for decrypting
+    lappend result $err
+
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size result err
+} -result {Unable to retrieve chunk: no password specified for decrypting
+TEST00TEST
+TEST01TEST
+Unable to retrieve chunk: no password specified for decrypting
+Unable to retrieve chunk: wrong password specified for decrypting}
+
+tcltest::test cookfsPagesEncrypt-4.4 "Test file encryption, deduplication" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none -encryptlevel 0 $file]
+    set result [list]
+    # add page#0 without encryption
+    set p0 [$pg add "TEST0"]
+    $pg password "foo"
+    # add a page with the same data as page#0, but with encryption enabled.
+    # We should get a new page number, not page#0.
+    set p1 [$pg add "TEST0"]
+    if { $p1 eq $p0 } { lappend result "ERROR: p1 == p0 ($p1 == $p0)" }
+    # add another page with the same data as page#0 and with enabled encryption.
+    # We should get the same page number as page#1.
+    set p2 [$pg add "TEST0"]
+    if { $p2 ne $p1 } { lappend result "ERROR: p2 != p1 ($p2 != $p1)" }
+    $pg password ""
+    # Now we disabled encryption and add another page with the same data
+    # as page#0. We should get the same page number as page#0.
+    set p3 [$pg add "TEST0"]
+    if { $p3 ne $p0 } { lappend result "ERROR: p3 != p0 ($p3 != $p0)" }
+
+    # As for now, we have 2 pages:
+    # page#0 - without password
+    # page#1 - encrypted with password "foo"
+
+    # Let's define another password and try to add a page. Cookfs should try
+    # to use page#1, but since we now have a different password, it must fail
+    # to decrypt page#1 and use the new page number (index == 2).
+
+    $pg password "bar"
+    set p4 [$pg add "TEST0"]
+    if { $p4 != 2 } { lappend result "ERROR: p4 != 2 ($p4 != 2)" }
+
+    # now let's reopen the archive with another password
+    $pg delete
+    set pg [cookfs::pages -password qux $file]
+
+    # The next page should get the next index (index == 3)
+    set p5 [$pg add "TEST0"]
+    if { $p5 != 3 } { lappend result "ERROR: p5 != 3 ($p5 != 3)" }
+
+    # But if we set the password we used for $p1 ("foo"), we get the same
+    # index as for $p1.
+    $pg password "foo"
+    set p6 [$pg add "TEST0"]
+    if { $p6 ne $p1 } { lappend result "ERROR: p6 != p1 ($p6 != $p1)" }
+
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg result num p0 p1 p2 p3 p4 p5 p6
+} -result {}
+
+tcltest::test cookfsPagesEncrypt-5.1 "Test key-index encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Set a password at initialization to enable index encryption
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    # this page should be encrypted
+    $pg add "TEST00TEST"
+    $pg password ""
+    # this page should be not encrypted
+    $pg add "TEST01TEST"
+    $pg password "bar"
+    # this page should be encrypted
+    $pg add "TEST02TEST"
+    # index should be unencrypted
+    $pg index "TESTIDXTEST"
+    $pg delete
+
+    # check how pages were stored to archive
+    set data [tcltest::viewBinFile $file]
+    set result [list]
+    if { [set pos [string first "TEST00TEST" $data]] != -1 } {
+        lappend result "page #0: expected -1, but got $pos"
+    }
+    if { [set pos [string first "TEST01TEST" $data]] == -1 } {
+        lappend result "page #2: expected NOT -1, but got $pos"
+    }
+    if { [set pos [string first "TEST02TEST" $data]] != -1 } {
+        lappend result "page #2: expected -1, but got $pos"
+    }
+    if { [set pos [string first "TESTIDXTEST" $data]] != -1 } {
+        lappend result "index: expected -1, but got $pos"
+    }
+
+    # Check how pages can be read from archive. The latest password was "bar".
+    set pg [cookfs::pages -readonly -password bar $file]
+    if { [$pg get 0] ne "TEST00TEST" } {
+        lappend result "page #0: incorrect data"
+    }
+    if { [$pg get 1] ne "TEST01TEST" } {
+        lappend result "page #1: incorrect data"
+    }
+    # As we have key-based encryption, we have set any password.
+    $pg password "foo"
+    if { [$pg get 2] ne "TEST02TEST" } {
+        lappend result "page #2: incorrect data"
+    }
+    if { [$pg index] ne "TESTIDXTEST" } {
+        lappend result "index: incorrect data"
+    }
+
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size data result pos
+} -result {}
+
+tcltest::test cookfsPagesEncrypt-5.2 "Test key-index encryption, open protected archive without password" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Set a password at initialization to enable index encryption
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    $pg add "TEST00TEST"
+    $pg delete
+
+    set pg [cookfs::pages -readonly $file]
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg
+} -returnCodes error -result {Unable to create Cookfs object: the required password for the encrypted archive is missing}
+
+tcltest::test cookfsPagesEncrypt-5.3 "Test key-index encryption, open protected archive with wrong password" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Set a password at initialization to enable index encryption
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    $pg add "TEST00TEST"
+    $pg delete
+
+    set pg [cookfs::pages -readonly -password bar $file]
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg
+} -returnCodes error -result {Unable to create Cookfs object: could not decrypt the encryption key with the specified password}
+
+tcltest::test cookfsPagesEncrypt-5.4 "Test key-index encryption, deduplication" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Set a password at initialization to enable index encryption
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    set result [list]
+    # add page#0 with encryption
+    set p0 [$pg add "TEST0"]
+    $pg password "foo"
+    # add a page with the same data as page#0. We should get the same index.
+    set p1 [$pg add "TEST0"]
+    if { $p1 ne $p0 } { lappend result "ERROR: p1 != p0 ($p1 != $p0)" }
+    $pg password ""
+    # Now we disabled encryption and add another page with the same data
+    # as page#0. We should get new index (index == 1)
+    set p2 [$pg add "TEST0"]
+    if { $p2 != 1 } { lappend result "ERROR: p2 != 1 ($p2 != 1)" }
+
+    # As for now, we have 2 pages:
+    # page#0 - with password
+    # page#1 - without password
+
+    # Let's define another password and try to add a page. Since we are using
+    # key-based encryption, cookfs should find page#0.
+
+    $pg password "bar"
+    set p3 [$pg add "TEST0"]
+    if { $p3 != $p0 } { lappend result "ERROR: p3 != p0 ($p3 != $p0)" }
+
+    # now let's reopen the archive
+    $pg delete
+    set pg [cookfs::pages -password bar $file]
+
+    # The next page should get the same index as page#0, since we are in encryption
+    # mode after reopening.
+    set p4 [$pg add "TEST0"]
+    if { $p4 != $p0 } { lappend result "ERROR: p4 != p0 ($p4 != $p0)" }
+
+    # But if we disable encryption, we should get the same index as $p2.
+    $pg password ""
+    set p5 [$pg add "TEST0"]
+    if { $p5 ne $p2 } { lappend result "ERROR: p5 != p2 ($p5 != $p2)" }
+
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg result num p0 p1 p2 p3 p4 p5
+} -result {}
+
+tcltest::test cookfsPagesEncrypt-5.5 "Test password change for key-index encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Set a password at initialization to enable index encryption
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    $pg add "TEST0"
+    $pg delete
+
+    set size1 [file size $file]
+    set data1 [tcltest::viewBinFile $file]
+    set offset1 [string last "CFS0003" $data1]
+    incr offset1 [string length "CFS0003"]
+
+    # Open the archive with the old password
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    # Make sure we can read the encrypted page
+    if { [$pg get 0] != "TEST0" } {
+        error "Pass#0: Page#0 doesn't match"
+    }
+
+    # Change the password
+    $pg password "bar"
+    $pg delete
+
+    set size2 [file size $file]
+    set data2 [tcltest::viewBinFile $file]
+    set offset2 [string last "CFS0003" $data2]
+    incr offset2 [string length "CFS0003"]
+
+    # Open the archive with the new password
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password bar $file]
+    # Make sure we can read the encrypted page
+    if { [$pg get 0] != "TEST0" } {
+        error "Pass#1: Page#0 doesn't match"
+    }
+
+    $pg delete
+
+    # Make sure that file size and signature offsets are not changed.
+    if { $size1 != $size2 } {
+        error "\$size1 != \$size2 ($size1 != $size2)"
+    }
+    if { $offset1 != $offset2 } {
+        error "\$offset1 != \$offset2 ($offset1 != $offset2)"
+    }
+    # Make sure that the contents of the file before signing are not modified
+    if { [string range $data1 0 $offset1] != [string range $data2 0 $offset2] } {
+        error "The contents of the file have been changed"
+    }
+    # Verify that the encryption key has been changed
+    if { [string range $data1 $offset1 end] == [string range $data2 $offset2 end] } {
+        error "The encryption key have not been changed"
+    }
+
+    set ok ok
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size1 data1 offset1 size2 data2 offset2 ok
+} -result ok
+
+tcltest::test cookfsPagesEncrypt-6.1 "Test key encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Do not set a password at initialization to avoid encrypting the indexes
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey $file]
+    $pg password "foo"
+    # this page should be encrypted
+    $pg add "TEST00TEST"
+    $pg password ""
+    # this page should be not encrypted
+    $pg add "TEST01TEST"
+    $pg password "bar"
+    # this page should be encrypted
+    $pg add "TEST02TEST"
+    # index should be unencrypted
+    $pg index "TESTIDXTEST"
+    $pg delete
+
+    # check how pages were stored to archive
+    set data [tcltest::viewBinFile $file]
+    set result [list]
+    if { [set pos [string first "TEST00TEST" $data]] != -1 } {
+        lappend result "page #0: expected -1, but got $pos"
+    }
+    if { [set pos [string first "TEST01TEST" $data]] == -1 } {
+        lappend result "page #2: expected NOT -1, but got $pos"
+    }
+    if { [set pos [string first "TEST02TEST" $data]] != -1 } {
+        lappend result "page #2: expected -1, but got $pos"
+    }
+    if { [set pos [string first "TESTIDXTEST" $data]] == -1 } {
+        lappend result "index: expected NOT -1, but got $pos"
+    }
+
+    # Check how pages can be read from archive. The latest password was "bar".
+    set pg [cookfs::pages -readonly -password bar $file]
+    if { [$pg get 0] ne "TEST00TEST" } {
+        lappend result "page #0: incorrect data"
+    }
+    if { [$pg get 1] ne "TEST01TEST" } {
+        lappend result "page #1: incorrect data"
+    }
+    # As we have key-based encryption, we have set any password.
+    $pg password "foo"
+    if { [$pg get 2] ne "TEST02TEST" } {
+        lappend result "page #2: incorrect data"
+    }
+    if { [$pg index] ne "TESTIDXTEST" } {
+        lappend result "index: incorrect data"
+    }
+
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size data result pos
+} -result {}
+
+tcltest::test cookfsPagesEncrypt-6.2 "Test key encryption, without password and with wrong password" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Do not set a password at initialization to avoid encrypting the indexes
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey $file]
+    $pg add "TEST00TEST"
+    $pg password "foo"
+    $pg add "TEST01TEST"
+    $pg delete
+
+    set result [list]
+
+    set pg [cookfs::pages -readonly $file]
+
+    # TEST00TEST
+    lappend result [$pg get 0]
+
+    catch { $pg get 1 } err
+    # Unable to retrieve chunk: no password specified for decrypting
+    lappend result $err
+
+    catch { $pg password "bar" } err
+    # could not decrypt the encryption key with the specified password
+    lappend result $err
+
+    $pg password "foo"
+
+    # TEST01TEST
+    lappend result [$pg get 1]
+
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg result err
+} -result {TEST00TEST
+Unable to retrieve chunk: no password specified for decrypting
+could not decrypt the encryption key with the specified password
+TEST01TEST}
+
+tcltest::test cookfsPagesEncrypt-6.3 "Test key encryption, deduplication" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Do not set a password at initialization to avoid encrypting the indexes
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey $file]
+    set result [list]
+    # add page#0 without encryption
+    set p0 [$pg add "TEST0"]
+    $pg password "foo"
+    # add a page with the same data as page#0, but with encryption enabled.
+    # We should get a new page number, not page#0.
+    set p1 [$pg add "TEST0"]
+    if { $p1 eq $p0 } { lappend result "ERROR: p1 == p0 ($p1 == $p0)" }
+    # add another page with the same data as page#0 and with enabled encryption.
+    # We should get the same page number as page#1.
+    set p2 [$pg add "TEST0"]
+    if { $p2 ne $p1 } { lappend result "ERROR: p2 != p1 ($p2 != $p1)" }
+    $pg password ""
+    # Now we disabled encryption and add another page with the same data
+    # as page#0. We should get the same page number as page#0.
+    set p3 [$pg add "TEST0"]
+    if { $p3 ne $p0 } { lappend result "ERROR: p3 != p0 ($p3 != $p0)" }
+
+    # As for now, we have 2 pages:
+    # page#0 - without password
+    # page#1 - encrypted with password
+
+    # Let's define another password and try to add a page. Since we are using
+    # key-based encryption, we must successfully use page $p1.
+
+    $pg password "bar"
+    set p4 [$pg add "TEST0"]
+    if { $p4 != $p1 } { lappend result "ERROR: p4 != p1 ($p4 != $p1)" }
+
+    # now let's reopen the archive without password
+    $pg delete
+    set pg [cookfs::pages $file]
+
+    # Ensure that we have 2 pages
+    if { [$pg length] != 2 } { lappend result "ERROR: length != 2 ([$pg length] != 2)" }
+
+    # We are not in encrypted mode. The next page should get the same index as $p0.
+    set p5 [$pg add "TEST0"]
+    if { $p5 ne $p0 } { lappend result "ERROR: p5 != p0 ($p5 != $p0)" }
+
+    # But if we set the password, we will get the same index as $p1.
+    $pg password "bar"
+    set p6 [$pg add "TEST0"]
+    if { $p6 ne $p1 } { lappend result "ERROR: p6 != p1 ($p6 != $p1)" }
+
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg result num p0 p1 p2 p3 p4 p5 p6
+} -result {}
+
+tcltest::test cookfsPagesEncrypt-6.4 "Test password change for key encryption" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Do not set a password at initialization to avoid encrypting the indexes
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey $file]
+    $pg password foo
+    $pg add "TEST0"
+    $pg delete
+
+    set size1 [file size $file]
+    set data1 [tcltest::viewBinFile $file]
+    set offset1 [string last "CFS0003" $data1]
+    incr offset1 [string length "CFS0003"]
+
+    # Open the archive with the old password
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    # Make sure we can read the encrypted page
+    if { [$pg get 0] != "TEST0" } {
+        error "Pass#0: Page#0 doesn't match"
+    }
+
+    # Change the password
+    $pg password "bar"
+    $pg delete
+
+    set size2 [file size $file]
+    set data2 [tcltest::viewBinFile $file]
+    set offset2 [string last "CFS0003" $data2]
+    incr offset2 [string length "CFS0003"]
+
+    # Open the archive with the new password
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password bar $file]
+    # Make sure we can read the encrypted page
+    if { [$pg get 0] != "TEST0" } {
+        error "Pass#1: Page#0 doesn't match"
+    }
+
+    $pg delete
+
+    # Make sure that file size and signature offsets are not changed.
+    if { $size1 != $size2 } {
+        error "\$size1 != \$size2 ($size1 != $size2)"
+    }
+    if { $offset1 != $offset2 } {
+        error "\$offset1 != \$offset2 ($offset1 != $offset2)"
+    }
+    # Make sure that the contents of the file before signing are not modified
+    if { [string range $data1 0 $offset1] != [string range $data2 0 $offset2] } {
+        error "The contents of the file have been changed"
+    }
+    # Verify that the encryption key has been changed
+    if { [string range $data1 $offset1 end] == [string range $data2 $offset2 end] } {
+        error "The encryption key have not been changed"
+    }
+
+    set ok ok
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size1 data1 offset1 size2 data2 offset2 ok
+} -result ok
+
+tcltest::test cookfsPagesEncrypt-7.1 "Test encryption with custom compression" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression custom -alwayscompress \
+        -compresscommand testcompress -decompresscommand testdecompress \
+        -encryptlevel 0 -password foo $file]
+    # this page should be encrypted
+    $pg add "TEST00TEST"
+    $pg password ""
+    # this page should be not encrypted
+    $pg add "TEST01TEST"
+    $pg password "bar"
+    # this page should be encrypted
+    $pg add "TEST02TEST"
+    # index should be unencrypted
+    $pg index "TESTIDXTEST"
+    $pg delete
+
+    # Check how pages were stored to archive.
+    set data [tcltest::viewBinFile $file]
+    set result [list]
+    if { [set pos [string first [testcompress "TEST00TEST"] $data]] != -1 } {
+        lappend result "page #0: expected -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST01TEST"] $data]] == -1 } {
+        lappend result "page #2: expected NOT -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST02TEST"] $data]] != -1 } {
+        lappend result "page #2: expected -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TESTIDXTEST"] $data]] == -1 } {
+        lappend result "index: expected NOT -1, but got $pos"
+    }
+
+    # check how pages can be read from archive
+    set pg [cookfs::pages \
+        -compresscommand testcompress -decompresscommand testdecompress \
+        -readonly -password foo $file]
+
+    if { [$pg get 0] ne "TEST00TEST" } {
+        lappend result "page #0: incorrect data"
+    }
+    if { [$pg get 1] ne "TEST01TEST" } {
+        lappend result "page #1: incorrect data"
+    }
+    $pg password "bar"
+    if { [$pg get 2] ne "TEST02TEST" } {
+        lappend result "page #2: incorrect data"
+    }
+    if { [$pg index] ne "TESTIDXTEST" } {
+        lappend result "index: incorrect data"
+    }
+
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size data result pos
+    unset -nocomplain testcompresscount testdecompresscount
+} -result {}
+
+tcltest::test cookfsPagesEncrypt-8.1 "Test encryption with async compression" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set ::testasynccompressfinalized 0
+} -body {
+    set pg [cookfs::pages -compression custom -alwayscompress \
+        -asynccompresscommand testasynccompress -decompresscommand testdecompress \
+        -compresscommand testcompress -decompresscommand testdecompress \
+        -encryptlevel 0 -password foo $file]
+    # this page should be encrypted
+    $pg add "TEST00TEST"
+    $pg add "TEST01TEST"
+    $pg password ""
+    # this page should be not encrypted
+    $pg add "TEST10TEST"
+    $pg add "TEST11TEST"
+    $pg password "bar"
+    # this page should be encrypted
+    $pg add "TEST20TEST"
+    $pg add "TEST21TEST"
+    # index should be unencrypted
+    $pg index "TESTIDXTEST"
+    $pg delete
+
+    set result [list]
+    lappend result $::testasynccompressfinalized
+
+    # Check how pages were stored to archive.
+    set data [tcltest::viewBinFile $file]
+    if { [set pos [string first [testcompress "TEST00TEST"] $data]] != -1 } {
+        lappend result "page #0: expected -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST01TEST"] $data]] != -1 } {
+        lappend result "page #1: expected -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST10TEST"] $data]] == -1 } {
+        lappend result "page #2: expected NOT -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST11TEST"] $data]] == -1 } {
+        lappend result "page #3: expected NOT -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST20TEST"] $data]] != -1 } {
+        lappend result "page #4: expected -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST21TEST"] $data]] != -1 } {
+        lappend result "page #5: expected -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TESTIDXTEST"] $data]] == -1 } {
+        lappend result "index: expected NOT -1, but got $pos"
+    }
+
+    # check how pages can be read from archive
+    set pg [cookfs::pages \
+        -asynccompresscommand testasynccompress -decompresscommand testdecompress \
+        -compresscommand testcompress -decompresscommand testdecompress \
+        -readonly -password foo $file]
+
+    if { [$pg get 0] ne "TEST00TEST" } {
+        lappend result "page #0: incorrect data"
+    }
+    if { [$pg get 1] ne "TEST01TEST" } {
+        lappend result "page #1: incorrect data"
+    }
+    if { [$pg get 2] ne "TEST10TEST" } {
+        lappend result "page #2: incorrect data"
+    }
+    if { [$pg get 3] ne "TEST11TEST" } {
+        lappend result "page #3: incorrect data"
+    }
+    $pg password "bar"
+    if { [$pg get 4] ne "TEST20TEST" } {
+        lappend result "page #4: incorrect data"
+    }
+    if { [$pg get 5] ne "TEST21TEST" } {
+        lappend result "page #5: incorrect data"
+    }
+    if { [$pg index] ne "TESTIDXTEST" } {
+        lappend result "index: incorrect data"
+    }
+
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size data result pos
+    unset -nocomplain testcompresscount testdecompresscount
+    unset -nocomplain testasynccompresscount testasynccompressqueue testasynccompressfinalized
+} -result {1}

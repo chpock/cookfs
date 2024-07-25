@@ -40,32 +40,126 @@ static Tcl_ChannelType cookfsReaderChannel = {
     NULL,
 };
 
-Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages, Cookfs_Fsindex *fsindex, Cookfs_FsindexEntry *entry, Tcl_Interp *interp, char **channelNamePtr)
+Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages,
+    Cookfs_Fsindex *fsindex, Cookfs_FsindexEntry *entry,
+    Tcl_Interp *interp, char **channelNamePtr)
 {
-    Cookfs_ReaderChannelInstData *instData = NULL;
 
-    CookfsLog(printf("Cookfs_CreateReaderchannel: welcome"))
+    CookfsLog2(printf("welcome"))
 
-    instData = Cookfs_CreateReaderchannelAlloc(pages, fsindex, entry);
+    Tcl_Obj *err = NULL;
+
+    CookfsLog2(printf("alloc..."));
+    Cookfs_ReaderChannelInstData *instData =
+        Cookfs_CreateReaderchannelAlloc(pages, fsindex, entry);
 
     if (instData == NULL) {
-        return NULL;
+        CookfsLog2(printf("failed to alloc"));
+        err = Tcl_NewStringObj("failed to alloc", -1);
+        goto error;
     }
-
-    CookfsLog(printf("Cookfs_CreateReaderchannel: alloc"))
 
     if (Cookfs_CreateReaderchannelCreate(instData, interp) != TCL_OK) {
-	CookfsLog(printf("Cookfs_CreateReaderchannel: Cookfs_CreateReaderchannelCreate failed"))
-	Cookfs_CreateReaderchannelFree(instData);
-	return NULL;
+        CookfsLog2(printf("Cookfs_CreateReaderchannelCreate failed"));
+        Cookfs_CreateReaderchannelFree(instData);
+        err = Tcl_NewStringObj("failed to create a channel", -1);
+        goto error;
     }
 
-    if (channelNamePtr != NULL)
-    {
-	*channelNamePtr = (char *)Tcl_GetChannelName(instData->channel);
+    if (entry == NULL) {
+        CookfsLog2(printf("skip encryption check, entry is NULL"));
+        goto done;
+    }
+
+    if (!Cookfs_FsindexLockRead(fsindex, &err)) {
+        goto error;
+    }
+
+    if (Cookfs_FsindexEntryGetBlockCount(entry) < 1) {
+        CookfsLog2(printf("skip encryption check, block count < 1"));
+        goto doneAndUnlock;
+    }
+
+    int pageIndex;
+    Cookfs_FsindexEntryGetBlock(entry, 0, &pageIndex, NULL, NULL);
+
+    if (pageIndex < 0) {
+        CookfsLog2(printf("skip encryption check, pageIndex < 0"));
+        goto doneAndUnlock;
+    }
+
+    if (!Cookfs_PagesLockRead(pages, &err)) {
+        CookfsLog2(printf("ERROR: failed to lock pages"));
+        goto errorAndUnlock;
+    }
+
+    if (!Cookfs_PagesIsEncrypted(pages, pageIndex)) {
+        CookfsLog2(printf("skip encryption check, the page is not encrypted"));
+        Cookfs_PagesUnlock(pages);
+        goto doneAndUnlock;
+    }
+
+    // We know that this is the first read for the file/channel
+    if (!Cookfs_PagesIsCached(pages, pageIndex)) {
+        Cookfs_PagesTickTock(pages);
+    }
+
+    int pageUsage = Cookfs_FsindexGetBlockUsage(fsindex, pageIndex);
+    int pageWeight = (pageUsage <= 1) ? 0 : 1;
+
+    instData->cachedPageObj = Cookfs_PageGet(pages, pageIndex, pageWeight,
+        &err);
+
+    Cookfs_PagesUnlock(pages);
+
+    // If page read failed, then return an error
+    if (instData->cachedPageObj == NULL) {
+        CookfsLog2(printf("ERROR: encryption check failed"));
+        goto errorAndUnlock;
+    }
+
+    // We have successfully read the page. Let's save it to instData so we
+    // don't have to read it again when a read operation is requested.
+
+    instData->firstTimeRead = 0;
+    instData->cachedPageNum = pageIndex;
+
+doneAndUnlock:
+
+    Cookfs_FsindexUnlock(fsindex);
+
+done:
+
+    if (channelNamePtr != NULL) {
+        *channelNamePtr = (char *)Tcl_GetChannelName(instData->channel);
     }
 
     return instData->channel;
+
+errorAndUnlock:
+
+    Cookfs_FsindexUnlock(fsindex);
+
+error:
+
+    if (instData->channel != NULL) {
+        Tcl_UnregisterChannel(interp, instData->channel);
+    }
+
+    if (interp != NULL) {
+
+        if (err == NULL) {
+            err = Tcl_NewStringObj("unknown error", -1);
+        }
+
+        Tcl_SetObjResult(interp, err);
+
+    } else if (err != NULL) {
+        Tcl_BounceRefCount(err);
+    }
+
+    return NULL;
+
 }
 
 int Cookfs_CreateReaderchannelCreate(Cookfs_ReaderChannelInstData *instData, Tcl_Interp *interp) {

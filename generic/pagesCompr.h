@@ -35,12 +35,16 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p,
 void Cookfs_SeekToPage(Cookfs_Pages *p, int idx);
 
 Tcl_Size Cookfs_WritePage(Cookfs_Pages *p, int idx, unsigned char *bytes,
-    Tcl_Size sizeUncompressed, Cookfs_PageObj pgCompressed);
-int Cookfs_WritePageObj(Cookfs_Pages *p, int idx, Cookfs_PageObj data);
+    Tcl_Size sizeUncompressed, unsigned char *md5hash,
+    Cookfs_PageObj pgCompressed);
+
+int Cookfs_WritePageObj(Cookfs_Pages *p, int idx, Cookfs_PageObj data,
+    unsigned char *md5hash);
+
 int Cookfs_WriteTclObj(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compressedData);
 
 Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int compression,
     int sizeCompressed, int sizeUncompressed, unsigned char *md5hash,
-    int decompress, Tcl_Obj **err);
+    int decompress, int encrypted, Tcl_Obj **err);
 
 #endif /* COOKFS_PAGESCOMPR_H */

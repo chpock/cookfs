@@ -19,4 +19,6 @@ int Cookfs_RWMutexLockExclusive(Cookfs_RWMutex mx);
 void Cookfs_RWMutexWantRead(Cookfs_RWMutex mx);
 void Cookfs_RWMutexWantWrite(Cookfs_RWMutex mx);
 
+int Cookfs_RWMutexGetLocks(Cookfs_RWMutex mx);
+
 #endif /* COOKFS_THREADS_H */

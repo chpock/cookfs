@@ -41,6 +41,12 @@ int Cookfs_PgIndexGetCompression(Cookfs_PgIndex *pgi, int num) {
     return pge->compression;
 }
 
+int Cookfs_PgIndexGetEncryption(Cookfs_PgIndex *pgi, int num) {
+    assert(num >= 0 && num < pgi->pagesCount);
+    Cookfs_PgIndexEntry *pge = pgi->data + num;
+    return pge->encryption;
+}
+
 int Cookfs_PgIndexGetCompressionLevel(Cookfs_PgIndex *pgi, int num) {
     assert(num >= 0 && num < pgi->pagesCount);
     Cookfs_PgIndexEntry *pge = pgi->data + num;
@@ -99,18 +105,26 @@ Tcl_WideInt Cookfs_PgIndexGetStartOffset(Cookfs_PgIndex *pgi, int num) {
 void Cookfs_PgIndexSetCompression(Cookfs_PgIndex *pgi, int num,
     int compression, int compressionLevel)
 {
+    assert(num >= 0 && num < pgi->pagesCount);
     Cookfs_PgIndexEntry *pge = pgi->data + num;
-    CookfsLog2(printf("[page#%d] set compression %d, compression level %d",
+    CookfsLog2(printf("page#%d: set compression %d, compression level %d",
         num, compression, compressionLevel));
     pge->compression = compression;
     pge->compressionLevel = compressionLevel;
+}
+
+void Cookfs_PgIndexSetEncryption(Cookfs_PgIndex *pgi, int num, int encryption) {
+    assert(num >= 0 && num < pgi->pagesCount);
+    Cookfs_PgIndexEntry *pge = pgi->data + num;
+    CookfsLog2(printf("page#%d: set encryption %d", num, encryption));
+    pge->encryption = encryption;
 }
 
 void Cookfs_PgIndexSetSizeCompressed(Cookfs_PgIndex *pgi, int num,
     int sizeCompressed)
 {
     Cookfs_PgIndexEntry *pge = pgi->data + num;
-    CookfsLog2(printf("[page#%d] set compressed size %d", num,
+    CookfsLog2(printf("page#%d: set compressed size %d", num,
         sizeCompressed));
     pge->sizeCompressed = sizeCompressed;
 }
@@ -173,12 +187,6 @@ void Cookfs_PgIndexFini(Cookfs_PgIndex *pgi) {
     ckfree(pgi->data);
     ckfree(pgi);
 }
-
-#define PRINTF_MD5_FORMAT "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
-#define PRINTF_MD5_VAR(x) (x)[0] ,(x)[1], (x)[2], (x)[3],  \
-                          (x)[4] ,(x)[5], (x)[6], (x)[7],  \
-                          (x)[8] ,(x)[9], (x)[10],(x)[11], \
-                          (x)[12],(x)[13],(x)[14],(x)[15]
 
 int Cookfs_PgIndexAddPage(Cookfs_PgIndex *pgi, int compression,
     int compressionLevel, int encryption, int sizeCompressed,

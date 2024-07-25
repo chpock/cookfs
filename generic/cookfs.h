@@ -19,45 +19,6 @@
 #include <string.h>
 #include <assert.h>
 
-#ifdef COOKFS_INTERNAL_DEBUG
-
-#ifndef __FUNCTION_NAME__
-    #ifdef _WIN32   // WINDOWS
-        #define __FUNCTION_NAME__   __FUNCTION__
-    #else          // GCC
-        #define __FUNCTION_NAME__   __func__
-    #endif
-#endif
-
-// This is an experiment to print debug messages indented according to
-// the current stack depth. The -funwind-tables compiler key must be used
-// for the backtrace() function to work.
-//
-// This feature is not currently used, but may be used in the future.
-//
-// #include <execinfo.h>
-// static inline int ___get_stack_depth() {
-//     void *buffer[200];
-//     return backtrace(buffer, 200);
-// }
-// #define CookfsLog(a) {printf("%d ", ___get_stack_depth()); a; printf("\n"); fflush(stdout);}
-
-// #define CookfsLog(a) {printf("[%p] ", (void *)Tcl_GetCurrentThread()); a; printf("\n"); fflush(stdout);}
-// #define CookfsLog2(a) {printf("[%p] ", (void *)Tcl_GetCurrentThread()); printf("%s: ", __FUNCTION_NAME__); a; printf("\n"); fflush(stdout);}
-#define CookfsLog(a) {a; printf("\n"); fflush(stdout);}
-#define CookfsLog2(a) {printf("%s: ", __FUNCTION_NAME__); a; printf("\n"); fflush(stdout);}
-#else
-#define CookfsLog(a) {}
-#define CookfsLog2(a) {}
-#endif
-
-#define UNUSED(expr) do { (void)(expr); } while (0)
-
-#ifndef STRINGIFY
-#  define STRINGIFY(x) STRINGIFY1(x)
-#  define STRINGIFY1(x) #x
-#endif
-
 /*
  * Backwards compatibility for size type change
  */
@@ -79,8 +40,79 @@
 #define Tcl_BounceRefCount(x) Tcl_IncrRefCount((x));Tcl_DecrRefCount((x))
 #endif
 
+#ifdef COOKFS_INTERNAL_DEBUG
+
+#ifndef __FUNCTION_NAME__
+    #ifdef _WIN32   // WINDOWS
+        #define __FUNCTION_NAME__   __FUNCTION__
+    #else          // GCC
+        #define __FUNCTION_NAME__   __func__
+    #endif
+#endif
+
+static inline void __cookfs_debug_dump(unsigned char *data, Tcl_Size size) {
+    printf("Dump: 00 01 02 03  04 05 06 07  08 09 0A 0B  0C 0D 0E 0F\n");
+    printf("--------------------------------------------------------\n");
+    int row = 0;
+    int col = 0;
+    for (Tcl_Size i = 0; i < size; i++) {
+        if (!col) {
+            printf(" %02X |", row);
+        } else if (!(col % 4)) {
+            printf(" ");
+        }
+        printf(" %02X", data[i]);
+        if (col == 15) {
+            printf("\n");
+            col = 0;
+            row++;
+        } else {
+            col++;
+        }
+    }
+    if (col) {
+        printf("\n");
+    }
+    printf("------------------------------[ Total: %8" TCL_SIZE_MODIFIER "d"
+        " bytes ]-\n", size);
+}
+
+// This is an experiment to print debug messages indented according to
+// the current stack depth. The -funwind-tables compiler key must be used
+// for the backtrace() function to work.
+//
+// This feature is not currently used, but may be used in the future.
+//
+// #include <execinfo.h>
+// static inline int ___get_stack_depth() {
+//     void *buffer[200];
+//     return backtrace(buffer, 200);
+// }
+// #define CookfsLog(a) {printf("%d ", ___get_stack_depth()); a; printf("\n"); fflush(stdout);}
+
+// #define CookfsLog(a) {printf("[%p] ", (void *)Tcl_GetCurrentThread()); a; printf("\n"); fflush(stdout);}
+// #define CookfsLog2(a) {printf("[%p] ", (void *)Tcl_GetCurrentThread()); printf("%s: ", __FUNCTION_NAME__); a; printf("\n"); fflush(stdout);}
+#define CookfsLog(a) {a; printf("\n"); fflush(stdout);}
+#define CookfsLog2(a) {printf("%s: ", __FUNCTION_NAME__); a; printf("\n"); fflush(stdout);}
+#define CookfsDump(d,s) __cookfs_debug_dump((unsigned char *)d,s)
+#else
+#define CookfsLog(a) {}
+#define CookfsLog2(a) {}
+#define CookfsDump(d,s) {}
+#endif
+
+#define UNUSED(expr) do { (void)(expr); } while (0)
+
+#ifndef STRINGIFY
+#  define STRINGIFY(x) STRINGIFY1(x)
+#  define STRINGIFY1(x) #x
+#endif
+
 #define SET_ERROR(e) \
-    if (err != NULL) { *err = (e); }
+    if (err != NULL) { \
+        if (*err != NULL) { Tcl_BounceRefCount(*err); }; \
+        *err = (e); \
+    }
 
 #define SET_ERROR_STR(e) SET_ERROR(Tcl_NewStringObj((e), -1));
 
@@ -101,6 +133,12 @@
 #define __SANITIZE_ADDRESS__ // GCC already sets this
 #endif
 #endif
+
+#define PRINTF_MD5_FORMAT "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
+#define PRINTF_MD5_VAR(x) (x)[0] ,(x)[1], (x)[2], (x)[3],  \
+                          (x)[4] ,(x)[5], (x)[6], (x)[7],  \
+                          (x)[8] ,(x)[9], (x)[10],(x)[11], \
+                          (x)[12],(x)[13],(x)[14],(x)[15]
 
 #include "common.h"
 #include "bindata.h"

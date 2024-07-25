@@ -315,6 +315,8 @@ package require \fBcookfs ?1\&.8\&.0?\fR
 .sp
 \fIpagesHandle\fR \fBclose\fR
 .sp
+\fIpagesHandle\fR \fBpassword\fR \fIsecret\fR
+.sp
 .BE
 .SH DESCRIPTION
 Cookfs pages provide a low level mechanism for reading and writing to cookfs pages\&.
@@ -413,6 +415,12 @@ Closes pages object and return offset to end of cookfs archive\&.
 This is almost an equivalent of calling \fBdelete\fR\&.
 .sp
 This is meant for internal development and should not be used outside cookfs\&.
+.TP
+\fIpagesHandle\fR \fBpassword\fR \fIsecret\fR
+Specifies the password to be used for encryption\&. Empty \fIsecret\fR disables
+encryption for the following added files\&.
+.sp
+See \fBcookfs\fR for more details on encryption in cookfs\&.
 .PP
 .SH "PAGES OPTIONS"
 The following options can be specified when creating a cookfs pages object:
@@ -449,6 +457,22 @@ See \fBcookfs\fR for more details on compression in cookfs\&.
 For \fIcustom\fR compression, specifies command to use for decompressing pages\&.
 .sp
 See \fBcookfs\fR for more details on compression in cookfs\&.
+.TP
+\fB-encryptkey\fR
+Enables key-based encryption\&.
+.sp
+See \fBcookfs\fR for more details on encryption in cookfs\&.
+.TP
+\fB-encryptlevel\fR \fIlevel\fR
+Specifies the encryption level, which must be an unsigned integer from 0 to 31 inclusive\&.
+The default encryption level is 15\&.
+.sp
+See \fBcookfs\fR for more details on encryption in cookfs\&.
+.TP
+\fB-password\fR \fIsecret\fR
+Specifies the password to be used for encryption\&. The \fIsecret\fR argument must not be an empty string\&.
+.sp
+See \fBcookfs\fR for more details on encryption in cookfs\&.
 .PP
 .SH "SEE ALSO"
 cookfs_fsindex, cookfs_pages

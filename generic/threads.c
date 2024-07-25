@@ -32,6 +32,10 @@ Cookfs_RWMutex Cookfs_RWMutexInit(void) {
     return mx;
 }
 
+int Cookfs_RWMutexGetLocks(Cookfs_RWMutex mx) {
+    return mx->numLocks;
+}
+
 void Cookfs_RWMutexWantRead(Cookfs_RWMutex mx) {
     Tcl_MutexLock(&mx->mx);
     assert((mx->threadId != NULL || mx->numLocks != 0) && "Want read or write lock");
