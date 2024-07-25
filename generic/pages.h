@@ -61,6 +61,8 @@ int Cookfs_PagesSetMaxAge(Cookfs_Pages *p, int maxAge);
 int Cookfs_PagesTickTock(Cookfs_Pages *p);
 int Cookfs_PagesIsCached(Cookfs_Pages *p, int index);
 
+int Cookfs_PagesIsEncrypted(Cookfs_Pages *p, int index);
+
 Tcl_Obj *Cookfs_PagesGetHashAsObj(Cookfs_Pages *p);
 int Cookfs_PagesSetHashByObj(Cookfs_Pages *p, Tcl_Obj *pagehash,
     Tcl_Interp *interp);

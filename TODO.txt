@@ -1,14 +1,9 @@
-* Add support for encrypted/password protected files
 * Add support for full-featured C-API. It should be possible to set all
   possible options, similar to the curl curl_easy_setopt() interface.
 * Add documentation as HTML to github pages
-* Add CI configuration with --disable-c-crypto
 * Consider mapping archive to memory to improve performance on readonly VFS
 * Add ability to disable custom compression to reduce size footprint when it is not needed
 * Add ability to disable async compression to reduce size footprint when it is not needed
-* Add MD5 hash validation on load for pgindex data
-* Add MD5 hash validation on load for fsindex data
-* Add MD5 hash validation on load for all pages data
 * Update bzip2 and use it as a submodule. Perhaps this will get rid of its compile-time warnings.
 * Add support for storing file permissions and attributes (for Windows platform)
 * Add support for 'file attribute' commands to return general attributes and attributes like zipfs in Tcl9

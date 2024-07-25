@@ -1029,8 +1029,10 @@ int Cookfs_PagesCmdForward(Cookfs_PagesForwardCmd cmd, void *p,
         return CookfsPagesCmdAside(p, interp, objc, objv);
     case COOKFS_PAGES_FORWARD_COMMAND_COMPRESSION:
         return CookfsPagesCmdCompression(p, interp, objc, objv);
+#ifdef COOKFS_USECCRYPTO
     case COOKFS_PAGES_FORWARD_COMMAND_PASSWORD:
         return CookfsPagesCmdPassword(p, interp, objc, objv);
+#endif /* COOKFS_USECCRYPTO */
     }
     return TCL_ERROR;
 }

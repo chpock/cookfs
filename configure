@@ -9414,6 +9414,37 @@ else
 fi
 
 if test ${USECCRYPTO} = yes; then
+
+    # AES requires AES/PCLMUL instructions
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for AES/PCLMUL instruction set" >&5
+printf %s "checking for AES/PCLMUL instruction set... " >&6; }
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        #include <wmmintrin.h>
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+else $as_nop
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no, adding -maes" >&5
+printf "%s\n" "no, adding -maes" >&6; };
+    PKG_CFLAGS="$PKG_CFLAGS -maes"
+
+
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+
     printf "%s\n" "#define COOKFS_USECRYPTO 1" >>confdefs.h
 
     printf "%s\n" "#define COOKFS_USECCRYPTO 1" >>confdefs.h

@@ -31,8 +31,11 @@ jobs:
             configure: "--disable-c-readerchannel --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
             description: "no readedchannel, writer, writerchannel, vfs"
           - compiler: gcc
-            configure: " --disable-c-writer --disable-c-writerchannel --disable-c-vfs"
+            configure: "--disable-c-writer --disable-c-writerchannel --disable-c-vfs"
             description: "no writer, writerchannel, vfs"
+          - compiler: gcc
+            configure: "--disable-c-crypto"
+            description: "no crypto"
     name: build (${{ matrix.compiler }}, ${{ matrix.description }})
     steps:
       - name: Checkout

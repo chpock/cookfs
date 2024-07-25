@@ -303,6 +303,16 @@ else
 fi
 
 if test ${USECCRYPTO} = yes; then
+
+    # AES requires AES/PCLMUL instructions
+    AC_MSG_CHECKING(for AES/PCLMUL instruction set)
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #include <wmmintrin.h>
+    ]],[])],
+        [AC_MSG_RESULT(yes)],
+        [AC_MSG_RESULT([no, adding -maes]); TEA_ADD_CFLAGS([-maes])]
+    )
+
     AC_DEFINE(COOKFS_USECRYPTO)
     AC_DEFINE(COOKFS_USECCRYPTO)
     COOKFS_PKGCONFIG_USECCRYPTO=1

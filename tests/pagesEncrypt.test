@@ -641,7 +641,7 @@ tcltest::test cookfsPagesEncrypt-6.1 "Test key encryption" -constraints {enabled
     unset -nocomplain file pg size data
 } -result {}
 
-tcltest::test cookfsPagesEncrypt-6.2 "Test key encryption, wrong password" -constraints {enabledTclCmds cookfsCrypto} -setup {
+tcltest::test cookfsPagesEncrypt-6.2 "Test key encryption, without password and with wrong password" -constraints {enabledTclCmds cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     # Do not set a password at initialization to avoid encrypting the indexes
@@ -799,3 +799,149 @@ tcltest::test cookfsPagesEncrypt-6.4 "Test password change for key encryption" -
     catch {file delete -force $file}
     unset -nocomplain file pg size1 data1 offset1 size2 data2 offset2
 } -result ok
+
+tcltest::test cookfsPagesEncrypt-7.1 "Test encryption with custom compression" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression custom -alwayscompress \
+        -compresscommand testcompress -decompresscommand testdecompress \
+        -encryptlevel 0 -password foo $file]
+    # this page should be encrypted
+    $pg add "TEST00TEST"
+    $pg password ""
+    # this page should be not encrypted
+    $pg add "TEST01TEST"
+    $pg password "bar"
+    # this page should be encrypted
+    $pg add "TEST02TEST"
+    # index should be unencrypted
+    $pg index "TESTIDXTEST"
+    $pg delete
+
+    # Check how pages were stored to archive.
+    set data [tcltest::viewBinFile $file]
+    set result [list]
+    if { [set pos [string first [testcompress "TEST00TEST"] $data]] != -1 } {
+        lappend result "page #0: expected -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST01TEST"] $data]] == -1 } {
+        lappend result "page #2: expected NOT -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST02TEST"] $data]] != -1 } {
+        lappend result "page #2: expected -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TESTIDXTEST"] $data]] == -1 } {
+        lappend result "index: expected NOT -1, but got $pos"
+    }
+
+    # check how pages can be read from archive
+    set pg [cookfs::pages \
+        -compresscommand testcompress -decompresscommand testdecompress \
+        -readonly -password foo $file]
+
+    if { [$pg get 0] ne "TEST00TEST" } {
+        lappend result "page #0: incorrect data"
+    }
+    if { [$pg get 1] ne "TEST01TEST" } {
+        lappend result "page #1: incorrect data"
+    }
+    $pg password "bar"
+    if { [$pg get 2] ne "TEST02TEST" } {
+        lappend result "page #2: incorrect data"
+    }
+    if { [$pg index] ne "TESTIDXTEST" } {
+        lappend result "index: incorrect data"
+    }
+
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size data
+} -result {}
+
+tcltest::test cookfsPagesEncrypt-8.1 "Test encryption with async compression" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    set ::testasynccompressfinalized 0
+} -body {
+    set pg [cookfs::pages -compression custom -alwayscompress \
+        -asynccompresscommand testasynccompress -decompresscommand testdecompress \
+        -compresscommand testcompress -decompresscommand testdecompress \
+        -encryptlevel 0 -password foo $file]
+    # this page should be encrypted
+    $pg add "TEST00TEST"
+    $pg add "TEST01TEST"
+    $pg password ""
+    # this page should be not encrypted
+    $pg add "TEST10TEST"
+    $pg add "TEST11TEST"
+    $pg password "bar"
+    # this page should be encrypted
+    $pg add "TEST20TEST"
+    $pg add "TEST21TEST"
+    # index should be unencrypted
+    $pg index "TESTIDXTEST"
+    $pg delete
+
+    set result [list]
+    lappend result $::testasynccompressfinalized
+
+    # Check how pages were stored to archive.
+    set data [tcltest::viewBinFile $file]
+    if { [set pos [string first [testcompress "TEST00TEST"] $data]] != -1 } {
+        lappend result "page #0: expected -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST01TEST"] $data]] != -1 } {
+        lappend result "page #1: expected -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST10TEST"] $data]] == -1 } {
+        lappend result "page #2: expected NOT -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST11TEST"] $data]] == -1 } {
+        lappend result "page #3: expected NOT -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST20TEST"] $data]] != -1 } {
+        lappend result "page #4: expected -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TEST21TEST"] $data]] != -1 } {
+        lappend result "page #5: expected -1, but got $pos"
+    }
+    if { [set pos [string first [testcompress "TESTIDXTEST"] $data]] == -1 } {
+        lappend result "index: expected NOT -1, but got $pos"
+    }
+
+    # check how pages can be read from archive
+    set pg [cookfs::pages \
+        -asynccompresscommand testasynccompress -decompresscommand testdecompress \
+        -compresscommand testcompress -decompresscommand testdecompress \
+        -readonly -password foo $file]
+
+    if { [$pg get 0] ne "TEST00TEST" } {
+        lappend result "page #0: incorrect data"
+    }
+    if { [$pg get 1] ne "TEST01TEST" } {
+        lappend result "page #1: incorrect data"
+    }
+    if { [$pg get 2] ne "TEST10TEST" } {
+        lappend result "page #2: incorrect data"
+    }
+    if { [$pg get 3] ne "TEST11TEST" } {
+        lappend result "page #3: incorrect data"
+    }
+    $pg password "bar"
+    if { [$pg get 4] ne "TEST20TEST" } {
+        lappend result "page #4: incorrect data"
+    }
+    if { [$pg get 5] ne "TEST21TEST" } {
+        lappend result "page #5: incorrect data"
+    }
+    if { [$pg index] ne "TESTIDXTEST" } {
+        lappend result "index: incorrect data"
+    }
+
+    join $result \n
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg size data result
+} -result {1}

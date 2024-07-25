@@ -545,6 +545,7 @@ Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int compression,
                 " decrypting", -1));
             return NULL;
         }
+        sizeCompressed = Cookfs_PageObjSize(dataCompressed);
     }
 
 #endif /* COOKFS_USECCRYPTO */
@@ -571,6 +572,11 @@ Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int compression,
     CookfsLog2(printf("uncompress data..."));
 
     int rc = TCL_ERROR;
+
+    if (err != NULL && *err != NULL) {
+        Tcl_BounceRefCount(*err);
+        *err = NULL;
+    }
 
     switch (compression) {
     case COOKFS_COMPRESSION_ZLIB:
@@ -611,8 +617,16 @@ Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int compression,
 
     if (rc != TCL_OK) {
         Cookfs_PageObjBounceRefCount(dataUncompressed);
-        CookfsLog2(printf("return: ERROR"));
-        SET_ERROR(Tcl_NewStringObj("decompression failed", -1));
+        if (err == NULL) {
+            CookfsLog2(printf("return: ERROR"));
+        } else {
+            if (*err == NULL) {
+                *err = Tcl_NewStringObj("decompression failed", -1);
+                CookfsLog2(printf("return: ERROR (decompression failed)"));
+            } else {
+                CookfsLog2(printf("return: ERROR (%s)", Tcl_GetString(*err)));
+            }
+        }
         return NULL;
     }
 

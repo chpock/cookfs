@@ -46,8 +46,8 @@ int Cookfs_FsindexLockRW(int isWrite, Cookfs_Fsindex *i, Tcl_Obj **err) {
             *err = Tcl_NewStringObj("stalled fsindex object detected", -1);
         }
     } else {
-        CookfsLog(printf("%s: ok", isWrite ? "Cookfs_FsindexLockWrite" :
-            "Cookfs_FsindexLockRead"));
+        CookfsLog(printf("%s: ok (%d)", isWrite ? "Cookfs_FsindexLockWrite" :
+            "Cookfs_FsindexLockRead", Cookfs_RWMutexGetLocks(i->mx)));
     }
 #else
     UNUSED(isWrite);
@@ -60,7 +60,8 @@ int Cookfs_FsindexLockRW(int isWrite, Cookfs_Fsindex *i, Tcl_Obj **err) {
 int Cookfs_FsindexUnlock(Cookfs_Fsindex *i) {
 #ifdef TCL_THREADS
     Cookfs_RWMutexUnlock(i->mx);
-    CookfsLog(printf("Cookfs_FsindexUnlock: ok"));
+    CookfsLog(printf("Cookfs_FsindexUnlock: ok (%d)",
+        Cookfs_RWMutexGetLocks(i->mx)));
 #else
     UNUSED(i);
 #endif /* TCL_THREADS */
