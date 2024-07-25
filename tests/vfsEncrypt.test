@@ -24,6 +24,16 @@ tcltest::test cookfsVfsEncrypt-1.1.2 "Test error when password argument has no v
     unset -nocomplain file
 } -returnCodes error -result {missing argument to -password option}
 
+tcltest::test cookfsVfsEncrypt-1.1.3 "Test error when password argument ia an empty string" -constraints {cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} cookfs.cfs]
+} -body {
+    cookfs::Mount $file $file -password ""
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file
+} -returnCodes error -result {Unable to create Cookfs object: password value must not be an empty string}
+
 tcltest::test cookfsVfsEncrypt-1.2.1 "Test error when encryptlevel argument has no value" -constraints {cookfsCrypto} -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
 } -body {

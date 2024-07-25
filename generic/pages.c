@@ -467,6 +467,17 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     Tcl_Obj *asyncCompressCommand, Tcl_Obj *asyncDecompressCommand,
     Tcl_Obj **err)
 {
+
+#ifdef COOKFS_USECCRYPTO
+    if (password != NULL && !Tcl_GetCharLength(password)) {
+        if (interp != NULL) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
+                ": password value must not be an empty string", -1));
+        }
+        return NULL;
+    }
+#endif /* COOKFS_USECCRYPTO */
+
     Cookfs_Pages *rc = (Cookfs_Pages *) ckalloc(sizeof(Cookfs_Pages));
     int i;
 

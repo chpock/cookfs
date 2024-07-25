@@ -1,5 +1,5 @@
 
-tcltest::test cookfsPagesEncrypt-1.1 "Test error when password argument has no value" -constraints {enabledTclCmds cookfsCrypto} -setup {
+tcltest::test cookfsPagesEncrypt-1.1.1 "Test error when password argument has no value" -constraints {enabledTclCmds cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     set pg [cookfs::pages -compression none -password $file]
@@ -9,6 +9,17 @@ tcltest::test cookfsPagesEncrypt-1.1 "Test error when password argument has no v
     catch {file delete -force $file}
     unset -nocomplain file pg
 } -returnCodes error -result {wrong # args: should be "cookfs::pages ?-readonly|-readwrite|-encryptkey? ?-password password? ?-encryptlevel level? ?-compression mode? ?-cachesize numPages? ?-endoffset numBytes? ?-compresscommand tclCmd? ?-decompresscommand tclcmd? fileName"}
+
+tcltest::test cookfsPagesEncrypt-1.1.2 "Test error when password argument is an empty value" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    set pg [cookfs::pages -compression none -password "" $file]
+    $pg delete
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg
+} -returnCodes error -result {Unable to create Cookfs object: password value must not be an empty string}
 
 tcltest::test cookfsPagesEncrypt-1.2 "Test error when encryptlevel argument has no value" -constraints {enabledTclCmds cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]
