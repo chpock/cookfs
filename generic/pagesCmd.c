@@ -179,7 +179,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     Cookfs_Pages *pages;
     int idx;
     int oReadOnly = 0;
-    int oCompression = -1;
+    Cookfs_CompressionType oCompression = -1;
     int oCompressionLevel = -1;
     int tobjc = objc;
     int oCachesize = -1;

@@ -72,8 +72,10 @@ const int cookfsCompressionOptionMap[] = {
     -1 /* dummy entry */
 };
 
-const char *Cookfs_CompressionGetName(int compression) {
+const char *Cookfs_CompressionGetName(Cookfs_CompressionType compression) {
     switch (compression) {
+    case COOKFS_COMPRESSION_DEFAULT:
+        return "default";
     case COOKFS_COMPRESSION_NONE:
         return "none";
     case COOKFS_COMPRESSION_ZLIB:
@@ -88,14 +90,12 @@ const char *Cookfs_CompressionGetName(int compression) {
         return "brotli";
     case COOKFS_COMPRESSION_CUSTOM:
         return "custom";
-    case COOKFS_COMPRESSION_ANY:
-        return "any";
     default:
         return "unknown";
     }
 }
 
-static int Cookfs_CompressionGetDefaultLevel(int compression) {
+static int Cookfs_CompressionGetDefaultLevel(Cookfs_CompressionType compression) {
     switch (compression) {
     case COOKFS_COMPRESSION_NONE:
         return 0;
@@ -142,7 +142,7 @@ static int Cookfs_CompressionGetDefaultLevel(int compression) {
  */
 
 int Cookfs_CompressionFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
-    int *compressionPtr, int *compressionLevelPtr)
+    Cookfs_CompressionType *compressionPtr, int *compressionLevelPtr)
 {
     CookfsLog(printf("Cookfs_CompressionFromObj: from [%s]",
         obj == NULL ? "<NULL>" : Tcl_GetString(obj)));
@@ -233,8 +233,8 @@ done:
         compressionLevel = Cookfs_CompressionGetDefaultLevel(compression);
     }
     *compressionLevelPtr = compressionLevel;
-    CookfsLog(printf("Cookfs_CompressionFromObj: return method [%d]"
-        " level [%d]", compression, compressionLevel));
+    CookfsLog2(printf("return method %d [%s] level [%d]", (int)compression,
+        Cookfs_CompressionGetName(compression), compressionLevel));
     return TCL_OK;
 }
 
@@ -467,16 +467,18 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
  *----------------------------------------------------------------------
  */
 
-Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int compression,
-    int sizeCompressed, int sizeUncompressed, unsigned char *md5hash,
-    int decompress, int encrypted, Tcl_Obj **err)
+Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx,
+    Cookfs_CompressionType compression, int sizeCompressed,
+    int sizeUncompressed, unsigned char *md5hash, int decompress,
+    int encrypted, Tcl_Obj **err)
 {
 
     p->fileLastOp = COOKFS_LASTOP_READ;
 
     CookfsLog2(printf("page #%d compression:%d sizeCompressed:%d"
-        " sizeUncompressed:%d decompress:%d encrypted:%d", idx, compression,
-        sizeCompressed, sizeUncompressed, decompress, encrypted));
+        " sizeUncompressed:%d decompress:%d encrypted:%d", idx,
+        (int)compression, sizeCompressed, sizeUncompressed, decompress,
+        encrypted));
 
     assert(sizeCompressed >= 0);
     assert(sizeUncompressed >= 0);
@@ -611,6 +613,9 @@ Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx, int compression,
             dataUncompressed, sizeUncompressed, err);
         break;
 #endif /* COOKFS_USEBROTLI */
+    default:
+        assert(1 && "Unsupported compression");
+        break;
     }
 
     Cookfs_PageObjBounceRefCount(dataCompressed);
@@ -749,7 +754,7 @@ Tcl_Size Cookfs_WritePage(Cookfs_Pages *p, int idx, unsigned char *bytes,
         Cookfs_SeekToPage(p, idx);
     }
 
-    int resultCompression = p->currentCompression;
+    Cookfs_CompressionType resultCompression = p->currentCompression;
     int resultCompressionLevel = p->currentCompressionLevel;
     Tcl_Size resultSize;
 
@@ -791,6 +796,9 @@ Tcl_Size Cookfs_WritePage(Cookfs_Pages *p, int idx, unsigned char *bytes,
         pgCompressed = CookfsWritePageBrotli(p, bytes, sizeUncompressed);
         break;
 #endif /* COOKFS_USEZSTD */
+    default:
+        assert(1 && "Unsupported compression");
+        break;
     };
 
 skipCompression:

@@ -22,7 +22,7 @@
 // for BCryptGenRandom()
 #include <bcrypt.h>
 // for NT_SUCCESS()
-#include <Ntdef.h>
+#include <ntdef.h>
 #endif /* _WIN32 */
 
 #include "../7zip/C/Aes.h"

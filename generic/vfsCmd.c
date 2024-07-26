@@ -16,6 +16,49 @@
 #include "fsindexCmd.h"
 #include "writerCmd.h"
 
+struct _Cookfs_VfsProps {
+
+//#ifdef COOKFS_USETCLCMDS
+    Tcl_Obj *pagesobject;
+    Tcl_Obj *fsindexobject;
+    int noregister;
+    Tcl_Obj *bootstrap;
+//#endif
+
+    int nocommand;
+    int alwayscompress;
+
+    Cookfs_CompressionType compression;
+    int compressionlevel;
+
+    Tcl_Obj *compresscommand;
+    Tcl_Obj *decompresscommand;
+    Tcl_Obj *asynccompresscommand;
+    Tcl_Obj *asyncdecompresscommand;
+
+    int asyncdecompressqueuesize;
+    Tcl_WideInt endoffset;
+    Tcl_Obj *setmetadata;
+    int readonly;
+    int writetomemory;
+    int pagecachesize;
+    int volume;
+    Tcl_WideInt pagesize;
+    Tcl_WideInt smallfilesize;
+    Tcl_WideInt smallfilebuffer;
+    int nodirectorymtime;
+    Cookfs_HashType pagehash;
+
+    int shared;
+
+//#ifdef COOKFS_USECCRYPTO
+    Tcl_Obj *password;
+    int encryptkey;
+    int encryptlevel;
+//#endif /* COOKFS_USECCRYPTO */
+
+};
+
 typedef int (Cookfs_MountHandleCommandProc)(Cookfs_Vfs *vfs,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
@@ -49,43 +92,61 @@ int Cookfs_InitVfsMountCmd(Tcl_Interp *interp) {
 
 }
 
-Cookfs_VfsProps *Cookfs_VfsPropsInit(Cookfs_VfsProps *p) {
+Cookfs_VfsProps *Cookfs_VfsPropsInit(void) {
+    Cookfs_VfsProps *p = ckalloc(sizeof(Cookfs_VfsProps));
     if (p == NULL) {
-        p = ckalloc(sizeof(Cookfs_VfsProps));
+        Tcl_Panic("Cookfs_VfsPropsInit(): failed to alloc");
+        // Just to avoid complaints from cppcheck
+        return NULL;
     }
-    if (p != NULL) {
+
+//#ifdef COOKFS_USETCLCMDS
+    p->pagesobject = NULL;
+    p->fsindexobject = NULL;
+    p->bootstrap = NULL;
+
 #ifdef COOKFS_USETCLCMDS
-        p->pagesobject = NULL;
-        p->fsindexobject = NULL;
-        p->noregister = 0;
-        p->bootstrap = NULL;
-#endif
-        p->nocommand = 0;
-        p->compression = NULL;
-        p->alwayscompress = 0;
-        p->compresscommand = NULL;
-        p->asynccompresscommand = NULL;
-        p->asyncdecompresscommand = NULL;
-        p->asyncdecompressqueuesize = 2;
-        p->decompresscommand = NULL;
-        p->endoffset = -1;
-        p->setmetadata = NULL;
-        p->readonly = 0;
-        p->writetomemory = 0;
-        p->pagecachesize = 8;
-        p->volume = 0;
-        p->pagesize = 262144;
-        p->smallfilesize = 32768;
-        p->smallfilebuffer = 4194304;
-        p->nodirectorymtime = 0;
-        p->pagehash = NULL;
-        p->shared = 0;
+    p->noregister = 0;
+#else
+    p->noregister = -1;
+#endif /* COOKFS_USETCLCMDS */
+//#endif
+
+    p->nocommand = 0;
+    p->compression = COOKFS_COMPRESSION_DEFAULT;
+    p->compressionlevel = 0;
+    p->alwayscompress = 0;
+    p->compresscommand = NULL;
+    p->asynccompresscommand = NULL;
+    p->asyncdecompresscommand = NULL;
+    p->asyncdecompressqueuesize = 2;
+    p->decompresscommand = NULL;
+    p->endoffset = -1;
+    p->setmetadata = NULL;
+    p->readonly = 0;
+    p->writetomemory = 0;
+    p->pagecachesize = 8;
+    p->volume = 0;
+    p->pagesize = 262144;
+    p->smallfilesize = 32768;
+    p->smallfilebuffer = 4194304;
+    p->nodirectorymtime = 0;
+    p->pagehash = COOKFS_HASH_DEFAULT;
+    p->shared = 0;
+
+//#ifdef COOKFS_USECCRYPTO
+    p->password = NULL;
+    p->encryptkey = 0;
+    p->encryptlevel = -1;
+
 #ifdef COOKFS_USECCRYPTO
-        p->password = NULL;
-        p->encryptkey = 0;
-        p->encryptlevel = -1;
+    p->encryptkey = 0;
+#else
+    p->encryptkey = -1;
 #endif /* COOKFS_USECCRYPTO */
-    }
+//#endif /* COOKFS_USECCRYPTO */
+
+    CookfsLog2(printf("return: %p", (void *)p));
     return p;
 }
 
@@ -93,27 +154,94 @@ void Cookfs_VfsPropsFree(Cookfs_VfsProps *p) {
     ckfree(p);
 }
 
-void Cookfs_VfsPropSetReadonly(Cookfs_VfsProps *p, int readonly) {
-    if (p != NULL) {
-        p->readonly = readonly;
-    }
-}
-
-void Cookfs_VfsPropSetVolume(Cookfs_VfsProps *p, int volume) {
-    if (p != NULL) {
-        p->volume = volume;
-    }
-}
-
-void Cookfs_VfsPropSetWritetomemory(Cookfs_VfsProps *p, int writetomemory) {
-    if (p != NULL) {
-        p->writetomemory = writetomemory;
-    }
-}
-
-void Cookfs_VfsPropSetShared(Cookfs_VfsProps *p, int shared) {
-    if (p != NULL) {
-        p->shared = shared;
+void Cookfs_VfsPropSet(Cookfs_VfsProps *p, Cookfs_VfsPropertiesType type,
+    intptr_t value)
+{
+    switch (type) {
+    case COOKFS_PROP_PAGESOBJ:
+        p->pagesobject = (Tcl_Obj *)value;
+        break;
+    case COOKFS_PROP_FSINDEXOBJ:
+        p->fsindexobject = (Tcl_Obj *)value;
+        break;
+    case COOKFS_PROP_NOREGISTER:
+        p->noregister = value;
+        break;
+    case COOKFS_PROP_BOOTSTRAP:
+        p->bootstrap = (Tcl_Obj *)value;
+        break;
+    case COOKFS_PROP_NOCOMMAND:
+        p->nocommand = value;
+        break;
+    case COOKFS_PROP_COMPRESSION:
+        p->compression = (Cookfs_CompressionType)value;
+        break;
+    case COOKFS_PROP_COMPRESSIONLEVEL:
+        p->compressionlevel = value;
+        break;
+    case COOKFS_PROP_ALWAYSCOMPRESS:
+        p->alwayscompress = value;
+        break;
+    case COOKFS_PROP_COMPRESSCOMMAND:
+        p->compresscommand = (Tcl_Obj *)value;
+        break;
+    case COOKFS_PROP_DECOMPRESSCOMMAND:
+        p->decompresscommand = (Tcl_Obj *)value;
+        break;
+    case COOKFS_PROP_ASYNCCOMPRESSCOMMAND:
+        p->asynccompresscommand = (Tcl_Obj *)value;
+        break;
+    case COOKFS_PROP_ASYNCDECOMPRESSCOMMAND:
+        p->asyncdecompresscommand = (Tcl_Obj *)value;
+        break;
+    case COOKFS_PROP_ASYNCDECOMPRESSQUEUESIZE:
+        p->asyncdecompressqueuesize = value;
+        break;
+    case COOKFS_PROP_ENDOFFSET:
+        p->endoffset = value;
+        break;
+    case COOKFS_PROP_SETMETADATA:
+        p->setmetadata = (Tcl_Obj *)value;
+        break;
+    case COOKFS_PROP_READONLY:
+        p->readonly = value;
+        break;
+    case COOKFS_PROP_WRITETOMEMORY:
+        p->writetomemory = value;
+        break;
+    case COOKFS_PROP_PAGECACHESIZE:
+        p->pagecachesize = value;
+        break;
+    case COOKFS_PROP_VOLUME:
+        p->volume = value;
+        break;
+    case COOKFS_PROP_PAGESIZE:
+        p->pagesize = value;
+        break;
+    case COOKFS_PROP_SMALLFILESIZE:
+        p->smallfilesize = value;
+        break;
+    case COOKFS_PROP_SMALLFILEBUFFER:
+        p->smallfilebuffer = value;
+        break;
+    case COOKFS_PROP_NODIRECTORYMTIME:
+        p->nodirectorymtime = value;
+        break;
+    case COOKFS_PROP_PAGEHASH:
+        p->pagehash = (Cookfs_HashType)value;
+        break;
+    case COOKFS_PROP_SHARED:
+        p->shared = value;
+        break;
+    case COOKFS_PROP_PASSWORD:
+        p->password = (Tcl_Obj *)value;
+        break;
+    case COOKFS_PROP_ENCRYPTKEY:
+        p->encryptkey = value;
+        break;
+    case COOKFS_PROP_ENCRYPTLEVEL:
+        p->encryptlevel = value;
+        break;
     }
 }
 
@@ -146,6 +274,8 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 {
 
     UNUSED(clientData);
+
+    int rc;
 
     CookfsLog(printf("CookfsMountCmd: ENTER"));
 
@@ -180,11 +310,13 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         OPT_NODIRECTORYMTIME, OPT_PAGEHASH, OPT_SHARED
     };
 
-    Cookfs_VfsProps props;
-    Cookfs_VfsPropsInit(&props);
+    Cookfs_VfsProps *props = Cookfs_VfsPropsInit();
 
     Tcl_Obj *archive = NULL;
     Tcl_Obj *local = NULL;
+
+    Tcl_Obj *compression = NULL;
+    Tcl_Obj *pagehash = NULL;
 
     for (int idx = 1; idx < objc; idx++) {
 
@@ -196,7 +328,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
             // with '-' - consider it a misspelled argument.
             char *arg = Tcl_GetString(objv[idx]);
             if (arg[0] == '-') {
-                return TCL_ERROR;
+                goto error;
             }
 
             // If the current argument is not an option, assume it is
@@ -216,41 +348,41 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 
         CookfsLog(printf("CookfsMountCmd: arg #%d is a known option", idx));
 #ifdef COOKFS_USETCLCMDS
-        PROCESS_OPT_SWITCH(OPT_NOREGISTER, props.noregister);
+        PROCESS_OPT_SWITCH(OPT_NOREGISTER, props->noregister);
 #endif
 #ifdef COOKFS_USECCRYPTO
-        PROCESS_OPT_SWITCH(OPT_ENCRYPTKEY, props.encryptkey);
+        PROCESS_OPT_SWITCH(OPT_ENCRYPTKEY, props->encryptkey);
 #endif /* COOKFS_USECCRYPTO */
-        PROCESS_OPT_SWITCH(OPT_NOCOMMAND, props.nocommand);
-        PROCESS_OPT_SWITCH(OPT_ALWAYSCOMPRESS, props.alwayscompress);
-        PROCESS_OPT_SWITCH(OPT_READONLY, props.readonly);
-        PROCESS_OPT_SWITCH(OPT_WRITETOMEMORY, props.writetomemory);
-        PROCESS_OPT_SWITCH(OPT_VOLUME, props.volume);
-        PROCESS_OPT_SWITCH(OPT_NODIRECTORYMTIME, props.nodirectorymtime);
-        PROCESS_OPT_SWITCH(OPT_SHARED, props.shared);
+        PROCESS_OPT_SWITCH(OPT_NOCOMMAND, props->nocommand);
+        PROCESS_OPT_SWITCH(OPT_ALWAYSCOMPRESS, props->alwayscompress);
+        PROCESS_OPT_SWITCH(OPT_READONLY, props->readonly);
+        PROCESS_OPT_SWITCH(OPT_WRITETOMEMORY, props->writetomemory);
+        PROCESS_OPT_SWITCH(OPT_VOLUME, props->volume);
+        PROCESS_OPT_SWITCH(OPT_NODIRECTORYMTIME, props->nodirectorymtime);
+        PROCESS_OPT_SWITCH(OPT_SHARED, props->shared);
 
         // Other options require a single argument
         if (++idx == objc) {
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("missing argument to"
                 " %s option", options[opt]));
-            return TCL_ERROR;
+            goto error;
         }
 
 #ifdef COOKFS_USETCLCMDS
-        PROCESS_OPT_OBJ(OPT_PAGEOBJECT, props.pagesobject);
-        PROCESS_OPT_OBJ(OPT_FSINDEXOBJECT, props.fsindexobject);
-        PROCESS_OPT_OBJ(OPT_BOOTSTRAP, props.bootstrap);
+        PROCESS_OPT_OBJ(OPT_PAGEOBJECT, props->pagesobject);
+        PROCESS_OPT_OBJ(OPT_FSINDEXOBJECT, props->fsindexobject);
+        PROCESS_OPT_OBJ(OPT_BOOTSTRAP, props->bootstrap);
 #endif
 #ifdef COOKFS_USECCRYPTO
-        PROCESS_OPT_OBJ(OPT_PASSWORD, props.password);
+        PROCESS_OPT_OBJ(OPT_PASSWORD, props->password);
 #endif /* COOKFS_USECCRYPTO */
-        PROCESS_OPT_OBJ(OPT_COMPRESSION, props.compression);
-        PROCESS_OPT_OBJ(OPT_COMPRESSCOMMAND, props.compresscommand);
-        PROCESS_OPT_OBJ(OPT_ASYNCCOMPRESSCOMMAND, props.asynccompresscommand);
-        PROCESS_OPT_OBJ(OPT_ASYNCDECOMPRESSCOMMAND, props.asyncdecompresscommand);
-        PROCESS_OPT_OBJ(OPT_DECOMPRESSCOMMAND, props.decompresscommand);
-        PROCESS_OPT_OBJ(OPT_SETMETADATA, props.setmetadata);
-        PROCESS_OPT_OBJ(OPT_PAGEHASH, props.pagehash);
+        PROCESS_OPT_OBJ(OPT_COMPRESSION, compression);
+        PROCESS_OPT_OBJ(OPT_COMPRESSCOMMAND, props->compresscommand);
+        PROCESS_OPT_OBJ(OPT_ASYNCCOMPRESSCOMMAND, props->asynccompresscommand);
+        PROCESS_OPT_OBJ(OPT_ASYNCDECOMPRESSCOMMAND, props->asyncdecompresscommand);
+        PROCESS_OPT_OBJ(OPT_DECOMPRESSCOMMAND, props->decompresscommand);
+        PROCESS_OPT_OBJ(OPT_SETMETADATA, props->setmetadata);
+        PROCESS_OPT_OBJ(OPT_PAGEHASH, pagehash);
 
         // OPT_ASYNCDECOMPRESSQUEUESIZE / OPT_PAGECACHESIZE - are unsigned int
         // values
@@ -263,11 +395,11 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf("unsigned integer"
                     " argument is expected for %s option, but got \"%s\"",
                     options[opt], Tcl_GetString(objv[idx])));
-                return TCL_ERROR;
+                goto error;
             }
 
-            PROCESS_OPT_INT(OPT_ASYNCDECOMPRESSQUEUESIZE, props.asyncdecompressqueuesize);
-            PROCESS_OPT_INT(OPT_PAGECACHESIZE, props.pagecachesize);
+            PROCESS_OPT_INT(OPT_ASYNCDECOMPRESSQUEUESIZE, props->asyncdecompressqueuesize);
+            PROCESS_OPT_INT(OPT_PAGECACHESIZE, props->pagecachesize);
 
         }
 
@@ -280,22 +412,22 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf("integer"
                     " argument is expected for %s option, but got \"%s\"",
                     options[opt], Tcl_GetString(objv[idx])));
-                return TCL_ERROR;
+                goto error;
             }
 
-            PROCESS_OPT_INT(OPT_ENCRYPTLEVEL, props.encryptlevel);
+            PROCESS_OPT_INT(OPT_ENCRYPTLEVEL, props->encryptlevel);
         }
 #endif /* COOKFS_USECCRYPTO */
 
         // Handle endoffset in a special way, since it is a signed Tcl_WideInt
         if (opt == OPT_ENDOFFSET) {
-            if (Tcl_GetWideIntFromObj(interp, objv[idx], &props.endoffset)
+            if (Tcl_GetWideIntFromObj(interp, objv[idx], &props->endoffset)
                 != TCL_OK)
             {
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf("wide integer argument"
                     " is expected for %s option, but got \"%s\"", options[opt],
                     Tcl_GetString(objv[idx])));
-                return TCL_ERROR;
+                goto error;
             }
             // All ok. Let's go to the next argument.
             continue;
@@ -307,20 +439,37 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("unsigned integer argument"
                 " is expected for %s option, but got \"%s\"", options[opt],
                 Tcl_GetString(objv[idx])));
-            return TCL_ERROR;
+            goto error;
         }
 
-        PROCESS_OPT_WIDEINT(OPT_PAGESIZE, props.pagesize);
-        PROCESS_OPT_WIDEINT(OPT_SMALLFILESIZE, props.smallfilesize);
-        PROCESS_OPT_WIDEINT(OPT_SMALLFILEBUFFER, props.smallfilebuffer);
+        PROCESS_OPT_WIDEINT(OPT_PAGESIZE, props->pagesize);
+        PROCESS_OPT_WIDEINT(OPT_SMALLFILESIZE, props->smallfilesize);
+        PROCESS_OPT_WIDEINT(OPT_SMALLFILEBUFFER, props->smallfilebuffer);
 
+    }
+
+    // Validate the compression argument
+    if (compression != NULL) {
+        if (Cookfs_CompressionFromObj(interp, compression, &props->compression,
+            &props->compressionlevel) != TCL_OK)
+        {
+            goto error;
+        }
+    }
+
+    // Validate the pagehash argument
+    if (pagehash != NULL) {
+        if (Cookfs_HashFromObj(interp, pagehash, &props->pagehash) != TCL_OK) {
+            rc = TCL_ERROR;
+            goto error;
+        }
     }
 
     // Make sure that we have 2 mandatory arguments
     if (archive == NULL || local == NULL) {
         // However, when 'writetomemory' is true, we can accept only
         // one argument.
-        if (props.writetomemory && archive != NULL) {
+        if (props->writetomemory && archive != NULL) {
             local = archive;
             archive = NULL;
         } else {
@@ -328,29 +477,33 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         }
     }
 
-    return Cookfs_Mount(interp, archive, local, &props);
+    rc = Cookfs_Mount(interp, archive, local, props);
+
+    goto done;
 
 wrongArgNum:
 
     Tcl_WrongNumArgs(interp, 1, objv, "?-option value ...? archive"
         " local ?-option value ...?");
-    return TCL_ERROR;
+
+error:
+    rc = TCL_ERROR;
+
+done:
+    Cookfs_VfsPropsFree(props);
+    return rc;
 }
 
 int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
-    Cookfs_VfsProps *aprops)
+    Cookfs_VfsProps *props)
 {
 
     CookfsLog(printf("Cookfs_Mount: ENTER"));
 
-    Cookfs_VfsProps *props;
-    if (aprops != NULL) {
-        props = aprops;
-    } else {
-        props = Cookfs_VfsPropsInit(NULL);
-        if (props == NULL) {
-            return TCL_ERROR;
-        }
+    int freeProps = 0;
+    if (props == NULL) {
+        props = Cookfs_VfsPropsInit();
+        freeProps = 1;
     }
 
     Cookfs_Vfs *vfs = NULL;
@@ -363,13 +516,38 @@ int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
 
     Tcl_Obj *normalized;
 
+    // Validate the properties
+
 #ifndef TCL_THREADS
     if (props->shared) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("shared VFS between threads"
             " is not supported by this package build", -1));
         goto error;
     }
-#endif
+#endif /* TCL_THREADS */
+
+#ifndef COOKFS_USETCLCMDS
+    if (props->pagesobject != NULL || props->fsindexobject != NULL ||
+        props->bootstrap != NULL || props->noregister != -1)
+    {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("this package was built"
+            " without Tcl commands support. Options pagesobject,"
+            " fsindexobject, bootstrap and noregister are not available",
+            -1));
+        goto error;
+    }
+#endif /* COOKFS_USETCLCMDS */
+
+#ifndef COOKFS_USECCRYPTO
+    if (props->password != NULL || props->encryptkey != -1 ||
+        props->encryptlevel != -1)
+    {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("this package was built"
+            " without encryption support. Options password, encryptkey,"
+            " encryptlevel are not available", -1));
+        goto error;
+    }
+#endif /* COOKFS_USECCRYPTO */
 
     if (props->smallfilesize > props->pagesize) {
         CookfsLog(printf("Cookfs_Mount: ERROR: smallfilesize [%"
@@ -473,21 +651,12 @@ skipArchive:
 #ifdef COOKFS_USETCLCMDS
     if (props->pagesobject == NULL) {
 #endif
-        int oCompression = -1;
-        int oCompressionLevel = -1;
-        if (props->compression != NULL) {
-            if (Cookfs_CompressionFromObj(interp, props->compression,
-                &oCompression, &oCompressionLevel) != TCL_OK)
-            {
-                return TCL_ERROR;
-            }
-        }
-
         CookfsLog(printf("Cookfs_Mount: creating the pages object"));
         // TODO: pass a pointer to err variable instead of NULL and
         // handle the corresponding error message
         pages = Cookfs_PagesInit(interp, archiveActual, props->readonly,
-            oCompression, oCompressionLevel, oCompression, oCompressionLevel,
+            props->compression, props->compressionlevel, props->compression,
+            props->compressionlevel,
 #ifdef COOKFS_USECCRYPTO
             props->password, props->encryptkey, props->encryptlevel,
 #else
@@ -504,7 +673,7 @@ skipArchive:
             if (props->writetomemory) {
                 goto skipPagesConfiguration;
             }
-            return TCL_ERROR;
+            goto error;
         }
 
 #ifdef COOKFS_USETCLCMDS
@@ -514,7 +683,7 @@ skipArchive:
         if (pages == NULL) {
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("incorrect page object"
                 " \"%s\" has been specified", pagesCmd));
-            return TCL_ERROR;
+            goto error;
         }
     }
 #endif
@@ -651,40 +820,14 @@ skipPages:
         }
 #endif
 
-        // We will use this object as a flag whether we use the hash value
-        // from the argument or the default value.
-        Tcl_Obj *pagehashActual;
-        if (props->pagehash == NULL) {
-            pagehashActual = Tcl_NewStringObj("md5", -1);
-            Tcl_IncrRefCount(pagehashActual);
-            CookfsLog(printf("Cookfs_Mount: pagehash is not specified, use"
-                " the default value [%s]", Tcl_GetString(pagehashActual)));
-        } else {
-            pagehashActual = props->pagehash;
-            CookfsLog(printf("Cookfs_Mount: pagehash is specified [%s]",
-                Tcl_GetString(pagehashActual)));
+        if (props->pagehash != COOKFS_HASH_DEFAULT) {
+            CookfsLog(printf("Cookfs_Mount: set pagehash for pages"));
+            Cookfs_PagesSetHash(pages, props->pagehash);
         }
-
-        CookfsLog(printf("Cookfs_Mount: set pagehash for pages"));
-        if (Cookfs_PagesSetHashByObj(pages, pagehashActual,
-            interp) != TCL_OK)
-        {
-            // We have an error message in interp from
-            // Cookfs_PagesSetHashByObj()
-            // Release pagehashActual if it is not from arguments
-            if (props->pagehash == NULL) {
-                Tcl_DecrRefCount(pagehashActual);
-            }
-            goto error;
-        }
-
+        Tcl_Obj *pagehashActual = Cookfs_PagesGetHashAsObj(pages);
         CookfsLog(printf("Cookfs_Mount: set pagehash in metadata"));
         Cookfs_FsindexSetMetadata(index, pagehashMetadataKey, pagehashActual);
-
-        // If we use the default value, then this object should be released
-        if (props->pagehash == NULL) {
-            Tcl_DecrRefCount(pagehashActual);
-        }
+        Tcl_BounceRefCount(pagehashActual);
 
     }
 
@@ -791,7 +934,7 @@ skipPagesBootstrap:
         CookfsLog(printf("Cookfs_Mount: ok (no cmd)"));
     }
 
-    if (aprops == NULL) {
+    if (freeProps) {
         Cookfs_VfsPropsFree(props);
     }
 
@@ -804,7 +947,7 @@ skipPagesBootstrap:
 
 error:
 
-    if (aprops == NULL) {
+    if (freeProps) {
         Cookfs_VfsPropsFree(props);
     }
     if (archiveActual != NULL) {

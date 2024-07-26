@@ -188,34 +188,32 @@ Tcl_Obj *Cookfs_PagesGetHashAsObj(Cookfs_Pages *p) {
     return Tcl_NewStringObj(pagehashNames[p->pageHash], -1);
 }
 
-/*
- *----------------------------------------------------------------------
- *
- * Cookfs_PagesSetHashByObj --
- *
- *      Sets the hashing algorithm for the page object
- *
- * Results:
- *      TCL_OK - the hashing algorithm was successfully set
- *      TCL_ERROR - unknown hashing algorithm was specified
- *
- * Side effects:
- *      If interp is not null, then leave an error message there
- *
- *----------------------------------------------------------------------
- */
+void Cookfs_PagesSetHash(Cookfs_Pages *p, Cookfs_HashType pagehash) {
+    Cookfs_PagesWantWrite(p);
+    p->pageHash = pagehash;
+}
 
 int Cookfs_PagesSetHashByObj(Cookfs_Pages *p, Tcl_Obj *pagehash,
     Tcl_Interp *interp)
 {
     Cookfs_PagesWantWrite(p);
-    int idx;
-    if (Tcl_GetIndexFromObj(interp, pagehash, pagehashNames, "hash",
-        TCL_EXACT, &idx) != TCL_OK)
-    {
-        return TCL_ERROR;
+    return Cookfs_HashFromObj(interp, pagehash, &p->pageHash);
+}
+
+int Cookfs_HashFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
+    Cookfs_HashType *hashPtr)
+{
+    if (obj == NULL) {
+        *hashPtr = COOKFS_HASH_MD5;
+    } else {
+        int idx;
+        if (Tcl_GetIndexFromObj(interp, obj, pagehashNames, "hash", TCL_EXACT,
+            &idx) != TCL_OK)
+        {
+            return TCL_ERROR;
+        }
+        *hashPtr = (Cookfs_HashType)idx;
     }
-    p->pageHash = idx;
     return TCL_OK;
 }
 
@@ -2324,7 +2322,9 @@ void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress) {
  *----------------------------------------------------------------------
  */
 
-int Cookfs_PagesGetCompression(Cookfs_Pages *p, int *fileCompressionLevel) {
+Cookfs_CompressionType Cookfs_PagesGetCompression(Cookfs_Pages *p,
+    int *fileCompressionLevel)
+{
     Cookfs_PagesWantRead(p);
     if (fileCompressionLevel != NULL) {
         *fileCompressionLevel = p->currentCompressionLevel;
@@ -2349,8 +2349,8 @@ int Cookfs_PagesGetCompression(Cookfs_Pages *p, int *fileCompressionLevel) {
  *----------------------------------------------------------------------
  */
 
-void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression,
-    int fileCompressionLevel)
+void Cookfs_PagesSetCompression(Cookfs_Pages *p,
+    Cookfs_CompressionType fileCompression, int fileCompressionLevel)
 {
     Cookfs_PagesWantWrite(p);
     if (p->currentCompression != fileCompression ||
@@ -2362,7 +2362,6 @@ void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression,
         p->currentCompressionLevel = fileCompressionLevel;
     }
 }
-
 
 /*
  *----------------------------------------------------------------------

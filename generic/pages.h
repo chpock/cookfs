@@ -38,9 +38,10 @@ void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size);
 int Cookfs_PagesGetAlwaysCompress(Cookfs_Pages *p);
 */
 void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress);
-int Cookfs_PagesGetCompression(Cookfs_Pages *p, int *fileCompressionLevel);
-void Cookfs_PagesSetCompression(Cookfs_Pages *p, int fileCompression,
-    int fileCompressionLevel);
+Cookfs_CompressionType Cookfs_PagesGetCompression(Cookfs_Pages *p,
+    int *fileCompressionLevel);
+void Cookfs_PagesSetCompression(Cookfs_Pages *p,
+    Cookfs_CompressionType fileCompression, int fileCompressionLevel);
 
 /* Not used as for now
 int Cookfs_PagesIsReadonly(Cookfs_Pages *p);
@@ -63,7 +64,9 @@ int Cookfs_PagesIsCached(Cookfs_Pages *p, int index);
 
 int Cookfs_PagesIsEncrypted(Cookfs_Pages *p, int index);
 
+
 Tcl_Obj *Cookfs_PagesGetHashAsObj(Cookfs_Pages *p);
+void Cookfs_PagesSetHash(Cookfs_Pages *p, Cookfs_HashType pagehash);
 int Cookfs_PagesSetHashByObj(Cookfs_Pages *p, Tcl_Obj *pagehash,
     Tcl_Interp *interp);
 
@@ -83,5 +86,8 @@ int Cookfs_PagesLockSoft(Cookfs_Pages *p);
 int Cookfs_PagesUnlockSoft(Cookfs_Pages *p);
 
 void Cookfs_PagesLockExclusive(Cookfs_Pages *p);
+
+int Cookfs_HashFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
+    Cookfs_HashType *hashPtr);
 
 #endif /* COOKFS_PAGES_H */
