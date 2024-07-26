@@ -18,11 +18,6 @@ enum {
     COOKFS_LASTOP_WRITE
 };
 
-enum {
-    COOKFS_HASH_MD5 = 0,
-    COOKFS_HASH_CRC32
-};
-
 #ifdef COOKFS_USECCRYPTO
 
 enum {
@@ -100,9 +95,9 @@ struct _Cookfs_Pages {
     /* file */
     int isAside;
     int fileReadOnly;
-    int baseCompression;
+    Cookfs_CompressionType baseCompression;
     int baseCompressionLevel;
-    int currentCompression;
+    Cookfs_CompressionType currentCompression;
     int currentCompressionLevel;
     unsigned char fileSignature[COOKFS_SIGNATURE_LENGTH];
     int isFirstWrite;
@@ -112,7 +107,7 @@ struct _Cookfs_Pages {
     int useFoffset;
     Tcl_WideInt foffset;
     int shouldTruncate;
-    int pageHash;
+    Cookfs_HashType pageHash;
 
     /* index */
     int pagesUptodate;

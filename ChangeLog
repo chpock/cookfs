@@ -1,3 +1,6 @@
+2024-07-26 Konstantin Kushnir <chpock@gmail.com>
+	* Add C API for mounting cookfs with parameters
+
 2024-07-25 Konstantin Kushnir <chpock@gmail.com>
 	* Add support for encryption
 	* Add MD5 validation for pgindex/fsindex data
