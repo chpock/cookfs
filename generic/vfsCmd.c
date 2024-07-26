@@ -523,8 +523,8 @@ int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
 #endif /* TCL_THREADS */
 
 #ifndef COOKFS_USETCLCMDS
-    if (p->pagesobject != NULL || p->fsindexobject != NULL ||
-        p->bootstrap != NULL || p->noregister != -1)
+    if (props->pagesobject != NULL || props->fsindexobject != NULL ||
+        props->bootstrap != NULL || props->noregister != -1)
     {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("this package was built"
             " without Tcl commands support. Options pagesobject,"
@@ -535,7 +535,9 @@ int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
 #endif /* COOKFS_USETCLCMDS */
 
 #ifndef COOKFS_USECCRYPTO
-    if (p->password != NULL || p->encryptkey != -1 || p->encryptlevel != -1) {
+    if (props->password != NULL || props->encryptkey != -1 ||
+        props->encryptlevel != -1)
+    {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("this package was built"
             " without encryption support. Options password, encryptkey,"
             " encryptlevel are not available", -1));
