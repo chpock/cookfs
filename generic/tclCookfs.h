@@ -1,5 +1,5 @@
 /*
- * tclcookfs.h
+ * tclCookfs.h
  *
  * Global header file for the Tcl cookfs extension
  *

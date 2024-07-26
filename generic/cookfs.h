@@ -144,7 +144,7 @@ static inline void __cookfs_debug_dump(unsigned char *data, Tcl_Size size) {
 #include "bindata.h"
 #include "hashes.h"
 #include "pathObj.h"
-#include "tclcookfs.h"
+#include "tclCookfs.h"
 
 #ifdef TCL_THREADS
 #include "threads.h"
