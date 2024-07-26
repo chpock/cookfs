@@ -146,6 +146,7 @@ Cookfs_VfsProps *Cookfs_VfsPropsInit(void) {
 #endif /* COOKFS_USECCRYPTO */
 //#endif /* COOKFS_USECCRYPTO */
 
+    CookfsLog2(printf("return: %p", (void *)p));
     return p;
 }
 
@@ -327,7 +328,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
             // with '-' - consider it a misspelled argument.
             char *arg = Tcl_GetString(objv[idx]);
             if (arg[0] == '-') {
-                return TCL_ERROR;
+                goto error;
             }
 
             // If the current argument is not an option, assume it is
@@ -364,7 +365,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         if (++idx == objc) {
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("missing argument to"
                 " %s option", options[opt]));
-            return TCL_ERROR;
+            goto error;
         }
 
 #ifdef COOKFS_USETCLCMDS
@@ -394,7 +395,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf("unsigned integer"
                     " argument is expected for %s option, but got \"%s\"",
                     options[opt], Tcl_GetString(objv[idx])));
-                return TCL_ERROR;
+                goto error;
             }
 
             PROCESS_OPT_INT(OPT_ASYNCDECOMPRESSQUEUESIZE, props->asyncdecompressqueuesize);
@@ -411,7 +412,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf("integer"
                     " argument is expected for %s option, but got \"%s\"",
                     options[opt], Tcl_GetString(objv[idx])));
-                return TCL_ERROR;
+                goto error;
             }
 
             PROCESS_OPT_INT(OPT_ENCRYPTLEVEL, props->encryptlevel);
@@ -426,7 +427,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf("wide integer argument"
                     " is expected for %s option, but got \"%s\"", options[opt],
                     Tcl_GetString(objv[idx])));
-                return TCL_ERROR;
+                goto error;
             }
             // All ok. Let's go to the next argument.
             continue;
@@ -438,7 +439,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("unsigned integer argument"
                 " is expected for %s option, but got \"%s\"", options[opt],
                 Tcl_GetString(objv[idx])));
-            return TCL_ERROR;
+            goto error;
         }
 
         PROCESS_OPT_WIDEINT(OPT_PAGESIZE, props->pagesize);
@@ -452,14 +453,15 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         if (Cookfs_CompressionFromObj(interp, compression, &props->compression,
             &props->compressionlevel) != TCL_OK)
         {
-            return TCL_ERROR;
+            goto error;
         }
     }
 
     // Validate the pagehash argument
     if (pagehash != NULL) {
         if (Cookfs_HashFromObj(interp, pagehash, &props->pagehash) != TCL_OK) {
-            return TCL_ERROR;
+            rc = TCL_ERROR;
+            goto error;
         }
     }
 
@@ -483,6 +485,8 @@ wrongArgNum:
 
     Tcl_WrongNumArgs(interp, 1, objv, "?-option value ...? archive"
         " local ?-option value ...?");
+
+error:
     rc = TCL_ERROR;
 
 done:
@@ -669,7 +673,7 @@ skipArchive:
             if (props->writetomemory) {
                 goto skipPagesConfiguration;
             }
-            return TCL_ERROR;
+            goto error;
         }
 
 #ifdef COOKFS_USETCLCMDS
@@ -679,7 +683,7 @@ skipArchive:
         if (pages == NULL) {
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("incorrect page object"
                 " \"%s\" has been specified", pagesCmd));
-            return TCL_ERROR;
+            goto error;
         }
     }
 #endif
