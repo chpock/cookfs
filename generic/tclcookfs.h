@@ -160,7 +160,7 @@ static inline void Cookfs_VfsPropSetSetMetadata(Cookfs_VfsProps *p,
     Cookfs_VfsPropSet(p, COOKFS_PROP_SETMETADATA, (intptr_t)v);
 }
 
-static inline void Cookfs_VfsPropSetSetReadonly(Cookfs_VfsProps *p,
+static inline void Cookfs_VfsPropSetReadonly(Cookfs_VfsProps *p,
     int v)
 {
     Cookfs_VfsPropSet(p, COOKFS_PROP_READONLY, (intptr_t)v);
