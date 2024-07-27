@@ -429,4 +429,4 @@ if { ![llength [info commands cookfs::fsindex]] } {
     interp alias {} cookfs::fsindex {} cookfs::tcl::fsindex
 }
 
-package provide cookfs::tcl::fsindex 1.8.0
+package provide cookfs::tcl::fsindex 1.9.0

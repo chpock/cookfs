@@ -242,4 +242,4 @@ proc ::cookfs::asyncworker::thread::handle {name cmd idx arg} {
     }
 }
 
-package provide cookfs::asyncworker::thread 1.8.0
+package provide cookfs::asyncworker::thread 1.9.0

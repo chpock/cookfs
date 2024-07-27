@@ -251,4 +251,4 @@ proc cookfs::asyncworker::process::writeData {chan data} {
     flush $chan
 }
 
-package provide cookfs::asyncworker::process 1.8.0
+package provide cookfs::asyncworker::process 1.9.0
