@@ -1,4 +1,20 @@
 ===============================================================================
+Release version 1.8.0
+
+Notable changes:
+
+1. Added support for strong AES-256-CBC encryption with PBKDF2-HMAC-SHA256
+key derivation. Cookfs supports 2 modes in which either individual files
+or the encryption key can be encrypted. The second mode will be very useful
+when the same archive needs to be shared with different passwords.
+More details about these modes and how to work with them is described in
+the documentation. (http://cookfs.chpock.tk/cookfs.html#section10)
+
+2. Added a C header file (tclCookfs.h) that is installed with the package
+and contains a mount function and functions for configuring mount parameters.
+These functions make it easier to integrate cookfs as a file store for tclkit.
+
+===============================================================================
 Release version 1.7.0
 
 Notable changes:
