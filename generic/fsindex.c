@@ -733,8 +733,7 @@ Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Cookfs_PathObj *pathOb
 
     CookfsLog(printf("Cookfs_FsindexSet - start"))
 
-    CookfsLog(printf("Cookfs_FsindexSet - listSize=%" TCL_SIZE_MODIFIER "d",
-        pathObj->elementCount));
+    CookfsLog(printf("Cookfs_FsindexSet - listSize=%d", pathObj->elementCount));
 
     if (pathObj->elementCount == 0) {
         return NULL;
@@ -1369,8 +1368,7 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
 	}
     }
 
-    CookfsLog(printf("CookfsFsindexCreateHashElement - LS=%" TCL_SIZE_MODIFIER
-        "d", pathObj->elementCount))
+    CookfsLog2(printf("path elements: %d", pathObj->elementCount));
 
     /* find parent element */
     currentNode = CookfsFsindexFindElement(i, pathObj, pathObj->elementCount - 1);
@@ -1382,18 +1380,18 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
 
     /* if parent was not found or is not a directory, return NULL */
     if (currentNode == NULL) {
-        CookfsLog(printf("CookfsFsindexCreateHashElement - node not found"))
+        CookfsLog2(printf("return NULL (node not found)"));
         goto error;
     }
 
     if (currentNode->fileBlocks != COOKFS_NUMBLOCKS_DIRECTORY) {
-        CookfsLog(printf("CookfsFsindexCreateHashElement - not a directory"))
+        CookfsLog2(printf("return NULL (not a directory)"));
         goto error;
     }
 
     /* get information about fail of the file name
      * and invoke CookfsFsindexFindInDirectory() */
-    CookfsLog(printf("CookfsFsindexCreateHashElement - Path tail: %s", pathObj->tailName))
+    CookfsLog2(printf("path tail: %s", pathObj->tailName));
 
     Cookfs_FsindexEntry *rc = CookfsFsindexFindInDirectory(currentNode, pathObj->tailName, command, newFileNode);
     if (command != COOKFSFSINDEX_FIND_FIND && rc != NULL) {
