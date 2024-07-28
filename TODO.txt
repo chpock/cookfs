@@ -7,6 +7,9 @@
   It can be something like 'cookfs copy <from disk> <cookfs endpoint>"
 * Add ability to get a list of pages with their properties (compression, compression level,
   encryption, compressed size, uncompressed size)
+* Add ability to get information about pagesindex and fsindex (compression, compression level,
+  encryption, compressed size, uncompressed size). This will be useful for analyzing the contents
+  of a cookfs archive.
 * Add support for storing file permissions and attributes (for Windows platform)
 * Add support for 'file attribute' commands to return general attributes and attributes like zipfs in Tcl9
 * Add support for 'zipfs mkimg'-like command
