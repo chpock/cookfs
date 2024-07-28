@@ -9202,6 +9202,41 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 
     if test ${USEBROTLI} = yes; then
 
+        # Unfortunatelly, brotli developers are too busy to fix
+        # implicit-fallthrough compiler warning. We have to disable
+        # them by -Wno-implicit-fallthrough. However, this switch is
+        # incompatible with gcc < 7. We need to make sure this is supported.
+        _CFLAGS="$CFLAGS"
+        CFLAGS="$CFLAGS -Wno-implicit-fallthrough"
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether CC supports -Wno-implicit-fallthrough" >&5
+printf %s "checking whether CC supports -Wno-implicit-fallthrough... " >&6; }
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main (void)
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+
+else $as_nop
+
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+            CFLAGS="$_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+
+
     vars="-I\"`${CYGPATH} ${srcdir}/brotli/c/include`\""
     for i in $vars; do
 	PKG_INCLUDES="$PKG_INCLUDES $i"

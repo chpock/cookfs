@@ -233,6 +233,21 @@ if test ${USECPAGES} = yes; then
     fi
 
     if test ${USEBROTLI} = yes; then
+
+        # Unfortunatelly, brotli developers are too busy to fix
+        # implicit-fallthrough compiler warning. We have to disable
+        # them by -Wno-implicit-fallthrough. However, this switch is
+        # incompatible with gcc < 7. We need to make sure this is supported.
+        _CFLAGS="$CFLAGS"
+        CFLAGS="$CFLAGS -Wno-implicit-fallthrough"
+        AC_MSG_CHECKING([whether CC supports -Wno-implicit-fallthrough])
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([])], [
+            AC_MSG_RESULT([yes])
+        ],[
+            AC_MSG_RESULT([no])
+            CFLAGS="$_CFLAGS"
+        ])
+
         TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/brotli/c/include`\"])
         TEA_ADD_SOURCES([pagesComprBrotli.c])
         TEA_ADD_SOURCES([

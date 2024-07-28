@@ -1,3 +1,6 @@
+2024-06-29 Konstantin Kushnir <chpock@gmail.com>
+	* Fix build error in some environments when brotli is enabled
+
 2024-06-27 Konstantin Kushnir <chpock@gmail.com>
 	* Fix the build for Tcl9 and with --enable-internal-debug
 
