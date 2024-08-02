@@ -9,11 +9,20 @@
 // This will make statbuf from Tcl compatible with our statbuf.
 // The details and related links are here:
 // https://core.tcl-lang.org/tclvfs/tktview/685c6eb3d5
-#if defined(_WIN32) && !defined(_WIN64) && !defined(__MINGW_USE_VC2005_COMPAT)
+//#if defined(_WIN32) && !defined(_WIN64) && !defined(__MINGW_USE_VC2005_COMPAT)
+//#define __MINGW_USE_VC2005_COMPAT
+//#elif defined(_WIN64) && !defined(__stat64)
+//#define __stat64 _stat64
+//#endif
+
+#if defined(_WIN32)
+#if !defined(_WIN64) && !defined(__MINGW_USE_VC2005_COMPAT)
 #define __MINGW_USE_VC2005_COMPAT
-#elif defined(_WIN64) && !defined(__stat64)
+#endif /* !defined(_WIN64) && !defined(__MINGW_USE_VC2005_COMPAT) */
+#if !defined(__stat64)
 #define __stat64 _stat64
-#endif
+#endif /* !defined(__stat64) */
+#endif /* defined(_WIN32) */
 
 #include "cookfs.h"
 #include "vfs.h"

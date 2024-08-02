@@ -1,13 +1,16 @@
-2024-06-29 Konstantin Kushnir <chpock@gmail.com>
+2024-08-03 Konstantin Kushnir <chpock@gmail.com>
+	* Fix build on Windows 32-bit with Tcl9
+
+2024-07-29 Konstantin Kushnir <chpock@gmail.com>
 	* Fix build error in some environments when brotli is enabled
 
-2024-06-27 Konstantin Kushnir <chpock@gmail.com>
+2024-07-27 Konstantin Kushnir <chpock@gmail.com>
 	* Fix the build for Tcl9 and with --enable-internal-debug
 
-2024-06-27 Konstantin Kushnir <chpock@gmail.com>
+2024-07-27 Konstantin Kushnir <chpock@gmail.com>
 	* Bumped version to 1.9.0
 
-2024-06-27 Konstantin Kushnir <chpock@gmail.com>
+2024-07-27 Konstantin Kushnir <chpock@gmail.com>
 	* RELEASE TAG 1.8.0
 
 2024-07-26 Konstantin Kushnir <chpock@gmail.com>
