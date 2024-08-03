@@ -215,11 +215,12 @@ proc tcltest::CleanupTest { code } {
             # the list of memory areas allocated during the test execution and
             # not freed when the test is completed. Here we remove these memory
             # region from the memory report.
-            if { [string match "*/generic/vfsDriver.c 137 *" $line] } continue
-            if { [string match "*/generic/vfsDriver.c 138 *" $line] } continue
-            if { [string match "*/generic/vfsDriver.c 139 *" $line] } continue
-            if { [string match "*/generic/vfsDriver.c 141 *" $line] } continue
-            if { [string match "*/generic/vfsDriver.c 143 *" $line] } continue
+            set baseline 146
+            if { [string match "*/generic/vfsDriver.c [expr { $baseline + 0 }] *" $line] } continue
+            if { [string match "*/generic/vfsDriver.c [expr { $baseline + 1 }] *" $line] } continue
+            if { [string match "*/generic/vfsDriver.c [expr { $baseline + 2 }] *" $line] } continue
+            if { [string match "*/generic/vfsDriver.c [expr { $baseline + 4 }] *" $line] } continue
+            if { [string match "*/generic/vfsDriver.c [expr { $baseline + 6 }] *" $line] } continue
             if { ![info exists fo] } {
                 set fo [open "x-${::tcltest::testname}.memdump" w]
             }
