@@ -249,7 +249,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
             }
 
             blockSize = Cookfs_PageObjSize(blockObj);
-            blockBuffer = (const char *)blockObj;
+            blockBuffer = (const char *)blockObj->buf;
 
         }
 

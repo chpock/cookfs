@@ -12,6 +12,24 @@
 #include "crypto.h"
 #endif /* COOKFS_USECCRYPTO */
 
+// File mapping
+#ifdef _WIN32
+
+// Include Windows headers for file mapping
+#define WIN32_LEAN_AND_MEAN
+#ifndef STRICT
+#define STRICT // See MSDN Article Q83456
+#endif
+#include <windows.h>
+#undef WIN32_LEAN_AND_MEAN
+
+#else
+
+// POSIX file mapping
+#include <sys/mman.h>
+
+#endif /* _WIN32 */
+
 enum {
     COOKFS_LASTOP_UNKNOWN = 0,
     COOKFS_LASTOP_READ,
@@ -102,7 +120,14 @@ struct _Cookfs_Pages {
     unsigned char fileSignature[COOKFS_SIGNATURE_LENGTH];
     int isFirstWrite;
     unsigned char fileStamp[COOKFS_SIGNATURE_LENGTH];
+
     Tcl_Channel fileChannel;
+#ifdef _WIN32
+    HANDLE fileHandle;
+#endif
+    Tcl_WideInt fileLength;
+    unsigned char *fileData;
+
     int fileLastOp;
     int useFoffset;
     Tcl_WideInt foffset;

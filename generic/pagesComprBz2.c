@@ -71,8 +71,8 @@ Cookfs_PageObj CookfsWritePageBz2(Cookfs_Pages *p, unsigned char *bytes,
     }
 
     CookfsLog2(printf("call BZ2_bzBuffToBuffCompress() level %d ...", level));
-    int res = BZ2_bzBuffToBuffCompress((char *)rc, &resultSize, (char *)bytes,
-        (unsigned int)origSize, level, 0, 0);
+    int res = BZ2_bzBuffToBuffCompress((char *)rc->buf, &resultSize,
+        (char *)bytes, (unsigned int)origSize, level, 0, 0);
 
     if (res != BZ_OK) {
         CookfsLog2(printf("call got ERROR"));

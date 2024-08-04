@@ -18,12 +18,11 @@
 #define COOKFS_PAGEOBJ_BLOCK_SIZE 16
 #endif /* COOKFS_USECCRYPTO */
 
-typedef unsigned char* Cookfs_PageObj;
-
 typedef struct Cookfs_PageObjStruct {
     Tcl_Size bufferSize;
     Tcl_Size effectiveSize;
     int refCount;
+    unsigned char *buf;
 #ifdef TCL_THREADS
     Tcl_Mutex mx;
 #endif /* TCL_THREADS */
@@ -34,43 +33,36 @@ typedef struct Cookfs_PageObjStruct {
 #endif /* COOKFS_USECCRYPTO */
 } Cookfs_PageObjStruct;
 
+typedef Cookfs_PageObjStruct* Cookfs_PageObj;
+
 void Cookfs_PageObjIncrRefCount(Cookfs_PageObj pg);
 void Cookfs_PageObjDecrRefCount(Cookfs_PageObj pg);
 
 #define Cookfs_PageObjBounceRefCount(pg) \
     Cookfs_PageObjIncrRefCount((pg)); Cookfs_PageObjDecrRefCount((pg))
 
-#define Cookfs_PageObjSize(p) \
-    (((Cookfs_PageObjStruct *)((Cookfs_PageObj)(p) - \
-        sizeof(Cookfs_PageObjStruct)))->effectiveSize)
-
-#define Cookfs_PageObjSetSize(p,n) \
-    (((Cookfs_PageObjStruct *)((Cookfs_PageObj)(p) - \
-        sizeof(Cookfs_PageObjStruct)))->effectiveSize) = (n)
-
+#define Cookfs_PageObjSize(p)      ((p)->effectiveSize)
+#define Cookfs_PageObjSetSize(p,n) ((p)->effectiveSize = (n))
 #define Cookfs_PageObjCopyAsByteArray(p) \
-    Tcl_NewByteArrayObj(p, Cookfs_PageObjSize(p))
+    Tcl_NewByteArrayObj((p)->buf, Cookfs_PageObjSize(p))
 
 Cookfs_PageObj Cookfs_PageObjAlloc(Tcl_Size size);
 Cookfs_PageObj Cookfs_PageObjNewFromByteArray(Tcl_Obj *obj);
 Cookfs_PageObj Cookfs_PageObjNewFromString(const unsigned char *bytes,
+    Tcl_Size size);
+Cookfs_PageObj Cookfs_PageObjNewWithoutAlloc(const unsigned char *bytes,
     Tcl_Size size);
 
 #ifdef COOKFS_USECCRYPTO
 
 Cookfs_PageObj Cookfs_PageObjNewFromByteArrayIV(Tcl_Obj *obj);
 
-#define Cookfs_PageObjGetIV(p) \
-    (((Cookfs_PageObjStruct *)((Cookfs_PageObj)(p) - \
-        sizeof(Cookfs_PageObjStruct)))->IV)
-
+#define Cookfs_PageObjGetIV(p) ((p)->IV)
 #define Cookfs_PageObjSetIV(p,iv) \
     memcpy(Cookfs_PageObjGetIV(p), (iv), COOKFS_PAGEOBJ_BLOCK_SIZE)
 
 #define Cookfs_PageObjSizeIV(p) \
-    (((Cookfs_PageObjStruct *)((Cookfs_PageObj)(p) - \
-        sizeof(Cookfs_PageObjStruct)))->effectiveSize + \
-        COOKFS_PAGEOBJ_BLOCK_SIZE)
+    ((p)->effectiveSize + COOKFS_PAGEOBJ_BLOCK_SIZE)
 
 #define Cookfs_PageObjCopyAsByteArrayIV(p) \
     Tcl_NewByteArrayObj(Cookfs_PageObjGetIV(p), Cookfs_PageObjSizeIV(p))

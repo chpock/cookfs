@@ -34,7 +34,7 @@ int Cookfs_WritePageObj(Cookfs_Pages *p, int idx, Cookfs_PageObj data,
 
 int Cookfs_WriteTclObj(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compressedData);
 
-Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, int idx,
+Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, Tcl_Size offset,
     Cookfs_CompressionType compression, int sizeCompressed,
     int sizeUncompressed, unsigned char *md5hash, int decompress,
     int encrypted, Tcl_Obj **err);

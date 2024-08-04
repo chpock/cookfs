@@ -138,7 +138,7 @@ gotPage:
 	if (Cookfs_PageObjSize(instData->cachedPageObj) < (pageOffset + instData->currentBlockOffset + blockRead)) {
 	    goto error;
 	}
-	memcpy(buf + bytesRead, instData->cachedPageObj + pageOffset + instData->currentBlockOffset, blockRead);
+	memcpy(buf + bytesRead, instData->cachedPageObj->buf + pageOffset + instData->currentBlockOffset, blockRead);
 	instData->currentBlockOffset += blockRead;
 	bytesRead += blockRead;
 	instData->currentOffset += blockRead;

@@ -63,9 +63,11 @@ Cookfs_PageObj CookfsWritePageLzma(Cookfs_Pages *p, unsigned char *bytes,
     // Reduce the size of the destination buffer by the size of the lzma
     // properties.
     resultSize -= LZMA_PROPS_SIZE;
-    CookfsLog(printf("CookfsWritePageLzma: call LzmaEncode() level %d ...", props.level));
-    SRes res = LzmaEncode(&rc[LZMA_PROPS_SIZE], &resultSize, bytes, origSize,
-        &props, rc, &propsSize, 0, NULL, &g_CookfsLzmaAlloc, &g_CookfsLzmaAlloc);
+    CookfsLog(printf("CookfsWritePageLzma: call LzmaEncode() level %d ...",
+        props.level));
+    SRes res = LzmaEncode(&rc->buf[LZMA_PROPS_SIZE], &resultSize, bytes,
+        origSize, &props, rc->buf, &propsSize, 0, NULL, &g_CookfsLzmaAlloc,
+        &g_CookfsLzmaAlloc);
 
     CookfsLog(printf("CookfsWritePageLzma: got: %s",
         (res == SZ_OK ? "SZ_OK" :

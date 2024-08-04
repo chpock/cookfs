@@ -13,6 +13,9 @@
 #include "pagesCompr.h"
 #include "pagesAsync.h"
 
+// For ptrdiff_t type
+#include <stddef.h>
+
 // 1  byte  - base compression
 // 1  byte  - base compression level
 // 1  byte  - encryption
@@ -416,6 +419,8 @@ int Cookfs_PagesSetPassword(Cookfs_Pages *p, Tcl_Obj *passObj) {
 
 #endif /* COOKFS_USECCRYPTO */
 
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -588,6 +593,14 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     rc->cacheSize = 0;
     rc->cacheMaxAge = COOKFS_MAX_CACHE_AGE;
 
+    // initialize file
+    rc->fileChannel = NULL;
+    rc->fileData = NULL;
+    rc->fileLength = -1;
+#ifdef _WIN32
+    rc->fileHandle = INVALID_HANDLE_VALUE;
+#endif
+
     CookfsLog(printf("Opening file %s as %s with compression %d level %d",
         Tcl_GetStringFromObj(fileName, NULL), (rc->fileReadOnly ? "rb" : "ab+"),
         baseCompression, baseCompressionLevel));
@@ -623,6 +636,73 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
 	Cookfs_PagesFini(rc);
 	return NULL;
     }
+
+    if (!rc->fileReadOnly) {
+        CookfsLog2(printf("skip mmap - file is not in readonly mode"));
+        goto skipMMap;
+    }
+
+    void *handle;
+    if (Tcl_GetChannelHandle(rc->fileChannel, TCL_READABLE, &handle)
+        != TCL_OK)
+    {
+        CookfsLog2(printf("skip mmap - could not get handle from chan"));
+        goto skipMMap;
+    }
+
+    rc->fileLength = Tcl_Seek(rc->fileChannel, 0, SEEK_END);
+
+    if (rc->fileLength < 0) {
+        CookfsLog2(printf("skip mmap - failed to get file size"));
+        goto skipMMap;
+    }
+
+    if (rc->fileLength == 0) {
+        CookfsLog2(printf("skip mmap - could not mmap an empty file"));
+        goto skipMMap;
+    }
+
+#ifdef _WIN32
+
+    rc->fileHandle = CreateFileMappingW((HANDLE)handle, NULL, PAGE_READONLY,
+        0, 0, NULL);
+
+    if (rc->fileHandle == INVALID_HANDLE_VALUE) {
+        CookfsLog2(printf("skip mmap - CreateFileMappingW() failed"));
+        goto skipMMap;
+    }
+
+    rc->fileData = (unsigned char *)MapViewOfFile(rc->fileHandle, FILE_MAP_READ,
+        0, 0, 0);
+
+    if (rc->fileData == NULL) {
+        CloseHandle(rc->fileHandle);
+        rc->fileHandle = INVALID_HANDLE_VALUE;
+        CookfsLog2(printf("skip mmap - MapViewOfFile() failed"));
+        goto skipMMap;
+    }
+
+#else
+
+    rc->fileData = (unsigned char *)mmap(0, rc->fileLength, PROT_READ,
+        MAP_SHARED, (ptrdiff_t)handle, 0);
+
+    if (rc->fileData == MAP_FAILED) {
+        rc->fileData = NULL;
+        CookfsLog2(printf("skip mmap - mmap() failed"));
+        goto skipMMap;
+    }
+
+#endif /* _WIN32 */
+
+    CookfsLog2(printf("the file has been successfully mapped to memory"));
+
+    CookfsLog2(printf("close channel"));
+    Tcl_Close(interp, rc->fileChannel);
+
+    rc->fileChannel = NULL;
+
+skipMMap:
 
     /* read index or fail */
     Cookfs_PagesLockWrite(rc, NULL);
@@ -782,7 +862,15 @@ error:
 Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
 
     if (p->fileChannel == NULL) {
-        goto done;
+        if (p->fileData == NULL) {
+            // We have neither a channel nor a mapped file. Just return.
+            goto done;
+        } else {
+            // We have a mapped file. We are in read-only mode if we have
+            // a mapped file. Skip saving file changes and go to
+            // the unmapping step.
+            goto unmap;
+        }
     }
 
     CookfsLog2(printf("pages up to date = %d, Index changed = %d", p->pagesUptodate, p->indexChanged))
@@ -866,7 +954,7 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
             Cookfs_PageObj pgindexExportObj = Cookfs_PgIndexExport(p->pagesIndex);
             indexSizeUncompressed = Cookfs_PageObjSize(pgindexExportObj);
 
-            Cookfs_MD5(pgindexExportObj, indexSizeUncompressed,
+            Cookfs_MD5(pgindexExportObj->buf, indexSizeUncompressed,
                 &buf[COOKFS_SUFFIX_OFFSET_PGINDEX_HASH]);
 
             int pgindexIndex = Cookfs_PgIndexAddPage(p->pagesIndex, 0, 0, 0,
@@ -908,7 +996,7 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
             CookfsLog2(printf("write fsindex data..."));
             indexSizeUncompressed = Cookfs_PageObjSize(p->dataIndex);
 
-            Cookfs_MD5(p->dataIndex, indexSizeUncompressed,
+            Cookfs_MD5(p->dataIndex->buf, indexSizeUncompressed,
                 &buf[COOKFS_SUFFIX_OFFSET_FSINDEX_HASH]);
 
             int fsindexIndex = Cookfs_PgIndexAddPage(p->pagesIndex, 0, 0, 0,
@@ -981,14 +1069,33 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
     }
 
     /* close file channel */
-    CookfsLog(printf("Cookfs_PagesClose - Closing channel - rc=%d", ((int) ((p->foffset) & 0x7fffffff)) ))
-    Tcl_Close(NULL, p->fileChannel);
-    p->fileChannel = NULL;
+    if (p->fileChannel != NULL) {
+        CookfsLog2(printf("closing channel"));
+        Tcl_Close(NULL, p->fileChannel);
+        p->fileChannel = NULL;
+        goto done;
+    }
 
-    CookfsLog(printf("Cookfs_PagesClose - END"))
+unmap:
+
+    CookfsLog2(printf("unmap file"));
+
+#ifdef _WIN32
+    UnmapViewOfFile(p->fileData);
+    CloseHandle(p->fileHandle);
+    p->fileHandle = INVALID_HANDLE_VALUE;
+#else
+    munmap(p->fileData, p->fileLength);
+#endif /* _WIN32 */
+
+    p->fileData = NULL;
 
 done:
+
+    CookfsLog2(printf("return: %d", ((int) ((p->foffset) & 0x7fffffff))));
+
     return p->foffset;
+
 }
 
 
@@ -1116,6 +1223,51 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     }
 }
 
+static Tcl_WideInt CookfsSearchString(const unsigned char *haystack,
+    Tcl_Size haystackSize, const unsigned char *needle, Tcl_Size needleSize,
+    int isFirstMatch)
+{
+
+    // CookfsLog2(printf("haystack %p size %" TCL_SIZE_MODIFIER "d; needle %p"
+    //     " size %" TCL_SIZE_MODIFIER "d; isFirstMatch: %d", (void *)haystack,
+    //     haystackSize, (void *)needle, needleSize, isFirstMatch));
+
+    Tcl_WideInt rc = -1;
+
+    Tcl_Size remainingSize = haystackSize;
+    const unsigned char *offset = haystack;
+
+    while ((remainingSize >= needleSize) && ((offset =
+        (unsigned char *)memchr(offset, needle[0],
+        remainingSize - needleSize + 1)) != NULL))
+    {
+
+        // CookfsLog2(printf("found byte at offset: %p (%d)", (void *)offset,
+        //     (int)(offset - haystack)));
+
+        if (memcmp(offset, needle, needleSize) == 0) {
+            // CookfsLog2(printf("found a match"));
+            rc = (offset - haystack);
+            if (isFirstMatch) {
+                goto done;
+            }
+        }
+
+        offset++;
+        remainingSize = haystackSize - (offset - haystack);
+
+        // CookfsLog2(printf("remainingSize: %" TCL_SIZE_MODIFIER "d",
+        //     remainingSize));
+
+    }
+
+done:
+
+    // CookfsLog2(printf("return: %" TCL_LL_MODIFIER "d", rc));
+    return rc;
+
+}
+
 /*
  *----------------------------------------------------------------------
  *
@@ -1134,10 +1286,36 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
 
 static Tcl_WideInt Cookfs_PageSearchStamp(Cookfs_Pages *p) {
 
-    CookfsLog(printf("Cookfs_PageSearchStamp: enter"));
+    CookfsLog2(printf("enter"));
+
+    Tcl_WideInt size = -1;
+
+    // If file is memory mapped, then search in buffer
+    if (p->fileChannel == NULL) {
+
+        Tcl_Size maxSearch = (p->fileLength > COOKFS_SEARCH_STAMP_MAX_READ ?
+            COOKFS_SEARCH_STAMP_MAX_READ : p->fileLength);
+
+        size = CookfsSearchString(p->fileData, maxSearch, p->fileStamp,
+            COOKFS_SIGNATURE_LENGTH, 1);
+
+        // if we found something. However, we should check if the found offset
+        // + signature length + wideint (8) size does not exceed the file size
+        // to avoid buffer overflow.
+        if (size >= 0 && p->fileLength >= (size + COOKFS_SIGNATURE_LENGTH + 8)) {
+            Cookfs_Binary2WideInt(&p->fileData[size + COOKFS_SIGNATURE_LENGTH],
+                &size, 1);
+            CookfsLog2(printf("return the size: %" TCL_LL_MODIFIER "d", size));
+        } else {
+            CookfsLog2(printf("lookup total %" TCL_SIZE_MODIFIER "d bytes"
+                " and could not find the stamp", maxSearch));
+        }
+
+        goto done;
+
+    }
 
     unsigned char *buf = NULL;
-    Tcl_WideInt size = -1;
 
     buf = ckalloc(COOKFS_SEARCH_STAMP_CHUNK);
     if (buf == NULL) {
@@ -1220,16 +1398,16 @@ static Tcl_WideInt Cookfs_PageSearchStamp(Cookfs_Pages *p) {
 
 found:
 
-
     Cookfs_Binary2WideInt(&buf[i + COOKFS_SIGNATURE_LENGTH], &size, 1);
-    CookfsLog(printf("Cookfs_PageSearchStamp: return the size: %"
-        TCL_LL_MODIFIER "d", size));
+    CookfsLog2(printf("return the size: %" TCL_LL_MODIFIER "d", size));
 
 error:
 
     if (buf != NULL) {
         ckfree(buf);
     }
+
+done:
 
     return size;
 
@@ -1327,7 +1505,7 @@ int Cookfs_PageAddStamp(Cookfs_Pages *p, Tcl_WideInt size) {
  */
 
 int Cookfs_PageAdd(Cookfs_Pages *p, Cookfs_PageObj dataObj, Tcl_Obj **err) {
-    return Cookfs_PageAddRaw(p, dataObj, Cookfs_PageObjSize(dataObj), err);
+    return Cookfs_PageAddRaw(p, dataObj->buf, Cookfs_PageObjSize(dataObj), err);
 }
 
 /*
@@ -1493,7 +1671,7 @@ int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength,
             // Cookfs_PgIndexSearchByMD5() returns true only if the page
             // matches not only MD5, but also if its size is equal to
             // objLength.
-            if (memcmp(bytes, otherPageData, objLength) != 0) {
+            if (memcmp(bytes, otherPageData->buf, objLength) != 0) {
                 CookfsLog(printf("Cookfs_PageAdd: the data doesn't match"))
             } else {
                 isMatched = 1;
@@ -2080,8 +2258,7 @@ void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside) {
             return;
         }
 	CookfsLog(printf("Cookfs_PagesSetAside: Checking if index in add-aside archive should be overwritten."))
-	Cookfs_PageObj asideIndex;
-	asideIndex = Cookfs_PagesGetIndex(aside);
+	Cookfs_PageObj asideIndex = Cookfs_PagesGetIndex(aside);
 	if (asideIndex == NULL) {
 	    CookfsLog(printf("Cookfs_PagesSetAside: Copying index from main archive to add-aside archive."))
 	    Cookfs_PagesSetIndex(aside, p->dataIndex);
@@ -2457,7 +2634,8 @@ static Cookfs_PageObj CookfsPagesPageGetInt(Cookfs_Pages *p, int index,
 #ifdef TCL_THREADS
     Tcl_MutexLock(&p->mxIO);
 #endif /* TCL_THREADS */
-    buffer = Cookfs_ReadPage(p, index,
+    buffer = Cookfs_ReadPage(p,
+        Cookfs_PagesGetPageOffset(p, index),
         Cookfs_PgIndexGetCompression(p->pagesIndex, index),
         Cookfs_PgIndexGetSizeCompressed(p->pagesIndex, index),
         Cookfs_PgIndexGetSizeUncompressed(p->pagesIndex, index),
@@ -2514,12 +2692,15 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *passwor
 #endif /* COOKFS_USECCRYPTO */
 
     Tcl_WideInt seekOffset = 0;
-    unsigned char buf[COOKFS_SUFFIX_BYTES];
+    Tcl_WideInt lastMatch = -1;
+    unsigned char readBuffer[COOKFS_SUFFIX_BYTES];
+    unsigned char *buf;
 
     UNUSED(err);
     Tcl_Obj *local_error = NULL;
 
-    CookfsLog2(printf("base offset is %d", p->useFoffset));
+    CookfsLog2(printf("use base offset: %s", (p->useFoffset ?
+        "YES" : "NO")));
 
     if (p->dataIndex != NULL) {
         Cookfs_PageObjDecrRefCount(p->dataIndex);
@@ -2531,44 +2712,117 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *passwor
         p->pagesIndex = NULL;
     }
 
+    if (p->useFoffset && p->foffset < COOKFS_SUFFIX_BYTES) {
+        // A negative foffset value is considered an error.
+        // If we don't have enough bytes for the suffix, consider it an error.
+        // Report all above as index not found.
+        CookfsLog2(printf("specified foffset is negative or less than"
+            " suffix size: %" TCL_LL_MODIFIER "d", p->foffset));
+        goto errorIndexNotFound;
+    }
+
+    // If we use memory mapped file
+    if (p->fileChannel == NULL) {
+
+        if (p->useFoffset) {
+
+            // If the specified offset + suffix length exceeds the file size,
+            // consider the index search failed.
+            if ((p->foffset + COOKFS_SUFFIX_BYTES) > p->fileLength) {
+                CookfsLog2(printf("(mmap) the specified end offset %"
+                    TCL_LL_MODIFIER "d + <signature length> exceeds the file"
+                    " size %" TCL_LL_MODIFIER "d", p->foffset, p->fileLength));
+                goto errorIndexNotFound;
+            }
+
+            // Use the buffer starting at the specified offset
+            CookfsLog2(printf("(mmap) use specified end offset: %"
+                TCL_LL_MODIFIER "d", p->foffset));
+
+        } else {
+
+            // In case of failure, we will use the end of the file as
+            // the base offset.
+            p->foffset = p->fileLength;
+
+            // If the file size is less than 65536 bytes, the search starts from
+            // the beginning. Otherwise, the search is performed in the last
+            // 65536 bytes.
+            seekOffset = (p->fileLength > 65536 ? (p->fileLength - 65536) : 0);
+
+            CookfsLog2(printf("(mmap) lookup seekOffset = %" TCL_LL_MODIFIER "d",
+                seekOffset));
+
+            lastMatch = CookfsSearchString(&p->fileData[seekOffset],
+                (p->fileLength - seekOffset), p->fileSignature,
+                COOKFS_SIGNATURE_LENGTH, 0);
+
+            if (lastMatch < 0) {
+                CookfsLog2(printf("(mmap) lookup failed"));
+                goto checkStamp;
+            }
+
+            CookfsLog2(printf("(mmap) lookup done seekOffset = %" TCL_LL_MODIFIER
+                "d", seekOffset + lastMatch + COOKFS_SIGNATURE_LENGTH));
+
+            if ((seekOffset + lastMatch + COOKFS_SIGNATURE_LENGTH) <
+                COOKFS_SUFFIX_BYTES)
+            {
+                CookfsLog2(printf("there are not enough bytes for suffix"));
+                goto errorIndexNotFound;
+            }
+
+            p->foffset = seekOffset + lastMatch + COOKFS_SIGNATURE_LENGTH;
+
+        }
+
+        buf = &p->fileData[p->foffset - COOKFS_SUFFIX_BYTES];
+        goto checkSignature;
+
+    }
+
     /* seek to beginning of suffix */
-    if (p->useFoffset) {
-	seekOffset = Tcl_Seek(p->fileChannel, p->foffset, SEEK_SET);
-    }  else  {
-        /* if endoffset not specified, read last 64k of file and find last occurrence of signature */
-        Tcl_Obj *byteObj = NULL;
-        unsigned char *lastMatch = NULL;
-	seekOffset = Tcl_Seek(p->fileChannel, 0, SEEK_END);
+    if (!p->useFoffset) {
+
+        // if endoffset not specified, read last 64k of file and find
+        // last occurrence of signature
+        seekOffset = Tcl_Seek(p->fileChannel, 0, SEEK_END);
+
+        // In case of failure, we will use the end of the file as
+        // the base offset.
+        p->foffset = seekOffset;
+
         if (seekOffset > 65536) {
             seekOffset -= 65536;
-        }  else  {
+        } else {
             seekOffset = 0;
         }
-        CookfsLog(printf("CookfsReadIndex lookup seekOffset = %d", ((int) seekOffset)))
+
+        CookfsLog2(printf("lookup seekOffset = %" TCL_LL_MODIFIER "d",
+            seekOffset));
         Tcl_Seek(p->fileChannel, seekOffset, SEEK_SET);
-	byteObj = Tcl_NewObj();
+
+        Tcl_Obj *byteObj = Tcl_NewObj();
         Tcl_IncrRefCount(byteObj);
-	if (Tcl_ReadChars(p->fileChannel, byteObj, 65536, 0) > 0) {
+
+        if (Tcl_ReadChars(p->fileChannel, byteObj, 65536, 0) > 0) {
+
             Tcl_Size size;
             unsigned char *bytes = Tcl_GetByteArrayFromObj(byteObj, &size);
-            for (int i = 0 ; i <= (size - COOKFS_SIGNATURE_LENGTH) ; i++) {
-                if (bytes[i] == p->fileSignature[0]) {
-                    if (memcmp(bytes + i, p->fileSignature, COOKFS_SIGNATURE_LENGTH) == 0) {
-                        lastMatch = bytes + i;
-                        CookfsLog(printf("CookfsReadIndex found at offset %d", i))
-                    }
-                }
-            }
-            if (lastMatch != NULL) {
-                seekOffset += (lastMatch - bytes + COOKFS_SIGNATURE_LENGTH);
-                p->foffset = Tcl_Seek(p->fileChannel, seekOffset, SEEK_SET);
-                CookfsLog(printf("CookfsReadIndex lookup done seekOffset = %d", ((int) seekOffset)))
-            }
+
+            lastMatch = CookfsSearchString(bytes, size, p->fileSignature,
+                COOKFS_SIGNATURE_LENGTH, 0);
+
+        } else {
+            CookfsLog2(printf("failed to read from the file"));
         }
+
         Tcl_DecrRefCount(byteObj);
-        if (lastMatch == NULL) {
-            p->foffset = Tcl_Seek(p->fileChannel, 0, SEEK_END);
-            CookfsLog(printf("CookfsReadIndex lookup failed"))
+
+        if (lastMatch < 0) {
+            CookfsLog2(printf("lookup failed"));
+
+checkStamp: ; // empty statement
 
             Tcl_WideInt expectedSize = Cookfs_PageSearchStamp(p);
             if (expectedSize != -1) {
@@ -2582,22 +2836,35 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *passwor
 
             return 0;
         }
+
+        p->foffset = seekOffset + lastMatch + COOKFS_SIGNATURE_LENGTH;
+        CookfsLog2(printf("lookup done seekOffset = %" TCL_LL_MODIFIER "d",
+            p->foffset));
+
+    } else {
+        CookfsLog2(printf("use specified end offset: %" TCL_LL_MODIFIER "d",
+            p->foffset));
     }
-    if (seekOffset >= 0) {
-        seekOffset = Tcl_Seek(p->fileChannel, -COOKFS_SUFFIX_BYTES, SEEK_CUR);
-    }
+
+    seekOffset = Tcl_Seek(p->fileChannel, p->foffset - COOKFS_SUFFIX_BYTES,
+        SEEK_SET);
 
     /* if seeking fails, we assume no index exists */
     if (seekOffset < 0) {
-	CookfsLog(printf("Unable to seek for index suffix"))
-	if (interp != NULL) {
-	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": index not found", -1));
-	}
-	return 0;
+
+        CookfsLog2(printf("Unable to seek for index suffix"));
+
+errorIndexNotFound:
+
+        if (interp != NULL) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
+                ": index not found", -1));
+        }
+        return 0;
     }
 
     /* read suffix from end of cookfs archive */
-    int count = Tcl_Read(p->fileChannel, (char *)buf, COOKFS_SUFFIX_BYTES);
+    int count = Tcl_Read(p->fileChannel, (char *)readBuffer, COOKFS_SUFFIX_BYTES);
     if (count != COOKFS_SUFFIX_BYTES) {
         CookfsLog(printf("Failed to read entire index tail: %d / %d", count,
             COOKFS_SUFFIX_BYTES));
@@ -2607,6 +2874,10 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *passwor
         }
         return 0;
     }
+
+    buf = readBuffer;
+
+checkSignature:
 
     if (memcmp(&buf[COOKFS_SUFFIX_OFFSET_SIGNATURE], p->fileSignature,
         COOKFS_SIGNATURE_LENGTH) != 0)
@@ -2654,11 +2925,32 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *passwor
     }
 
     CookfsLog2(printf("read password salt"));
+
+    if (p->fileChannel == NULL) {
+        // If we use memory mapped file, make sure we have enough bytes after
+        // the end of the archive.
+        if ((p->foffset + COOKFS_ENCRYPT_PASSWORD_SALT_SIZE) > p->fileLength) {
+            CookfsLog2(printf("(mmap) not enough bytes to read password"
+                " salt"));
+            goto failedReadPasswordSalt;
+        }
+
+        memcpy(p->passwordSalt, &p->fileData[p->foffset],
+            COOKFS_ENCRYPT_PASSWORD_SALT_SIZE);
+
+        goto skipReadPasswordSalt;
+
+    }
+
     count = Tcl_Read(p->fileChannel, (char *)p->passwordSalt,
         COOKFS_ENCRYPT_PASSWORD_SALT_SIZE);
 
     if (count != COOKFS_ENCRYPT_PASSWORD_SALT_SIZE) {
+
         CookfsLog2(printf("failed to read password salt"));
+
+failedReadPasswordSalt:
+
         if (interp != NULL) {
             Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG
                 ": unable to read password salt", -1));
@@ -2666,9 +2958,41 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *passwor
         return 0;
     }
 
+skipReadPasswordSalt:
+
     if (p->encryption != COOKFS_ENCRYPT_FILE) {
 
         CookfsLog2(printf("read encryption key IV"));
+
+        if (p->fileChannel == NULL) {
+            // If we use memory mapped file, make sure we have enough bytes after
+            // the end of the archive.
+            if ((p->foffset + COOKFS_ENCRYPT_PASSWORD_SALT_SIZE +
+                COOKFS_ENCRYPT_IV_SIZE + COOKFS_ENCRYPT_KEY_AND_HASH_SIZE)
+                > p->fileLength)
+            {
+                CookfsLog2(printf("(mmap) not enough bytes to read encryption"
+                    " key"));
+                if (interp != NULL) {
+                    Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                        COOKFS_PAGES_ERRORMSG ": unable to read encryption key"
+                        " IV", -1));
+                }
+                return 0;
+            }
+
+            memcpy(p->encryptionEncryptedKeyIV,
+                &p->fileData[p->foffset + COOKFS_ENCRYPT_PASSWORD_SALT_SIZE],
+                COOKFS_ENCRYPT_IV_SIZE);
+
+            memcpy(p->encryptionEncryptedKey,
+                &p->fileData[p->foffset + COOKFS_ENCRYPT_PASSWORD_SALT_SIZE +
+                    COOKFS_ENCRYPT_IV_SIZE],
+                COOKFS_ENCRYPT_KEY_AND_HASH_SIZE);
+
+            goto skipReadEncryptionKey;
+        }
+
         count = Tcl_Read(p->fileChannel, (char *)p->encryptionEncryptedKeyIV,
             COOKFS_ENCRYPT_IV_SIZE);
         if (count != COOKFS_ENCRYPT_IV_SIZE) {
@@ -2691,6 +3015,8 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *passwor
             }
             return 0;
         }
+
+skipReadEncryptionKey:
 
         if (password != NULL && Tcl_GetCharLength(password)) {
             if (Cookfs_PagesDecryptKey(p, password) != TCL_OK) {
@@ -2741,6 +3067,10 @@ skipEncryption: ; // empty statement
         goto skipFsindex;
     }
 
+    if (p->fileChannel == NULL) {
+        goto skipSeekToIndexData;
+    }
+
     CookfsLog2(printf("try to seek to index data..."));
 
     /* seek to beginning of index data */
@@ -2754,6 +3084,8 @@ skipEncryption: ; // empty statement
         }
         return 0;
     }
+
+skipSeekToIndexData:
 
     if (pgindexSizeCompressed == 0) {
         CookfsLog2(printf("pgindex is empty and skipped"));
@@ -2769,16 +3101,26 @@ skipEncryption: ; // empty statement
         & 0xff;
     unsigned char *pgindexHashMD5 = &buf[COOKFS_SUFFIX_OFFSET_PGINDEX_HASH];
 
-    Cookfs_PageObj pgindexDataObj = Cookfs_ReadPage(p, -1, pgindexCompression,
-        pgindexSizeCompressed, pgindexSizeUncompressed, pgindexHashMD5, 1,
-        isIndexEncrypted, &local_error);
+    Tcl_Size pgindexOffset;
+    // If we are using a memory-mapped file, calculate the pgindex offset.
+    // Otherwise, we use -1 as an offset to read subsequent data from the file.
+    if (p->fileChannel == NULL) {
+        pgindexOffset = p->foffset - COOKFS_SUFFIX_BYTES -
+            pgindexSizeCompressed - fsindexSizeCompressed;
+    } else {
+        pgindexOffset = -1;
+    }
+
+    Cookfs_PageObj pgindexDataObj = Cookfs_ReadPage(p, pgindexOffset,
+        pgindexCompression, pgindexSizeCompressed, pgindexSizeUncompressed,
+        pgindexHashMD5, 1, isIndexEncrypted, &local_error);
 
     if (pgindexDataObj == NULL) {
         CookfsLog2(printf("unable to read or decompress pgindex"));
         goto pgindexReadError;
     }
 
-    p->pagesIndex = Cookfs_PgIndexImport(pgindexDataObj,
+    p->pagesIndex = Cookfs_PgIndexImport(pgindexDataObj->buf,
         Cookfs_PageObjSize(pgindexDataObj), NULL);
 
     Cookfs_PageObjDecrRefCount(pgindexDataObj);
@@ -2825,7 +3167,17 @@ skipPgindex:
         & 0xff;
     unsigned char *fsindexHashMD5 = &buf[COOKFS_SUFFIX_OFFSET_FSINDEX_HASH];
 
-    p->dataIndex = Cookfs_ReadPage(p, -1, fsindexCompression,
+    Tcl_Size fsindexOffset;
+    // If we are using a memory-mapped file, calculate the pgindex offset.
+    // Otherwise, we use -1 as an offset to read subsequent data from the file.
+    if (p->fileChannel == NULL) {
+        fsindexOffset = p->foffset - COOKFS_SUFFIX_BYTES -
+            fsindexSizeCompressed;
+    } else {
+        fsindexOffset = -1;
+    }
+
+    p->dataIndex = Cookfs_ReadPage(p, fsindexOffset, fsindexCompression,
         fsindexSizeCompressed, fsindexSizeUncompressed, fsindexHashMD5, 1,
         isIndexEncrypted, &local_error);
 

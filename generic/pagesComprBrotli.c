@@ -45,7 +45,7 @@ Cookfs_PageObj CookfsWritePageBrotli(Cookfs_Pages *p, unsigned char *bytes,
 
     // Leave 4 bytes in the buffer for uncompressed page size
     BROTLI_BOOL res = BrotliEncoderCompress(level, BROTLI_DEFAULT_WINDOW,
-        BROTLI_DEFAULT_MODE, (size_t)origSize, bytes, &resultSize, rc);
+        BROTLI_DEFAULT_MODE, (size_t)origSize, bytes, &resultSize, rc->buf);
 
     if (res != BROTLI_TRUE) {
         CookfsLog2(printf("call got ERROR"));
