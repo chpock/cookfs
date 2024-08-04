@@ -337,20 +337,32 @@ Cookfs_PageObj Cookfs_PgIndexExport(Cookfs_PgIndex *pgi) {
         COOKFS_PGINDEX_RECORD_SIZE);
     if (pgo == NULL) {
         Tcl_Panic("Cookfs_PgIndexExport(): could not alloc page object");
+        // This return is for cppcheck
+        return NULL;
     }
 
-    Cookfs_Int2Binary((int *)&pagesCount, pgo, 1);
+    unsigned char *buf = pgo->buf;
+
+    Cookfs_Int2Binary((int *)&pagesCount, buf, 1);
+
+    // Pre-calculate the indexes to avoid these calculations inside the loop
+    int idxCompressionLevel = 1 * pagesCount;
+    int idxEncryption = 2 * pagesCount;
+    int idxSizeCompressed = 3 * pagesCount;
+    int idxSizeUncompressed = 7 * pagesCount;
+    int idxHash = 11 * pagesCount;
+
+    // Skip pages count in the first 4 bytes of the buffer
+    buf += 4;
 
     Cookfs_PgIndexEntry *pge = pgi->data;
     for (unsigned int i = 0; i < pagesCount; i++, pge++) {
-        // The first 4 bytes in the buffer are for specifying the total number
-        // of pages. Thus, we need to add 4 for each offset.
-        pgo[4 + 0 + i] = (unsigned char)pge->compression;
-        pgo[4 + (1 * pagesCount) + i] = pge->compressionLevel;
-        pgo[4 + (2 * pagesCount) + i] = pge->encryption;
-        Cookfs_Int2Binary(&pge->sizeCompressed, &pgo[4 + (3 * pagesCount) + (i * 4)], 1);
-        Cookfs_Int2Binary(&pge->sizeUncompressed, &pgo[4 + (7 * pagesCount) + (i * 4)], 1);
-        memcpy(&pgo[4 + (11 * pagesCount) + (i * 16)], pge->hashMD5, 16);
+        buf[0 + i] = (unsigned char)pge->compression;
+        buf[idxCompressionLevel + i] = pge->compressionLevel;
+        buf[idxEncryption + i] = pge->encryption;
+        Cookfs_Int2Binary(&pge->sizeCompressed, &buf[idxSizeCompressed + (i * 4)], 1);
+        Cookfs_Int2Binary(&pge->sizeUncompressed, &buf[idxSizeUncompressed + (i * 4)], 1);
+        memcpy(&buf[idxHash + (i * 16)], pge->hashMD5, 16);
 
         CookfsLog2(printf("export entry #%u - compression: %d, level: %d,"
             " encryption: %d, sizeCompressed: %d, sizeUncompressed: %d,"

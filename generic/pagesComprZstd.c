@@ -40,7 +40,7 @@ Cookfs_PageObj CookfsWritePageZstd(Cookfs_Pages *p, unsigned char *bytes,
     }
 
     CookfsLog2(printf("call ZSTD_compress() level %d ...", level));
-    resultSize = ZSTD_compress(rc, resultSize, bytes, origSize, level);
+    resultSize = ZSTD_compress(rc->buf, resultSize, bytes, origSize, level);
 
     if (ZSTD_isError(resultSize)) {
         CookfsLog2(printf("got error: %s", ZSTD_getErrorName(resultSize)));

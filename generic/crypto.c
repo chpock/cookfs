@@ -70,8 +70,8 @@ void Cookfs_AesEncrypt(Cookfs_PageObj pg, unsigned char *key) {
     CookfsLog2(printf("enter..."));
 
     Cookfs_PageObjAddPadding(pg);
-    Cookfs_AesEncryptRaw(pg, Cookfs_PageObjSize(pg), Cookfs_PageObjGetIV(pg),
-        key);
+    Cookfs_AesEncryptRaw(pg->buf, Cookfs_PageObjSize(pg),
+        Cookfs_PageObjGetIV(pg), key);
 
     CookfsLog2(printf("ok"));
     return;
@@ -101,8 +101,8 @@ int Cookfs_AesDecrypt(Cookfs_PageObj pg, unsigned char *key) {
 
     CookfsLog2(printf("enter..."));
 
-    Cookfs_AesDecryptRaw(pg, Cookfs_PageObjSize(pg), Cookfs_PageObjGetIV(pg),
-        key);
+    Cookfs_AesDecryptRaw(pg->buf, Cookfs_PageObjSize(pg),
+        Cookfs_PageObjGetIV(pg), key);
 
     CookfsLog2(printf("unpad data ..."));
     int rc = Cookfs_PageObjRemovePadding(pg);

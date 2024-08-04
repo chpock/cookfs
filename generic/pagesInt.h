@@ -102,7 +102,14 @@ struct _Cookfs_Pages {
     unsigned char fileSignature[COOKFS_SIGNATURE_LENGTH];
     int isFirstWrite;
     unsigned char fileStamp[COOKFS_SIGNATURE_LENGTH];
+
     Tcl_Channel fileChannel;
+#ifdef _WIN32
+    HANDLE fileHandle;
+#endif
+    Tcl_WideInt fileLength;
+    unsigned char *fileData;
+
     int fileLastOp;
     int useFoffset;
     Tcl_WideInt foffset;

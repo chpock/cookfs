@@ -732,7 +732,7 @@ skipPages:
         if (indexDataObj == NULL) {
             index = Cookfs_FsindexInit(interp, NULL);
         } else {
-            index = Cookfs_FsindexFromBytes(interp, NULL, indexDataObj,
+            index = Cookfs_FsindexFromBytes(interp, NULL, indexDataObj->buf,
                 Cookfs_PageObjSize(indexDataObj));
             Cookfs_PageObjDecrRefCount(indexDataObj);
         }
@@ -1375,7 +1375,7 @@ static int CookfsMountHandleCommandAside(Cookfs_Vfs *vfs, Tcl_Interp *interp,
     if (indexDataObj == NULL) {
         Cookfs_FsindexCleanup(vfs->index);
     } else {
-        Cookfs_FsindexFromBytes(interp, vfs->index, indexDataObj,
+        Cookfs_FsindexFromBytes(interp, vfs->index, indexDataObj->buf,
             Cookfs_PageObjSize(indexDataObj));
         Cookfs_PageObjDecrRefCount(indexDataObj);
     }

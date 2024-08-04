@@ -242,8 +242,9 @@ int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
 
 	CookfsLog(printf("Cookfs_AsyncPagePreload: Reading page %d for async decompress", idx))
 	// TODO: do something with possible error message
-	Cookfs_PageObj dataPageObj = Cookfs_ReadPage(p, idx,
-            Cookfs_PgIndexGetCompression(p->pagesIndex, idx),
+	Cookfs_PageObj dataPageObj = Cookfs_ReadPage(p,
+	    Cookfs_PagesGetPageOffset(p, idx),
+	    Cookfs_PgIndexGetCompression(p->pagesIndex, idx),
 	    Cookfs_PgIndexGetSizeCompressed(p->pagesIndex, idx),
 	    Cookfs_PgIndexGetSizeUncompressed(p->pagesIndex, idx),
 	    Cookfs_PgIndexGetHashMD5(p->pagesIndex, idx),

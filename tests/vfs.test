@@ -1566,5 +1566,5 @@ tcltest::test cookfsVfs-20.1.2 "Don't crash when stamp is not present and archiv
     catch { cookfs::Unmount $file }
     tcltest::removeFile $file
     unset -nocomplain data index file ok
-} -returnCodes error -result {Unable to create Cookfs object: index not found}
+} -returnCodes error -result {Unable to create Cookfs object: failed to read index}
 
