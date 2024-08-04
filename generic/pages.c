@@ -13,10 +13,8 @@
 #include "pagesCompr.h"
 #include "pagesAsync.h"
 
-// File mapping
-#ifndef _WIN32
-#include <sys/mman.h>
-#endif /* _WIN32*/
+// For ptrdiff_t type
+#include <stddef.h>
 
 // 1  byte  - base compression
 // 1  byte  - base compression level
@@ -678,8 +676,8 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
         0, 0, 0);
 
     if (rc->fileData == NULL) {
-        CloseHandle(p->fileHandle);
-        p->fileHandle = INVALID_HANDLE_VALUE;
+        CloseHandle(rc->fileHandle);
+        rc->fileHandle = INVALID_HANDLE_VALUE;
         CookfsLog2(printf("skip mmap - MapViewOfFile() failed"));
         goto skipMMap;
     }
@@ -2714,11 +2712,12 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *passwor
         p->pagesIndex = NULL;
     }
 
-    if (p->useFoffset && p->foffset < 0) {
+    if (p->useFoffset && p->foffset < COOKFS_SUFFIX_BYTES) {
         // A negative foffset value is considered an error.
-        // Report it as index not found.
-        CookfsLog2(printf("specified foffset is less than zero: %"
-            TCL_LL_MODIFIER "d", p->foffset));
+        // If we don't have enough bytes for the suffix, consider it an error.
+        // Report all above as index not found.
+        CookfsLog2(printf("specified foffset is negative or less than"
+            " suffix size: %" TCL_LL_MODIFIER "d", p->foffset));
         goto errorIndexNotFound;
     }
 
@@ -2742,6 +2741,10 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *passwor
 
         } else {
 
+            // In case of failure, we will use the end of the file as
+            // the base offset.
+            p->foffset = p->fileLength;
+
             // If the file size is less than 65536 bytes, the search starts from
             // the beginning. Otherwise, the search is performed in the last
             // 65536 bytes.
@@ -2759,9 +2762,17 @@ static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *passwor
                 goto checkStamp;
             }
 
-            p->foffset = seekOffset + lastMatch + COOKFS_SIGNATURE_LENGTH;
             CookfsLog2(printf("(mmap) lookup done seekOffset = %" TCL_LL_MODIFIER
-                "d", p->foffset));
+                "d", seekOffset + lastMatch + COOKFS_SIGNATURE_LENGTH));
+
+            if ((seekOffset + lastMatch + COOKFS_SIGNATURE_LENGTH) <
+                COOKFS_SUFFIX_BYTES)
+            {
+                CookfsLog2(printf("there are not enough bytes for suffix"));
+                goto errorIndexNotFound;
+            }
+
+            p->foffset = seekOffset + lastMatch + COOKFS_SIGNATURE_LENGTH;
 
         }
 

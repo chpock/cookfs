@@ -214,7 +214,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 break;
             case optPassword:
                 if (tobjc <= 3) {
-                    goto ERROR;
+                    goto error;
                 }
                 tobjc--;
                 tobjv++;
@@ -222,7 +222,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 break;
             case optEncryptLevel:
                 if (tobjc <= 3) {
-                    goto ERROR;
+                    goto error;
                 }
                 tobjc--;
                 tobjv++;
@@ -233,7 +233,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
 #endif /* COOKFS_USECCRYPTO */
             case optCompression: {
                 if (tobjc <= 3) {
-                    goto ERROR;
+                    goto error;
                 }
                 tobjc--;
                 tobjv++;
@@ -242,7 +242,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
             }
             case optCompressCommand: {
                 if (tobjc <= 3) {
-                    goto ERROR;
+                    goto error;
                 }
                 tobjc--;
                 tobjv++;
@@ -252,7 +252,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
             }
             case optDecompressCommand: {
                 if (tobjc <= 3) {
-                    goto ERROR;
+                    goto error;
                 }
                 tobjc--;
                 tobjv++;
@@ -262,7 +262,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
             }
             case optAsyncCompressCommand: {
                 if (tobjc <= 3) {
-                    goto ERROR;
+                    goto error;
                 }
                 tobjc--;
                 tobjv++;
@@ -272,7 +272,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
             }
             case optAsyncDecompressCommand: {
                 if (tobjc <= 3) {
-                    goto ERROR;
+                    goto error;
                 }
                 tobjc--;
                 tobjv++;
@@ -282,7 +282,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
             }
             case optEndoffset: {
                 if (tobjc <= 3) {
-                    goto ERROR;
+                    goto error;
                 }
                 tobjc--;
                 tobjv++;
@@ -297,7 +297,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
             case optCachesize: {
                 int csize;
                 if (tobjc <= 3) {
-                    goto ERROR;
+                    goto error;
                 }
                 tobjc--;
                 tobjv++;
@@ -326,7 +326,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
             case optAsyncDecompressQueue:
             {
                 if (tobjc <= 3) {
-                    goto ERROR;
+                    goto error;
                 }
                 tobjc--;
                 tobjv++;
@@ -337,7 +337,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 break;
             }
             default:
-                goto ERROR;
+                goto error;
         }
         tobjc--;
         tobjv++;
@@ -352,7 +352,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     }
 
     if (tobjc != 2) {
-        goto ERROR;
+        goto error;
     }
 
     /* Create cookfs instance */
@@ -385,7 +385,7 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     Tcl_SetObjResult(interp, CookfsGetPagesObjectCmd(interp, pages));
     return TCL_OK;
 
-ERROR:
+error:
 #ifdef COOKFS_USECCRYPTO
     Tcl_WrongNumArgs(interp, 1, objv, "?-readonly|-readwrite|-encryptkey?"
         " ?-password password? ?-encryptlevel level?"

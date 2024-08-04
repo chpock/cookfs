@@ -562,7 +562,7 @@ Cookfs_PageObj Cookfs_ReadPage(Cookfs_Pages *p, Tcl_Size offset,
         return NULL;
     }
 
-skipReading:
+skipReading: ; // empty statement
 
 #ifdef COOKFS_USECCRYPTO
 
