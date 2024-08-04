@@ -1366,15 +1366,10 @@ static Tcl_WideInt Cookfs_PageSearchStamp(Cookfs_Pages *p) {
         // Do not look for the last 20 bytes, as a situation may arise where
         // the stamp byte is at the very end of the buffer and the WideInt
         // that should come after the stamp is not read.
-        int bytesToLookup = bufSize - 20;
+        i = CookfsSearchString(buf, bufSize - 20, p->fileStamp,
+            COOKFS_SIGNATURE_LENGTH, 1);
 
-        for (i = 0; i < bytesToLookup; i++) {
-            if (buf[i] != p->fileStamp[0]) {
-                continue;
-            }
-            if (memcmp(&buf[i], p->fileStamp, COOKFS_SIGNATURE_LENGTH) != 0) {
-                continue;
-            }
+        if (i > 0) {
             goto found;
         }
 
