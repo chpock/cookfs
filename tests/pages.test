@@ -1581,7 +1581,7 @@ tcltest::test cookfsPages-17.1 "Check if cache checking is working properly" -co
 
 # gethead/getheadmd5/gettail/gettailmd5 are only implemented in c-pages
 
-tcltest::test cookfsPages-18.1.1 "Check gethead for readonly pages (many bytes)" -constraints {enabledTclCmds} -setup {
+tcltest::test cookfsPages-18.1.1 "Check gethead for readonly pages (many bytes)" -constraints {enabledCPages enabledTclCmds} -setup {
     set head [string repeat {TEST01} 4097]
     set file [tcltest::makeBinFile $head pages.cfs]
     set pg [cookfs::pages -compression none $file]
