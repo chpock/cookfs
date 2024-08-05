@@ -43,10 +43,16 @@
 #ifdef COOKFS_INTERNAL_DEBUG
 
 #ifndef __FUNCTION_NAME__
-    #ifdef _WIN32   // WINDOWS
-        #define __FUNCTION_NAME__   __FUNCTION__
-    #else          // GCC
-        #define __FUNCTION_NAME__   __func__
+    #if defined(__STDC_VERSION__)
+        #if __STDC_VERSION__ >= 199901L
+            #define __FUNCTION_NAME__ __func__
+        #elif defined(__GNUC__) && __GNUC__ >= 2
+            #define __FUNCTION_NAME__ __FUNCTION__
+        #endif
+    #elif defined(_MSC_VER)
+        #define __FUNCTION_NAME__ __FUNCTION__
+    #else
+        #define __FUNCTION_NAME__ "<unknown func>"
     #endif
 #endif
 

@@ -1,3 +1,6 @@
+2024-08-05 Konstantin Kushnir <chpock@gmail.com>
+	* Fix build on Windows (MINGW64) with internal debugging enabled
+
 2024-08-04 Konstantin Kushnir <chpock@gmail.com>
 	* Use memory-mapped file for readonly mounts
 
