@@ -1,5 +1,8 @@
 2024-08-05 Konstantin Kushnir <chpock@gmail.com>
 	* Fix build on Windows (MINGW64) with internal debugging enabled
+	* Add tests for gethead/getheadmd5/gettail/gettailmd5
+	* Fix gethead/gettail on memory mapped files
+	* Fix memleaks for getheadmd5/gettailmd5
 
 2024-08-04 Konstantin Kushnir <chpock@gmail.com>
 	* Use memory-mapped file for readonly mounts

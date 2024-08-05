@@ -40,6 +40,8 @@
 #define COOKFS_SUFFIX_OFFSET_FSINDEX_SIZE_UNCOMPR (COOKFS_SUFFIX_OFFSET_FSINDEX_SIZE_COMPR + 4)
 #define COOKFS_SUFFIX_OFFSET_SIGNATURE            (COOKFS_SUFFIX_OFFSET_FSINDEX_SIZE_UNCOMPR + 4)
 
+// stamp size in bytes = COOKFS_SIGNATURE_LENGTH + <file size> (8 bytes)
+#define COOKFS_STAMP_BYTES (COOKFS_SIGNATURE_LENGTH + 8)
 // read by 512kb chunks
 #define COOKFS_SEARCH_STAMP_CHUNK 524288
 // max read 10mb
@@ -721,6 +723,11 @@ skipMMap:
 	    goto error;
 	}
 	rc->isFirstWrite = 1;
+	// We can safely use here rc->fileChannel, since we have already
+	// checked for read-only mode above and returned an error for
+	// this case. If we are here, we can be sure that the read-write
+	// mode is active. In read-write mode we have an open channel,
+	// but have not a memory mapped file.
 	rc->dataInitialOffset = Tcl_Seek(rc->fileChannel, 0, SEEK_END);
 	rc->pagesUptodate = 0;
 	rc->indexChanged = 1;
@@ -2122,16 +2129,23 @@ int Cookfs_PagesIsCached(Cookfs_Pages *p, int index) {
 
 Tcl_Obj *Cookfs_PageGetHead(Cookfs_Pages *p) {
     Tcl_Obj *data;
-    data = Tcl_NewByteArrayObj((unsigned char *) "", 0);
-    if (p->dataInitialOffset > 0) {
-	p->fileLastOp = COOKFS_LASTOP_UNKNOWN;
-	Tcl_Seek(p->fileChannel, 0, SEEK_SET);
-	int count = Tcl_ReadChars(p->fileChannel, data, p->dataInitialOffset, 0);
-	if (count != p->dataInitialOffset) {
-	    Tcl_IncrRefCount(data);
-	    Tcl_DecrRefCount(data);
-	    return NULL;
-	}
+    data = Tcl_NewObj();
+    CookfsLog2(printf("initial offset: %" TCL_LL_MODIFIER "d",
+        p->dataInitialOffset));
+    if (p->dataInitialOffset > COOKFS_STAMP_BYTES) {
+        if (p->fileChannel == NULL) {
+            Tcl_SetByteArrayObj(data, p->fileData, p->dataInitialOffset -
+                COOKFS_STAMP_BYTES);
+        } else {
+            p->fileLastOp = COOKFS_LASTOP_UNKNOWN;
+            Tcl_Seek(p->fileChannel, 0, SEEK_SET);
+            int count = Tcl_ReadChars(p->fileChannel, data,
+                p->dataInitialOffset - COOKFS_STAMP_BYTES, 0);
+            if (count != (p->dataInitialOffset - COOKFS_STAMP_BYTES)) {
+                Tcl_BounceRefCount(data);
+                return NULL;
+            }
+        }
     }
     return data;
 }
@@ -2154,7 +2168,10 @@ Tcl_Obj *Cookfs_PageGetHead(Cookfs_Pages *p) {
  */
 
 Tcl_Obj *Cookfs_PageGetHeadMD5(Cookfs_Pages *p) {
-    return Cookfs_MD5FromObj(Cookfs_PageGetHead(p));
+    Tcl_Obj *head = Cookfs_PageGetHead(p);
+    Tcl_Obj *rc = Cookfs_MD5FromObj(head);
+    Tcl_BounceRefCount(head);
+    return rc;
 }
 
 
@@ -2178,16 +2195,22 @@ Tcl_Obj *Cookfs_PageGetHeadMD5(Cookfs_Pages *p) {
 
 Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p) {
     Tcl_Obj *data;
-    data = Tcl_NewByteArrayObj((unsigned char *) "", 0);
-    if (p->dataInitialOffset > 0) {
-	p->fileLastOp = COOKFS_LASTOP_UNKNOWN;
-	Tcl_Seek(p->fileChannel, p->dataInitialOffset, SEEK_SET);
-	int count = Tcl_ReadChars(p->fileChannel, data, -1, 0);
-	if (count < 0) {
-	    Tcl_IncrRefCount(data);
-	    Tcl_DecrRefCount(data);
-	    return NULL;
-	}
+    CookfsLog2(printf("initial offset: %" TCL_LL_MODIFIER "d",
+        p->dataInitialOffset));
+    if (p->fileChannel == NULL) {
+        data = Tcl_NewByteArrayObj(
+            &p->fileData[p->dataInitialOffset - COOKFS_STAMP_BYTES],
+            p->fileLength - p->dataInitialOffset + COOKFS_STAMP_BYTES);
+    } else {
+        data = Tcl_NewObj();
+        p->fileLastOp = COOKFS_LASTOP_UNKNOWN;
+        Tcl_Seek(p->fileChannel, p->dataInitialOffset - COOKFS_STAMP_BYTES,
+            SEEK_SET);
+        int count = Tcl_ReadChars(p->fileChannel, data, -1, 0);
+        if (count < 0) {
+            Tcl_BounceRefCount(data);
+            return NULL;
+        }
     }
     return data;
 }
@@ -2213,7 +2236,10 @@ Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p) {
 
 Tcl_Obj *Cookfs_PageGetTailMD5(Cookfs_Pages *p) {
     /* TODO: this can consume a lot of memory for large archives */
-    return Cookfs_MD5FromObj(Cookfs_PageGetTail(p));
+    Tcl_Obj *tail = Cookfs_PageGetTail(p);
+    Tcl_Obj *rc = Cookfs_MD5FromObj(tail);
+    Tcl_BounceRefCount(tail);
+    return rc;
 }
 
 
