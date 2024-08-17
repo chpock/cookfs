@@ -1,6 +1,11 @@
 * Add documentation as HTML to github pages
 * Add ability to disable custom compression to reduce size footprint when it is not needed
 * Add ability to disable async compression to reduce size footprint when it is not needed
+* If a small file is added whose contents match the contents of any existing
+  small file stored on the pages, it is saved as a separate file.
+  Add deduplication, so that if a small file is added and its contents exist
+  in another file, don't duplicate its contents existing in the other file,
+  but use the existing data.
 * Update bzip2 and use it as a submodule. Perhaps this will get rid of its compile-time warnings.
 * Add ability/subcommand to copy files from/to cookfs more efficiently than using 'file copy'.
   It can be something like 'cookfs copy <from disk> <cookfs endpoint>"
