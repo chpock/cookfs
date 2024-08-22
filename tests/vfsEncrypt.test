@@ -383,7 +383,7 @@ tcltest::test cookfsVfsEncrypt-5.1 "Test key-index encryption" -constraints {coo
     unset -nocomplain file fsid data result pos
 } -result {}
 
-tcltest::test cookfsVfsEncrypt-5.2 "Test key-index encryption, open protected archive without password" -constraints {cookfsCrypto} -setup {
+tcltest::test cookfsVfsEncrypt-5.2.1 "Test key-index encryption, open protected archive without password (readonly mode)" -constraints {cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # Set a password at initialization to enable index encryption
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey -password foo]
@@ -397,7 +397,21 @@ tcltest::test cookfsVfsEncrypt-5.2 "Test key-index encryption, open protected ar
     unset -nocomplain file fsid
 } -returnCodes error -result {Unable to create Cookfs object: the required password for the encrypted archive is missing}
 
-tcltest::test cookfsVfsEncrypt-5.3 "Test key-index encryption, open protected archive with wrong password" -constraints {cookfsCrypto} -setup {
+tcltest::test cookfsVfsEncrypt-5.2.2 "Test key-index encryption, open protected archive without password (readwrite mode)" -constraints {cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # Set a password at initialization to enable index encryption
+    set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey -password foo]
+    tcltest::makeFile {TEST} test0 $file
+    cookfs::Unmount $file
+} -body {
+    cookfs::Mount $file $file
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid
+} -returnCodes error -result {Unable to create Cookfs object: the required password for the encrypted archive is missing}
+
+tcltest::test cookfsVfsEncrypt-5.3.1 "Test key-index encryption, open protected archive with wrong password (readonly mode)" -constraints {cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]
     # Set a password at initialization to enable index encryption
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey -password foo]
@@ -410,6 +424,38 @@ tcltest::test cookfsVfsEncrypt-5.3 "Test key-index encryption, open protected ar
     tcltest::removeFile $file
     unset -nocomplain file fsid
 } -returnCodes error -result {Unable to create Cookfs object: could not decrypt the encryption key with the specified password}
+
+tcltest::test cookfsVfsEncrypt-5.3.2 "Test key-index encryption, open protected archive with wrong password (readwrite mode)" -constraints {cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # Set a password at initialization to enable index encryption
+    set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey -password foo]
+    tcltest::makeFile {TEST} test0 $file
+    cookfs::Unmount $file
+} -body {
+    cookfs::Mount $file $file -password bar
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid
+} -returnCodes error -result {Unable to create Cookfs object: could not decrypt the encryption key with the specified password}
+
+tcltest::test cookfsVfsEncrypt-5.3.3 "Test key-index encryption, open protected archive with wrong password (readwrite mode), ensure that archive is not broken" -constraints {cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+    # Set a password at initialization to enable index encryption
+    set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey -password foo]
+    tcltest::makeFile {TEST} test0 $file
+    cookfs::Unmount $file
+} -body {
+    catch { cookfs::Mount $file /fake_mount_point -password bar }
+    catch { cookfs::Unmount /fake_mount_point }
+    cookfs::Mount $file $file -password foo
+    tcltest::viewFile test0 $file
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    catch { cookfs::Unmount /fake_mount_point }
+    tcltest::removeFile $file
+    unset -nocomplain file fsid
+} -result {TEST}
 
 tcltest::test cookfsVfsEncrypt-6.1 "Test key encryption" -constraints {cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]
