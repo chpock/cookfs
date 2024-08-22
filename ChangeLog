@@ -1,3 +1,7 @@
+2024-08-23 Konstantin Kushnir <chpock@gmail.com>
+	* Fix a bug where mounting an archive with an invalid password in
+	read-write mode did not return an error
+
 2024-08-05 Konstantin Kushnir <chpock@gmail.com>
 	* Fix build on Windows (MINGW64) with internal debugging enabled
 	* Add tests for gethead/getheadmd5/gettail/gettailmd5

@@ -453,7 +453,7 @@ tcltest::test cookfsPagesEncrypt-5.1 "Test key-index encryption" -constraints {e
     unset -nocomplain file pg size data result pos
 } -result {}
 
-tcltest::test cookfsPagesEncrypt-5.2 "Test key-index encryption, open protected archive without password" -constraints {enabledTclCmds cookfsCrypto} -setup {
+tcltest::test cookfsPagesEncrypt-5.2.1 "Test key-index encryption, open protected archive without password (readonly mode)" -constraints {enabledTclCmds cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     # Set a password at initialization to enable index encryption
@@ -468,7 +468,22 @@ tcltest::test cookfsPagesEncrypt-5.2 "Test key-index encryption, open protected 
     unset -nocomplain file pg
 } -returnCodes error -result {Unable to create Cookfs object: the required password for the encrypted archive is missing}
 
-tcltest::test cookfsPagesEncrypt-5.3 "Test key-index encryption, open protected archive with wrong password" -constraints {enabledTclCmds cookfsCrypto} -setup {
+tcltest::test cookfsPagesEncrypt-5.2.2 "Test key-index encryption, open protected archive without password (readwrite mode)" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Set a password at initialization to enable index encryption
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    $pg add "TEST00TEST"
+    $pg delete
+
+    set pg [cookfs::pages $file]
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg
+} -returnCodes error -result {Unable to create Cookfs object: the required password for the encrypted archive is missing}
+
+tcltest::test cookfsPagesEncrypt-5.3.1 "Test key-index encryption, open protected archive with wrong password (readonly mode)" -constraints {enabledTclCmds cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]
 } -body {
     # Set a password at initialization to enable index encryption
@@ -482,6 +497,42 @@ tcltest::test cookfsPagesEncrypt-5.3 "Test key-index encryption, open protected 
     catch {file delete -force $file}
     unset -nocomplain file pg
 } -returnCodes error -result {Unable to create Cookfs object: could not decrypt the encryption key with the specified password}
+
+tcltest::test cookfsPagesEncrypt-5.3.2 "Test key-index encryption, open protected archive with wrong password (read-write mode)" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Set a password at initialization to enable index encryption
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    $pg add "TEST00TEST"
+    $pg delete
+
+    set pg [cookfs::pages -password bar $file]
+} -cleanup {
+    catch {$pg delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg
+} -returnCodes error -result {Unable to create Cookfs object: could not decrypt the encryption key with the specified password}
+
+tcltest::test cookfsPagesEncrypt-5.3.3 "Test key-index encryption, open protected archive with wrong password (read-write mode), ensure that archive is not broken" -constraints {enabledTclCmds cookfsCrypto} -setup {
+    set file [tcltest::makeFile {} pages.cfs]
+} -body {
+    # Set a password at initialization to enable index encryption
+    set pg [cookfs::pages -compression none -encryptlevel 0 -encryptkey -password foo $file]
+    $pg add "TEST00TEST"
+    $pg delete
+
+    # Try to open with wrong password
+    catch { set pg1 [cookfs::pages -password bar $file] }
+    catch { $pg1 delete }
+
+    set pg [cookfs::pages -password foo $file]
+    $pg get 0
+} -cleanup {
+    catch {$pg delete}
+    catch {$pg1 delete}
+    catch {file delete -force $file}
+    unset -nocomplain file pg
+} -result {TEST00TEST}
 
 tcltest::test cookfsPagesEncrypt-5.4 "Test key-index encryption, deduplication" -constraints {enabledTclCmds cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]

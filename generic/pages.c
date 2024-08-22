@@ -61,7 +61,7 @@
 /* declarations of static and/or internal functions */
 static Cookfs_PageObj CookfsPagesPageGetInt(Cookfs_Pages *p, int index, Tcl_Obj **err);
 static void CookfsPagesPageCacheMoveToTop(Cookfs_Pages *p, int index);
-static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *password, Tcl_Obj **err);
+static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *password, int *is_abort, Tcl_Obj **err);
 static void CookfsTruncateFileIfNeeded(Cookfs_Pages *p, Tcl_WideInt targetOffset);
 static Tcl_WideInt Cookfs_PageSearchStamp(Cookfs_Pages *p);
 static void Cookfs_PagesFree(Cookfs_Pages *p);
@@ -709,10 +709,11 @@ skipMMap:
     /* read index or fail */
     Cookfs_PagesLockWrite(rc, NULL);
     Tcl_Obj *index_err = NULL;
-    int indexRead = CookfsReadIndex(interp, rc, password, &index_err);
+    int is_abort = 0;
+    int indexRead = CookfsReadIndex(interp, rc, password, &is_abort, &index_err);
     Cookfs_PagesUnlock(rc);
     if (!indexRead) {
-	if (rc->fileReadOnly) {
+	if (rc->fileReadOnly || is_abort) {
 	    if (index_err != NULL) {
 	        if (interp != NULL) {
 	            Tcl_SetObjResult(interp, index_err);
@@ -2706,7 +2707,7 @@ static Cookfs_PageObj CookfsPagesPageGetInt(Cookfs_Pages *p, int index,
  *----------------------------------------------------------------------
  */
 
-static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *password, Tcl_Obj **err) {
+static int CookfsReadIndex(Tcl_Interp *interp, Cookfs_Pages *p, Tcl_Obj *password, int *is_abort, Tcl_Obj **err) {
 
 #ifndef COOKFS_USECCRYPTO
     UNUSED(password);
@@ -2910,6 +2911,15 @@ checkSignature:
         }
         return 0;
     }
+
+    // If we are here, then we have successfully read the archive suffix and
+    // should expect that the file to be opened is a cookfs archive.
+    // In case of any error below, we should report it as an error.
+    // Uplevel function is designed to create a new archive if we open a file
+    // in read-write mode and some error occurs while reading indexes.
+    // By setting is_abort to 1, we instruct Cookfs_PagesInit() not to attempt
+    // to start a new archive in the specified file, but to return an error.
+    *is_abort = 1;
 
     /* get default compression and encryption */
     p->baseCompression = buf[COOKFS_SUFFIX_OFFSET_BASE_COMPRESSION] & 0xff;
