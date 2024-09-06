@@ -440,6 +440,13 @@ tcltest::test cookfsVfsThread-6.1 "High load, write files from multiple threads"
     unset -nocomplain file fsid tid tid1 tid2 tid3 thread_done file1 file2 file3 data1 data2 data3 result filex i fp datax rdata
 } -result {ok ok ok}
 
+if { [::tcl::pkgconfig get threaded] } {
+    # Initialize tsv before first use to avoid memory leak messages for tsv
+    # structures initialized during test execution
+    tsv::set thread_ready 1 1
+    tsv::unset thread_ready
+}
+
 tcltest::test cookfsVfsThread-7.1 "VFS terminated while other thread reads a big file" -constraints {threaded enabledCVfs} -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
