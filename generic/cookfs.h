@@ -19,6 +19,8 @@
 #include <string.h>
 #include <assert.h>
 
+// #define COOKFS_THREAD_DEBUG
+
 /*
  * Backwards compatibility for size type change
  */
@@ -96,10 +98,13 @@ static inline void __cookfs_debug_dump(unsigned char *data, Tcl_Size size) {
 // }
 // #define CookfsLog(a) {printf("%d ", ___get_stack_depth()); a; printf("\n"); fflush(stdout);}
 
-// #define CookfsLog(a) {printf("[%p] ", (void *)Tcl_GetCurrentThread()); a; printf("\n"); fflush(stdout);}
-// #define CookfsLog2(a) {printf("[%p] ", (void *)Tcl_GetCurrentThread()); printf("%s: ", __FUNCTION_NAME__); a; printf("\n"); fflush(stdout);}
+#ifdef COOKFS_THREAD_DEBUG
+#define CookfsLog(a) {printf("[%p] ", (void *)Tcl_GetCurrentThread()); a; printf("\n"); fflush(stdout);}
+#define CookfsLog2(a) {printf("[%p] %s: ", (void *)Tcl_GetCurrentThread(), __FUNCTION_NAME__); a; printf("\n"); fflush(stdout);}
+#else
 #define CookfsLog(a) {a; printf("\n"); fflush(stdout);}
 #define CookfsLog2(a) {printf("%s: ", __FUNCTION_NAME__); a; printf("\n"); fflush(stdout);}
+#endif /* COOKFS_THREAD_DEBUG */
 #define CookfsDump(d,s) __cookfs_debug_dump((unsigned char *)d,s)
 #else
 #define CookfsLog(a) {}

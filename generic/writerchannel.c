@@ -176,6 +176,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
         goto error;
     }
     if (!Cookfs_WriterLockRead(writer, &err)) {
+        Cookfs_FsindexUnlock(index);
         goto error;
     }
     int firstTimeRead = 1;

@@ -112,7 +112,9 @@ int Cookfs_FsindexUnlockSoft(Cookfs_Fsindex *i) {
 
 void Cookfs_FsindexLockExclusive(Cookfs_Fsindex *i) {
 #ifdef TCL_THREADS
+    CookfsLog2(printf("try to lock exclusive..."));
     Cookfs_RWMutexLockExclusive(i->mx);
+    CookfsLog2(printf("ok"));
 #else
     UNUSED(i);
 #endif /* TCL_THREADS */

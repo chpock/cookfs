@@ -155,7 +155,9 @@ int Cookfs_PagesUnlockSoft(Cookfs_Pages *p) {
 
 void Cookfs_PagesLockExclusive(Cookfs_Pages *p) {
 #ifdef TCL_THREADS
+    CookfsLog2(printf("try to lock exclusive..."));
     Cookfs_RWMutexLockExclusive(p->mx);
+    CookfsLog2(printf("ok"));
 #else
     UNUSED(p);
 #endif /* TCL_THREADS */

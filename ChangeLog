@@ -1,5 +1,6 @@
 2024-09-07 Konstantin Kushnir <chpock@gmail.com>
 	* Refactor threads tests to make them more reliable
+	* Fix possible deadlock
 
 2024-08-23 Konstantin Kushnir <chpock@gmail.com>
 	* Fix a bug where mounting an archive with an invalid password in

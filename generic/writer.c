@@ -89,7 +89,9 @@ int Cookfs_WriterUnlockSoft(Cookfs_Writer *w) {
 
 void Cookfs_WriterLockExclusive(Cookfs_Writer *w) {
 #ifdef TCL_THREADS
+    CookfsLog2(printf("try to lock exclusive..."));
     Cookfs_RWMutexLockExclusive(w->mx);
+    CookfsLog2(printf("ok"));
 #else
     UNUSED(w);
 #endif /* TCL_THREADS */

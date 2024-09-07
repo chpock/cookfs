@@ -563,6 +563,7 @@ ret:
     if (index != NULL) {
         Cookfs_FsindexUnlock(index);
     }
+    CookfsLog2(printf("return: %p", (void *)channel));
     return channel;
 }
 
