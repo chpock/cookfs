@@ -574,7 +574,8 @@ tcltest::test cookfsVfsThread-7.3 "VFS terminated while other thread opens a fil
     testMultipleMatch [thread::send $tid [list set result]] \
         {1 {couldn't open "*": not a directory}} \
         {1 {couldn't open "*": no such file or directory}} \
-        {1 {couldn't open "*": no such device}}
+        {1 {couldn't open "*": no such device}} \
+        {1 {couldn't open "*": stalled fsindex object detected}}
 } -cleanup {
     catch { tsv::unset thread_ready }
     catch { thread::release $tid }
@@ -624,7 +625,8 @@ tcltest::test cookfsVfsThread-7.4 "VFS terminated while other thread opens a fil
         {1 {couldn't open "*": not a directory}} \
         {1 {couldn't open "*": no such file or directory}} \
         {1 {could not read "*": no such device}} \
-        {1 {couldn't open "*": no such device}}
+        {1 {couldn't open "*": no such device}} \
+        {1 {couldn't open "*": stalled fsindex object detected}}
 } -cleanup {
     catch { tsv::unset thread_ready }
     catch { thread::release $tid }
@@ -677,6 +679,7 @@ tcltest::test cookfsVfsThread-7.5 "VFS terminated while other thread opens a fil
         {1 {couldn't open "*": no such file or directory}} \
         {1 {couldn't open "*": no such device}} \
         {1 {stalled * object detected}} \
+        {1 {couldn't open "*": stalled fsindex object detected}} \
         {1 {error during seek on "*": no such device}}
 } -cleanup {
     catch { tsv::unset thread_ready }
