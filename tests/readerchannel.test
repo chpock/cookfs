@@ -19,7 +19,7 @@ tcltest::test cookfsReaderChannel-1.1 {read from multiple pages} -constraints {e
     lappend result [llength [lindex [$fs get test] 2]]
     cookfs::Mount -readonly $vfs $vfs -pagesobject $pg -fsindexobject $fs
     set fp [open $file r]
-    fconfigure $fp -translation binary -encoding binary
+    fconfigure $fp -translation binary
     # read the first 1000 bytes
     lappend result [expr { [read $fp 1000] eq [string range $data 0 999] }]
     # read the last 1000 bytes
@@ -46,7 +46,7 @@ tcltest::test cookfsReaderChannel-2.1 {full read with multiple pages} -setup {
     cookfs::Mount -readonly $vfs $vfs
     set result ""
     set fp [open $file r]
-    fconfigure $fp -translation binary -encoding binary
+    fconfigure $fp -translation binary
     while { ![eof $fp] } {
         append result [read $fp 11]
     }
@@ -98,7 +98,7 @@ tcltest::test cookfsReaderChannel-3.1 {position when reading a file sequentially
     set result [list]
     set expected 0
     set fp [open $file r]
-    fconfigure $fp -translation binary -encoding binary
+    fconfigure $fp -translation binary
     while { ![eof $fp] } {
         read $fp 800
         if { [incr expected 800] > 4001 } { set expected 4001 }
@@ -130,7 +130,7 @@ tcltest::test cookfsReaderChannel-4.1 {position when reading a file randomly ove
     cookfs::Mount -readonly $vfs $vfs
     set result [list]
     set fp [open $file r]
-    fconfigure $fp -translation binary -encoding binary
+    fconfigure $fp -translation binary
     foreach { offset size } {
         0    1
         0    10
