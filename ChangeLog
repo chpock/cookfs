@@ -1,3 +1,6 @@
+2024-09-09 Konstantin Kushnir <chpock@gmail.com>
+	* Fix compatibility with Tcl 9.0b3
+
 2024-09-07 Konstantin Kushnir <chpock@gmail.com>
 	* Refactor threads tests to make them more reliable
 	* Fix possible deadlock
