@@ -532,10 +532,12 @@ done:
     // Detach the channel from the current interp as it should be
     // a pristine channel
     Tcl_DetachChannel(interp, channel);
+#if TCL_MAJOR_VERSION < 9
     // In Windows, native OpenFileChannel() sets -eofchar. Let's simulate
     //the same behaviour.
 #ifdef _WIN32
     Tcl_SetChannelOption(NULL, channel, "-eofchar", "\032 {}");
+#endif
 #endif
     CookfsLog(printf("CookfsOpenFileChannel: ok"));
     goto ret;

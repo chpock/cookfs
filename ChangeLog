@@ -1,3 +1,6 @@
+2024-09-14 Konstantin Kushnir <chpock@gmail.com>
+	* Fix -eofchar issue on Windows and Tcl 9.0b3
+
 2024-09-09 Konstantin Kushnir <chpock@gmail.com>
 	* Fix compatibility with Tcl 9.0b3
 
