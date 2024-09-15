@@ -572,8 +572,10 @@ skipReading: ; // empty statement
         if (Cookfs_AesDecrypt(dataCompressed, p->encryptionKey) != TCL_OK) {
             Cookfs_PageObjBounceRefCount(dataCompressed);
             CookfsLog2(printf("return: ERROR (failed to decrypt the page)"));
-            SET_ERROR(Tcl_NewStringObj("wrong password specified for"
-                " decrypting", -1));
+decryptionFailed:
+            SET_ERROR(Tcl_NewStringObj("failed to verify read data,"
+                " the decryption password is incorrect or the archive"
+                " is corrupted", -1));
             return NULL;
         }
         sizeCompressed = Cookfs_PageObjSize(dataCompressed);
@@ -698,9 +700,7 @@ skipUncompress: ; // empty statement
         CookfsLog2(printf("return: ERROR (hash doesn't match)"));
 #ifdef COOKFS_USECCRYPTO
         if (encrypted) {
-            SET_ERROR(Tcl_NewStringObj("failed to verify read data,"
-                " the decryption password is incorrect or the archive"
-                " is corrupted", -1));
+            goto decryptionFailed;
         } else {
 #endif /* COOKFS_USECCRYPTO */
             SET_ERROR(Tcl_NewStringObj("failed to verify read data, archive"

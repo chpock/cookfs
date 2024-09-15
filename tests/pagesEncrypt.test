@@ -339,7 +339,7 @@ tcltest::test cookfsPagesEncrypt-4.3 "Test file encryption, wrong password" -con
 TEST00TEST
 TEST01TEST
 Unable to retrieve chunk: no password specified for decrypting
-Unable to retrieve chunk: wrong password specified for decrypting}
+Unable to retrieve chunk: failed to verify read data, the decryption password is incorrect or the archive is corrupted}
 
 tcltest::test cookfsPagesEncrypt-4.4 "Test file encryption, deduplication" -constraints {enabledTclCmds cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]

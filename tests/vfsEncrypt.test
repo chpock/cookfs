@@ -286,7 +286,7 @@ tcltest::test cookfsVfsEncrypt-4.3.2 "Test file encryption, wrong password when 
     catch { cookfs::Unmount $file }
     tcltest::removeFile $file
     unset -nocomplain file fsid fs data notok fd
-} -returnCodes error -match glob -result {couldn't open "*": wrong password specified for decrypting}
+} -returnCodes error -match glob -result {couldn't open "*": failed to verify read data, the decryption password is incorrect or the archive is corrupted}
 
 tcltest::test cookfsVfsEncrypt-4.4.1 "Test file encryption, no password when using readerchannel" -constraints {cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]
@@ -332,7 +332,7 @@ tcltest::test cookfsVfsEncrypt-4.4.2 "Test file encryption, wrong password when 
     catch { cookfs::Unmount $file }
     tcltest::removeFile $file
     unset -nocomplain file fsid fs data notok fd
-} -returnCodes error -match glob -result {couldn't open "*": wrong password specified for decrypting}
+} -returnCodes error -match glob -result {couldn't open "*": failed to verify read data, the decryption password is incorrect or the archive is corrupted}
 
 tcltest::test cookfsVfsEncrypt-5.1 "Test key-index encryption" -constraints {cookfsCrypto} -setup {
     set file [tcltest::makeFile {} pages.cfs]
