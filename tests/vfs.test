@@ -1568,3 +1568,68 @@ tcltest::test cookfsVfs-20.1.2 "Don't crash when stamp is not present and archiv
     unset -nocomplain data index file ok
 } -returnCodes error -result {Unable to create Cookfs object: index not found}
 
+tcltest::test cookfsVfs-21.1 "Open a file that starts as a mount point without an error" -setup {
+    set cfs [tcltest::makeBinFile {} pages.cfs]
+    set checkfile1 [tcltest::makeFile {OUTSIDE} pages.cfs.test]
+} -body {
+    cookfs::Mount $cfs $cfs -compression none
+    set checkfile2 [tcltest::makeFile {INSIDE} test $cfs]
+    list [tcltest::viewFile $checkfile1] [tcltest::viewFile $checkfile2]
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+    tcltest::removeFile $checkfile1
+    tcltest::removeFile $cfs
+    unset -nocomplain cfs checkfile1 checkfile2
+} -result {OUTSIDE INSIDE}
+
+tcltest::test cookfsVfs-22.1.1 "Verify VFS mount point with a filesystem separator at the end" -setup {
+    set cfs [tcltest::makeBinFile {} pages.cfs]
+    set mnt "mount:/"
+} -body {
+    cookfs::Mount $cfs $mnt -compression none -volume
+    tcltest::makeFile {INSIDE} test $mnt
+    tcltest::viewFile "${mnt}test"
+} -cleanup {
+    catch { cookfs::Unmount $mnt }
+    tcltest::removeFile $cfs
+    unset -nocomplain cfs mnt
+} -result {INSIDE}
+
+tcltest::test cookfsVfs-22.1.2 "Verify VFS mount point with a filesystem separator at the end (using join)" -setup {
+    set cfs [tcltest::makeBinFile {} pages.cfs]
+    set mnt "mount:/"
+} -body {
+    cookfs::Mount $cfs $mnt -compression none -volume
+    tcltest::makeFile {INSIDE} test $mnt
+    tcltest::viewFile [file join $mnt "test"]
+} -cleanup {
+    catch { cookfs::Unmount $mnt }
+    tcltest::removeFile $cfs
+    unset -nocomplain cfs mnt
+} -result {INSIDE}
+
+tcltest::test cookfsVfs-22.2.1 "Verify VFS mount point with 2 filesystem separators at the end" -setup {
+    set cfs [tcltest::makeBinFile {} pages.cfs]
+    set mnt "mount://"
+} -body {
+    cookfs::Mount $cfs $mnt -compression none -volume
+    tcltest::makeFile {INSIDE} test $mnt
+    tcltest::viewFile "${mnt}test"
+} -cleanup {
+    catch { cookfs::Unmount $mnt }
+    tcltest::removeFile $cfs
+    unset -nocomplain cfs mnt
+} -result {INSIDE}
+
+tcltest::test cookfsVfs-22.2.2 "Verify VFS mount point with 2 filesystem separators at the end (using join)" -setup {
+    set cfs [tcltest::makeBinFile {} pages.cfs]
+    set mnt "mount://"
+} -body {
+    cookfs::Mount $cfs $mnt -compression none -volume
+    tcltest::makeFile {INSIDE} test $mnt
+    tcltest::viewFile [file join $mnt "test"]
+} -cleanup {
+    catch { cookfs::Unmount $mnt }
+    tcltest::removeFile $cfs
+    unset -nocomplain cfs mnt
+} -result {INSIDE}

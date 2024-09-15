@@ -582,6 +582,27 @@ Cookfs_Vfs *Cookfs_CookfsSplitWithVfs(Tcl_Obj *path,
         {
             continue;
         }
+        // Also, we check that we have filesystem separator in the search
+        // string at the point after the end of the VFS mount or the search
+        // string is the VFS mount point (they are the same length).
+        // This will prevent files like '/foo/mount.bar' from being considered
+        // as belonging to the mount point '/foo/mount'. Here we expect
+        // a normalized input path with the internal Tcl file system
+        // separator '/'. Thus, we don't check for '\' on Windows and '/'
+        // on Unix.
+        //
+        // However, we also should consider a case where mount point contains
+        // a filesystem separator at the end. For example, if we have a mount
+        // point like 'mount://'. In this case, we don't need to perform
+        // the above check because we have already verified that the start
+        // of the search string matches the VFS mount point.
+        if (e->mountStr[mountLen - 1] != VFS_SEPARATOR &&
+            mountLen != searchLen &&
+            searchStr[mountLen] != VFS_SEPARATOR)
+        {
+            continue;
+        }
+
         // We found matching the mount point.
         foundSize = mountLen;
         foundEntry = e;

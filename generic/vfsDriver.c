@@ -160,8 +160,8 @@ static ThreadSpecificData *CookfsGetThreadSpecificData(void) {
 static int CookfsPathInFilesystem(Tcl_Obj *pathPtr,
     ClientData *clientDataPtr)
 {
-    //CookfsLog(printf("CookfsPathInFilesystem: start; looking for [%s]",
-    //    Tcl_GetString(pathPtr)));
+    // CookfsLog(printf("CookfsPathInFilesystem: start; looking for [%s]",
+    //     Tcl_GetString(pathPtr)));
 
     Tcl_Obj *normPathObj = Tcl_FSGetNormalizedPath(NULL, pathPtr);
     if (normPathObj == NULL) {
@@ -193,8 +193,8 @@ static int CookfsPathInFilesystem(Tcl_Obj *pathPtr,
     Cookfs_PathObjIncrRefCount(internalRep->pathObj);
 
     *clientDataPtr = (ClientData)internalRep;
-    //CookfsLog(printf("CookfsPathInFilesystem: return found entry as"
-    //    " an internalRep [%p]", (void *)internalRep));
+    // CookfsLog(printf("CookfsPathInFilesystem: return found entry as"
+    //     " an internalRep [%p]", (void *)internalRep));
     return TCL_OK;
 }
 
