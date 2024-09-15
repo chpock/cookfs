@@ -30,12 +30,20 @@ void Cookfs_PageObjDecrRefCount(Cookfs_PageObj pg) {
     // a corresponding Cookfs_PageObjIncrRefCount() that was called before it.
     // Throw an error if refcount is less than or equal to zero.
     assert(pg->refCount > 0);
-    pg->refCount--;
+    // We need to know what refCount value was at the time the mutex was
+    // locked. Thus, we make a local copy of this value. We cannot rely on
+    // the value of pg->refCount after unlocking the mutex, because
+    // it is possible that another thread decreased pg->refCount after we
+    // did the unlock, but before we check if pg->refCount is 0.
+    // This will mean that these 2 threads will think that pg->refCount is 0,
+    // and these 2 threads will try to free the page. This will cause memory
+    // to be double freed.
+    int refCount = --pg->refCount;
     // CookfsLog2(printf("%p - count:%d", (void *)pg, pg->refCount));
 #ifdef TCL_THREADS
     Tcl_MutexUnlock(&pg->mx);
 #endif /* TCL_THREADS */
-    if (!pg->refCount) {
+    if (!refCount) {
 #ifdef TCL_THREADS
         Tcl_MutexFinalize(&pg->mx);
 #endif /* TCL_THREADS */
