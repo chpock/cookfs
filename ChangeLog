@@ -2,9 +2,8 @@
 	* Fix a bug with opening local files when their path starts as a VFS mount
 	point
 	* Equalize error messages for decryption failures, as different error
-	messages led to unstable test
-	* Equalize error message for decryption failures as different error messages
-	leaded to flaky tests
+	messages led to flaky test
+	* Fix 'glob' on mounted volumes like 'mount:/'
 
 2024-09-14 Konstantin Kushnir <chpock@gmail.com>
 	* Fix -eofchar issue on Windows and Tcl 9.0b3

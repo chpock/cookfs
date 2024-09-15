@@ -1,22 +1,42 @@
+* Investogate an issue with -directory parameter for glob.
+  See tests cookfsVfs-1.8.4.1.1 and cookfsVfs-1.8.4.1.2.
+  Then some variable (object) is passed to -directory argument
+  of the command glob, then internal cookfs representation is
+  linked to this object. But this representation is not freed
+  even if variable (object) is removed. It is released only at
+  the end of the evaluation of the Tcl source file. It is need
+  to be investogated why internal representation is not released
+  when corresponding object is deleted.
+
 * Add documentation as HTML to github pages
+
 * Add ability to disable custom compression to reduce size footprint when it is not needed
+
 * Add ability to disable async compression to reduce size footprint when it is not needed
+
 * If a small file is added whose contents match the contents of any existing
   small file stored on the pages, it is saved as a separate file.
   Add deduplication, so that if a small file is added and its contents exist
   in another file, don't duplicate its contents existing in the other file,
   but use the existing data.
+
 * Update bzip2 and use it as a submodule. Perhaps this will get rid of its compile-time warnings.
+
 * Add ability/subcommand to copy files from/to cookfs more efficiently than using 'file copy'.
   It can be something like 'cookfs copy <from disk> <cookfs endpoint>"
+
 * Add ability to get a list of pages with their properties (compression, compression level,
   encryption, compressed size, uncompressed size)
+
 * Add ability to get information about pagesindex and fsindex (compression, compression level,
   encryption, compressed size, uncompressed size). This will be useful for analyzing the contents
   of a cookfs archive.
-* ASdd ability to get information about whole archive (file size, head size, cookfs size).
+
+* Add ability to get information about whole archive (file size, head size, cookfs size).
   It should be available from attributes to a mount point.
+
 * Add support for storing file permissions and attributes (for Windows platform)
+
 * Add support for 'file attribute' commands to return general attributes and attributes like zipfs in Tcl9
 * Add support for 'zipfs mkimg'-like command
 
