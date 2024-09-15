@@ -694,21 +694,37 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
             " is OK", fileName));
 
         // Prepare an object to be used as a prefix for the retrieved records.
+        // It should be pathPtr + filesystem separator '/'. However, we
+        // should not add another file system separator if pathPtr already
+        // contains one at the end. This case is possible for mounted volumes
+        // like 'mount:/'. And in this case we will use pathPtr as a prefix.
         if (prefix == NULL) {
-            prefix = Tcl_DuplicateObj(pathPtr);
-            Tcl_IncrRefCount(prefix);
-            char sep = VFS_SEPARATOR;
-            Tcl_AppendToObj(prefix, &sep, 1);
+            Tcl_Size pathLen;
+            const char *pathStr = Tcl_GetStringFromObj(pathPtr, &pathLen);
+            if (pathLen > 0 && pathStr[pathLen - 1] != VFS_SEPARATOR) {
+                prefix = Tcl_DuplicateObj(pathPtr);
+                Tcl_IncrRefCount(prefix);
+                char sep = VFS_SEPARATOR;
+                Tcl_AppendToObj(prefix, &sep, 1);
+            } else {
+                prefix = pathPtr;
+            }
+            CookfsLog2(printf("use common prefix for all matches: [%s]",
+                Tcl_GetString(prefix)));
         }
 
         // Join prefix + current entry and add it to the results
         Tcl_Obj *obj = Tcl_DuplicateObj(prefix);
         Tcl_AppendToObj(obj, fileName, fileNameLen);
         Tcl_ListObjAppendElement(NULL, returnPtr, obj);
+        CookfsLog2(printf("add file to results: [%s]",
+            Tcl_GetString(obj)));
 
     }
 
-    if (prefix != NULL) {
+    // Release the prefix only if we created it and it is not the same object
+    // as pathPtr.
+    if (prefix != NULL && prefix != pathPtr) {
         Tcl_DecrRefCount(prefix);
     }
     Cookfs_FsindexListFree(foundList);

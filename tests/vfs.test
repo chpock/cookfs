@@ -208,6 +208,62 @@ tcltest::test cookfsVfs-1.8.3 "Mounting multiple volumes, unmounting a single vo
     unset -nocomplain file fh h result
 } -result {{1 1 1} {1 0 1} {0 0 1} {0 0 0}}
 
+tcltest::test cookfsVfs-1.8.4.1.1 "Mounting as volume, glob results, -directory" -setup {
+    set img [tcltest::makeFile {} cookfs.cfs]
+    set mnt "test:/"
+} -body {
+    cookfs::Mount $img $mnt -compression none
+    set fh [open [file join $mnt testfile] w]
+    close $fh
+    glob -directory $mnt *
+} -cleanup {
+    catch { cookfs::Unmount $mnt }
+    tcltest::removeFile $img
+    unset -nocomplain img mnt fh
+} -result {test:/testfile}
+
+tcltest::test cookfsVfs-1.8.4.1.2 "Mounting as volume, glob results, -tails -directory" -setup {
+    set img [tcltest::makeFile {} cookfs.cfs]
+    set mnt "test:/"
+} -body {
+    cookfs::Mount $img $mnt -compression none
+    set fh [open [file join $mnt testfile] w]
+    close $fh
+    glob -directory $mnt -tails *
+} -cleanup {
+    catch { cookfs::Unmount $mnt }
+    tcltest::removeFile $img
+    unset -nocomplain img mnt fh
+} -result {testfile}
+
+tcltest::test cookfsVfs-1.8.4.2.1 "Mounting as volume, glob results, -path" -setup {
+    set img [tcltest::makeFile {} cookfs.cfs]
+    set mnt "test:/"
+} -body {
+    cookfs::Mount $img $mnt -compression none
+    set fh [open [file join $mnt testfile] w]
+    close $fh
+    glob -path "${mnt}test" *
+} -cleanup {
+    catch { cookfs::Unmount $mnt }
+    tcltest::removeFile $img
+    unset -nocomplain img mnt fh
+} -result {test:/testfile}
+
+tcltest::test cookfsVfs-1.8.4.2.2 "Mounting as volume, glob results, -tails -path" -setup {
+    set img [tcltest::makeFile {} cookfs.cfs]
+    set mnt "test:/"
+} -body {
+    cookfs::Mount $img $mnt -compression none
+    set fh [open [file join $mnt testfile] w]
+    close $fh
+    glob -path "${mnt}test" -tails *
+} -cleanup {
+    catch { cookfs::Unmount $mnt }
+    tcltest::removeFile $img
+    unset -nocomplain img mnt fh
+} -result {testfile}
+
 tcltest::test cookfsVfs-1.9 "Test storing same files" -constraints {enabledTclCmds} -setup {
     set file [tcltest::makeFile {} cookfs.cfs]
 } -body {

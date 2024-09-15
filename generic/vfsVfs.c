@@ -398,9 +398,9 @@ void Cookfs_CookfsSearchVfsToListObj(Tcl_Obj *path, const char *pattern,
         path), &searchLen);
 
     // Remove the trailing VFS path separator if it exists
-    if (searchStr[searchLen-1] == VFS_SEPARATOR) {
-        searchLen--;
-    }
+    // if (searchStr[searchLen-1] == VFS_SEPARATOR) {
+    //     searchLen--;
+    // }
 
     Cookfs_VfsEntry *e = tsdPtr->vfsListCached;
     while (e != NULL) {

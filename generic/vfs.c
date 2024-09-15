@@ -19,8 +19,9 @@ Cookfs_Vfs *Cookfs_VfsInit(Tcl_Interp* interp, Tcl_Obj* mountPoint,
 {
 
     CookfsLog(printf("Cookfs_VfsInit: init mount in interp [%p];"
-        " pages:%p index:%p writer:%p volume?%d", (void *)interp,
-        (void *)pages, (void *)index, (void *)writer, isVolume));
+        " pages:%p index:%p writer:%p volume?%d mount_point:[%s]",
+        (void *)interp, (void *)pages, (void *)index, (void *)writer,
+        isVolume, Tcl_GetString(mountPoint)));
 
     Cookfs_Vfs *vfs = NULL;
 
