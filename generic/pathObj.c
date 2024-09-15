@@ -24,11 +24,19 @@ void Cookfs_PathObjDecrRefCount(Cookfs_PathObj *p) {
 #ifdef TCL_THREADS
     Tcl_MutexLock(&p->mx);
 #endif /* TCL_THREADS */
-    p->refCount--;
+    // We need to know what refCount value was at the time the mutex was
+    // locked. Thus, we make a local copy of this value. We cannot rely on
+    // the value of p->refCount after unlocking the mutex, because
+    // it is possible that another thread decreased p->refCount after we
+    // did the unlock, but before we check if p->refCount is 0.
+    // This will mean that these 2 threads will think that p->refCount is 0,
+    // and these 2 threads will try to free the path. This will cause memory
+    // to be double freed.
+    int refCount = --p->refCount;
 #ifdef TCL_THREADS
     Tcl_MutexUnlock(&p->mx);
 #endif /* TCL_THREADS */
-    if (!p->refCount) {
+    if (!refCount) {
 #ifdef TCL_THREADS
         Tcl_MutexFinalize(&p->mx);
 #endif /* TCL_THREADS */
