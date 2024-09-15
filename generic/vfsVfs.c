@@ -133,7 +133,9 @@ static void Cookfs_CookfsFillCache(Cookfs_VfsEntry **vfsListToPtr,
             Tcl_Obj *obj = Tcl_NewStringObj(vfsListFrom->vfs->mountStr,
                 vfsListFrom->vfs->mountLen);
             Tcl_ListObjAppendElement(NULL, *volumeListToPtr, obj);
-            // CookfsLog(printf("Cookfs_CookfsFillCache: added volume"));
+            CookfsLog(printf("Cookfs_CookfsFillCache: add volume to list"
+                " [%s](tcl obj: %p)", vfsListFrom->vfs->mountStr,
+                (void *)obj));
         }
 
         vfsListFrom = vfsListFrom->next;

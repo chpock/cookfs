@@ -193,8 +193,9 @@ static int CookfsPathInFilesystem(Tcl_Obj *pathPtr,
     Cookfs_PathObjIncrRefCount(internalRep->pathObj);
 
     *clientDataPtr = (ClientData)internalRep;
-    // CookfsLog(printf("CookfsPathInFilesystem: return found entry as"
-    //     " an internalRep [%p]", (void *)internalRep));
+    CookfsLog(printf("CookfsPathInFilesystem: return found entry [%s] as"
+         " an internalRep [%p] for Tcl object [%p]", Tcl_GetString(pathPtr),
+         (void *)internalRep, (void *)pathPtr));
     return TCL_OK;
 }
 
@@ -578,11 +579,12 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
     UNUSED(interp);
 
     if (pattern == NULL) {
-        CookfsLog(printf("CookfsMatchInDirectory: check if path exists [%s]",
-            Tcl_GetString(pathPtr)));
+        CookfsLog(printf("CookfsMatchInDirectory: check if path exists"
+            " [%s](tcl obj: %p)", Tcl_GetString(pathPtr), (void *)pathPtr));
     } else {
-        CookfsLog(printf("CookfsMatchInDirectory: check path [%s] for"
-            " pattern [%s]", Tcl_GetString(pathPtr), pattern));
+        CookfsLog(printf("CookfsMatchInDirectory: check path [%s](tcl obj: %p)"
+            " for pattern [%s]", Tcl_GetString(pathPtr), (void *)pathPtr,
+            pattern));
     }
 
     int wanted;
@@ -731,6 +733,7 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
 
 done:
     Cookfs_FsindexUnlock(index);
+    CookfsLog(printf("CookfsMatchInDirectory: ok"));
     return TCL_OK;
 }
 

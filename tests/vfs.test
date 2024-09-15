@@ -212,10 +212,13 @@ tcltest::test cookfsVfs-1.8.4.1.1 "Mounting as volume, glob results, -directory"
     set img [tcltest::makeFile {} cookfs.cfs]
     set mnt "test:/"
 } -body {
-    cookfs::Mount $img $mnt -compression none
+    cookfs::Mount $img $mnt -compression none -volume
     set fh [open [file join $mnt testfile] w]
     close $fh
-    glob -directory $mnt *
+    # TODO: it is a hack to pass temporary Tcl object as an argument
+    # for the -directory parameter to avoid memory leak report.
+    # See TODO item for details.
+    glob -directory [string range $mnt 0 end] *
 } -cleanup {
     catch { cookfs::Unmount $mnt }
     tcltest::removeFile $img
@@ -226,10 +229,13 @@ tcltest::test cookfsVfs-1.8.4.1.2 "Mounting as volume, glob results, -tails -dir
     set img [tcltest::makeFile {} cookfs.cfs]
     set mnt "test:/"
 } -body {
-    cookfs::Mount $img $mnt -compression none
+    cookfs::Mount $img $mnt -compression none -volume
     set fh [open [file join $mnt testfile] w]
     close $fh
-    glob -directory $mnt -tails *
+    # TODO: it is a hack to pass temporary Tcl object as an argument
+    # for the -directory parameter to avoid memory leak report.
+    # See TODO item for details.
+    glob -directory [string range $mnt 0 end] -tails *
 } -cleanup {
     catch { cookfs::Unmount $mnt }
     tcltest::removeFile $img
@@ -240,7 +246,7 @@ tcltest::test cookfsVfs-1.8.4.2.1 "Mounting as volume, glob results, -path" -set
     set img [tcltest::makeFile {} cookfs.cfs]
     set mnt "test:/"
 } -body {
-    cookfs::Mount $img $mnt -compression none
+    cookfs::Mount $img $mnt -compression none -volume
     set fh [open [file join $mnt testfile] w]
     close $fh
     glob -path "${mnt}test" *
@@ -254,7 +260,7 @@ tcltest::test cookfsVfs-1.8.4.2.2 "Mounting as volume, glob results, -tails -pat
     set img [tcltest::makeFile {} cookfs.cfs]
     set mnt "test:/"
 } -body {
-    cookfs::Mount $img $mnt -compression none
+    cookfs::Mount $img $mnt -compression none -volume
     set fh [open [file join $mnt testfile] w]
     close $fh
     glob -path "${mnt}test" -tails *
