@@ -64,16 +64,19 @@ int Cookfs_PagesIsCached(Cookfs_Pages *p, int index);
 
 int Cookfs_PagesIsEncrypted(Cookfs_Pages *p, int index);
 
-
 Tcl_Obj *Cookfs_PagesGetHashAsObj(Cookfs_Pages *p);
 void Cookfs_PagesSetHash(Cookfs_Pages *p, Cookfs_HashType pagehash);
 int Cookfs_PagesSetHashByObj(Cookfs_Pages *p, Tcl_Obj *pagehash,
     Tcl_Interp *interp);
 
+int Cookfs_PagesGetPageSize(Cookfs_Pages *p, int index);
+
 void Cookfs_PagesCalculateHash(Cookfs_Pages *p, unsigned char *bytes,
     Tcl_Size size, unsigned char *output);
 
 int Cookfs_PageAddStamp(Cookfs_Pages *p, Tcl_WideInt size);
+
+int Cookfs_PagesIsEncryptionActive(Cookfs_Pages *p);
 
 int Cookfs_PagesUnlock(Cookfs_Pages *p);
 int Cookfs_PagesLockRW(int isWrite, Cookfs_Pages *p, Tcl_Obj **err);

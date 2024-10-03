@@ -1,3 +1,15 @@
+* Store initial -smallfilesize / -smallfilebuffer / -pagesize values that were
+  specified when first mounted, and use them by default when reopening
+  an archive for writing. If these parameters were defined when reopening
+  an archive for writing, then store these new values. This will allow to
+  use the same parameters each time when an archive is opened for writing.
+
+* add a feature to link with zlib directly, but not using zlib functions
+  from Tcl. This will allow to use zlib more efficiently as zlib functions
+  are more suitable to work with plain byte buffers without Tcl objects.
+  This will be useful when cookfs is statically linked, but not built as
+  a loadable package.
+
 * Investogate an issue with -directory parameter for glob.
   See tests cookfsVfs-1.8.4.1.1 and cookfsVfs-1.8.4.1.2.
   Then some variable (object) is passed to -directory argument
@@ -13,12 +25,6 @@
 * Add ability to disable custom compression to reduce size footprint when it is not needed
 
 * Add ability to disable async compression to reduce size footprint when it is not needed
-
-* If a small file is added whose contents match the contents of any existing
-  small file stored on the pages, it is saved as a separate file.
-  Add deduplication, so that if a small file is added and its contents exist
-  in another file, don't duplicate its contents existing in the other file,
-  but use the existing data.
 
 * Update bzip2 and use it as a submodule. Perhaps this will get rid of its compile-time warnings.
 

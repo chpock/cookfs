@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
 
 // #define COOKFS_THREAD_DEBUG
 
@@ -40,6 +41,16 @@
 
 #ifndef Tcl_BounceRefCount
 #define Tcl_BounceRefCount(x) Tcl_IncrRefCount((x));Tcl_DecrRefCount((x))
+#endif
+
+#if !defined(INT2PTR) && !defined(PTR2INT)
+#   if defined(HAVE_INTPTR_T) || defined(INTPTR_MAX)
+#       define INT2PTR(p) ((void *)(intptr_t)(p))
+#       define PTR2INT(p) ((int)(intptr_t)(p))
+#   else
+#       define INT2PTR(p) ((void *)(p))
+#       define PTR2INT(p) ((int)(p))
+#   endif
 #endif
 
 #ifdef COOKFS_INTERNAL_DEBUG

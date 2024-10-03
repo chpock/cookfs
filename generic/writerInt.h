@@ -41,6 +41,9 @@ struct _Cookfs_Writer {
     Tcl_WideInt maxBufferSize;
     Tcl_WideInt pageSize;
 
+    Tcl_HashTable *pageMapByPage;
+    Tcl_HashTable *pageMapBySize;
+
     Cookfs_WriterBuffer *bufferFirst;
     Cookfs_WriterBuffer *bufferLast;
     Tcl_WideInt bufferSize;
