@@ -148,7 +148,7 @@ file6 * 2048 {0 2048 2048} 1
 file7 * 2048 {0 2048 2048} 1
 file8 * 2048 {1 0 2048} 1}
 
-tcltest::test cookfsDedup-2.1.1 "Check that new files can use pages from previously added files, with unmount" -constraints {enabledTclCmds} -setup {
+tcltest::test cookfsDedup-2.1.1 "Check that new files can use pages from previously added files, with unmount" -constraints {enabledTclCmds enabledCWriter} -setup {
     # 4 chunks of 2048 bytes, total size: 8192 bytes
     set datas [randomDatas 4 2048]
     set vfs [tcltest::makeFile {} pages.cfs]
@@ -192,7 +192,7 @@ tcltest::test cookfsDedup-2.1.1 "Check that new files can use pages from previou
     unset -nocomplain datas vfs idx fd h result suffix
 } -result {pg_len:1 size:1 pg_len:1 match:1 match:1 match:1 match:1}
 
-tcltest::test cookfsDedup-2.1.2 "Check that new files can use pages from previously added files, without unmount" -constraints {enabledTclCmds} -setup {
+tcltest::test cookfsDedup-2.1.2 "Check that new files can use pages from previously added files, without unmount" -constraints {enabledTclCmds enabledCWriter} -setup {
     # 4 chunks of 2048 bytes, total size: 8192 bytes
     set datas [randomDatas 4 2048]
     set vfs [tcltest::makeFile {} pages.cfs]
@@ -233,7 +233,7 @@ tcltest::test cookfsDedup-2.1.2 "Check that new files can use pages from previou
     unset -nocomplain datas vfs idx fd h result suffix
 } -result {pg_len:1 size:1 pg_len:1 match:1 match:1 match:1 match:1}
 
-tcltest::test cookfsDedup-2.1.3 "Check that new encrypted files don't use pages from previously added unencryted files" -constraints {enabledTclCmds} -setup {
+tcltest::test cookfsDedup-2.1.3 "Check that new encrypted files don't use pages from previously added unencryted files" -constraints {enabledTclCmds enabledCWriter cookfsCrypto} -setup {
     # 4 chunks of 2048 bytes, total size: 8192 bytes
     set datas [randomDatas 4 2048]
     set vfs [tcltest::makeFile {} pages.cfs]
@@ -274,7 +274,7 @@ tcltest::test cookfsDedup-2.1.3 "Check that new encrypted files don't use pages 
     unset -nocomplain datas vfs idx fd h result suffix
 } -result {pg_len:1 size:1 pg_len:2 match:1 match:1 match:1 match:1}
 
-tcltest::test cookfsDedup-2.1.4 "Check that new unencrypted files don't use pages from previously added encryted files" -constraints {enabledTclCmds} -setup {
+tcltest::test cookfsDedup-2.1.4 "Check that new unencrypted files don't use pages from previously added encryted files" -constraints {enabledTclCmds enabledCWriter cookfsCrypto} -setup {
     # 4 chunks of 2048 bytes, total size: 8192 bytes
     set datas [randomDatas 4 2048]
     set vfs [tcltest::makeFile {} pages.cfs]
@@ -316,7 +316,7 @@ tcltest::test cookfsDedup-2.1.4 "Check that new unencrypted files don't use page
     unset -nocomplain datas vfs idx fd h result suffix
 } -result {pg_len:1 size:1 pg_len:2 match:1 match:1 match:1 match:1}
 
-tcltest::test cookfsDedup-2.1.5 "Check that new encrypted files don't use pages from previously added cryted files" -constraints {enabledTclCmds} -setup {
+tcltest::test cookfsDedup-2.1.5 "Check that new encrypted files don't use pages from previously added cryted files" -constraints {enabledTclCmds enabledCWriter cookfsCrypto} -setup {
     # 4 chunks of 2048 bytes, total size: 8192 bytes
     set datas [randomDatas 4 2048]
     set vfs [tcltest::makeFile {} pages.cfs]
@@ -357,7 +357,7 @@ tcltest::test cookfsDedup-2.1.5 "Check that new encrypted files don't use pages 
     unset -nocomplain datas vfs idx fd h result suffix
 } -result {pg_len:1 size:1 pg_len:2 match:1 match:1 match:1 match:1}
 
-tcltest::test cookfsDedup-2.2.1 "Check that new files can use pages from previously added and deleted files, with unmount" -constraints {enabledTclCmds} -setup {
+tcltest::test cookfsDedup-2.2.1 "Check that new files can use pages from previously added and deleted files, with unmount" -constraints {enabledTclCmds enabledCWriter} -setup {
     # 10 chunks of 2048 bytes, total size: 20480 bytes
     set datas [randomDatas 10 2048]
     set vfs [tcltest::makeFile {} pages.cfs]
@@ -408,7 +408,7 @@ tcltest::test cookfsDedup-2.2.1 "Check that new files can use pages from previou
     unset -nocomplain datas vfs idx fd h result
 } -result {pg_len:1 size:1 pg_len:2 match:1 match:1 match:1 match:1 match:1 match:1 match:1 match:1 match:1 match:1}
 
-tcltest::test cookfsDedup-2.2.2 "Check that new files can use pages from previously added and deleted files, without unmount" -constraints {enabledTclCmds} -setup {
+tcltest::test cookfsDedup-2.2.2 "Check that new files can use pages from previously added and deleted files, without unmount" -constraints {enabledTclCmds enabledCWriter} -setup {
     # 10 chunks of 2048 bytes, total size: 20480 bytes
     set datas [randomDatas 10 2048]
     set vfs [tcltest::makeFile {} pages.cfs]
@@ -455,7 +455,7 @@ tcltest::test cookfsDedup-2.2.2 "Check that new files can use pages from previou
 } -result {pg_len:1 size:1 pg_len:1 match:1 match:1 match:1 match:1 match:1 match:1 match:1 match:1 match:1 match:1}
 
 
-tcltest::test cookfsDedup-2.3.1 "Check dedup of small files which have the same md5 hash, with unmount" -constraints {enabledTclCmds} -setup {
+tcltest::test cookfsDedup-2.3.1 "Check dedup of small files which have the same md5 hash, with unmount" -constraints {enabledTclCmds enabledCWriter} -setup {
     set bin1 [binary decode hex 4dc968ff0ee35c209572d4777b721587d36fa7b21bdc56b74a3dc0783e7b9518afbfa200a8284bf36e8e4b55b35f427593d849676da0d1555d8360fb5f07fea2]
     set bin2 [binary decode hex 4dc968ff0ee35c209572d4777b721587d36fa7b21bdc56b74a3dc0783e7b9518afbfa202a8284bf36e8e4b55b35f427593d849676da0d1d55d8360fb5f07fea2]
     set side [string repeat x [expr { 1024 - [string length $bin1] }]]
@@ -494,7 +494,7 @@ tcltest::test cookfsDedup-2.3.1 "Check dedup of small files which have the same 
     unset -nocomplain bin1 bin2 side vfs fd result
 } -result {pg_len:1 size:1 pg_len:2}
 
-tcltest::test cookfsDedup-2.3.2 "Check dedup of small files which have the same md5 hash, without unmount" -constraints {enabledTclCmds} -setup {
+tcltest::test cookfsDedup-2.3.2 "Check dedup of small files which have the same md5 hash, without unmount" -constraints {enabledTclCmds enabledCWriter} -setup {
     # $bin1 and $bin2 have the same length and the same MD5 hash
     set bin1 [binary decode hex 4dc968ff0ee35c209572d4777b721587d36fa7b21bdc56b74a3dc0783e7b9518afbfa200a8284bf36e8e4b55b35f427593d849676da0d1555d8360fb5f07fea2]
     set bin2 [binary decode hex 4dc968ff0ee35c209572d4777b721587d36fa7b21bdc56b74a3dc0783e7b9518afbfa202a8284bf36e8e4b55b35f427593d849676da0d1d55d8360fb5f07fea2]

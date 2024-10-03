@@ -60,6 +60,8 @@ tcltest::testConstraint enabledCPages   [cookfs::pkgconfig get c-pages]
 tcltest::testConstraint disabledCPages  [expr { ![cookfs::pkgconfig get c-pages] }]
 tcltest::testConstraint enabledTclCmds  [cookfs::pkgconfig get tcl-commands]
 tcltest::testConstraint disabledTclCmds [expr { ![cookfs::pkgconfig get tcl-commands] }]
+tcltest::testConstraint enabledCWriter  [cookfs::pkgconfig get c-writer]
+tcltest::testConstraint disabledCWriter [expr { ![cookfs::pkgconfig get c-writer] }]
 
 tcltest::testConstraint packageTclvfs [expr { ![catch { package present vfs }] }]
 
