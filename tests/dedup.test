@@ -491,7 +491,7 @@ tcltest::test cookfsDedup-2.3.1 "Check dedup of small files which have the same 
 } -cleanup {
     catch { cookfs::Unmount $vfs }
     tcltest::removeFile $vfs
-    unset -nocomplain bin1 bin2 side vfs fd result
+    unset -nocomplain bin1 bin2 side vfs fd result h
 } -result {pg_len:1 size:1 pg_len:2}
 
 tcltest::test cookfsDedup-2.3.2 "Check dedup of small files which have the same md5 hash, without unmount" -constraints {enabledTclCmds enabledCWriter} -setup {
@@ -529,7 +529,7 @@ tcltest::test cookfsDedup-2.3.2 "Check dedup of small files which have the same 
 } -cleanup {
     catch { cookfs::Unmount $vfs }
     tcltest::removeFile $vfs
-    unset -nocomplain bin1 bin2 side vfs fd result
+    unset -nocomplain bin1 bin2 side vfs fd result h
 } -result {pg_len:1 size:1 pg_len:2}
 
 

@@ -287,6 +287,7 @@ void Cookfs_WriterFini(Cookfs_Writer *w) {
                 (Cookfs_WriterPageMapEntry *)Tcl_GetHashValue(hPtr);
             while(pme != NULL) {
                 Cookfs_WriterPageMapEntry *next = pme->nextByPage;
+                CookfsLog2(printf("free pme: %p", (void *)pme));
                 ckfree(pme);
                 pme = next;
             }
@@ -329,41 +330,77 @@ static Cookfs_WriterPageMapEntry *Cookfs_WriterPageMapEntryAlloc(int pageNum,
     pme->is_md5_initialized = 0;
     pme->nextByPage = NULL;
     pme->nextBySize = NULL;
+    CookfsLog2(printf("return: %p (pageNum: %d; pageOffset: %d; pageSize: %d)",
+        (void *)pme, pageNum, pageOffset, pageSize));
     return pme;
 
 }
 
-static int Cookfs_WriterPageMapEntryAddBySize(Cookfs_Writer *w,
+static int Cookfs_WriterPageMapEntryIsExists(Cookfs_Writer *w,
+    int pageNum, int pageOffset, int pageSize)
+{
+
+    // cppcheck-suppress redundantInitialization
+    Tcl_HashEntry *hashEntry = Tcl_FindHashEntry(w->pageMapByPage,
+        INT2PTR(pageNum));
+
+    if (hashEntry == NULL) {
+        return 0;
+    }
+
+    Cookfs_WriterPageMapEntry *pme =
+        (Cookfs_WriterPageMapEntry *)Tcl_GetHashValue(hashEntry);
+
+    for (; pme != NULL; pme = pme->nextByPage) {
+
+        if (pme->pageOffset < pageOffset) {
+            continue;
+        }
+
+        // Page map entries are sorted by offset when linked by page number.
+        // Thus, if we find a page map entry with an offset greater than what
+        // we are looking for, we can confidently say that such a page map
+        //entry does not exist.
+        if (pme->pageOffset > pageOffset) {
+            return 0;
+        }
+
+        // If we are here, then we have found an entry on the page map with
+        // an offset equal to the one we are looking for. Let's check its size.
+        // If size is equal to the one we are looking for, then return true.
+
+        if (pme->pageSize == pageSize) {
+            return 1;
+        }
+
+        // If we are here, then we found a page map entry with equal offset,
+        // but with wrong size. This should be impossible. Let's catch this
+        // case with assert().
+        assert(0 && "Cookfs_WriterPageMapEntryIsExists(): we are looking for"
+            " PME of one size and offset, but we found another PME with"
+            " the same offset, but with other size");
+
+    }
+
+    return 0;
+
+}
+
+static void Cookfs_WriterPageMapEntryAddBySize(Cookfs_Writer *w,
     Cookfs_WriterPageMapEntry *pme)
 {
 
     int is_new;
-    Tcl_HashEntry *hPtr;
-    Cookfs_WriterPageMapEntry *current_pme;
-
-    // cppcheck-suppress redundantAssignment
-    hPtr = Tcl_CreateHashEntry(w->pageMapBySize, INT2PTR(pme->pageSize), &is_new);
+    // cppcheck-suppress redundantInitialization
+    Tcl_HashEntry *hPtr = Tcl_CreateHashEntry(w->pageMapBySize,
+        INT2PTR(pme->pageSize), &is_new);
     if (is_new) {
         // CookfsLog2(printf("new hash value by size"));
     } else {
-        // Check here if we already have such a registered pagenum+offset+size
-        // chunk. This is possible when multiple files share the same chunk.
-        for (current_pme = Tcl_GetHashValue(hPtr); current_pme != NULL;
-            current_pme = current_pme->nextBySize)
-        {
-            if (current_pme->pageOffset == pme->pageOffset &&
-                current_pme->pageNum == pme->pageNum)
-            {
-                // CookfsLog2(printf("such chunk pagenum+offset+size is already"
-                //     " registered"));
-                return 0;
-            }
-        }
         // CookfsLog2(printf("add hash value by size"));
         pme->nextBySize = Tcl_GetHashValue(hPtr);
     }
     Tcl_SetHashValue(hPtr, pme);
-    return 1;
 
 }
 
@@ -374,12 +411,14 @@ static void Cookfs_WriterPageMapEntryAdd(Cookfs_Writer *w, int pageNum,
     CookfsLog2(printf("pageNum:%d pageOffset:%d pageSize:%d", pageNum,
         pageOffset, pageSize));
 
+    if (Cookfs_WriterPageMapEntryIsExists(w, pageNum, pageOffset, pageSize)) {
+        CookfsLog2(printf("return: ok (the page map entry already exists)"));
+    }
+
     Cookfs_WriterPageMapEntry *pme = Cookfs_WriterPageMapEntryAlloc(pageNum,
         pageOffset, pageSize);
 
-    if (!Cookfs_WriterPageMapEntryAddBySize(w, pme)) {
-        return;
-    }
+    Cookfs_WriterPageMapEntryAddBySize(w, pme);
 
     int is_new;
     Tcl_HashEntry *hPtr;
@@ -504,11 +543,7 @@ static int Cookfs_WriterInitPageMap(Cookfs_Writer *w, Tcl_Obj **err) {
             tmp = pme;
             pme = Cookfs_WriterPageMapEntryAlloc(pme->pageNum, 0, size);
 
-            if (!Cookfs_WriterPageMapEntryAddBySize(w, pme)) {
-                assert("something wrong when checking gaps, the gap found"
-                    " at the beggning for page should not be registered"
-                    " by size");
-            }
+            Cookfs_WriterPageMapEntryAddBySize(w, pme);
 
             pme->nextByPage = tmp;
             Tcl_SetHashValue(hPtr, pme);
@@ -530,11 +565,7 @@ static int Cookfs_WriterInitPageMap(Cookfs_Writer *w, Tcl_Obj **err) {
             tmp = pme;
             pme = Cookfs_WriterPageMapEntryAlloc(pme->pageNum, offset, size);
 
-            if (!Cookfs_WriterPageMapEntryAddBySize(w, pme)) {
-                assert("something wrong when checking gaps, the gap found"
-                    " at the specific offset in the page should not be"
-                    " registered by size");
-            }
+            Cookfs_WriterPageMapEntryAddBySize(w, pme);
 
             pme->nextByPage = tmp->nextByPage;
             tmp->nextByPage = pme;
@@ -561,11 +592,7 @@ static int Cookfs_WriterInitPageMap(Cookfs_Writer *w, Tcl_Obj **err) {
                 tmp = pme;
                 pme = Cookfs_WriterPageMapEntryAlloc(pme->pageNum, offset, size);
 
-                if (!Cookfs_WriterPageMapEntryAddBySize(w, pme)) {
-                    assert("something wrong when checking gaps, the gap found"
-                        " at the end of the page should not be registered"
-                        " by size");
-                }
+                Cookfs_WriterPageMapEntryAddBySize(w, pme);
 
                 tmp->nextByPage = pme;
 
