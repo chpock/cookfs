@@ -761,7 +761,8 @@ static int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w,
     // is already acquired. So, as long as we are in this function - we don't
     // have to worry that the encryption mode can be changed by another thread.
 
-    if (!Cookfs_PagesIsEncryptionActive(w->pages) &&
+    if (!w->isWriteToMemory &&
+        !Cookfs_PagesIsEncryptionActive(w->pages) &&
         Cookfs_WriterCheckDuplicate(w, buffer, bufferSize, wb->entry))
     {
         CookfsLog2(printf("return: duplicate has been found"));
@@ -936,14 +937,17 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
 
     // We're populating the page map here because we need a read lock on
     // fsindex to do that, and this is one of the good places with
-    // a locked fsindex.
-    if (w->pageMapByPage == NULL) {
-        CookfsLog2(printf("page map is not initialized"));
-        if (Cookfs_WriterInitPageMap(w, err) != TCL_OK) {
-            return TCL_ERROR;
+    // a locked fsindex. But do this only if writeToMemory is not enabled,
+    // i.e. we are going to write the file to pages.
+    if (!w->isWriteToMemory) {
+        if (w->pageMapByPage == NULL) {
+            CookfsLog2(printf("page map is not initialized"));
+            if (Cookfs_WriterInitPageMap(w, err) != TCL_OK) {
+                return TCL_ERROR;
+            }
+        } else {
+            CookfsLog2(printf("page map has already been initialized"));
         }
-    } else {
-        CookfsLog2(printf("page map has already been initialized"));
     }
 
     Cookfs_FsindexUnlock(w->index);
