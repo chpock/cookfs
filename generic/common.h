@@ -7,6 +7,8 @@
 #ifndef COOKFS_COMMON_H
 #define COOKFS_COMMON_H 1
 
+#define MD5_DIGEST_SIZE 16
+
 unsigned char *Cookfs_Binary2Int(unsigned char *input, int *output, int count);
 unsigned char *Cookfs_Int2Binary(int *input, unsigned char *output, int count);
 

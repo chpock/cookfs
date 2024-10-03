@@ -9,6 +9,8 @@
 typedef struct _Cookfs_Fsindex Cookfs_Fsindex;
 typedef struct _Cookfs_FsindexEntry Cookfs_FsindexEntry;
 
+typedef void (Cookfs_FsindexForeachProc)(Cookfs_FsindexEntry *e, ClientData clientData);
+
 Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName);
 
 Cookfs_Fsindex *Cookfs_FsindexInit(Tcl_Interp *interp, Cookfs_Fsindex *i);
@@ -64,6 +66,8 @@ Tcl_WideInt Cookfs_FsindexEntryGetFileTime(Cookfs_FsindexEntry *e);
 
 const char *Cookfs_FsindexEntryGetFileName(Cookfs_FsindexEntry *e,
     unsigned char *fileNameLen);
+
+void Cookfs_FsindexForeach(Cookfs_Fsindex *i, Cookfs_FsindexForeachProc *proc, ClientData clientData);
 
 int Cookfs_FsindexEntryUnlock(Cookfs_FsindexEntry *e);
 int Cookfs_FsindexEntryLock(Cookfs_FsindexEntry *e);

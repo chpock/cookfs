@@ -8,8 +8,6 @@
 
 #include "cookfs.h"
 
-#define MD5_DIGEST_SIZE 16
-
 static int CookfsMd5Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     UNUSED(clientData);
     Tcl_Obj *obj;

@@ -168,6 +168,15 @@ int Cookfs_PagesGetLength(Cookfs_Pages *p) {
     return Cookfs_PgIndexGetLength(p->pagesIndex);
 }
 
+#ifdef COOKFS_USECCRYPTO
+
+int Cookfs_PagesIsEncryptionActive(Cookfs_Pages *p) {
+    CookfsLog2(printf("return: %d", p->isEncryptionActive));
+    return p->isEncryptionActive;
+}
+
+#endif /* COOKFS_USECCRYPTO */
+
 /*
  *----------------------------------------------------------------------
  *
@@ -2676,6 +2685,32 @@ static Cookfs_PageObj CookfsPagesPageGetInt(Cookfs_Pages *p, int index,
     }
 
     return buffer;
+}
+
+int Cookfs_PagesGetPageSize(Cookfs_Pages *p, int index) {
+
+    // We don't require any locks here as page size is readonly information
+
+    if (COOKFS_PAGES_ISASIDE(index)) {
+        CookfsLog(printf("Detected get request for add-aside pages - %08x", index))
+        if (p->dataPagesIsAside) {
+            /* if this pages instance is the aside instance, remove the
+             * COOKFS_PAGES_ASIDE flag and proceed */
+            index = index & COOKFS_PAGES_MASK;
+            CookfsLog(printf("New index = %08x", index))
+        }  else if (p->dataAsidePages != NULL) {
+            /* if this is not the aside instance, redirect to it */
+            CookfsLog(printf("Redirecting to add-aside pages object"))
+            return Cookfs_PagesGetPageSize(p->dataAsidePages, index);
+        }  else  {
+            /* if no aside instance specified, return NULL */
+            CookfsLog(printf("No add-aside pages defined"))
+            return -1;
+        }
+    }
+
+    return Cookfs_PgIndexGetSizeUncompressed(p->pagesIndex, index);
+
 }
 
 /*

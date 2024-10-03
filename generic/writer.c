@@ -10,6 +10,20 @@
 #include "writer.h"
 #include "writerInt.h"
 
+typedef struct Cookfs_WriterPageMapEntry {
+
+    int pageSize;
+    int pageNum;
+    int pageOffset;
+
+    int is_md5_initialized;
+    unsigned char md5[16];
+
+    struct Cookfs_WriterPageMapEntry *nextByPage;
+    struct Cookfs_WriterPageMapEntry *nextBySize;
+
+} Cookfs_WriterPageMapEntry;
+
 static void Cookfs_WriterFree(Cookfs_Writer *w);
 
 int Cookfs_WriterLockRW(int isWrite, Cookfs_Writer *w, Tcl_Obj **err) {
@@ -191,6 +205,9 @@ Cookfs_Writer *Cookfs_WriterInit(Tcl_Interp* interp,
     w->bufferSize = 0;
     w->bufferCount = 0;
 
+    w->pageMapByPage = NULL;
+    w->pageMapBySize = NULL;
+
     CookfsLog(printf("Cookfs_WriterInit: ok [%p]", (void *)w));
     return w;
 
@@ -256,6 +273,34 @@ void Cookfs_WriterFini(Cookfs_Writer *w) {
         Cookfs_PagesUnlockSoft(w->pages);
     }
 
+    if (w->pageMapByPage != NULL) {
+
+        CookfsLog2(printf("free page map"));
+
+        Tcl_HashSearch hSearch;
+
+        for (Tcl_HashEntry *hPtr = Tcl_FirstHashEntry(w->pageMapByPage, &hSearch);
+            hPtr != NULL; hPtr = Tcl_NextHashEntry(&hSearch))
+        {
+
+            Cookfs_WriterPageMapEntry *pme =
+                (Cookfs_WriterPageMapEntry *)Tcl_GetHashValue(hPtr);
+            while(pme != NULL) {
+                Cookfs_WriterPageMapEntry *next = pme->nextByPage;
+                CookfsLog2(printf("free pme: %p", (void *)pme));
+                ckfree(pme);
+                pme = next;
+            }
+
+        }
+
+        Tcl_DeleteHashTable(w->pageMapByPage);
+        ckfree(w->pageMapByPage);
+        Tcl_DeleteHashTable(w->pageMapBySize);
+        ckfree(w->pageMapBySize);
+
+    }
+
     // Unlock writer now. It is possible that some threads are waiting for
     // read/write events. Let them go on and fail because of a dead object.
     Cookfs_WriterUnlock(w);
@@ -270,6 +315,428 @@ void Cookfs_WriterFini(Cookfs_Writer *w) {
     }
 
     return;
+}
+
+static Cookfs_WriterPageMapEntry *Cookfs_WriterPageMapEntryAlloc(int pageNum,
+    int pageOffset, int pageSize)
+{
+
+    Cookfs_WriterPageMapEntry *pme =
+        ckalloc(sizeof(Cookfs_WriterPageMapEntry));
+
+    pme->pageNum = pageNum;
+    pme->pageOffset = pageOffset;
+    pme->pageSize = pageSize;
+    pme->is_md5_initialized = 0;
+    pme->nextByPage = NULL;
+    pme->nextBySize = NULL;
+    CookfsLog2(printf("return: %p (pageNum: %d; pageOffset: %d; pageSize: %d)",
+        (void *)pme, pageNum, pageOffset, pageSize));
+    return pme;
+
+}
+
+static int Cookfs_WriterPageMapEntryIsExists(Cookfs_Writer *w,
+    int pageNum, int pageOffset, int pageSize)
+{
+
+    // cppcheck-suppress redundantInitialization
+    Tcl_HashEntry *hashEntry = Tcl_FindHashEntry(w->pageMapByPage,
+        INT2PTR(pageNum));
+
+    if (hashEntry == NULL) {
+        return 0;
+    }
+
+    Cookfs_WriterPageMapEntry *pme =
+        (Cookfs_WriterPageMapEntry *)Tcl_GetHashValue(hashEntry);
+
+    for (; pme != NULL; pme = pme->nextByPage) {
+
+        if (pme->pageOffset < pageOffset) {
+            continue;
+        }
+
+        // Page map entries are sorted by offset when linked by page number.
+        // Thus, if we find a page map entry with an offset greater than what
+        // we are looking for, we can confidently say that such a page map
+        //entry does not exist.
+        if (pme->pageOffset > pageOffset) {
+            return 0;
+        }
+
+        // If we are here, then we have found an entry on the page map with
+        // an offset equal to the one we are looking for. Let's check its size.
+        // If size is equal to the one we are looking for, then return true.
+
+        if (pme->pageSize == pageSize) {
+            return 1;
+        }
+
+        // If we are here, then we found a page map entry with equal offset,
+        // but with wrong size. This should be impossible. Let's catch this
+        // case with assert().
+        assert(0 && "Cookfs_WriterPageMapEntryIsExists(): we are looking for"
+            " PME of one size and offset, but we found another PME with"
+            " the same offset, but with other size");
+
+    }
+
+    return 0;
+
+}
+
+static void Cookfs_WriterPageMapEntryAddBySize(Cookfs_Writer *w,
+    Cookfs_WriterPageMapEntry *pme)
+{
+
+    int is_new;
+    // cppcheck-suppress redundantInitialization
+    Tcl_HashEntry *hPtr = Tcl_CreateHashEntry(w->pageMapBySize,
+        INT2PTR(pme->pageSize), &is_new);
+    if (is_new) {
+        // CookfsLog2(printf("new hash value by size"));
+    } else {
+        // CookfsLog2(printf("add hash value by size"));
+        pme->nextBySize = Tcl_GetHashValue(hPtr);
+    }
+    Tcl_SetHashValue(hPtr, pme);
+
+}
+
+static void Cookfs_WriterPageMapEntryAdd(Cookfs_Writer *w, int pageNum,
+    int pageOffset, int pageSize)
+{
+
+    CookfsLog2(printf("pageNum:%d pageOffset:%d pageSize:%d", pageNum,
+        pageOffset, pageSize));
+
+    if (Cookfs_WriterPageMapEntryIsExists(w, pageNum, pageOffset, pageSize)) {
+        CookfsLog2(printf("return: ok (the page map entry already exists)"));
+    }
+
+    Cookfs_WriterPageMapEntry *pme = Cookfs_WriterPageMapEntryAlloc(pageNum,
+        pageOffset, pageSize);
+
+    Cookfs_WriterPageMapEntryAddBySize(w, pme);
+
+    int is_new;
+    Tcl_HashEntry *hPtr;
+    Cookfs_WriterPageMapEntry *current_pme;
+
+    // We insert the new hash in pageMapByPage in a different way because we
+    // want to keep the linked list in this hash map in pageOffset sorted
+    // order. This will be useful for finding gaps in the map for
+    // a particular page.
+
+    // cppcheck-suppress redundantAssignment
+    hPtr = Tcl_CreateHashEntry(w->pageMapByPage, INT2PTR(pageNum), &is_new);
+    if (is_new) {
+        // CookfsLog2(printf("new hash value by page"));
+        Tcl_SetHashValue(hPtr, pme);
+    } else {
+        // CookfsLog2(printf("add hash value by page"));
+        current_pme = Tcl_GetHashValue(hPtr);
+        if (current_pme->pageOffset > pageOffset) {
+            // CookfsLog2(printf("insert value as a head because the first pme"
+            //     " has offset: %d", current_pme->pageOffset));
+            pme->nextByPage = current_pme;
+            Tcl_SetHashValue(hPtr, pme);
+        } else {
+            // CookfsLog2(printf("head pme has offset: %d",
+            //     current_pme->pageOffset));
+            while (current_pme->nextByPage != NULL &&
+                current_pme->nextByPage->pageOffset < pageOffset)
+            {
+                current_pme = current_pme->nextByPage;
+                // CookfsLog2(printf("go to the next pme with offset %d",
+                //     current_pme->pageOffset));
+            }
+            if (current_pme->nextByPage == NULL) {
+                // CookfsLog2(printf("insert value here as we have reached"
+                //     " the end of the list"));
+            } else {
+                // CookfsLog2(printf("insert value here"));
+            }
+            pme->nextByPage = current_pme->nextByPage;
+            current_pme->nextByPage = pme;
+        }
+    }
+
+}
+
+static void Cookfs_WriterFillMap(Cookfs_FsindexEntry *e, ClientData clientData) {
+
+    if (Cookfs_FsindexEntryIsDirectory(e)) {
+        // CookfsLog2(printf("return: entry [%s] is a directory", Cookfs_FsindexEntryGetFileName(e, NULL)));
+        return;
+    }
+
+    if (Cookfs_FsindexEntryIsPending(e)) {
+        // CookfsLog2(printf("return: entry [%s] is pending", Cookfs_FsindexEntryGetFileName(e, NULL)));
+        return;
+    }
+
+    if (Cookfs_FsindexEntryGetBlockCount(e) > 1) {
+        // CookfsLog2(printf("return: entry [%s] uses more than 1 block", Cookfs_FsindexEntryGetFileName(e, NULL)));
+        return;
+    }
+
+    int pageNum, pageOffset, pageSize;
+    Cookfs_FsindexEntryGetBlock(e, 0, &pageNum, &pageOffset, &pageSize);
+    if (pageSize == 0) {
+        // CookfsLog2(printf("return: entry [%s] has zero size", Cookfs_FsindexEntryGetFileName(e, NULL)));
+        return;
+    }
+
+    Cookfs_Writer *w = (Cookfs_Writer *)clientData;
+
+    if (Cookfs_PagesIsEncrypted(w->pages, pageNum)) {
+        // CookfsLog2(printf("return: entry [%s] is for encrypted file", Cookfs_FsindexEntryGetFileName(e, NULL)));
+        return;
+    }
+
+    CookfsLog2(printf("new entry %p : [%s]", (void *)e, Cookfs_FsindexEntryGetFileName(e, NULL)));
+
+    Cookfs_WriterPageMapEntryAdd(w, pageNum, pageOffset, pageSize);
+
+}
+
+static int Cookfs_WriterInitPageMap(Cookfs_Writer *w, Tcl_Obj **err) {
+
+    if (!Cookfs_PagesLockRead(w->pages, NULL)) {
+        CookfsLog2(printf("failed to lock pages"));
+        SET_ERROR_STR("failed to lock pages");
+        return TCL_ERROR;
+    };
+
+    CookfsLog2(printf("initialize page map hash tables"));
+
+    w->pageMapByPage = (Tcl_HashTable *)ckalloc(sizeof(Tcl_HashTable));
+    Tcl_InitHashTable(w->pageMapByPage, TCL_ONE_WORD_KEYS);
+
+    w->pageMapBySize = (Tcl_HashTable *)ckalloc(sizeof(Tcl_HashTable));
+    Tcl_InitHashTable(w->pageMapBySize, TCL_ONE_WORD_KEYS);
+
+    Cookfs_FsindexForeach(w->index, Cookfs_WriterFillMap, (ClientData)w);
+    Cookfs_PagesUnlock(w->pages);
+
+    // Try to detect gaps in page maps
+
+    Tcl_HashSearch hSearch;
+
+    for (Tcl_HashEntry *hPtr = Tcl_FirstHashEntry(w->pageMapByPage, &hSearch);
+        hPtr != NULL; hPtr = Tcl_NextHashEntry(&hSearch))
+    {
+
+        int size, offset;
+        Cookfs_WriterPageMapEntry *tmp, *pme =
+            (Cookfs_WriterPageMapEntry *)Tcl_GetHashValue(hPtr);
+
+        if (pme->pageOffset != 0) {
+
+            size = pme->pageOffset;
+
+            CookfsLog2(printf("page %d: found a gap at beggining of page,"
+                " size:%d", pme->pageNum, size));
+
+            tmp = pme;
+            pme = Cookfs_WriterPageMapEntryAlloc(pme->pageNum, 0, size);
+
+            Cookfs_WriterPageMapEntryAddBySize(w, pme);
+
+            pme->nextByPage = tmp;
+            Tcl_SetHashValue(hPtr, pme);
+
+        }
+
+        for (; pme->nextByPage != NULL; pme = pme->nextByPage) {
+
+            offset = pme->pageOffset + pme->pageSize;
+            size = pme->nextByPage->pageOffset - offset;
+
+            if (size == 0) {
+                continue;
+            }
+
+            CookfsLog2(printf("page %d: found a gap at offset %d, size:%d",
+                pme->pageNum, offset, size));
+
+            tmp = pme;
+            pme = Cookfs_WriterPageMapEntryAlloc(pme->pageNum, offset, size);
+
+            Cookfs_WriterPageMapEntryAddBySize(w, pme);
+
+            pme->nextByPage = tmp->nextByPage;
+            tmp->nextByPage = pme;
+
+        }
+
+        // If we are here, then pme is a pointer to the latest page map entry.
+        // Let's check if we have something till the and of page.
+
+        int pageSizeEntire = Cookfs_PagesGetPageSize(w->pages, pme->pageNum);
+
+        // Check for error (-1) here. It is possible to get an error if page
+        // index is from aside pages object that is not connected.
+        if (pageSizeEntire != -1) {
+
+            offset = pme->pageOffset + pme->pageSize;
+            size = pageSizeEntire - offset;
+
+            if (size != 0) {
+
+                CookfsLog2(printf("page %d: found a gap at the end, offset %d,"
+                    " size:%d", pme->pageNum, offset, size));
+
+                tmp = pme;
+                pme = Cookfs_WriterPageMapEntryAlloc(pme->pageNum, offset, size);
+
+                Cookfs_WriterPageMapEntryAddBySize(w, pme);
+
+                tmp->nextByPage = pme;
+
+            }
+
+        }
+
+    }
+
+    CookfsLog2(printf("return: ok"));
+    return TCL_OK;
+
+}
+
+static void Cookfs_WriterPageMapInitializePage(Cookfs_Writer *w, int pageNum,
+    unsigned char *pageDataBuffer)
+{
+
+    CookfsLog2(printf("initialize hashes on pageNum:%d", pageNum));
+
+    // cppcheck-suppress redundantInitialization
+    Tcl_HashEntry *hashEntry = Tcl_FindHashEntry(w->pageMapByPage, INT2PTR(pageNum));
+    Cookfs_WriterPageMapEntry *pme =
+        (Cookfs_WriterPageMapEntry *)Tcl_GetHashValue(hashEntry);
+
+    for (; pme != NULL; pme = pme->nextByPage) {
+
+        Cookfs_MD5(&pageDataBuffer[pme->pageOffset], pme->pageSize, pme->md5);
+        pme->is_md5_initialized = 1;
+
+        CookfsLog2(printf("pageOffset:%d pageSize:%d to md5:" PRINTF_MD5_FORMAT,
+            pme->pageOffset, pme->pageSize, PRINTF_MD5_VAR(pme->md5)));
+
+    }
+
+}
+
+static int Cookfs_WriterCheckDuplicate(Cookfs_Writer *w, void *buffer,
+    Tcl_WideInt bufferSize, Cookfs_FsindexEntry *entry)
+{
+
+    int rc = 0;
+    int is_pages_locked = 0;
+
+    // cppcheck-suppress redundantInitialization
+    Tcl_HashEntry *hashEntry = Tcl_FindHashEntry(w->pageMapBySize,
+        INT2PTR((int)bufferSize));
+
+    if (hashEntry == NULL) {
+        CookfsLog2(printf("return: no files of suitable size"));
+        return 0;
+    }
+
+    unsigned char md5[MD5_DIGEST_SIZE];
+    Cookfs_MD5(buffer, (Tcl_Size)bufferSize, md5);
+    CookfsLog2(printf("source file size %" TCL_LL_MODIFIER "d md5:"
+        PRINTF_MD5_FORMAT, bufferSize, PRINTF_MD5_VAR(md5)));
+
+    for (Cookfs_WriterPageMapEntry *pme = Tcl_GetHashValue(hashEntry);
+        pme != NULL; pme = pme->nextBySize)
+    {
+
+        CookfsLog2(printf("check file on pageNum:%d with pageOffset:%d",
+            pme->pageNum, pme->pageOffset));
+
+        // Here we first try to compare the md5 of the current file with
+        // the md5 of the candidate duplicate, if known. If md5 doesn't match,
+        // then we skip this duplicate candidate.
+        //
+        // We then attempt to load the page data from disk and directly
+        // compare the current file with the candidate duplicate.
+        // We do this even if the md5 hashes match because we don't really
+        // trust this hash comparison and md5 collisions are possible.
+        //
+        // If we have successfully loaded the page data and the md5 hashes of
+        // the files on the page are unknown, we save the md5 hashes on
+        // the page so that we can compare other files against them in
+        // the future.
+
+        if (pme->is_md5_initialized) {
+
+            // If we have md5 of duplicate candidate, then compare it first
+            if (memcmp(md5, pme->md5, MD5_DIGEST_SIZE) != 0) {
+                CookfsLog2(printf("duplicate candidate has different md5 hash"));
+                continue;
+            }
+
+            CookfsLog2(printf("md5 matches, load the page"));
+
+        } else {
+            CookfsLog2(printf("md5 is unknown, load the page"));
+        }
+
+
+        if (!is_pages_locked) {
+            if (!Cookfs_PagesLockRead(w->pages, NULL)) {
+                // We are not able to lock pages. Perhaps it is in terminating
+                // state. Stop processing.
+                goto done;
+            }
+            is_pages_locked = 1;
+        };
+
+        // use -1000 weight as it is temporary page and we don't really
+        // need it in cache
+        Cookfs_PageObj page = Cookfs_PageGet(w->pages, pme->pageNum,
+            -1000, NULL);
+
+        if (page == NULL) {
+            CookfsLog2(printf("failed to load the page, skip it"));
+            continue;
+        }
+
+        if (!pme->is_md5_initialized) {
+            CookfsLog2(printf("need to update md5 for the chunks on the page"));
+            Cookfs_WriterPageMapInitializePage(w, pme->pageNum, page->buf);
+        }
+
+        // Directly compare the current file
+        int cmp = memcmp(&page->buf[pme->pageOffset], buffer, bufferSize);
+
+        Cookfs_PageObjDecrRefCount(page);
+
+        if (cmp == 0) {
+            CookfsLog2(printf("duplicate has been found"));
+            Cookfs_FsindexEntrySetBlock(entry, 0, pme->pageNum, pme->pageOffset,
+                bufferSize);
+            rc = 1;
+            goto done;
+        }
+
+        CookfsLog2(printf("the duplicate candidate doesn't match"
+            " the current file"));
+
+    }
+
+    CookfsLog2(printf("return: no suitable files"));
+
+done:
+    if (is_pages_locked) {
+        Cookfs_PagesUnlock(w->pages);
+    }
+    return rc;
+
 }
 
 static int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w,
@@ -308,10 +775,43 @@ static int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w,
 
     CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: set fsindex"
         " entry values"));
-    Cookfs_FsindexEntrySetBlock(wb->entry, 0, -w->bufferCount - 1, 0,
-        bufferSize);
     Cookfs_FsindexEntrySetFileSize(wb->entry, bufferSize);
     Cookfs_FsindexEntrySetFileTime(wb->entry, mtime);
+
+    // Here we check to see if encryption is active before checking for
+    // duplicates. This is to ensure that we do not check for duplicates of
+    // encrypted data (files) so as not to complicate the logic of
+    // the de-duplicator.
+    //
+    // Looking at the code, it may seem that there is a critical error because
+    // we do not lock pages. First we check the encryption status and then we
+    // check for duplicates. Another thread may have enabled encryption before
+    // we start checking for duplicates. And in that case, checking for
+    // duplicates might succeed when it shouldn't (when encryption is in use).
+    // But this scenario is impossible. To change the encryption status,
+    // writer's buffer must be reset. And to reset the writer buffer - we need
+    // to write-lock it. And if we are in this function, then write lock
+    // is already acquired. So, as long as we are in this function - we don't
+    // have to worry that the encryption mode can be changed by another thread.
+
+    if (!w->isWriteToMemory &&
+#ifdef COOKFS_USECCRYPTO
+        !Cookfs_PagesIsEncryptionActive(w->pages) &&
+#endif /* COOKFS_USECCRYPTO */
+        Cookfs_WriterCheckDuplicate(w, buffer, bufferSize, wb->entry))
+    {
+        CookfsLog2(printf("return: duplicate has been found"));
+        // We must free the buffer, since the caller expects us to own it
+        // in case of a successful return.
+        ckfree(buffer);
+        Cookfs_WriterWriterBufferFree(wb);
+        Cookfs_FsindexUnlock(w->index);
+        return TCL_OK;
+    }
+
+    Cookfs_FsindexEntrySetBlock(wb->entry, 0, -w->bufferCount - 1, 0,
+        bufferSize);
+
     Cookfs_FsindexUnlock(w->index);
 
     CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: set WritterBuffer"
@@ -469,6 +969,22 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
         }
         entry = NULL;
     }
+
+    // We're populating the page map here because we need a read lock on
+    // fsindex to do that, and this is one of the good places with
+    // a locked fsindex. But do this only if writeToMemory is not enabled,
+    // i.e. we are going to write the file to pages.
+    if (!w->isWriteToMemory) {
+        if (w->pageMapByPage == NULL) {
+            CookfsLog2(printf("page map is not initialized"));
+            if (Cookfs_WriterInitPageMap(w, err) != TCL_OK) {
+                return TCL_ERROR;
+            }
+        } else {
+            CookfsLog2(printf("page map has already been initialized"));
+        }
+    }
+
     Cookfs_FsindexUnlock(w->index);
 
     switch (dataType) {
@@ -935,6 +1451,10 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, Tcl_Obj **err) {
                 // the buffers by hashes. If hashes are equal, then compare
                 // their contents.
                 //
+                // Another thing in which md5 hash for buffer will be useful is
+                // activity related to finding duplicates.
+                // See: Cookfs_WriterCheckDuplicate()
+                //
                 // CookfsLog(printf("Cookfs_WriterPurge: check if [%p] equals"
                 //     " to [%p]", (void *)wb->buffer,
                 //     (void *)wbc->buffer));
@@ -1029,6 +1549,7 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, Tcl_Obj **err) {
     CookfsLog(printf("Cookfs_WriterPurge: alloc page buffer for %"
         TCL_LL_MODIFIER "d bytes",
         w->bufferSize < w->pageSize ? w->bufferSize : w->pageSize));
+
     pageBuffer = ckalloc(w->bufferSize < w->pageSize ?
         w->bufferSize : w->pageSize);
 
@@ -1151,6 +1672,14 @@ next:
                 wb->pageBlock = pageBlock;
             }
 
+            if (pageBlock != -1) {
+                // In Cookfs_WriterBuffer we set bufferSize to zero when free
+                // its buffer. Thus, we can not rely on wb->bufferSize here.
+                // Let's take the file size from fsindex entry.
+                Cookfs_WriterPageMapEntryAdd(w, pageBlock, wb->pageOffset,
+                    Cookfs_FsindexEntryGetFilesize(wb->entry));
+            }
+
             // Update entry
             CookfsLog(printf("Cookfs_WriterPurge: update fsindex entry for"
                 " buffer %p: pageBlock:%d pageOffset:%d", (void *)wb,
@@ -1158,10 +1687,15 @@ next:
 
             Cookfs_FsindexEntrySetBlock(wb->entry, 0, wb->pageBlock,
                 wb->pageOffset, -1);
+
             Cookfs_FsindexEntryUnlock(wb->entry);
 
         }
         Cookfs_FsindexUnlock(w->index);
+
+        if (pageBlock != -1) {
+            Cookfs_WriterPageMapInitializePage(w, pageBlock, pageBuffer);
+        }
 
     }
 

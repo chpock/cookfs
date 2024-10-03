@@ -1136,8 +1136,8 @@ static void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
         e->next = e->fsindex->inactiveItems;
         e->fsindex->inactiveItems = e;
     } else {
-        CookfsLog(printf("Cookfs_FsindexEntryFree: release entry %p",
-            (void *)e));
+        // CookfsLog(printf("Cookfs_FsindexEntryFree: release entry %p",
+        //     (void *)e));
 #ifdef TCL_THREADS
         Tcl_MutexFinalize(&e->mxRefCount);
 #endif /* TCL_THREADS */
@@ -1145,6 +1145,41 @@ static void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
     }
 }
 
+static void Cookfs_FsindexEntryForeach(Cookfs_FsindexEntry *e, Cookfs_FsindexForeachProc *proc, ClientData clientData) {
+
+    proc(e, clientData);
+
+    if (e->fileBlocks != COOKFS_NUMBLOCKS_DIRECTORY) {
+        // Do nothing else if the current entry is not a directory
+        return;
+    }
+
+    // for directory, recursively free all children
+    if (e->data.dirInfo.isHash) {
+        Tcl_HashSearch hashSearch;
+        Tcl_HashEntry *hashEntry;
+        // iterate over hash table for all children
+        hashEntry = Tcl_FirstHashEntry(&e->data.dirInfo.dirData.children, &hashSearch);
+        while (hashEntry != NULL) {
+            Cookfs_FsindexEntry *itemNode = (Cookfs_FsindexEntry *)Tcl_GetHashValue(hashEntry);
+            Cookfs_FsindexEntryForeach(itemNode, proc, clientData);
+            hashEntry = Tcl_NextHashEntry(&hashSearch);
+        }
+    } else {
+        // iterate through children and free them */
+        for (int i = 0 ; i < COOKFS_FSINDEX_TABLE_MAXENTRIES; i++) {
+            if (e->data.dirInfo.dirData.childTable[i] != NULL) {
+                Cookfs_FsindexEntryForeach(e->data.dirInfo.dirData.childTable[i], proc, clientData);
+            }
+        }
+    }
+
+}
+
+void Cookfs_FsindexForeach(Cookfs_Fsindex *i, Cookfs_FsindexForeachProc *proc, ClientData clientData) {
+    Cookfs_FsindexWantRead(i);
+    Cookfs_FsindexEntryForeach(i->rootItem, proc, clientData);
+}
 
 /*
  *----------------------------------------------------------------------
