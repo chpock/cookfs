@@ -10,7 +10,10 @@
   This will be useful when cookfs is statically linked, but not built as
   a loadable package.
 
-* Investogate an issue with -directory parameter for glob.
+* add a feature to link with crypto-functions from mbedTLS. This will allow
+  to save some bytes when application uses both cookfs&mbedtls.
+
+* Investigate an issue with -directory parameter for glob.
   See tests cookfsVfs-1.8.4.1.1 and cookfsVfs-1.8.4.1.2.
   Then some variable (object) is passed to -directory argument
   of the command glob, then internal cookfs representation is
