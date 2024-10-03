@@ -76,7 +76,9 @@ void Cookfs_PagesCalculateHash(Cookfs_Pages *p, unsigned char *bytes,
 
 int Cookfs_PageAddStamp(Cookfs_Pages *p, Tcl_WideInt size);
 
+#ifdef COOKFS_USECCRYPTO
 int Cookfs_PagesIsEncryptionActive(Cookfs_Pages *p);
+#endif /* COOKFS_USECCRYPTO */
 
 int Cookfs_PagesUnlock(Cookfs_Pages *p);
 int Cookfs_PagesLockRW(int isWrite, Cookfs_Pages *p, Tcl_Obj **err);

@@ -67,7 +67,7 @@ Tcl_WideInt Cookfs_FsindexEntryGetFileTime(Cookfs_FsindexEntry *e);
 const char *Cookfs_FsindexEntryGetFileName(Cookfs_FsindexEntry *e,
     unsigned char *fileNameLen);
 
-void Cookfs_FsindexForeach(Cookfs_Fsindex *i, Cookfs_FsindexForeachProc *proc, ClientData clientdata);
+void Cookfs_FsindexForeach(Cookfs_Fsindex *i, Cookfs_FsindexForeachProc *proc, ClientData clientData);
 
 int Cookfs_FsindexEntryUnlock(Cookfs_FsindexEntry *e);
 int Cookfs_FsindexEntryLock(Cookfs_FsindexEntry *e);

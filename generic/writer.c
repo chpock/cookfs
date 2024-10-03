@@ -294,7 +294,9 @@ void Cookfs_WriterFini(Cookfs_Writer *w) {
         }
 
         Tcl_DeleteHashTable(w->pageMapByPage);
+        ckfree(w->pageMapByPage);
         Tcl_DeleteHashTable(w->pageMapBySize);
+        ckfree(w->pageMapBySize);
 
     }
 
@@ -339,6 +341,7 @@ static int Cookfs_WriterPageMapEntryAddBySize(Cookfs_Writer *w,
     Tcl_HashEntry *hPtr;
     Cookfs_WriterPageMapEntry *current_pme;
 
+    // cppcheck-suppress redundantAssignment
     hPtr = Tcl_CreateHashEntry(w->pageMapBySize, INT2PTR(pme->pageSize), &is_new);
     if (is_new) {
         // CookfsLog2(printf("new hash value by size"));
@@ -387,6 +390,7 @@ static void Cookfs_WriterPageMapEntryAdd(Cookfs_Writer *w, int pageNum,
     // order. This will be useful for finding gaps in the map for
     // a particular page.
 
+    // cppcheck-suppress redundantAssignment
     hPtr = Tcl_CreateHashEntry(w->pageMapByPage, INT2PTR(pageNum), &is_new);
     if (is_new) {
         // CookfsLog2(printf("new hash value by page"));
@@ -582,6 +586,7 @@ static void Cookfs_WriterPageMapInitializePage(Cookfs_Writer *w, int pageNum,
 
     CookfsLog2(printf("initialize hashes on pageNum:%d", pageNum));
 
+    // cppcheck-suppress redundantInitialization
     Tcl_HashEntry *hashEntry = Tcl_FindHashEntry(w->pageMapByPage, INT2PTR(pageNum));
     Cookfs_WriterPageMapEntry *pme =
         (Cookfs_WriterPageMapEntry *)Tcl_GetHashValue(hashEntry);
@@ -605,6 +610,7 @@ static int Cookfs_WriterCheckDuplicate(Cookfs_Writer *w, void *buffer,
     int rc = 0;
     int is_pages_locked = 0;
 
+    // cppcheck-suppress redundantInitialization
     Tcl_HashEntry *hashEntry = Tcl_FindHashEntry(w->pageMapBySize,
         INT2PTR((int)bufferSize));
 
@@ -762,7 +768,9 @@ static int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w,
     // have to worry that the encryption mode can be changed by another thread.
 
     if (!w->isWriteToMemory &&
+#ifdef COOKFS_USECCRYPTO
         !Cookfs_PagesIsEncryptionActive(w->pages) &&
+#endif /* COOKFS_USECCRYPTO */
         Cookfs_WriterCheckDuplicate(w, buffer, bufferSize, wb->entry))
     {
         CookfsLog2(printf("return: duplicate has been found"));

@@ -168,10 +168,14 @@ int Cookfs_PagesGetLength(Cookfs_Pages *p) {
     return Cookfs_PgIndexGetLength(p->pagesIndex);
 }
 
+#ifdef COOKFS_USECCRYPTO
+
 int Cookfs_PagesIsEncryptionActive(Cookfs_Pages *p) {
     CookfsLog2(printf("return: %d", p->isEncryptionActive));
     return p->isEncryptionActive;
 }
+
+#endif /* COOKFS_USECCRYPTO */
 
 /*
  *----------------------------------------------------------------------
