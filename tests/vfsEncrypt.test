@@ -224,7 +224,7 @@ test cookfsVfsEncrypt-4.4.1 "Test file encryption, no password when using reader
     set checkfile [makeBinFile "TEST" test $file]
 } -body {
     $fsid password ""
-    set fd [open $checkfile r]
+    set fd [open $checkfile rb]
 } -cleanup {
     catch { close $fd }
     cookfs::Unmount $file
@@ -236,7 +236,7 @@ test cookfsVfsEncrypt-4.4.2 "Test file encryption, wrong password when using rea
     set checkfile [makeBinFile "TEST" test $file]
 } -body {
     $fsid password "bar"
-    set fd [open $checkfile r]
+    set fd [open $checkfile rb]
 } -cleanup {
     catch { close $fd }
     cookfs::Unmount $file

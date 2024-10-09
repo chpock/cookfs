@@ -512,7 +512,7 @@ test cookfsPages-7.5 "Test custom compression algorithm not used when size would
     set i0 [$pg add $data]
     $pg delete
 
-    set fh [open $file r]
+    set fh [open $file rb]
     assertContain [read $fh] "HEXTEST" "Not used testcompress command"
     close $fh
 

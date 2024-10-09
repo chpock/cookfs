@@ -1198,6 +1198,7 @@ test cookfsVfs-19.3 "Check if mount handler is available in child interp" -const
 } -cleanup {
     interp delete $i
     cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
 } -result 0
 
 test cookfsVfs-19.4 "Check if pages handler is available in child interp" -constraints {enabledCVfs enabledTclCmds} -setup {
@@ -1212,6 +1213,7 @@ test cookfsVfs-19.4 "Check if pages handler is available in child interp" -const
 } -cleanup {
     interp delete $i
     cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
 } -result 0
 
 test cookfsVfs-19.5 "Check if fsindex handler is available in child interp" -constraints {enabledCVfs enabledTclCmds} -setup {
@@ -1229,6 +1231,7 @@ test cookfsVfs-19.5 "Check if fsindex handler is available in child interp" -con
 } -cleanup {
     interp delete $i
     cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
 } -result ok
 
 test cookfsVfs-19.6.1 "Check mount/unmount in child interp" -setup {
