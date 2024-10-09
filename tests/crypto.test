@@ -258,7 +258,7 @@ test cookfsCrypto-5.1 "Test crypto::aes_* with known test vectors #1" -constrain
         lappend vectors {*}[split $line]
     }
     close $fp
-    variable count 0
+    set count 0
     variable t_num
     variable t_key
     variable t_cipher
@@ -289,7 +289,7 @@ tcltest::test cookfsCrypto-5.2 "Test crypto::aes_* with known test vectors #2" -
         lappend vectors {*}[split $line]
     }
     close $fp
-    variable count 0
+    set count 0
     variable t_num
     variable t_data
     variable t_cipher
@@ -309,7 +309,7 @@ tcltest::test cookfsCrypto-5.2 "Test crypto::aes_* with known test vectors #2" -
 # Test vectors from:
 #     https://github.com/openssl/openssl/blob/29696af689df734cae05181d85ee04470c3839d3/test/recipes/30-test_evp_data/evpciph_aes_common.txt#L211
 test cookfsCrypto-5.3 "Test crypto::aes_* with known test vectors #3" -constraints {cookfsCrypto enabledTclCmds} -setup {
-    variable count 0
+    set count 0
     variable t_num
     variable t_key
     variable t_iv
@@ -340,7 +340,7 @@ test cookfsCrypto-5.4 "Test crypto::aes_* with known test vectors #4" -constrain
         lappend vectors {*}[split $line]
     }
     close $fp
-    variable count
+    set count 0
     variable t_data
     variable t_key
     variable t_cipher
