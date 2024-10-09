@@ -8,5 +8,6 @@
 #define VFS_SEPARATOR '/'
 
 const Tcl_Filesystem *CookfsFilesystem(void);
+void CookfsThreadExitProc(ClientData clientData);
 
 #endif /* COOKFS_VFSDRIVER_H */

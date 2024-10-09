@@ -1,178 +1,165 @@
+source [file join [file dirname [info script]] common.tcl]
 
 foreach { cid } { none zlib bz2 lzma zstd brotli } {
 
     set constraint "cookfsCompression[string totitle $cid]"
     set test_title "cookfsCompr[string totitle $cid]"
 
-    tcltest::test "${test_title}-1" { simple } -constraints $constraint -setup {
-        set file [tcltest::makeFile {} cookfs.cfs]
-        set dir  [tcltest::makeDirectory test]
-        tcltest::makeFile [string repeat "TEST" 1] \
-            test1 $dir
-        tcltest::makeFile [string repeat "TEST" 10] \
-            test2 $dir
-        tcltest::makeFile [string repeat "TEST" 100] \
-            test3 $dir
-        tcltest::makeFile [string repeat "TEST" 1000] \
-            test4 $dir
+    test "${test_title}-1" { simple } -constraints $constraint -setup {
+        set file [makeFile {} cookfs.cfs]
+        set dir  [makeDirectory test]
+        makeFile [string repeat "TEST" 1]    test1 $dir
+        makeFile [string repeat "TEST" 10]   test2 $dir
+        makeFile [string repeat "TEST" 100]  test3 $dir
+        makeFile [string repeat "TEST" 1000] test4 $dir
     } -body {
         cookfs::Mount -compression $cid $file $file
         file copy -force $dir [file join $file vfs]
         # remount
         cookfs::Unmount $file
         cookfs::Mount $file $file
-        set ok [testIfEqual $dir [file join $file vfs]]
-        cookfs::Unmount $file
-        set ok
-    } -result 1 -cleanup {
+        assertTrue [testIfEqual $dir [file join $file vfs]]
+    } -cleanup {
         catch { cookfs::Unmount $file }
-        file delete -force $file $dir
-        unset -nocomplain ok file dir
-    }
+    } -ok
 
-    tcltest::test "${test_title}-2" {store uncompressed small data} -constraints "$constraint enabledTclCmds" -setup {
-        set file [tcltest::makeFile {} cookfs.cfs]
-        set dir  [tcltest::makeDirectory test]
-        tcltest::makeFile "X" test1 $dir
+    test "${test_title}-2" {store uncompressed small data} -constraints "$constraint enabledTclCmds" -setup {
+        set file [makeFile {} cookfs.cfs]
+        set dir  [makeDirectory test]
+        makeFile "X" test1 $dir
+        variable pg
     } -body {
         cookfs::Mount -compression $cid $file $file
         file copy -force $dir [file join $file vfs]
         # remount
         cookfs::Unmount $file
         cookfs::Mount $file $file
-        set ok [testIfEqual $dir [file join $file vfs]]
+        assertTrue [testIfEqual $dir [file join $file vfs]]
         cookfs::Unmount $file
         set pg [cookfs::pages $file]
-        lappend ok [$pg length]
+        assertEq [$pg length] 1 "all files must be on a single page"
         # the page '0' contains the 'test1' file only and it must be uncompressed
         # i.e. its size should equal to 2 ( 1 byte ("X") + 1 byte (newline) )
-        set page_size [expr { [$pg filesize] - [$pg dataoffset 0] }]
+        assertEq [expr { [$pg filesize] - [$pg dataoffset 0] }] 2 "the page size should be 2 bytes"
         $pg delete
-        lappend ok $page_size
-    } -result {1 1 2} -cleanup {
+    } -cleanup {
         catch { cookfs::Unmount $file }
         catch { $pg delete }
-        file delete -force $file $dir
-        unset -nocomplain pg page_size ok file dir
-    }
+    } -ok
 
-    tcltest::test "${test_title}-3" {store uncompressed large data} -constraints "$constraint enabledTclCmds" -setup {
-        set file [tcltest::makeFile {} cookfs.cfs]
-        set dir  [tcltest::makeDirectory test]
+    test "${test_title}-3" {store uncompressed large data} -constraints "$constraint enabledTclCmds" -setup {
+        set file [makeFile {} cookfs.cfs]
+        set dir  [makeDirectory test]
         # 128 bytes of random and high entropy data. Any compression should be inefficient with it.
         set data [binary format H* d131dd02c5e6eec4693d9a0698aff95c2fcab58712467eab4004583eb8fb7f8955ad340609f4b30283e488832571415a085125e8f7cdc99fd91dbdf280373c5bd8823e3156348f5bae6dacd436c919c6dd53e2b487da03fd02396306d248cda0e99f33420f577ee8ce54b67080a80d1ec69821bcb6a8839396f9652b6ff72a70]
         # Do not save data with makeFile because it treats the file as a text file.
         # We need to store the data in binary form.
-        set file1 [tcltest::makeFile {} test1 $dir]
-        # Store the data
-        set fp [open $file1 w]
-        fconfigure $fp -translation binary
-        puts -nonewline $fp $data
-        close $fp
+        set file1 [makeBinFile $data test1 $dir]
+        variable pg
     } -body {
         cookfs::Mount -compression $cid $file $file
         file copy -force $dir [file join $file vfs]
         # remount
         cookfs::Unmount $file
         cookfs::Mount $file $file
-        set ok [testIfEqual $dir [file join $file vfs]]
+        assertTrue [testIfEqual $dir [file join $file vfs]]
         cookfs::Unmount $file
         set pg [cookfs::pages $file]
-        lappend ok [$pg length]
+        assertEq [$pg length] 1 "all files must be on a single page"
         # the page '0' contains the 'test1' file only and it must be uncompressed
         # i.e. its size should equal to 128
-        set page_size [expr { [$pg filesize] - [$pg dataoffset 0] }]
-        $pg delete
-        lappend ok $page_size
-    } -result {1 1 128} -cleanup {
+        assertEq [expr { [$pg filesize] - [$pg dataoffset 0] }] 128 "the page size should be 128 bytes"
+    } -cleanup {
         catch { cookfs::Unmount $file }
         catch { $pg delete }
-        file delete -force $file $dir
-        unset -nocomplain pg page_size ok file file1 dir fp data
-    }
+    } -ok
 
-    tcltest::test "${test_title}-4" {store compressed} -constraints "$constraint enabledTclCmds" -setup {
-        set file [tcltest::makeFile {} cookfs.cfs]
-        set dir  [tcltest::makeDirectory test]
-        tcltest::makeFile [string repeat "X" 1024] test1 $dir
+    test "${test_title}-4" {store compressed} -constraints "$constraint enabledTclCmds" -setup {
+        set file [makeFile {} cookfs.cfs]
+        set dir  [makeDirectory test]
+        makeFile [string repeat "X" 1024] test1 $dir
+        variable pg
     } -body {
         cookfs::Mount -compression $cid $file $file
         file copy -force $dir [file join $file vfs]
         # remount
         cookfs::Unmount $file
         cookfs::Mount $file $file
-        set ok [testIfEqual $dir [file join $file vfs]]
+        assertTrue [testIfEqual $dir [file join $file vfs]]
         cookfs::Unmount $file
         set pg [cookfs::pages $file]
-        lappend ok [$pg length]
+        assertEq [$pg length] 1 "all files must be on a single page"
         # the page '0' contains the 'test1' file only and it must be compressed (if method is not "none")
         # i.e. its size should be less than 1025 ( 1024 ("XXX...") + 1 (newline) )
-        set page_size [expr { [$pg filesize] - [$pg dataoffset 0] }]
-        $pg delete
         if { $cid eq "none" } {
-            if { $page_size == 1025 } { unset page_size }
+            assertEq [expr { [$pg filesize] - [$pg dataoffset 0] }] 1025 "the page size should be 128 bytes with 'none' compression"
         } {
-            if { $page_size < 1025 } { unset page_size }
+            assertLt [expr { [$pg filesize] - [$pg dataoffset 0] }] 1025 "the page size should be less than 128 bytes with compression"
         }
-        if { [info exists page_size] } {
-            lappend ok "unexpected page size: $page_size"
-        }
-        set ok
-    } -result {1 1} -cleanup {
+    } -cleanup {
         catch { cookfs::Unmount $file }
         catch { $pg delete }
-        file delete -force $file $dir
-        unset -nocomplain pg page_size ok file dir
-    }
+    } -ok
 
-    tcltest::test "${test_title}-5.1" {Specify no compression level} -constraints "$constraint enabledTclCmds" -setup {
-        set file [tcltest::makeFile {} cookfs.cfs]
+    test "${test_title}-5.1" {Specify no compression level} -constraints "$constraint enabledTclCmds" -setup {
+        set file [makeFile {} cookfs.cfs]
+        variable pg
     } -body {
         set pg [cookfs::pages -compression "${cid}" $file]
     } -cleanup {
         catch { $pg delete }
-        unset -nocomplain file pg
     } -match glob -result {::cookfs::*::pages::handle*}
 
-    tcltest::test "${test_title}-5.2" {Specify empty compression level} -constraints "$constraint enabledTclCmds" -setup {
-        set file [tcltest::makeFile {} cookfs.cfs]
+    test "${test_title}-5.2" {Specify empty compression level} -constraints "$constraint enabledTclCmds" -setup {
+        set file [makeFile {} cookfs.cfs]
+        variable pg
     } -body {
         set pg [cookfs::pages -compression "${cid}:" $file]
     } -cleanup {
         catch { $pg delete }
-        unset -nocomplain file pg
     } -match glob -result {::cookfs::*::pages::handle*}
 
-    tcltest::test "${test_title}-5.3" {Specify wrong compression level} -constraints "$constraint enabledTclCmds" -setup {
-        set file [tcltest::makeFile {} cookfs.cfs]
+    test "${test_title}-5.3" {Specify wrong compression level} -constraints "$constraint enabledTclCmds" -setup {
+        set file [makeFile {} cookfs.cfs]
+        variable pg
     } -body {
         set pg [cookfs::pages -compression "${cid}:a" $file]
     } -cleanup {
         catch { $pg delete }
-        unset -nocomplain file pg
-    } -returnCodes error -result {expected integer but got "a"}
+    } -error {expected integer but got "a"}
 
-    tcltest::test "${test_title}-5.4" {Specify negative compression level} -constraints "$constraint enabledTclCmds" -setup {
-        set file [tcltest::makeFile {} cookfs.cfs]
+    test "${test_title}-5.4" {Specify negative compression level} -constraints "$constraint enabledTclCmds" -setup {
+        set file [makeFile {} cookfs.cfs]
+        variable pg
     } -body {
         set pg [cookfs::pages -compression "${cid}:-2" $file]
     } -cleanup {
         catch { $pg delete }
-        unset -nocomplain file pg
-    } -returnCodes error -result {the compression level is expected to be an integer between -1 and 255, but got "-2"}
+    } -error {the compression level is expected to be an integer between -1 and 255, but got "-2"}
 
-    tcltest::test "${test_title}-5.5" {Specify overflow compression level} -constraints "$constraint enabledTclCmds" -setup {
-        set file [tcltest::makeFile {} cookfs.cfs]
+    test "${test_title}-5.5" {Specify overflow compression level} -constraints "$constraint enabledTclCmds" -setup {
+        set file [makeFile {} cookfs.cfs]
+        variable pg
     } -body {
         set pg [cookfs::pages -compression "${cid}:256" $file]
     } -cleanup {
         catch { $pg delete }
-        unset -nocomplain file pg
-    } -returnCodes error -result {the compression level is expected to be an integer between -1 and 255, but got "256"}
+    } -error {the compression level is expected to be an integer between -1 and 255, but got "256"}
 
-    tcltest::test "${test_title}-6.1" {Test compression levels, pages} -constraints "$constraint enabledTclCmds enabledCPages" -setup {
-        set file [tcltest::makeFile {} cookfs.cfs]
+    test "${test_title}-6.1" {Test compression levels, pages} -constraints "$constraint enabledTclCmds enabledCPages" -setup {
+        set file [makeFile {} cookfs.cfs]
         set data [makeRandomText]
+        set expected [dict get {
+            none   {1310721 1310721 1310721 1310721 1310721}
+            zlib   {335800 395824 365352 342149 330138}
+            zstd   {330320 357953 330320 319774 305177}
+            brotli {298917 400105 336873 301259 295248}
+            bz2    {275040 293158 278822 280149 275041}
+            lzma   {274786 311427 303548 274786 272873}
+        } $cid]
+        set result [list]
+        variable i
+        variable pg
     } -body {
         set pg [cookfs::pages -compression "$cid" $file]
         $pg add 0$data
@@ -184,56 +171,22 @@ foreach { cid } { none zlib bz2 lzma zstd brotli } {
         $pg add 3$data
         $pg compression "${cid}:9"
         $pg add 4$data
-        set pglen [$pg length]
-        set result [list]
-        for { set i 0 } { $i < $pglen } { incr i } {
-            if { $i == [expr { $pglen - 1 }] } {
+        assertEq [$pg length] 5 "5 pages should be created for each compression type"
+        for { set i 0 } { $i < [$pg length] } { incr i } {
+            if { $i == [expr { [$pg length] - 1 }] } {
                 lappend result [expr { [$pg filesize] - [$pg dataoffset $i] }]
             } else {
                 lappend result [expr { [$pg dataoffset [expr { $i + 1 }]] - [$pg dataoffset $i] }]
             }
         }
-        set expected [dict get {
-            none   {1310721 1310721 1310721 1310721 1310721}
-            zlib   {335800 395824 365352 342149 330138}
-            zstd   {330320 357953 330320 319774 305177}
-            brotli {298917 400105 336873 301259 295248}
-            bz2    {275040 293158 278822 280149 275041}
-            lzma   {274786 311427 303548 274786 272873}
-        } $cid]
-        if { $expected eq $result } {
-            set result ok
-        } else {
-            set result " - not ok\nexpected: $expected\nresult: $result"
-        }
-        list $pglen $result
+        assertEq $result $expected "check expected compressed size"
     } -cleanup {
         catch { $pg delete }
-        unset -nocomplain pg file data pglen i result expected
-    } -result {5 ok}
+    } -ok
 
-    tcltest::test "${test_title}-6.2" {Test compression levels, VFS} -constraints "$constraint enabledTclCmds enabledCPages" -setup {
-        set file [tcltest::makeFile {} cookfs.cfs]
+    test "${test_title}-6.2" {Test compression levels, VFS} -constraints "$constraint enabledTclCmds enabledCPages" -setup {
+        set file [makeFile {} cookfs.cfs]
         set data [makeRandomText]
-    } -body {
-        set fsid [cookfs::Mount $file $file -compression "$cid" -pagesize 0x1000000 -smallfilebuffer 0]
-        set fp [open [file join $file 1] wb]
-        puts -nonewline $fp 0$data
-        close $fp
-        $fsid compression "${cid}:5"
-        set fp [open [file join $file 2] wb]
-        puts -nonewline $fp 3$data
-        close $fp
-        set pg [$fsid getpages]
-        set pglen [$pg length]
-        set result [list]
-        for { set i 0 } { $i < $pglen } { incr i } {
-            if { $i == [expr { $pglen - 1 }] } {
-                lappend result [expr { [$pg filesize] - [$pg dataoffset $i] }]
-            } else {
-                lappend result [expr { [$pg dataoffset [expr { $i + 1 }]] - [$pg dataoffset $i] }]
-            }
-        }
         set expected [dict get {
             none   {1310721 1310721}
             zlib   {335800 342149}
@@ -242,15 +195,29 @@ foreach { cid } { none zlib bz2 lzma zstd brotli } {
             bz2    {275040 280149}
             lzma   {274786 274786}
         } $cid]
-        if { $expected eq $result } {
-            set result ok
-        } else {
-            set result " - not ok\nexpected: $expected\nresult: $result"
+        set result [list]
+        variable fsid
+        variable i
+        variable pg
+    } -body {
+        set fsid [cookfs::Mount $file $file -compression "$cid" -pagesize 0x1000000 -smallfilebuffer 0]
+        makeBinFile "0$data" 1 $file
+        $fsid compression "${cid}:5"
+        makeBinFile "3$data" 2 $file
+        set pg [$fsid getpages]
+        assertEq [$pg length] 2 "we expect 2 pages to be created"
+        for { set i 0 } { $i < [$pg length] } { incr i } {
+            if { $i == [expr { [$pg length] - 1 }] } {
+                lappend result [expr { [$pg filesize] - [$pg dataoffset $i] }]
+            } else {
+                lappend result [expr { [$pg dataoffset [expr { $i + 1 }]] - [$pg dataoffset $i] }]
+            }
         }
-        list $pglen $result
+        assertEq $result $expected "check expected compressed size"
     } -cleanup {
         catch { cookfs::Unmount $file }
-        unset -nocomplain fsid pg file data pglen i result expected fp
-    } -result {2 ok}
+    } -ok
 
 }
+
+cleanupTests

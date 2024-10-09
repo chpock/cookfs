@@ -1,59 +1,63 @@
-tcltest::test cookfsWriter-1.1 "Create empty archive" -constraints runCookfsWriter -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+source [file join [file dirname [info script]] common.tcl]
+
+test cookfsWriter-1.1 "Create empty archive" -constraints runCookfsWriter -setup {
+    source [file join [testsDirectory] .. cookfswriter cookfswriter.tcl]
+    set file [makeFile {} pages.cfs]
 } -body {
     cookfs::createArchive $file {} {}
     cookfs::Mount -readonly $file $file
     cookfs::Unmount $file
 } -cleanup {
     catch {cookfs::Unmount $file}
-    catch {file delete -force $file}
-    unset -nocomplain file
-} -returnCodes {ok} -match glob -result *
+    foreach proc {
+        createArchivePageIndex createArchiveFileIndex
+        createArchive createArchiveAddFilePath
+        createArchiveAddFile
+    } { rename ::cookfs::$proc {} }
+    unset proc
+} -ok
 
-tcltest::test cookfsWriter-1.2 "Create empty archive with bootstrap" -constraints {runCookfsWriter enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsWriter-1.2 "Create empty archive with bootstrap" -constraints {runCookfsWriter enabledTclCmds} -setup {
+    source [file join [testsDirectory] .. cookfswriter cookfswriter.tcl]
+    set file [makeFile {} pages.cfs]
+    variable fsid
 } -body {
     cookfs::createArchive $file {} {SAMPLE BOOTSTRAP}
     set fsid [cookfs::Mount -readonly $file $file]
-    set p [$fsid getpages]
-    if {![string equal [$p get 0] {SAMPLE BOOTSTRAP}]} {
-	error "Bootstraps differ"
-    }
+    assertEq [[$fsid getpages] get 0] {SAMPLE BOOTSTRAP} "bootstrap is correct"
     cookfs::Unmount $file
 } -cleanup {
     catch {cookfs::Unmount $file}
-    catch {file delete -force $file}
-    unset -nocomplain file p fsid
-} -returnCodes {ok} -match glob -result  *
+    foreach proc {
+        createArchivePageIndex createArchiveFileIndex
+        createArchive createArchiveAddFilePath
+        createArchiveAddFile
+    } { rename ::cookfs::$proc {} }
+    unset proc
+} -ok
 
-tcltest::test cookfsWriter-1.3 "Create non-empty archive with bootstrap" -constraints {runCookfsWriter enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsWriter-1.3 "Create non-empty archive with bootstrap" -constraints {runCookfsWriter enabledTclCmds} -setup {
+    source [file join [testsDirectory] .. cookfswriter cookfswriter.tcl]
+    set file [makeFile {} pages.cfs]
+    set files [list]
+    variable fsid
 } -body {
-
-    set files {}
     lappend files file1 data {SAMPLECONTENTS} ""
     lappend files cookfswriter.tcl file [file join [tcltest::testsDirectory] .. cookfswriter cookfswriter.tcl] ""
 
     cookfs::createArchive $file $files {SAMPLE BOOTSTRAP}
-
     set fsid [cookfs::Mount -readonly $file $file]
-
-    set p [$fsid getpages]
-    if {![string equal [$p get 0] {SAMPLE BOOTSTRAP}]} {
-	error "Bootstraps differ"
-    }
-
-    set fh [open $file/file1 r]
-    fconfigure $fh -translation binary
-    if {![string equal [read $fh] {SAMPLECONTENTS}]} {
-	error "File file1 does not contain predefined data"
-    }
-    close $fh
-
+    assertEq [[$fsid getpages] get 0] {SAMPLE BOOTSTRAP} "bootstrap is correct"
+    assertEq [viewBinFile "file1" $file] {SAMPLECONTENTS} "file content is correct"
     cookfs::Unmount $file
 } -cleanup {
-    catch {close $fh}
     catch {cookfs::Unmount $file}
-    catch {file delete -force $file}
-    unset -nocomplain file files fsid p fh
-} -returnCodes {ok} -match glob -result *
+    foreach proc {
+        createArchivePageIndex createArchiveFileIndex
+        createArchive createArchiveAddFilePath
+        createArchiveAddFile
+    } { rename ::cookfs::$proc {} }
+    unset proc
+} -ok
+
+cleanupTests

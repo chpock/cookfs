@@ -1,122 +1,107 @@
+source [file join [file dirname [info script]] common.tcl]
 
-tcltest::test cookfsVfsThread-1.1 "Test that shared vfs is available in child thread" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-1.1 "Test that shared vfs is available in child thread" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
 } -body {
     thread::send $tid [list file attribute $file -vfs]
 } -cleanup {
-    catch { thread::release $tid }
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid
+    thread::release $tid
+    cookfs::Unmount $file
 } -result 1
 
-tcltest::test cookfsVfsThread-1.2 "Test that not shared vfs is unavailable in child thread" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-1.2 "Test that not shared vfs is unavailable in child thread" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
 } -body {
     thread::send $tid [list file attribute $file -vfs]
 } -cleanup {
-    catch { thread::release $tid }
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid
-} -returnCodes error -match glob -result {bad option "-vfs": must be *}
+    thread::release $tid
+    cookfs::Unmount $file
+} -match glob -error {bad option "-vfs": must be *}
 
-tcltest::test cookfsVfsThread-1.3 "Test that shared vfs is available in child thread and unavailable after unmount" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-1.3 "Test that shared vfs is available in child thread and unavailable after unmount" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
 } -body {
-    set result [list]
-    lappend result [thread::send $tid [list file attribute $file -vfs]]
+    assertEq [thread::send $tid [list file attribute $file -vfs]] 1
     cookfs::Unmount $file
-    lappend result [catch [list thread::send $tid [list file attribute $file -vfs]]]
+    assertErrMsgMatch [list thread::send $tid [list file attribute $file -vfs]] {bad option "-vfs": must be *}
 } -cleanup {
-    catch { thread::release $tid }
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid result
-} -result {1 1}
+    thread::release $tid
+    catch { cookfs::Unmount $file }
+} -ok
 
-tcltest::test cookfsVfsThread-1.4 "Test that shared vfs is available in parent thread and unavailable after unmount" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-1.4 "Test that shared vfs is available in parent thread and unavailable after unmount" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
     thread::send $tid [list package require cookfs]
 } -body {
     thread::send $tid [list cookfs::Mount $file $file -compression none -shared]
-    set result [list]
-    lappend result [file attribute $file -vfs]
+    assertEq [file attribute $file -vfs] 1
     thread::send $tid [list cookfs::Unmount $file]
-    lappend result [catch [list file attribute $file -vfs]]
+    assertErrMsgMatch [list file attribute $file -vfs] {bad option "-vfs": must be *}
 } -cleanup {
-    catch { thread::release $tid }
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file tid result
-} -result {1 1}
+    thread::release $tid
+    catch { cookfs::Unmount $file }
+    catch { ::cookfs::c::reset_cache }
+} -ok
 
-tcltest::test cookfsVfsThread-1.5 "Test that shared vfs is available in parent thread and unavailable after thread released" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-1.5 "Test that shared vfs is available in parent thread and unavailable after thread released" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set tid [thread::create -joinable thread::wait]
     thread::send $tid [list set file $file]
     thread::send $tid [list package require cookfs]
 } -body {
     thread::send $tid [list cookfs::Mount $file $file -compression none -shared]
-    set result [list]
-    lappend result [file attribute $file -vfs]
+    assertEq [file attribute $file -vfs] 1
     thread::release $tid
     thread::join $tid
-    lappend result [catch [list file attribute $file -vfs]]
+    assertErrMsgMatch [list file attribute $file -vfs] {bad option "-vfs": must be *}
 } -cleanup {
-    catch {thread::release $tid}
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file tid result
-} -result {1 1}
+    catch { thread::release $tid }
+    catch { cookfs::Unmount $file }
+    catch { ::cookfs::c::reset_cache }
+} -ok
 
-tcltest::test cookfsVfsThread-1.6 "Test that not shared vfs is unavailable in parent thread" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-1.6 "Test that not shared vfs is unavailable in parent thread" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
     thread::send $tid [list package require cookfs]
 } -body {
     thread::send $tid [list cookfs::Mount $file $file -compression none]
-    catch [list file attribute $file -vfs] result
+    assertErrMsgMatch [list file attribute $file -vfs] {bad option "-vfs": must be *}
     thread::send $tid [list cookfs::Unmount $file]
-    set result
 } -cleanup {
-    catch { thread::release $tid }
+    thread::release $tid
     catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file tid result
-} -match glob -result {bad option "-vfs": must be *}
+} -ok
 
-tcltest::test cookfsVfsThread-2.1 "Test that -handle is empty in child thread" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-2.1 "Test that -handle is empty in child thread" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
 } -body {
     thread::send $tid [list file attribute $file -handle]
 } -cleanup {
-    catch { thread::release $tid }
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid
+    thread::release $tid
+    cookfs::Unmount $file
 } -result {}
 
-tcltest::test cookfsVfsThread-3.1 "Test simple read files from other thread from small buffer" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-3.1 "Test simple read files from other thread from small buffer" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 128 -smallfilebuffer 1024 -pagesize 1024]
-    set file1 [tcltest::makeBinFile {TEST01} test1 $file]
-    set file2 [tcltest::makeBinFile {TEST02} test2 $file]
+    set file1 [makeBinFile {TEST01} test1 $file]
+    set file2 [makeBinFile {TEST02} test2 $file]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
     thread::send $tid [list set file1 $file1]
@@ -127,17 +112,15 @@ tcltest::test cookfsVfsThread-3.1 "Test simple read files from other thread from
         append result [read [set f [open $file2 rb]]][close $f]
     }
 } -cleanup {
-    catch { thread::release $tid }
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid file1 file2
+    thread::release $tid
+    cookfs::Unmount $file
 } -result {TEST01TEST02}
 
-tcltest::test cookfsVfsThread-3.2 "Test simple read files from other thread from pages" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-3.2 "Test simple read files from other thread from pages" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 1 -smallfilebuffer 0 -pagesize 3]
-    set file1 [tcltest::makeBinFile {TEST01X} test1 $file]
-    set file2 [tcltest::makeBinFile {TEST02Y} test2 $file]
+    set file1 [makeBinFile {TEST01X} test1 $file]
+    set file2 [makeBinFile {TEST02Y} test2 $file]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
     thread::send $tid [list set file1 $file1]
@@ -148,41 +131,36 @@ tcltest::test cookfsVfsThread-3.2 "Test simple read files from other thread from
         append result [read [set f [open $file2 rb]]][close $f]
     }
 } -cleanup {
-    catch { thread::release $tid }
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid file1 file2
+    thread::release $tid
+    cookfs::Unmount $file
 } -result {TEST01XTEST02Y}
 
-tcltest::test cookfsVfsThread-4.1 "Test error for tcl commands for shared VFS" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-4.1 "Test error for tcl commands for shared VFS" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
 } -body {
-    catch { cookfs::Mount $file $file -compression none -shared -compresscommand foo } err
-    set result $err
-    catch { cookfs::Mount $file $file -compression none -shared -decompresscommand foo } err
-    if { $result ne $err } { append result "\n$err" }
-    catch { cookfs::Mount $file $file -compression none -shared -asynccompresscommand foo } err
-    if { $result ne $err } { append result "\n$err" }
-    catch { cookfs::Mount $file $file -compression none -shared -asyncdecompresscommand foo } err
-    if { $result ne $err } { append result "\n$err" }
-    set result
+    assertErrMsg { cookfs::Mount $file $file -compression none -shared -compresscommand foo } \
+        {cannot use tcl commands in thread-shared mode}
+    assertErrMsg { cookfs::Mount $file $file -compression none -shared -decompresscommand foo } \
+        {cannot use tcl commands in thread-shared mode}
+    assertErrMsg { cookfs::Mount $file $file -compression none -shared -asynccompresscommand foo } \
+        {cannot use tcl commands in thread-shared mode}
+    assertErrMsg { cookfs::Mount $file $file -compression none -shared -asyncdecompresscommand foo } \
+        {cannot use tcl commands in thread-shared mode}
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file result err
-} -result {cannot use tcl commands in thread-shared mode}
+} -ok
 
-tcltest::test cookfsVfsThread-5.1 "High load, random reads from multiple threads" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-5.1 "High load, random reads from multiple threads" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression zlib -shared -smallfilesize 1 -smallfilebuffer 0 -pagesize 2048]
     lassign [randomDatas 3 32768] data1 data2 data3
     # A random data will not be compressed. Add something suitable for compression.
     # Also, this will lead to duplicated pages.
     append data1 [string repeat "TEST" 1024]
     append data2 [string repeat "TEST" 2048]
-    set file1 [tcltest::makeBinFile $data1 test1 $file]
-    set file2 [tcltest::makeBinFile $data2 test2 $file]
-    set file3 [tcltest::makeBinFile $data3 test3 $file]
+    set file1 [makeBinFile $data1 test1 $file]
+    set file2 [makeBinFile $data2 test2 $file]
+    set file3 [makeBinFile $data3 test3 $file]
 
     set tid1 [thread::create thread::wait]
     thread::send $tid1 [list set rfile $file1]
@@ -199,6 +177,7 @@ tcltest::test cookfsVfsThread-5.1 "High load, random reads from multiple threads
     foreach tid [list $tid1 $tid2 $tid3] {
         thread::send $tid [list set file $file]
     }
+    variable thread_done
 } -body {
     foreach tid [list $tid1 $tid2 $tid3] {
         thread::send -async $tid {
@@ -222,22 +201,18 @@ tcltest::test cookfsVfsThread-5.1 "High load, random reads from multiple threads
     vwait thread_done
     vwait thread_done
     # let's retrieve the results
-    set result [list]
     foreach tid [list $tid1 $tid2 $tid3] {
-        lappend result [thread::send $tid [list set result]]
+        assertEq [thread::send $tid [list set result]] "ok" "bad result from thread $tid"
     }
-    set result
 } -cleanup {
     foreach tid [list $tid1 $tid2 $tid3] {
         thread::release $tid
     }
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid tid1 tid2 tid3 thread_done file1 file2 file3 data1 data2 data3 result
-} -result {ok ok ok}
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfsThread-5.2 "High load, random reads from multiple threads (files are in small file buffer)" -constraints {threaded enabledCVfs enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-5.2 "High load, random reads from multiple threads (files are in small file buffer)" -constraints {threaded enabledCVfs enabledTclCmds} -setup {
+    set file [makeFile {} cookfs.cfs]
     # we need small file buffer 32k*3 + 4*1024 + 4*2048 = 108k
     # Let's make the buffer with 128k bytes
     set fsid [cookfs::Mount $file $file -compression none -shared \
@@ -247,9 +222,9 @@ tcltest::test cookfsVfsThread-5.2 "High load, random reads from multiple threads
     # Also, this will lead to duplicated pages.
     append data1 [string repeat "TEST" 1024]
     append data2 [string repeat "TEST" 2048]
-    set file1 [tcltest::makeBinFile $data1 test1 $file]
-    set file2 [tcltest::makeBinFile $data2 test2 $file]
-    set file3 [tcltest::makeBinFile $data3 test3 $file]
+    set file1 [makeBinFile $data1 test1 $file]
+    set file2 [makeBinFile $data2 test2 $file]
+    set file3 [makeBinFile $data3 test3 $file]
 
     set tid1 [thread::create thread::wait]
     thread::send $tid1 [list set rfile $file1]
@@ -266,10 +241,10 @@ tcltest::test cookfsVfsThread-5.2 "High load, random reads from multiple threads
     foreach tid [list $tid1 $tid2 $tid3] {
         thread::send $tid [list set file $file]
     }
+    variable thread_done
 } -body {
-    set result [list]
     # Make sure there are no pages
-    lappend result [[$fsid getpages] length]
+    assertEq [[$fsid getpages] length] 0
     # lock mx on write
     foreach tid [list $tid1 $tid2 $tid3] {
         thread::send -async $tid {
@@ -294,30 +269,27 @@ tcltest::test cookfsVfsThread-5.2 "High load, random reads from multiple threads
     vwait thread_done
     # let's retrieve the results
     foreach tid [list $tid1 $tid2 $tid3] {
-        lappend result [thread::send $tid [list set result]]
+        assertEq [thread::send $tid [list set result]] "ok" "bad result from thread $tid"
     }
-    set result
 } -cleanup {
     foreach tid [list $tid1 $tid2 $tid3] {
         thread::release $tid
     }
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid tid1 tid2 tid3 thread_done file1 file2 file3 data1 data2 data3 result
-} -result {0 ok ok ok}
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfsThread-5.3 "Test a case when 1 thread reads a big pages, another thread reads file on many pages" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-5.3 "Test a case when 1 thread reads a big pages, another thread reads file on many pages" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 1 -smallfilebuffer 0 -pagesize 16]
     lassign [randomDatas 1 32768] data1
     # one file with 32768 bytes will be split to 16 bytes pages = 2048 pages
-    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set file1 [makeBinFile $data1 test1 $file]
     # change page size by close/open the vfs
     cookfs::Unmount $file
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 1 -smallfilebuffer 0 -pagesize 65536]
     lassign [randomDatas 1 163840] data2
     # one file with 163840 bytes will be split to 64k bytes pages = 2.5 pages
-    set file2 [tcltest::makeBinFile $data2 test2 $file]
+    set file2 [makeBinFile $data2 test2 $file]
 
     set tid1 [thread::create thread::wait]
     thread::send $tid1 [list set rfile $file1]
@@ -330,6 +302,7 @@ tcltest::test cookfsVfsThread-5.3 "Test a case when 1 thread reads a big pages, 
     foreach tid [list $tid1 $tid2] {
         thread::send $tid [list set file $file]
     }
+    variable thread_done
 } -body {
     foreach tid [list $tid1 $tid2] {
         thread::send -async $tid {
@@ -352,22 +325,18 @@ tcltest::test cookfsVfsThread-5.3 "Test a case when 1 thread reads a big pages, 
     vwait thread_done
     vwait thread_done
     # let's retrieve the results
-    set result [list]
     foreach tid [list $tid1 $tid2] {
-        lappend result [thread::send $tid [list set result]]
+        assertEq [thread::send $tid [list set result]] "ok" "bad result from thread $tid"
     }
-    set result
 } -cleanup {
     foreach tid [list $tid1 $tid2] {
         catch { thread::release $tid }
     }
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid tid1 tid2 thread_done file1 file2 data1 data2 result
-} -result {ok ok}
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfsThread-6.1 "High load, write files from multiple threads" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-6.1 "High load, write files from multiple threads" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression zlib -shared -smallfilesize 1 -smallfilebuffer 0 -pagesize 2048]
     lassign [randomDatas 3 32768] data1 data2 data3
     # A random data will not be compressed. Add something suitable for compression.
@@ -393,6 +362,10 @@ tcltest::test cookfsVfsThread-6.1 "High load, write files from multiple threads"
     foreach tid [list $tid1 $tid2 $tid3] {
         thread::send $tid [list set file $file]
     }
+    variable thread_done
+    variable filex
+    variable datax
+    variable i
 } -body {
     foreach tid [list $tid1 $tid2 $tid3] {
         thread::send -async $tid {
@@ -413,32 +386,20 @@ tcltest::test cookfsVfsThread-6.1 "High load, write files from multiple threads"
     vwait thread_done
     vwait thread_done
     # let's retrieve the results
-    set result [list]
     foreach tid [list $tid1 $tid2 $tid3] {
-        lappend result [thread::send $tid [list set result]]
+        assertEq [thread::send $tid [list set result]] "ok" "bad result from thread $tid"
     }
-    # if result is not ok from each thread, then something is wrong and there
-    # is no point in reading the generated files.
-    if { $result ne {ok ok ok} } {
-        foreach { filex datax } [list $file1 $data1 $file2 $data2 $file3 $data3] {
-            for { set i 0 } { $i < 10 } { incr i } {
-                set fp [open "$filex.$i" rb]
-                set rdata [read $fp]
-                close $fp
-                if { [string equal "$i$datax" $rdata] } { continue }
-                lappend result "[file tail $filex].$i - doesn't match"
-            }
+    foreach { filex datax } [list $file1 $data1 $file2 $data2 $file3 $data3] {
+        for { set i 0 } { $i < 10 } { incr i } {
+            assertEq [viewBinFile "$filex.$i"] "$i$datax" "[file tail $filex].$i - doesn't match"
         }
     }
-    set result
 } -cleanup {
     foreach tid [list $tid1 $tid2 $tid3] {
         catch { thread::release $tid }
     }
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid tid1 tid2 tid3 thread_done file1 file2 file3 data1 data2 data3 result filex i fp datax rdata
-} -result {ok ok ok}
+    cookfs::Unmount $file
+} -ok
 
 if { [::tcl::pkgconfig get threaded] } {
     # Initialize tsv before first use to avoid memory leak messages for tsv
@@ -447,16 +408,17 @@ if { [::tcl::pkgconfig get threaded] } {
     tsv::unset thread_ready
 }
 
-tcltest::test cookfsVfsThread-7.1 "VFS terminated while other thread reads a big file" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-7.1 "VFS terminated while other thread reads a big file" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
     set data1 [string repeat "TEST" 0x100000]
-    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set file1 [makeBinFile $data1 test1 $file]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
     thread::send $tid [list set file $file]
     thread::send $tid [list set rfile $file1]
     thread::send $tid [list set rdata $data1]
+    variable thread_done
 } -body {
     thread::send -async $tid {
         set fp [open $rfile rb]
@@ -478,19 +440,18 @@ tcltest::test cookfsVfsThread-7.1 "VFS terminated while other thread reads a big
     # let's retrieve the results
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
-    testMultipleMatch [thread::send $tid [list set result]] \
-        {error during seek on "*": no such device} \
+    assertMatchAny [thread::send $tid [list set result]] {
+        {error during seek on "*": no such device}
         {error reading "*": I/O error}
+    }
 } -cleanup {
-    catch { tsv::unset thread_ready }
-    catch { thread::release $tid }
+    tsv::unset thread_ready
+    thread::release $tid
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid data1 file1 thread_done tid
-} -result ok
+} -ok
 
-tcltest::test cookfsVfsThread-7.2 "VFS terminated while other thread writes a big file" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-7.2 "VFS terminated while other thread writes a big file" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
     set data1 [string repeat "TEST" 0x100000]
     set file1 [file join $file test1]
@@ -498,6 +459,7 @@ tcltest::test cookfsVfsThread-7.2 "VFS terminated while other thread writes a bi
     thread::send $tid [list set file $file]
     thread::send $tid [list set rfile $file1]
     thread::send $tid [list set rdata $data1]
+    variable thread_done
 } -body {
     thread::send -async $tid {
         set fp [open $rfile wb]
@@ -520,27 +482,27 @@ tcltest::test cookfsVfsThread-7.2 "VFS terminated while other thread writes a bi
     # let's retrieve the results
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
-    testMultipleMatch [thread::send $tid [list set result]] \
-        {stalled * object detected} \
-        {couldn't open "*": not a directory} \
+    assertMatchAny [thread::send $tid [list set result]] {
+        {stalled * object detected}
+        {couldn't open "*": not a directory}
         {couldn't open "*": no such file or directory}
+    }
 } -cleanup {
-    catch { tsv::unset thread_ready }
-    catch { thread::release $tid }
+    tsv::unset thread_ready
+    thread::release $tid
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid data1 file1 thread_done tid
-} -result ok
+} -ok
 
-tcltest::test cookfsVfsThread-7.3 "VFS terminated while other thread opens a file for reading (from small file buffer)" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-7.3 "VFS terminated while other thread opens a file for reading (from small file buffer)" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0x100000 -pagesize 0x100000]
     set data1 "test"
-    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set file1 [makeBinFile $data1 test1 $file]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
     thread::send $tid [list set rfile $file1]
     thread::send $tid [list set rdata $data1]
+    variable thread_done
 } -body {
     thread::send -async $tid {
         # If this test works as expected, then this thread will be able to open
@@ -571,28 +533,28 @@ tcltest::test cookfsVfsThread-7.3 "VFS terminated while other thread opens a fil
     # let's retrieve the results
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
-    testMultipleMatch [thread::send $tid [list set result]] \
-        {1 {couldn't open "*": not a directory}} \
-        {1 {couldn't open "*": no such file or directory}} \
-        {1 {couldn't open "*": no such device}} \
+    assertMatchAny [thread::send $tid [list set result]] {
+        {1 {couldn't open "*": not a directory}}
+        {1 {couldn't open "*": no such file or directory}}
+        {1 {couldn't open "*": no such device}}
         {1 {couldn't open "*": stalled fsindex object detected}}
+    }
 } -cleanup {
-    catch { tsv::unset thread_ready }
-    catch { thread::release $tid }
+    tsv::unset thread_ready
+    thread::release $tid
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid data1 file1 thread_done tid
-} -result ok
+} -ok
 
-tcltest::test cookfsVfsThread-7.4 "VFS terminated while other thread opens a file for reading (from pages)" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-7.4 "VFS terminated while other thread opens a file for reading (from pages)" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
     set data1 "test"
-    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set file1 [makeBinFile $data1 test1 $file]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
     thread::send $tid [list set rfile $file1]
     thread::send $tid [list set rdata $data1]
+    variable thread_done
 } -body {
     thread::send -async $tid {
         # If this test works as expected, then this thread will be able to open
@@ -621,29 +583,29 @@ tcltest::test cookfsVfsThread-7.4 "VFS terminated while other thread opens a fil
     # wait 1 threads
     vwait thread_done
     # let's retrieve the results
-    testMultipleMatch [thread::send $tid [list set result]] \
-        {1 {couldn't open "*": not a directory}} \
-        {1 {couldn't open "*": no such file or directory}} \
-        {1 {could not read "*": no such device}} \
-        {1 {couldn't open "*": no such device}} \
+    assertMatchAny [thread::send $tid [list set result]] {
+        {1 {couldn't open "*": not a directory}}
+        {1 {couldn't open "*": no such file or directory}}
+        {1 {could not read "*": no such device}}
+        {1 {couldn't open "*": no such device}}
         {1 {couldn't open "*": stalled fsindex object detected}}
+    }
 } -cleanup {
-    catch { tsv::unset thread_ready }
-    catch { thread::release $tid }
+    tsv::unset thread_ready
+    thread::release $tid
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid data1 file1 thread_done tid
-} -result ok
+} -ok
 
-tcltest::test cookfsVfsThread-7.5 "VFS terminated while other thread opens a file for writing" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-7.5 "VFS terminated while other thread opens a file for writing" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
     set data1 "test"
-    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set file1 [makeBinFile $data1 test1 $file]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
     thread::send $tid [list set rfile $file1]
     thread::send $tid [list set rdata $data1]
+    variable thread_done
 } -body {
     thread::send -async $tid {
         # If this test works as expected, then this thread will be able to open
@@ -674,30 +636,30 @@ tcltest::test cookfsVfsThread-7.5 "VFS terminated while other thread opens a fil
     # let's retrieve the results
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
-    testMultipleMatch [thread::send $tid [list set result]] \
-        {1 {couldn't open "*": not a directory}} \
-        {1 {couldn't open "*": no such file or directory}} \
-        {1 {couldn't open "*": no such device}} \
-        {1 {stalled * object detected}} \
-        {1 {couldn't open "*": stalled fsindex object detected}} \
+    assertMatchAny [thread::send $tid [list set result]] {
+        {1 {couldn't open "*": not a directory}}
+        {1 {couldn't open "*": no such file or directory}}
+        {1 {couldn't open "*": no such device}}
+        {1 {stalled * object detected}}
+        {1 {couldn't open "*": stalled fsindex object detected}}
         {1 {error during seek on "*": no such device}}
+    }
 } -cleanup {
-    catch { tsv::unset thread_ready }
-    catch { thread::release $tid }
+    tsv::unset thread_ready
+    thread::release $tid
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid data1 file1 thread_done tid
-} -result ok
+} -ok
 
-tcltest::test cookfsVfsThread-7.6 "VFS terminated while other thread accesses file stats" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-7.6 "VFS terminated while other thread accesses file stats" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
     set data1 "test"
-    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set file1 [makeBinFile $data1 test1 $file]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
     thread::send $tid [list set rfile $file1]
     thread::send $tid [list set rdata $data1]
+    variable thread_done
 } -body {
     thread::send -async $tid {
         # If this test works as expected, then this thread will be able to stat
@@ -730,28 +692,28 @@ tcltest::test cookfsVfsThread-7.6 "VFS terminated while other thread accesses fi
     # let's retrieve the results
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
-    testMultipleMatch [thread::send $tid [list set result]] \
-        {1 {couldn't open "*": not a directory}} \
-        {1 {couldn't open "*": no such file or directory}} \
-        {1 {could not read "*": not a directory}} \
+    assertMatchAny [thread::send $tid [list set result]] {
+        {1 {couldn't open "*": not a directory}}
+        {1 {couldn't open "*": no such file or directory}}
+        {1 {could not read "*": not a directory}}
         {1 {could not read "*": no such device}}
+    }
 } -cleanup {
-    catch { tsv::unset thread_ready }
-    catch { thread::release $tid }
+    tsv::unset thread_ready
+    thread::release $tid
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid data1 file1 thread_done tid
-} -result ok
+} -ok
 
-tcltest::test cookfsVfsThread-7.7 "VFS terminated while other thread gets file attributes" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-7.7 "VFS terminated while other thread gets file attributes" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
     set data1 "test"
-    set file1 [tcltest::makeBinFile $data1 test1 $file]
+    set file1 [makeBinFile $data1 test1 $file]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
     thread::send $tid [list set rfile $file1]
     thread::send $tid [list set rdata $data1]
+    variable thread_done
 } -body {
     thread::send -async $tid {
         # If this test works as expected, then this thread will be able to stat
@@ -784,29 +746,29 @@ tcltest::test cookfsVfsThread-7.7 "VFS terminated while other thread gets file a
     # let's retrieve the results
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
-    testMultipleMatch [thread::send $tid [list set result]] \
-        {1 {could not read "*": not a directory}} \
-        {1 {could not read "*": no such file or directory}} \
+    assertMatchAny [thread::send $tid [list set result]] {
+        {1 {could not read "*": not a directory}}
+        {1 {could not read "*": no such file or directory}}
         {1 {could not read "*": invalid argument}}
+    }
 } -cleanup {
-    catch { tsv::unset thread_ready }
-    catch { thread::release $tid }
+    tsv::unset thread_ready
+    thread::release $tid
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid data1 file1 thread_done tid
-} -result ok
+} -ok
 
-tcltest::test cookfsVfsThread-7.8 "VFS terminated while other thread gets directory listing" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-7.8 "VFS terminated while other thread gets directory listing" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
-    set dir [tcltest::makeDirectory $file onedir/seconddir]
+    set dir [makeDirectory $file onedir/seconddir]
     set data1 "test"
-    set file1 [tcltest::makeBinFile $data1 test1 $dir]
+    set file1 [makeBinFile $data1 test1 $dir]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file $file]
     thread::send $tid [list set rfile $file1]
     thread::send $tid [list set rdata $data1]
     thread::send $tid [list set dir $dir]
+    variable thread_done
 } -body {
     thread::send -async $tid {
         # If this test works as expected, then this thread will be able to check
@@ -846,125 +808,107 @@ tcltest::test cookfsVfsThread-7.8 "VFS terminated while other thread gets direct
     # let's retrieve the results
     thread::send $tid [list set result]
 } -cleanup {
-    catch { tsv::unset thread_ready }
-    catch { thread::release $tid }
+    tsv::unset thread_ready
+    thread::release $tid
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid data1 file1 thread_done tid dir
 } -result {1 {empty glob}}
 
 # In this case, the file will be opened by writerchannel because it is in
 # small file buffer. It will be read into the buffer from the beginning.
 # Thus, all operations (read/search/close) will succeed.
-tcltest::test cookfsVfsThread-8.1 "Accessing a file opened for reading (small file buffer) that has been deleted from another thread" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-8.1 "Accessing a file opened for reading (small file buffer) that has been deleted from another thread" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0x100000 -pagesize 0x100000]
-    set file1 [tcltest::makeBinFile {TEST} test1 $file]
+    set file1 [makeBinFile {TEST} test1 $file]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file1 $file1]
+    variable fp
 } -body {
-    set result [list]
     set fp [open $file1 rb]
-    lappend result [thread::send $tid [list file delete $file1]]
-    lappend result [read $fp]
-    lappend result [seek $fp 0]
-    lappend result [close $fp]
-    cookfs::Unmount $file
-    set result
+    thread::send $tid [list file delete $file1]
+    assertEq [read $fp] "TEST"
+    seek $fp 0
+    close $fp
 } -cleanup {
-    catch { thread::release $tid }
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid file1 fp result
-} -result {{} TEST {} {}}
+    cookfs::Unmount $file
+    thread::release $tid
+} -ok
 
-tcltest::test cookfsVfsThread-8.2 "Accessing a file opened for reading (from pages) that has been deleted from another thread" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-8.2 "Accessing a file opened for reading (from pages) that has been deleted from another thread" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
-    set file1 [tcltest::makeBinFile {TEST} test1 $file]
+    set file1 [makeBinFile {TEST} test1 $file]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file1 $file1]
+    variable fp
 } -body {
-    set result [list]
     set fp [open $file1 rb]
-    lappend result [thread::send $tid [list file delete $file1]]
-    lappend result [read $fp]
-    lappend result [seek $fp 0]
-    lappend result [close $fp]
-    cookfs::Unmount $file
-    set result
+    thread::send $tid [list file delete $file1]
+    assertEq [read $fp] "TEST"
+    seek $fp 0
+    close $fp
 } -cleanup {
-    catch { thread::release $tid }
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid file1 fp result
-} -result {{} TEST {} {}}
+    cookfs::Unmount $file
+    thread::release $tid
+} -ok
 
-tcltest::test cookfsVfsThread-8.3 "Accessing a file opened for writing (to small file buffer) file that has been deleted from another thread" -constraints {threaded enabledCVfs enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-8.3 "Accessing a file opened for writing (to small file buffer) file that has been deleted from another thread" -constraints {threaded enabledCVfs enabledTclCmds} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0x100000 -pagesize 0x100000]
-    set file1 [tcltest::makeFile {TEST} test1 $file]
+    set file1 [makeBinFile {TEST} test1 $file]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file1 $file1]
+    variable fp
 } -body {
-    set result [list]
-    lappend result [[$fsid getpages] length]
+    assertEq [[$fsid getpages] length] 0 "make sure we have no pages"
     set fp [open $file1 rb+]
-    lappend result [thread::send $tid [list file delete $file1]]
-    lappend result [string trimright [read $fp] \n]
-    lappend result [puts -nonewline $fp "foo"]
-    lappend result [seek $fp 0]
-    lappend result [puts -nonewline $fp "bar"]
-    lappend result [close $fp]
+    thread::send $tid [list file delete $file1]
+    assertEq [read $fp] "TEST"
+    puts -nonewline $fp "foo"
+    seek $fp 0
+    puts -nonewline $fp "bar"
+    close $fp
     cookfs::Unmount $file
     # Mount the VFS again to check pages count after unmounting. The test file
     # should not be saved, so the number of pages should be the same as at
     # the beginning of the test.
     set fsid [cookfs::Mount $file $file -readonly]
-    lappend result [[$fsid getpages] length]
-    cookfs::Unmount $file
-    set result
+    assertEq [[$fsid getpages] length] 0 "unexpected pages exist"
 } -cleanup {
-    catch { thread::release $tid }
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid file1 fp result
-} -result {0 {} TEST {} {} {} {} 0}
+    cookfs::Unmount $file
+    thread::release $tid
+} -ok
 
-tcltest::test cookfsVfsThread-8.4 "Accessing a file opened for writing (to small file buffer) file that has been deleted from another thread" -constraints {threaded enabledCVfs enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-8.4 "Accessing a file opened for writing (to small file buffer) file that has been deleted from another thread" -constraints {threaded enabledCVfs enabledTclCmds} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 1 -smallfilebuffer 0 -pagesize 0x12]
-    set file1 [tcltest::makeFile {TEST} test1 $file]
+    set file1 [makeFile {TEST} test1 $file]
     set tid [thread::create thread::wait]
     thread::send $tid [list set file1 $file1]
+    variable fp
 } -body {
-    set result [list]
-    lappend result [[$fsid getpages] length]
+    assertEq [[$fsid getpages] length] 1 "make sure we have 1 page"
     set fp [open $file1 rb+]
-    lappend result [thread::send $tid [list file delete $file1]]
-    lappend result [string trimright [read $fp] \n]
+    thread::send $tid [list file delete $file1]
+    assertEq [read $fp] "TEST\n"
     # The file has original 5 bytes + 4*0x10 bytes = 69 bytes.
     # The page size is 0x12 bytes. Thus, if the test fails, the number of pages
     # will be increased by 4 ( 69 / 0x12 )
-    lappend result [puts -nonewline $fp [string repeat "TEST" 0x10]]
-    lappend result [close $fp]
+    puts -nonewline $fp [string repeat "TEST" 0x10]
+    close $fp
     cookfs::Unmount $file
     # Mount the VFS again to check pages count after unmounting. The test file
     # should not be saved, so the number of pages should be the same as at
     # the beginning of the test.
     set fsid [cookfs::Mount $file $file]
-    lappend result [[$fsid getpages] length]
-    cookfs::Unmount $file
-    set result
+    assertEq [[$fsid getpages] length] 1 "unexpected pages exist"
 } -cleanup {
-    catch { thread::release $tid }
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid file1 fp result
-} -result {1 {} TEST {} {} 1}
+    cookfs::Unmount $file
+    thread::release $tid
+} -ok
 
-tcltest::test cookfsVfsThread-9.1 "Test 2 threads, 1 thread reads, 2 thread writes" -constraints {threaded enabledCVfs} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsThread-9.1 "Test 2 threads, 1 thread reads, 2 thread writes" -constraints {threaded enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0 -smallfilebuffer 0 -pagesize 0x100]
     for { set i 0 } { $i < 20 } { incr i } {
         set fd [open [file join $file "ORIG_$i"] wb]
@@ -975,6 +919,7 @@ tcltest::test cookfsVfsThread-9.1 "Test 2 threads, 1 thread reads, 2 thread writ
     thread::send $tid1 [list set file $file]
     set tid2 [thread::create thread::wait]
     thread::send $tid2 [list set file $file]
+    variable thread_done
 } -body {
     thread::send -async $tid1 {
         set start [clock seconds]
@@ -1021,11 +966,12 @@ tcltest::test cookfsVfsThread-9.1 "Test 2 threads, 1 thread reads, 2 thread writ
     vwait thread_done
     cookfs::Unmount $file
     # let's retrieve the results
-    list [thread::send $tid1 [list set result]] [thread::send $tid2 [list set result]]
+    assertEq [thread::send $tid1 [list set result]] "ok"
+    assertEq [thread::send $tid2 [list set result]] "ok"
 } -cleanup {
-    catch { thread::release $tid1 }
-    catch { thread::release $tid2 }
+    thread::release $tid1
+    thread::release $tid2
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid tid1 tid2 thread_done i fd
-} -result {ok ok}
+} -ok
+
+cleanupTests

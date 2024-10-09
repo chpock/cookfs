@@ -1,88 +1,71 @@
+source [file join [file dirname [info script]] common.tcl]
 
-tcltest::test cookfsVfs-1.1.1.1 "Mount empty filename (unix)" -constraints {unix tcl86} -setup {
-} -body {
+test cookfsVfs-1.1.1.1 "Mount empty filename (unix)" -constraints {unix tcl86} -body {
     cookfs::Mount "" ""
-} -cleanup {
-} -returnCodes {error} -match glob -result {Unable to create Cookfs object: couldn't open "*": illegal operation on a directory}
+} -match glob -error {Unable to create Cookfs object: couldn't open "*": illegal operation on a directory}
 
-tcltest::test cookfsVfs-1.1.1.2 "Mount empty filename (unix)" -constraints {unix tcl90} -setup {
-} -body {
+test cookfsVfs-1.1.1.2 "Mount empty filename (unix)" -constraints {unix tcl90} -body {
     cookfs::Mount "" ""
-} -cleanup {
-} -returnCodes {error} -match glob -result {Unable to create Cookfs object: couldn't open "*": is a directory}
+} -match glob -error {Unable to create Cookfs object: couldn't open "*": is a directory}
 
-tcltest::test cookfsVfs-1.1.2 "Mount empty filename (windows)" -constraints win -setup {
-} -body {
+test cookfsVfs-1.1.2 "Mount empty filename (windows)" -constraints win -body {
     cookfs::Mount "" ""
-} -cleanup {
-} -returnCodes {error} -match glob -result {Unable to create Cookfs object: couldn't open "*": permission denied}
+} -match glob -error {Unable to create Cookfs object: couldn't open "*": permission denied}
 
-tcltest::test cookfsVfs-1.2 "Mount non-existant file as read-write" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-1.2 "Mount non-existant file as read-write" -setup {
+    set file [makeFile {} cookfs.cfs]
+    variable fsid
 } -body {
     set fsid [cookfs::Mount $file $file]
     cookfs::Unmount $file
     set fsid
-} -cleanup {
-    tcltest::removeFile $file
-    unset -nocomplain fsid file
-} -returnCodes {ok} -match glob -result {::cookfs::*::vfs::mount*}
+} -match glob -result {::cookfs::*::vfs::mount*}
 
-tcltest::test cookfsVfs-1.3 "Mount non-existant file as read-only" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-1.3 "Mount non-existant file as read-only" -setup {
+    set file [makeFile {} cookfs.cfs]
 } -body {
     cookfs::Mount -readonly $file $file
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file
-} -returnCodes {error} -result {Unable to create Cookfs object: signature not found}
+    catch { cookfs::Unmount $file }
+} -error {Unable to create Cookfs object: signature not found}
 
-tcltest::test cookfsVfs-1.4 "Remounting archive" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-1.4 "Remounting archive" -setup {
+    set file [makeFile {} cookfs.cfs]
 } -body {
     cookfs::Mount $file $file
-    set fh [open [file join $file testfile] w]
-    fconfigure $fh -translation binary
-    puts $fh TEST
-    close $fh
+    makeBinFile {} testfile $file
     cookfs::Unmount $file
 
     cookfs::Mount $file $file
     file exists [file join $file testfile]
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fh
-} -returnCodes {ok} -result 1
+    cookfs::Unmount $file
+} -result 1
 
-tcltest::test cookfsVfs-1.5 "Remounting archive using -pagesobject" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-1.5 "Remounting archive using -pagesobject" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} cookfs.cfs]
+    variable p
+    variable h
 } -body {
     cookfs::Mount $file $file
-    set fh [open [file join $file testfile] w]
-    fconfigure $fh -translation binary
-    puts $fh TEST
-    close $fh
+    makeBinFile {} testfile $file
     cookfs::Unmount $file
 
     set p [cookfs::pages $file]
     set h [cookfs::Mount $file $file -pagesobject $p]
     string equal [$h getpages] $p
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fh p h
-} -returnCodes {ok} -result 1
+    cookfs::Unmount $file
+} -result 1
 
-tcltest::test cookfsVfs-1.6 "Remounting archive using -fsindexobject" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-1.6 "Remounting archive using -fsindexobject" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} cookfs.cfs]
+    variable p
+    variable i
+    variable h
 } -body {
     cookfs::Mount $file $file
-    set fh [open [file join $file testfile] w]
-    fconfigure $fh -translation binary
-    puts $fh TEST
-    close $fh
+    makeBinFile {} testfile $file
     cookfs::Unmount $file
 
     set p [cookfs::pages $file]
@@ -90,238 +73,189 @@ tcltest::test cookfsVfs-1.6 "Remounting archive using -fsindexobject" -constrain
     set h [cookfs::Mount $file $file -pagesobject $p -fsindexobject $i]
     string equal [$h getindex] $i
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fh p h i
-} -returnCodes {ok} -result 1
+    cookfs::Unmount $file
+} -result 1
 
-tcltest::test cookfsVfs-1.7 "Setting metadata on mount" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-1.7 "Setting metadata on mount" -setup {
+    set file [makeFile {} cookfs.cfs]
+    variable h
 } -body {
     cookfs::Mount $file $file
-    set fh [open [file join $file testfile] w]
-    fconfigure $fh -translation binary
-    puts $fh TEST
-    close $fh
+    makeBinFile {} testfile $file
     cookfs::Unmount $file
 
     set h [cookfs::Mount $file $file -setmetadata {test1 1 test2 2}]
     cookfs::Unmount $file
 
     set h [cookfs::Mount $file $file]
-    format %s,%s [$h getmetadata test1] [$h getmetadata test2]
+    assertEq [$h getmetadata test1] 1
+    assertEq [$h getmetadata test2] 2
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fh h
-} -returnCodes {ok} -result 1,2
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfs-1.8.1 "Mounting as volume, unmount with vfs::unmount" -constraints {packageTclvfs enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-1.8.1 "Mounting as volume, unmount with vfs::unmount" -constraints {packageTclvfs enabledTclCmds} -setup {
+    set file [makeFile {} cookfs.cfs]
+    variable h
 } -body {
     cookfs::Mount $file $file -compression none
-    set fh [open [file join $file testfile] w]
-    fconfigure $fh -translation binary
-    puts $fh TEST
-    close $fh
-    vfs::unmount $file
-
-    set h [cookfs::Mount $file test:/ -volume]
-    set result [expr {([lsearch -exact [file volumes] test:/]>=0)?1:0}]
-    # don't change this to cookfs::Unmount. Here we test vfs::unmount
-    vfs::unmount test:/
-
-    set result
-} -cleanup {
-    catch {vfs::unmount $file}
-    catch {vfs::unmount test:/}
-    tcltest::removeFile $file
-    unset -nocomplain file fh h result
-} -returnCodes {ok} -result 1
-
-tcltest::test cookfsVfs-1.8.2 "Mounting as volume, unmount with cookfs::Unmount" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
-} -body {
-    cookfs::Mount $file $file -compression none
-    set fh [open [file join $file testfile] w]
-    fconfigure $fh -translation binary
-    puts $fh TEST
-    close $fh
+    makeBinFile {} testfile $file
     cookfs::Unmount $file
 
     set h [cookfs::Mount $file test:/ -volume]
-    set result [expr {([lsearch -exact [file volumes] test:/]>=0)?1:0}]
-    cookfs::Unmount test:/
-
-    set result
+    assertGe [lsearch -exact [file volumes] test:/] 0
+    # don't change this to cookfs::Unmount. Here we test vfs::unmount
+    vfs::unmount test:/
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    catch {cookfs::Unmount test:/}
-    tcltest::removeFile $file
-    unset -nocomplain file fh h result
-} -returnCodes {ok} -result 1
+    catch { vfs::unmount $file }
+    catch { vfs::unmount test:/ }
+} -ok
 
-tcltest::test cookfsVfs-1.8.3 "Mounting multiple volumes, unmounting a single volume" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-1.8.2 "Mounting as volume, unmount with cookfs::Unmount" -setup {
+    set file [makeFile {} cookfs.cfs]
+    variable h
 } -body {
     cookfs::Mount $file $file -compression none
-    set fh [open [file join $file testfile] w]
-    fconfigure $fh -translation binary
-    puts $fh TEST
-    close $fh
+    makeBinFile {TEST} testfile $file
+    cookfs::Unmount $file
+
+    set h [cookfs::Mount $file test:/ -volume]
+    assertGe [lsearch -exact [file volumes] test:/] 0
+    cookfs::Unmount test:/
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    catch { cookfs::Unmount test:/ }
+} -ok
+
+test cookfsVfs-1.8.3 "Mounting multiple volumes, unmounting a single volume" -setup {
+    set file [makeFile {} cookfs.cfs]
+} -body {
+    cookfs::Mount $file $file -compression none
+    makeBinFile {TEST} testfile $file
     cookfs::Unmount $file
 
     cookfs::Mount $file test1:/ -volume
     cookfs::Mount $file test2:/ -volume
     cookfs::Mount $file test3:/ -volume
-    set result [list]
-    lappend result [list \
-        [expr {([lsearch -exact [file volumes] test1:/]>=0)?1:0}] \
-        [expr {([lsearch -exact [file volumes] test2:/]>=0)?1:0}] \
-        [expr {([lsearch -exact [file volumes] test3:/]>=0)?1:0}] \
-    ]
+
+    assertGe [lsearch -exact [file volumes] test1:/] 0
+    assertGe [lsearch -exact [file volumes] test2:/] 0
+    assertGe [lsearch -exact [file volumes] test3:/] 0
+
     cookfs::Unmount test2:/
-    lappend result [list \
-        [expr {([lsearch -exact [file volumes] test1:/]>=0)?1:0}] \
-        [expr {([lsearch -exact [file volumes] test2:/]>=0)?1:0}] \
-        [expr {([lsearch -exact [file volumes] test3:/]>=0)?1:0}] \
-    ]
+
+    assertGe [lsearch -exact [file volumes] test1:/] 0
+    assertEq [lsearch -exact [file volumes] test2:/] -1
+    assertGe [lsearch -exact [file volumes] test3:/] 0
+
     cookfs::Unmount test1:/
-    lappend result [list \
-        [expr {([lsearch -exact [file volumes] test1:/]>=0)?1:0}] \
-        [expr {([lsearch -exact [file volumes] test2:/]>=0)?1:0}] \
-        [expr {([lsearch -exact [file volumes] test3:/]>=0)?1:0}] \
-    ]
+
+    assertEq [lsearch -exact [file volumes] test1:/] -1
+    assertEq [lsearch -exact [file volumes] test2:/] -1
+    assertGe [lsearch -exact [file volumes] test3:/] 0
+
     cookfs::Unmount test3:/
-    lappend result [list \
-        [expr {([lsearch -exact [file volumes] test1:/]>=0)?1:0}] \
-        [expr {([lsearch -exact [file volumes] test2:/]>=0)?1:0}] \
-        [expr {([lsearch -exact [file volumes] test3:/]>=0)?1:0}] \
-    ]
-    set result
+
+    assertEq [lsearch -exact [file volumes] test1:/] -1
+    assertEq [lsearch -exact [file volumes] test2:/] -1
+    assertEq [lsearch -exact [file volumes] test3:/] -1
 } -cleanup {
     catch {cookfs::Unmount $file}
     catch {cookfs::Unmount test1:/}
     catch {cookfs::Unmount test2:/}
     catch {cookfs::Unmount test3:/}
-    tcltest::removeFile $file
-    unset -nocomplain file fh h result
-} -result {{1 1 1} {1 0 1} {0 0 1} {0 0 0}}
+} -ok
 
-tcltest::test cookfsVfs-1.8.4.1.1 "Mounting as volume, glob results, -directory" -setup {
-    set img [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-1.8.4.1.1 "Mounting as volume, glob results, -directory" -setup {
+    set img [makeFile {} cookfs.cfs]
     set mnt "test:/"
 } -body {
     cookfs::Mount $img $mnt -compression none -volume
-    set fh [open [file join $mnt testfile] w]
-    close $fh
+    makeBinFile {} testfile $mnt
     # TODO: it is a hack to pass temporary Tcl object as an argument
     # for the -directory parameter to avoid memory leak report.
     # See TODO item for details.
     glob -directory [string range $mnt 0 end] *
 } -cleanup {
-    catch { cookfs::Unmount $mnt }
-    tcltest::removeFile $img
-    unset -nocomplain img mnt fh
+    cookfs::Unmount $mnt
 } -result {test:/testfile}
 
-tcltest::test cookfsVfs-1.8.4.1.2 "Mounting as volume, glob results, -tails -directory" -setup {
-    set img [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-1.8.4.1.2 "Mounting as volume, glob results, -tails -directory" -setup {
+    set img [makeFile {} cookfs.cfs]
     set mnt "test:/"
 } -body {
     cookfs::Mount $img $mnt -compression none -volume
-    set fh [open [file join $mnt testfile] w]
-    close $fh
+    makeBinFile {} testfile $mnt
     # TODO: it is a hack to pass temporary Tcl object as an argument
     # for the -directory parameter to avoid memory leak report.
     # See TODO item for details.
     glob -directory [string range $mnt 0 end] -tails *
 } -cleanup {
-    catch { cookfs::Unmount $mnt }
-    tcltest::removeFile $img
-    unset -nocomplain img mnt fh
+    cookfs::Unmount $mnt
 } -result {testfile}
 
-tcltest::test cookfsVfs-1.8.4.2.1 "Mounting as volume, glob results, -path" -setup {
-    set img [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-1.8.4.2.1 "Mounting as volume, glob results, -path" -setup {
+    set img [makeFile {} cookfs.cfs]
     set mnt "test:/"
 } -body {
     cookfs::Mount $img $mnt -compression none -volume
-    set fh [open [file join $mnt testfile] w]
-    close $fh
+    makeBinFile {} testfile $mnt
     glob -path "${mnt}test" *
 } -cleanup {
-    catch { cookfs::Unmount $mnt }
-    tcltest::removeFile $img
-    unset -nocomplain img mnt fh
+    cookfs::Unmount $mnt
 } -result {test:/testfile}
 
-tcltest::test cookfsVfs-1.8.4.2.2 "Mounting as volume, glob results, -tails -path" -setup {
-    set img [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-1.8.4.2.2 "Mounting as volume, glob results, -tails -path" -setup {
+    set img [makeFile {} cookfs.cfs]
     set mnt "test:/"
 } -body {
     cookfs::Mount $img $mnt -compression none -volume
-    set fh [open [file join $mnt testfile] w]
-    close $fh
+    makeBinFile {} testfile $mnt
     glob -path "${mnt}test" -tails *
 } -cleanup {
-    catch { cookfs::Unmount $mnt }
-    tcltest::removeFile $img
-    unset -nocomplain img mnt fh
+    cookfs::Unmount $mnt
 } -result {testfile}
 
-tcltest::test cookfsVfs-1.9 "Test storing same files" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-1.9 "Test storing same files" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} cookfs.cfs]
+    variable h
 } -body {
     cookfs::Mount $file $file -smallfilesize 40960
-    tcltest::makeFile [string repeat "TEST"    64] [file join $file test1a]
-    tcltest::makeFile [string repeat "TEST"  1024] [file join $file test2a]
-    tcltest::makeFile [string repeat "TEST"    64] [file join $file test1b]
-    tcltest::makeFile [string repeat "TEST" 16384] [file join $file test4a]
-    tcltest::makeFile [string repeat "TEST"  4096] [file join $file test3a]
-    tcltest::makeFile [string repeat "TEST"  1024] [file join $file test2b]
-    tcltest::makeFile [string repeat "TEST"  4096] [file join $file test3b]
-    tcltest::makeFile [string repeat "TEST" 16384] [file join $file test4b]
+    makeFile [string repeat "TEST"    64] [file join $file test1a]
+    makeFile [string repeat "TEST"  1024] [file join $file test2a]
+    makeFile [string repeat "TEST"    64] [file join $file test1b]
+    makeFile [string repeat "TEST" 16384] [file join $file test4a]
+    makeFile [string repeat "TEST"  4096] [file join $file test3a]
+    makeFile [string repeat "TEST"  1024] [file join $file test2b]
+    makeFile [string repeat "TEST"  4096] [file join $file test3b]
+    makeFile [string repeat "TEST" 16384] [file join $file test4b]
     cookfs::Unmount $file
 
     set h [cookfs::Mount $file $file -readonly]
-    if {![fsindexEqual [[$h getindex] get test4a] [[$h getindex] get test4b]]} {
-        error "Index for test4 differs: [[$h getindex] get test4a] != [[$h getindex] get test4b]"
-    }
-    if {![fsindexEqual [[$h getindex] get test3a] [[$h getindex] get test3b]]} {
-        error "Index for test3 differs: [[$h getindex] get test3a] != [[$h getindex] get test3b]"
-    }
-    if {![fsindexEqual [[$h getindex] get test2a] [[$h getindex] get test2b]]} {
-        error "Index for test2 differs: [[$h getindex] get test2a] != [[$h getindex] get test2b]"
-    }
-    if {![fsindexEqual [[$h getindex] get test1a] [[$h getindex] get test1b]]} {
-        error "Index for test1 differs: [[$h getindex] get test1a] != [[$h getindex] get test1b]"
-    }
+    assertTrue [fsindexEqual [[$h getindex] get test4a] [[$h getindex] get test4b]]
+    assertTrue [fsindexEqual [[$h getindex] get test3a] [[$h getindex] get test3b]]
+    assertTrue [fsindexEqual [[$h getindex] get test2a] [[$h getindex] get test2b]]
+    assertTrue [fsindexEqual [[$h getindex] get test1a] [[$h getindex] get test1b]]
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file h
-} -returnCodes {ok}
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfs-2.1 "Test compressing entire directory structure" -setup {
-    set dir [tcltest::makeDirectory cookfs.vfs]
+test cookfsVfs-2.1 "Test compressing entire directory structure" -setup {
+    set dir [makeDirectory cookfs.vfs]
     makeSimpleTree $dir
-    set file [tcltest::makeFile {} cookfs.cfs]
+    set file [makeFile {} cookfs.cfs]
 } -body {
     cookfs::Mount $file $file
     file copy -force $dir [file join $file vfs]
     testIfEqual $dir [file join $file vfs]
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeDirectory $dir
-    tcltest::removeFile $file
-    unset -nocomplain file dir
-} -returnCodes {ok} -result 1
+    cookfs::Unmount $file
+} -result 1
 
-tcltest::test cookfsVfs-2.2 "Test compressing entire directory structure after remount" -setup {
-    set dir [tcltest::makeDirectory cookfs.vfs]
+test cookfsVfs-2.2 "Test compressing entire directory structure after remount" -setup {
+    set dir [makeDirectory cookfs.vfs]
     makeSimpleTree $dir
-    set file [tcltest::makeFile {} cookfs.cfs]
+    set file [makeFile {} cookfs.cfs]
 } -body {
     cookfs::Mount $file $file
     file copy -force $dir [file join $file vfs]
@@ -329,97 +263,75 @@ tcltest::test cookfsVfs-2.2 "Test compressing entire directory structure after r
     cookfs::Mount $file $file
     testIfEqual $dir [file join $file vfs]
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeDirectory $dir
-    tcltest::removeFile $file
-    unset -nocomplain file dir
-} -returnCodes {ok} -result 1
+    cookfs::Unmount $file
+} -result 1
 
-tcltest::test cookfsVfs-2.3 "Test correct storing of empty files or new directory as only change in existing cookfs" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
-} -body {
+test cookfsVfs-2.3 "Test correct storing of empty files or new directory as only change in existing cookfs" -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file]
-
-    set fh [open $file/file1 w]
-    fconfigure $fh -translation binary
-    puts $fh [string repeat TEST 1024]
-    close $fh
+    makeBinFile [string repeat TEST 1024] file1 $file
     cookfs::Unmount $file
-
+} -body {
     set fsid [cookfs::Mount $file $file]
     # create 2 files so length of new index is not smaller than previously
-    close [open $file/file2 w]
-    close [open $file/file34 w]
+    makeBinFile {} file2 $file
+    makeBinFile {} file34 $file
     cookfs::Unmount $file
 
     set fsid [cookfs::Mount $file $file]
-    if {![file exists $file/file2]} {
-        error "Unable to find file2 in archive"
-    }
+    assertTrue [file exists $file/file2] "Unable to find file2 in archive"
     # create 2 directories so length of new index is not smaller than previously
     file mkdir $file/dir1
     file mkdir $file/dir23
     cookfs::Unmount $file
 
     set fsid [cookfs::Mount $file $file]
-    if {![file exists $file/dir1]} {
-        error "Unable to find dir1 in archive"
-    }
+    assertTrue [file exists $file/dir1] "Unable to find dir1 in archive"
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid fh
-} -returnCodes {ok}
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfs-3.1 "Test creating files in non-existant directory in VFS" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-3.1 "Test creating files in non-existant directory in VFS" -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file]
 } -body {
     close [open $file/somedir/file w]
 } -cleanup {
     cookfs::Unmount $file
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes {error} -match glob -result "*no such file or directory*"
+} -match glob -error "*no such file or directory*"
 
-tcltest::test cookfsVfs-3.2 "Test creating files in file in VFS" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-3.2 "Test creating files in file in VFS" -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file]
 } -body {
     close [open $file/file w]
     close [open $file/file/otherfile w]
 } -cleanup {
     cookfs::Unmount $file
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes {error} -match glob -result "*not a directory*"
+} -match glob -error "*not a directory*"
 
-tcltest::test cookfsVfs-3.3.1 "Test creating directories in file in VFS" -constraints tcl86 -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-3.3.1 "Test creating directories in file in VFS" -constraints tcl86 -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file]
 } -body {
     close [open $file/file w]
     file mkdir $file/file/somedir
 } -cleanup {
     cookfs::Unmount $file
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes {error} -match glob -result "*file already exists*"
+} -match glob -error "*file already exists*"
 
-tcltest::test cookfsVfs-3.3.2 "Test creating directories in file in VFS" -constraints tcl90 -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-3.3.2 "Test creating directories in file in VFS" -constraints tcl90 -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file]
 } -body {
     close [open $file/file w]
     file mkdir $file/file/somedir
 } -cleanup {
     cookfs::Unmount $file
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes {error} -match glob -result "*file exists*"
+} -match glob -error "*file exists*"
 
-tcltest::test cookfsVfs-3.4 "Test creating directories and files" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-3.4 "Test creating directories and files" -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file]
 } -body {
     file mkdir $file/dir1
@@ -430,19 +342,19 @@ tcltest::test cookfsVfs-3.4 "Test creating directories and files" -setup {
     close [open $file/dir2/dir3/file5 w]
     cookfs::Unmount $file
     set fsid [cookfs::Mount $file $file]
-    concat \
-        [lsort [glob -tails -directory $file * */* */*/*]] \
-        [lsort [glob -tails -directory $file -type d -nocomplain * */* */*/*]] \
-        [lsort [glob -tails -directory $file -type f -nocomplain * */* */*/*]]
+    assertEq [lsort [glob -tails -directory $file * */* */*/*]] \
+        {dir1 dir2 dir2/dir3 dir2/dir3/file5 dir2/file4 file2}
+    assertEq [lsort [glob -tails -directory $file -type d -nocomplain * */* */*/*]] \
+        {dir1 dir2 dir2/dir3}
+    assertEq [lsort [glob -tails -directory $file -type f -nocomplain * */* */*/*]] \
+        {dir2/dir3/file5 dir2/file4 file2}
 } -cleanup {
     cookfs::Unmount $file
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes {ok} -result {dir1 dir2 dir2/dir3 dir2/dir3/file5 dir2/file4 file2 dir1 dir2 dir2/dir3 dir2/dir3/file5 dir2/file4 file2}
+} -ok
 
-tcltest::test cookfsVfs-4.2 "Test add-aside feature using fsid aside command" -constraints cookfsAside -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
-    set file2 [tcltest::makeFile {} cookfs2.cfs]
+test cookfsVfs-4.2 "Test add-aside feature using fsid aside command" -constraints cookfsAside -setup {
+    set file [makeFile {} cookfs.cfs]
+    set file2 [makeFile {} cookfs2.cfs]
     set fsid [cookfs::Mount $file $file]
     close [open $file/file1 w]
     file mkdir $file/dir1
@@ -458,14 +370,11 @@ tcltest::test cookfsVfs-4.2 "Test add-aside feature using fsid aside command" -c
     $fsid aside $file2
     lsort [glob -directory $file -tails *]
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    tcltest::removeFile $file2
-    unset -nocomplain file file2 fsid
-} -returnCodes {ok} -result {dir1 dir2 file1 file2}
+    cookfs::Unmount $file
+} -result {dir1 dir2 file1 file2}
 
-tcltest::test cookfsVfs-4.4 "Test write to memory feature using fsid writetomemory command" -constraints cookfsAside -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-4.4 "Test write to memory feature using fsid writetomemory command" -constraints cookfsAside -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file]
     close [open $file/file1 w]
     file mkdir $file/dir1
@@ -480,186 +389,125 @@ tcltest::test cookfsVfs-4.4 "Test write to memory feature using fsid writetomemo
     set fsid [cookfs::Mount -readonly $file $file]
     lsort [glob -directory $file -tails *]
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes {ok} -result {dir1 file1}
-
-tcltest::test cookfsVfs-5.1 "Test getting metadata using fsid getmetadata command without default value" -constraints cookfsMetadata -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
-    set fsid [cookfs::Mount $file $file]
-} -body {
     cookfs::Unmount $file
+} -result {dir1 file1}
 
+test cookfsVfs-5.1 "Test getting metadata using fsid getmetadata command without default value" -constraints cookfsMetadata -setup {
+    set file [makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file]
+    cookfs::Unmount $file
+} -body {
     set fsid [cookfs::Mount -readonly $file $file]
     $fsid getmetadata nonexistant
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes {error} -result {Parameter not defined}
-
-tcltest::test cookfsVfs-5.2 "Test getting metadata using fsid getmetadata command with default value" -constraints cookfsMetadata -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
-    set fsid [cookfs::Mount $file $file]
-} -body {
     cookfs::Unmount $file
+} -error {Parameter not defined}
 
+test cookfsVfs-5.2 "Test getting metadata using fsid getmetadata command with default value" -constraints cookfsMetadata -setup {
+    set file [makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file]
+    cookfs::Unmount $file
+} -body {
     set fsid [cookfs::Mount -readonly $file $file]
     $fsid getmetadata nonexistant 12
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes {ok} -result {12}
+    cookfs::Unmount $file
+} -result {12}
 
-tcltest::test cookfsVfs-5.3 "Test setting metadata using fsid setmetadata command" -constraints cookfsMetadata -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-5.3 "Test setting metadata using fsid setmetadata command" -constraints cookfsMetadata -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file]
 } -body {
     $fsid setmetadata somename othervalue
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes {ok}
-
-tcltest::test cookfsVfs-5.4 "Test setting metadata in a read-only mount" -constraints cookfsMetadata -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
-    set fsid [cookfs::Mount $file $file]
-} -body {
     cookfs::Unmount $file
+} -ok
 
+test cookfsVfs-5.4 "Test setting metadata in a read-only mount" -constraints cookfsMetadata -setup {
+    set file [makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file]
+    cookfs::Unmount $file
+} -body {
     set fsid [cookfs::Mount -readonly $file $file]
     $fsid setmetadata somename othervalue
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes {error} -result {Archive is read-only}
+    cookfs::Unmount $file
+} -error {Archive is read-only}
 
-tcltest::test cookfsVfs-5.5 "Test setting and getting metadata" -constraints cookfsMetadata -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-5.5 "Test setting and getting metadata" -constraints cookfsMetadata -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file]
-} -body {
     $fsid setmetadata somename othervalue
     cookfs::Unmount $file
-
+} -body {
     set fsid [cookfs::Mount -readonly $file $file]
     $fsid getmetadata somename
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes {ok} -result {othervalue}
+    cookfs::Unmount $file
+} -result {othervalue}
 
-tcltest::test cookfsVfs-6.1 "Test crc32 based VFS and page handling" -constraints {cookfsMetadata enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-6.1 "Test crc32 based VFS and page handling" -constraints {cookfsMetadata enabledTclCmds} -setup {
+    set file [makeFile {} cookfs.cfs]
+    variable h
 } -body {
     cookfs::Mount -pagehash crc32 $file $file
-    set fh [open $file/test1 w]
-    fconfigure $fh -translation binary
-    puts $fh "TEST TEST"
-    close $fh
+    makeBinFile {TEST TEST} test1 $file
     cookfs::Unmount $file
 
-    set h [cookfs::Mount $file $file]
-    set fh [open $file/test2 w]
-    fconfigure $fh -translation binary
-    puts $fh "TEST TEST"
-    close $fh
+    cookfs::Mount $file $file
+    makeBinFile {TEST TEST} test2 $file
+    cookfs::Unmount $file
 
+    set h [cookfs::Mount $file $file -readonly]
     [$h getpages] length
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fh h
-} -returnCodes {ok} -result {1}
+    cookfs::Unmount $file
+} -result {1}
 
-tcltest::test cookfsVfs-7.1 "Test filesize command" -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    set fh [open $file w]
-    fconfigure $fh -translation binary
-    puts -nonewline $fh [string repeat "TEST" 1024]
-    close $fh
-} -body {
+test cookfsVfs-7.1 "Test filesize command" -setup {
+    set file [makeBinFile [string repeat "TEST" 1024] pages.cfs]
     set fsid [cookfs::Mount -smallfilesize 8192 -compression none $file $file]
-    set fh [open [file join $file testfile1] w]
-    fconfigure $fh -translation binary
-    puts -nonewline $fh [string repeat "Test0001" 4096]
-    close $fh
-    set fh [open [file join $file testfile2] w]
-    fconfigure $fh -translation binary
-    puts -nonewline $fh [string repeat "Test0002" 4096]
-    close $fh
+} -body {
+    makeBinFile [string repeat "Test0001" 4096] testfile1 $file
+    makeBinFile [string repeat "Test0002" 4096] testfile2 $file
     $fsid filesize
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fh fsid
-} -returnCodes {ok} -result 69647
+    cookfs::Unmount $file
+} -result 69647
 
-tcltest::test cookfsVfs-7.2 "Test smallfilebuffersize command" -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    set fh [open $file w]
-    close $fh
-} -body {
+test cookfsVfs-7.2 "Test smallfilebuffersize command" -setup {
+    set file [makeBinFile {} pages.cfs]
     set fsid [cookfs::Mount -smallfilesize 8192 -compression none $file $file]
-    set fh [open [file join $file testfile1] w]
-    fconfigure $fh -translation binary
-    puts -nonewline $fh [string repeat "Test0001" 4096]
-    close $fh
-    set fh [open [file join $file testfile2] w]
-    fconfigure $fh -translation binary
-    puts -nonewline $fh [string repeat "Test0002" 4096]
-    close $fh
-    set fh [open [file join $file testfile3] w]
-    fconfigure $fh -translation binary
-    puts -nonewline $fh [string repeat "Test0002" 128]
-    close $fh
+} -body {
+    makeBinFile [string repeat "Test0001" 4096] testfile1 $file
+    makeBinFile [string repeat "Test0002" 4096] testfile2 $file
+    makeBinFile [string repeat "Test0002" 128] testfile3 $file
     $fsid smallfilebuffersize
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid fh
-} -returnCodes {ok} -result 1024
+    cookfs::Unmount $file
+} -result 1024
 
-tcltest::test cookfsVfs-8.1 "Test modifying file mtime" -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    set fh [open $file w]
-    close $fh
-} -body {
+test cookfsVfs-8.1 "Test modifying file mtime" -setup {
+    set file [makeBinFile {} pages.cfs]
     set fsid [cookfs::Mount -compression none $file $file]
-    set fh [open [file join $file testfile1] w]
-    fconfigure $fh -translation binary
-    puts -nonewline $fh [string repeat "Test0001" 4096]
-    close $fh
+} -body {
+    makeBinFile [string repeat "Test0001" 4096] testfile1 $file
     file mtime [file join $file testfile1] 1
     cookfs::Unmount $file
     set fsid [cookfs::Mount -compression none $file $file]
-    if {[file mtime [file join $file testfile1]] != "1"} {
-        error "Invalid mtime after first pass"
-    }
+    assertEq [file mtime [file join $file testfile1]] 1 "Invalid mtime after first pass"
     file mtime [file join $file testfile1] 1342177280
     cookfs::Unmount $file
     set fsid [cookfs::Mount -compression none $file $file]
     file mtime [file join $file testfile1]
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid fh
-} -returnCodes {ok} -result 1342177280
+    cookfs::Unmount $file
+} -result 1342177280
 
-tcltest::test cookfsVfs-9.1 "Test deleting files" -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    set fh [open $file w]
-    close $fh
-} -body {
+test cookfsVfs-9.1 "Test deleting files" -setup {
+    set file [makeBinFile {} pages.cfs]
     set fsid [cookfs::Mount -compression none $file $file]
+} -body {
     close [open [file join $file testfile1] w]
     close [open [file join $file testfile2] w]
     file mkdir [file join $file testdir1]
@@ -673,18 +521,13 @@ tcltest::test cookfsVfs-9.1 "Test deleting files" -setup {
     set fsid [cookfs::Mount -compression none $file $file]
     join [lsort [glob -tails -directory $file * */*]] ,
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid fh
-} -returnCodes {ok} -result {testdir1,testdir2,testdir2/testfile3,testdir2/testfile4,testfile2}
+    cookfs::Unmount $file
+} -result {testdir1,testdir2,testdir2/testfile3,testdir2/testfile4,testfile2}
 
-tcltest::test cookfsVfs-9.2 "Test deleting empty directories" -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    set fh [open $file w]
-    close $fh
-} -body {
+test cookfsVfs-9.2 "Test deleting empty directories" -setup {
+    set file [makeBinFile {} pages.cfs]
     set fsid [cookfs::Mount -compression none $file $file]
+} -body {
     close [open [file join $file testfile1] w]
     close [open [file join $file testfile2] w]
     file mkdir [file join $file testdir1]
@@ -698,18 +541,13 @@ tcltest::test cookfsVfs-9.2 "Test deleting empty directories" -setup {
     set fsid [cookfs::Mount -compression none $file $file]
     join [lsort [glob -tails -directory $file * */*]] ,
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid fh
-} -returnCodes {ok} -result {testdir2,testdir2/testfile3,testdir2/testfile4,testfile1,testfile2}
+    cookfs::Unmount $file
+} -result {testdir2,testdir2/testfile3,testdir2/testfile4,testfile1,testfile2}
 
-tcltest::test cookfsVfs-9.3 "Test deleting non-empty directories" -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    set fh [open $file w]
-    close $fh
-} -body {
+test cookfsVfs-9.3 "Test deleting non-empty directories" -setup {
+    set file [makeBinFile {} pages.cfs]
     set fsid [cookfs::Mount -compression none $file $file]
+} -body {
     close [open [file join $file testfile1] w]
     close [open [file join $file testfile2] w]
     file mkdir [file join $file testdir1]
@@ -723,18 +561,13 @@ tcltest::test cookfsVfs-9.3 "Test deleting non-empty directories" -setup {
     set fsid [cookfs::Mount -compression none $file $file]
     join [lsort [glob -tails -directory $file * */*]] ,
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid fh
-} -returnCodes {ok} -result {testdir1,testfile1,testfile2}
+    cookfs::Unmount $file
+} -result {testdir1,testfile1,testfile2}
 
-tcltest::test cookfsVfs-9.4 "Test deleting non-empty directories with complex structure" -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    set fh [open $file w]
-    close $fh
-} -body {
+test cookfsVfs-9.4 "Test deleting non-empty directories with complex structure" -setup {
+    set file [makeBinFile {} pages.cfs]
     set fsid [cookfs::Mount -compression none $file $file]
+} -body {
     close [open [file join $file testfile1] w]
     close [open [file join $file testfile2] w]
     file mkdir [file join $file testdir1]
@@ -752,671 +585,548 @@ tcltest::test cookfsVfs-9.4 "Test deleting non-empty directories with complex st
     set fsid [cookfs::Mount -compression none $file $file]
     join [lsort [glob -tails -directory $file * */*]] ,
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid fh
-} -returnCodes {ok} -result {testdir1,testfile1,testfile2}
+    cookfs::Unmount $file
+} -result {testdir1,testfile1,testfile2}
 
-tcltest::test cookfsVfs-10.1 "Test changing compression without remounting" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    set fh [open $file w]
-    close $fh
-} -body {
+test cookfsVfs-10.1 "Test changing compression without remounting" -constraints {enabledTclCmds} -setup {
+    set file [makeBinFile {} pages.cfs]
+    variable fc
+    variable idx
     set fsid [cookfs::Mount $file $file -compression custom -smallfilesize 32768 \
-	-compresscommand testcompressraw -decompresscommand testdecompressraw -alwayscompress]
-
+        -compresscommand testcompressraw -decompresscommand testdecompressraw -alwayscompress]
+} -body {
     $fsid compression zlib
-    if {[$fsid compression] != "zlib"} {
-	error "Getting compression does not return \"zlib\""
-    }
+    assertEq [$fsid compression] "zlib" "Getting compression does not return 'zlib'"
 
-    set fh [open [file join $file testfile1] w]
-    fconfigure $fh -translation binary
-    puts -nonewline $fh [string repeat "TEST" 256]
-    close $fh
+    makeBinFile [string repeat "TEST" 256] testfile1 $file
 
     $fsid compression none
-    if {[$fsid compression] != "none"} {
-	error "Getting compression does not return \"none\""
-    }
+    assertEq [$fsid compression] "none" "Getting compression does not return 'none'"
 
-    set fh [open [file join $file testfile2] w]
-    fconfigure $fh -translation binary
-    puts -nonewline $fh [string repeat "test" 256]
-    close $fh
+    makeBinFile [string repeat "test" 256] testfile2 $file
 
     $fsid compression custom
-    if {[$fsid compression] != "custom"} {
-	error "Getting compression does not return \"custom\""
-    }
+    assertEq [$fsid compression] "custom" "Getting compression does not return 'custom'"
     cookfs::Unmount $file
 
     set fsid [cookfs::Mount $file $file -readonly \
-	-compresscommand testcompressraw -decompresscommand testdecompressraw -alwayscompress]
+        -compresscommand testcompressraw -decompresscommand testdecompressraw -alwayscompress]
     set idx [[$fsid getpages] index]
     cookfs::Unmount $file
 
-    set fh [open $file r]
-    fconfigure $fh -translation binary
-    set fc [read $fh]
-    close $fh
+    set fc [viewBinFile $file]
 
-    if {[string first [string repeat "TEST" 256] $fc] >= 0} {
-        error "File testfile1 should be compressed"
-    }
-
-    if {[string first [string repeat "test" 256] $fc] < 0} {
-        error "File testfile2 should not be compressed"
-    }
-
-    if {[string first [testcompressraw $idx] $fc] < 0} {
-        error "Index not found"
-    }
+    assertNotContain $fc [string repeat "TEST" 256] "File testfile1 should be compressed"
+    assertContain $fc [string repeat "test" 256] "File testfile2 should not be compressed"
+    assertContain $fc [testcompressraw $idx] "Index not found"
 } -cleanup {
-    catch {cookfs::Unmount $file}
-    tcltest::removeFile $file
-    unset -nocomplain file fsid fh fc idx
+    catch { cookfs::Unmount $file }
     testrawcleanup
-} -returnCodes {ok}
+} -ok
 
-tcltest::test cookfsVfs-11.1 "Test unmount using fsid" -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+test cookfsVfs-11.1 "Test unmount using fsid" -setup {
+    set file [makeBinFile {} pages.cfs]
+    variable fsid
 } -body {
-    set result [list]
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
     set fsid [cookfs::Mount $file $file]
-    lappend result [file type $file]
+    assertEq [file type $file] "directory"
     # ensure that mount handler command exists
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 1
     cookfs::Unmount $fsid
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
     # ensure that mount handler command deleted
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 0
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result
-} -result {file directory 1 file 0}
+} -ok
 
-tcltest::test cookfsVfs-11.2 "Test unmount using mount point" -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+test cookfsVfs-11.2 "Test unmount using mount point" -setup {
+    set file [makeBinFile {} pages.cfs]
+    variable fsid
 } -body {
-    set result [list]
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
     set fsid [cookfs::Mount $file $file]
-    lappend result [file type $file]
+    assertEq [file type $file] "directory"
     # ensure that mount handler command exists
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 1
     cookfs::Unmount $file
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
     # ensure that mount handler command deleted
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 0
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid fh result
-} -result {file directory 1 file 0}
+} -ok
 
-tcltest::test cookfsVfs-11.3 "Test unmount using mount point (relative)" -setup {
+test cookfsVfs-11.3 "Test unmount using mount point (relative)" -setup {
     set file pages.cfs
     # make sure no additional data is written to file
     close [open $file w]
+    variable fsid
 } -body {
-    set result [list]
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
     set fsid [cookfs::Mount $file $file]
-    lappend result [file type $file]
+    assertEq [file type $file] "directory"
     # ensure that mount handler command exists
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 1
     cookfs::Unmount $file
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
     # ensure that mount handler command deleted
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 0
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result
-} -result {file directory 1 file 0}
+    file delete $file
+} -ok
 
-tcltest::test cookfsVfs-11.4 "Test unmount using vfs::unmount" -constraints {packageTclvfs enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+test cookfsVfs-11.4 "Test unmount using vfs::unmount" -constraints {packageTclvfs enabledTclCmds} -setup {
+    set file [makeBinFile {} pages.cfs]
+    variable fsid
 } -body {
-    set result [list]
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
     set fsid [vfs::cookfs::Mount $file $file]
-    lappend result [file type $file]
+    assertEq [file type $file] "directory"
     # ensure that mount handler command exists
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 1
     vfs::unmount $file
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
     # ensure that mount handler command deleted
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 0
 } -cleanup {
     catch { vfs::unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result
-} -result {file directory 1 file 0}
+} -ok
 
-tcltest::test cookfsVfs-12.1 "Test registration in tclvfs, should be registered by default" -constraints {packageTclvfs enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+test cookfsVfs-12.1 "Test registration in tclvfs, should be registered by default" -constraints {packageTclvfs enabledTclCmds} -setup {
+    set file [makeBinFile {} pages.cfs]
+    variable fsid
 } -body {
-    set result [list]
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
     set fsid [vfs::cookfs::Mount $file $file]
-    lappend result [file type $file]
+    assertEq [file type $file] "directory"
     # ensure that mount handler command exists
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 1
     # Don't change this to cookfs::Unmount. This test checks vfs::unmount command.
     # vfs::unmount should unmount cookfs successfully.
     vfs::unmount $file
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
     # ensure that mount handler command deleted
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 0
 } -cleanup {
     catch { vfs::unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result
-} -result {file directory 1 file 0}
+} -ok
 
 # Run this test with c-vfs only, as tcl-vfs will not work if cookfs is not registered with tclvfs.
-tcltest::test cookfsVfs-12.2 "Test registration in tclvfs, should not be registered due to -noregister" -constraints { enabledCVfs packageTclvfs enabledTclCmds } -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+test cookfsVfs-12.2 "Test registration in tclvfs, should not be registered due to -noregister" -constraints { enabledCVfs packageTclvfs enabledTclCmds } -setup {
+    set file [makeBinFile {} pages.cfs]
+    variable fsid
 } -body {
-    set result [list]
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
     set fsid [vfs::cookfs::Mount -noregister $file $file]
-    lappend result [file type $file]
+    assertEq [file type $file] "directory"
     # ensure that mount handler command exists
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 1
     # this should fail
-    lappend result [catch { vfs::unmount $file }]
+    assertErrMsgMatch { vfs::unmount $file } {can't read "_unmountCmd(*)": no such element in array}
+    assertEq [file type $file] "directory"
     # ensure that mount handler command exists
-    lappend result [llength [info commands $fsid]]
-    lappend result [file type $file]
+    assertEq [llength [info commands $fsid]] 1
     # this has to be successful
-    lappend result [catch { cookfs::Unmount $fsid }]
-    lappend result [file type $file]
+    cookfs::Unmount $fsid
+    assertEq [file type $file] "file"
     # ensure that mount handler command deleted
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 0
 } -cleanup {
     catch { cookfs::Unmount $fsid }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result
-} -result {file directory 1 1 1 directory 0 file 0}
+} -ok
 
-tcltest::test cookfsVfs-12.3 "Test that cookfs::Unmount invoked with fsid unregister cookfs in tclvfs" -constraints { packageTclvfs enabledTclCmds } -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+test cookfsVfs-12.3 "Test that cookfs::Unmount invoked with fsid unregister cookfs in tclvfs" -constraints { packageTclvfs enabledTclCmds } -setup {
+    set file [makeBinFile {} pages.cfs]
+    variable fsid
 } -body {
-    set result [list]
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
     set fsid [vfs::cookfs::Mount $file $file]
-    lappend result [file type $file]
+    assertEq [file type $file] "directory"
     # ensure that mount handler command exists
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 1
     # this has to be successful
-    lappend result [catch { cookfs::Unmount $fsid }]
-    lappend result [file type $file]
+    cookfs::Unmount $fsid
+    assertEq [file type $file] "file"
     # ensure that mount handler command exists
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 0
     # this should fail with:
     # can't read "_unmountCmd(/w/projects/build/_cookfs/_tmp/pages.cfs)": no such element in array
     # because cookfs::Unmount unregistered cookfs from tclvfs
-    lappend result [catch { vfs::unmount $file } err]
-    lappend result $err
-    lappend result [file type $file]
+    assertErrMsgMatch { vfs::unmount $file } {can't read "_unmountCmd(*)": no such element in array}
+    assertEq [file type $file] "file"
     # ensure that mount handler command deleted
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 0
 } -cleanup {
     catch { cookfs::Unmount $fsid }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result err
-} -match glob -result {file directory 1 0 file 0 1 {can't read "_unmountCmd(*)": no such element in array} file 0}
+} -ok
 
-tcltest::test cookfsVfs-12.4 "Test that cookfs::Unmount invoked with mount path unregister cookfs in tclvfs" -constraints { packageTclvfs enabledTclCmds } -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+test cookfsVfs-12.4 "Test that cookfs::Unmount invoked with mount path unregister cookfs in tclvfs" -constraints { packageTclvfs enabledTclCmds } -setup {
+    set file [makeBinFile {} pages.cfs]
+    variable fsid
 } -body {
-    set result [list]
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
     set fsid [vfs::cookfs::Mount $file $file]
-    lappend result [file type $file]
+    assertEq [file type $file] "directory"
     # ensure that mount handler command exists
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 1
     # this has to be successful
-    lappend result [catch { cookfs::Unmount $file }]
-    lappend result [file type $file]
+    cookfs::Unmount $file
+    assertEq [file type $file] "file"
     # ensure that mount handler command deleted
-    lappend result [llength [info commands $fsid]]
+    assertEq [llength [info commands $fsid]] 0
     # this should fail with:
     # can't read "_unmountCmd(/w/projects/build/_cookfs/_tmp/pages.cfs)": no such element in array
     # because cookfs::Unmount unregistered cookfs from tclvfs
-    lappend result [catch { vfs::unmount $file } err]
-    lappend result $err
-    lappend result [file type $file]
+    assertErrMsgMatch { vfs::unmount $file } {can't read "_unmountCmd(*)": no such element in array}
+    assertEq [file type $file] "file"
 } -cleanup {
     catch { cookfs::Unmount $fsid }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result err
-} -match glob -result {file directory 1 0 file 0 1 {can't read "_unmountCmd(*)": no such element in array} file}
+} -ok
 
-tcltest::test cookfsVfs-13.1 "Test -bootstrap option for cookfs::Mount, when opening new archive" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
-} -body {
+test cookfsVfs-13.1 "Test -bootstrap option for cookfs::Mount, when opening new archive" -constraints {enabledTclCmds} -setup {
+    set file [makeBinFile {} pages.cfs]
     set bootstrap "TEST BOOTSTRAP"
+    variable fsid
+} -body {
     set fsid [cookfs::Mount -bootstrap $bootstrap $file $file]
     cookfs::Unmount $file
-    set fsid [cookfs::Mount $file $file]
-    expr { [[$fsid getpages] get 0] eq $bootstrap }
+    set fsid [cookfs::Mount $file $file -readonly]
+    assertEq [[$fsid getpages] get 0] $bootstrap
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid bootstrap
-} -result 1
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfs-13.2 "Test -bootstrap option for cookfs::Mount is ignored, when opening existing archive" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+test cookfsVfs-13.2 "Test -bootstrap option for cookfs::Mount is ignored, when opening existing archive" -constraints {enabledTclCmds} -setup {
+    set file [makeBinFile {} pages.cfs]
     set bootstrap "TEST BOOTSTRAP"
+    variable fsid
+} -body {
     set fsid [cookfs::Mount -bootstrap $bootstrap $file $file]
     cookfs::Unmount $file
-} -body {
     set fsid [cookfs::Mount -bootstrap "XXXX" $file $file]
-    expr { [[$fsid getpages] get 0] eq $bootstrap }
+    assertEq [[$fsid getpages] get 0] $bootstrap
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid bootstrap
-} -result 1
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfs-13.3 "Test -bootstrap option for cookfs::Mount, ignore empty bootstrap" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+test cookfsVfs-13.3 "Test -bootstrap option for cookfs::Mount, ignore empty bootstrap" -constraints {enabledTclCmds} -setup {
+    set file [makeBinFile {} pages.cfs]
+    variable fsid
 } -body {
     set fsid [cookfs::Mount -bootstrap "" $file $file]
     [$fsid getpages] length
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
+    cookfs::Unmount $file
 } -result 0
 
-tcltest::test cookfsVfs-14.1 "Test -pagehash option for cookfs::Mount, when opening new archive (md5)" -constraints { enabledCPages enabledTclCmds } -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
-} -body {
+test cookfsVfs-14.1 "Test -pagehash option for cookfs::Mount, when opening new archive (md5)" -constraints { enabledCPages enabledTclCmds } -setup {
+    set file [makeBinFile {} pages.cfs]
     set hash "md5"
-    set fsid [cookfs::Mount -pagehash $hash $file $file]
-    set result [list]
-    lappend result [expr { [[$fsid getpages] hash] eq $hash }]
-    lappend result [expr { [[$fsid getindex] getmetadata cookfs.pagehash] eq $hash }]
-} -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid hash result
-} -result {1 1}
-
-tcltest::test cookfsVfs-14.2 "Test -pagehash option for cookfs::Mount, when opening new archive (crc32)" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+    variable fsid
 } -body {
+    set fsid [cookfs::Mount -pagehash $hash $file $file]
+    assertEq [[$fsid getpages] hash] $hash
+    assertEq [[$fsid getindex] getmetadata cookfs.pagehash] $hash
+} -cleanup {
+    cookfs::Unmount $file
+} -ok
+
+test cookfsVfs-14.2 "Test -pagehash option for cookfs::Mount, when opening new archive (crc32)" -constraints {enabledTclCmds} -setup {
+    set file [makeBinFile {} pages.cfs]
     set hash "crc32"
-    set fsid [cookfs::Mount -pagehash $hash $file $file]
-    set result [list]
-    lappend result [expr { [[$fsid getpages] hash] eq $hash }]
-    lappend result [expr { [[$fsid getindex] getmetadata cookfs.pagehash] eq $hash }]
-} -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid hash result
-} -result {1 1}
-
-tcltest::test cookfsVfs-14.3 "Test -pagehash option for cookfs::Mount, when reopening (md5)" -constraints { enabledCPages enabledTclCmds } -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+    variable fsid
 } -body {
+    set fsid [cookfs::Mount -pagehash $hash $file $file]
+    assertEq [[$fsid getpages] hash] $hash
+    assertEq [[$fsid getindex] getmetadata cookfs.pagehash] $hash
+} -cleanup {
+    cookfs::Unmount $file
+} -ok
+
+test cookfsVfs-14.3 "Test -pagehash option for cookfs::Mount, when reopening (md5)" -constraints { enabledCPages enabledTclCmds } -setup {
+    set file [makeBinFile {} pages.cfs]
     set hash "md5"
+    variable fsid
+} -body {
     cookfs::Mount -pagehash $hash $file $file
     # make sure that archive is not empty, so hash algo will not reset after reopen
-    tcltest::makeFile {} temp1 $file
+    makeFile {} temp1 $file
     cookfs::Unmount $file
     set fsid [cookfs::Mount $file $file]
-    set result [list]
-    lappend result [expr { [[$fsid getpages] hash] eq $hash }]
-    lappend result [expr { [[$fsid getindex] getmetadata cookfs.pagehash] eq $hash }]
+    assertEq [[$fsid getpages] hash] $hash
+    assertEq [[$fsid getindex] getmetadata cookfs.pagehash] $hash
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid hash result
-} -result {1 1}
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfs-14.4 "Test -pagehash option for cookfs::Mount, when reopening (crc32)" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
-} -body {
+test cookfsVfs-14.4 "Test -pagehash option for cookfs::Mount, when reopening (crc32)" -constraints {enabledTclCmds} -setup {
+    set file [makeBinFile {} pages.cfs]
     set hash "crc32"
+    variable fsid
+} -body {
     cookfs::Mount -pagehash $hash $file $file
     # make sure that archive is not empty, so hash algo will not reset after reopen
-    tcltest::makeFile {} temp1 $file
+    makeFile {} temp1 $file
     cookfs::Unmount $file
     set fsid [cookfs::Mount $file $file]
-    set result [list]
-    lappend result [expr { [[$fsid getpages] hash] eq $hash }]
-    lappend result [expr { [[$fsid getindex] getmetadata cookfs.pagehash] eq $hash }]
+    assertEq [[$fsid getpages] hash] $hash
+    assertEq [[$fsid getindex] getmetadata cookfs.pagehash] $hash
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid hash result
-} -result {1 1}
+    cookfs::Unmount $file
+} -ok
 
-
-tcltest::test cookfsVfs-14.5 "Test -pagehash option for cookfs::Mount is ignored, when opening existing archive" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
-} -body {
+test cookfsVfs-14.5 "Test -pagehash option for cookfs::Mount is ignored, when opening existing archive" -constraints {enabledTclCmds} -setup {
+    set file [makeBinFile {} pages.cfs]
     set hash "crc32"
+    variable fsid
+} -body {
     cookfs::Mount -pagehash $hash $file $file
     # make sure that archive is not empty
-    tcltest::makeFile {} temp1 $file
+    makeFile {} temp1 $file
     cookfs::Unmount $file
     set fsid [cookfs::Mount -pagehash "md5" $file $file]
-    set result [list]
-    lappend result [expr { [[$fsid getpages] hash] eq $hash }]
-    lappend result [expr { [[$fsid getindex] getmetadata cookfs.pagehash] eq $hash }]
+    assertEq [[$fsid getpages] hash] $hash
+    assertEq [[$fsid getindex] getmetadata cookfs.pagehash] $hash
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid hash result
-} -result {1 1}
+    cookfs::Unmount $file
+} -ok
 
 # Here we just check if "<fsindex> getmetadata cookfs.pagehash" ends with an error.
 # Actual values are not interested.
-tcltest::test cookfsVfs-14.6 "Test that cookfs.pagehash metadata exists by default" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+test cookfsVfs-14.6 "Test that cookfs.pagehash metadata exists by default" -constraints {enabledTclCmds} -setup {
+    set file [makeBinFile {} pages.cfs]
+    variable fsid
 } -body {
-    set result [list]
     set fsid [cookfs::Mount $file $file]
-    lappend result [[$fsid getindex] getmetadata cookfs.pagehash]
+    [$fsid getindex] getmetadata cookfs.pagehash
     # make sure that archive is not empty
-    tcltest::makeFile {} temp1 $file
+    makeFile {} temp1 $file
     cookfs::Unmount $file
     set fsid [cookfs::Mount $file $file]
-    lappend result [[$fsid getindex] getmetadata cookfs.pagehash]
+    [$fsid getindex] getmetadata cookfs.pagehash
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result
-} -match glob -result {* *}
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfs-14.7 "Test that cookfs.pagehash metadata matches actual pages hash" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+test cookfsVfs-14.7 "Test that cookfs.pagehash metadata matches actual pages hash" -constraints {enabledTclCmds} -setup {
+    set file [makeBinFile {} pages.cfs]
+    variable fsid
 } -body {
-    set result [list]
     set fsid [cookfs::Mount $file $file]
-    lappend result [string equal [[$fsid getpages] hash] [[$fsid getindex] getmetadata cookfs.pagehash]]
+    assertEq [[$fsid getpages] hash] [[$fsid getindex] getmetadata cookfs.pagehash]
     # make sure that archive is not empty
-    tcltest::makeFile {} temp1 $file
+    makeFile {} temp1 $file
     cookfs::Unmount $file
     set fsid [cookfs::Mount $file $file]
-    lappend result [string equal [[$fsid getpages] hash] [[$fsid getindex] getmetadata cookfs.pagehash]]
+    assertEq [[$fsid getpages] hash] [[$fsid getindex] getmetadata cookfs.pagehash]
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result
-} -result {1 1}
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfs-14.8 "Test unknown hash value" -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-    # make sure no additional data is written to file
-    close [open $file w]
+test cookfsVfs-14.8 "Test unknown hash value" -setup {
+    set file [makeBinFile {} pages.cfs]
 } -body {
-    set result [list]
     set fsid [cookfs::Mount -pagehash foo $file $file]
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result
-} -returnCodes error -result {bad hash "foo": must be md5 or crc32}
+} -error {bad hash "foo": must be md5 or crc32}
 
-tcltest::test cookfsVfs-15.1 "Test optimizelist with empty base" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-15.1 "Test optimizelist with empty base" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none \
         -smallfilesize 0x10 -smallfilebuffer 0x30 -pagesize 0x10]
     makeSimpleTree2 $file
     makeSimpleTree2 $file/subtree1
-    tcltest::makeBinFile "ABCD" diff $file/subtree1
+    makeBinFile "ABCD" diff $file/subtree1
     cookfs::Unmount $file
+    variable h
+    variable files
 } -body {
     set h [cookfs::Mount $file $file]
     set files [$h optimizelist "" [getFilesRelative $file]]
     # Verify the result.
     join [testOptimizedList "" $files [$h getindex]] \n
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid h files
+    cookfs::Unmount $file
 } -result {}
 
-tcltest::test cookfsVfs-15.2 "Test optimizelist with non-empty base" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-15.2 "Test optimizelist with non-empty base" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none \
         -smallfilesize 0x10 -smallfilebuffer 0x30 -pagesize 0x10]
     makeSimpleTree2 $file
     makeSimpleTree2 $file/subtree1
-    tcltest::makeBinFile "ABCD" diff $file/subtree1
+    makeBinFile "ABCD" diff $file/subtree1
     cookfs::Unmount $file
+    variable h
+    variable files
 } -body {
     set h [cookfs::Mount $file $file]
     set files [$h optimizelist "subtree1" [getFilesRelative $file/subtree1]]
     # Verify the result.
     join [testOptimizedList "subtree1" $files [$h getindex]] \n
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid h files
+    cookfs::Unmount $file
 } -result {}
 
 # Attributes will work only for c-vfs
 
-tcltest::test cookfsVfs-16.1.1 "Test set attributes for root" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-16.1.1 "Test set attributes for root" -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
 } -body {
     file attributes $file -vfs 2
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes {error} -result {attributes of CookFS objects are read-only}
+    cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
+} -error {attributes of CookFS objects are read-only}
 
-tcltest::test cookfsVfs-16.1.2 "Test list attributes for root" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-16.1.2 "Test list attributes for root" -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
 } -body {
     lsort [dict keys [file attributes $file]]
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result
+    cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
 } -result {-handle -vfs}
 
-tcltest::test cookfsVfs-16.1.3 "Test get attributes for root" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-16.1.3 "Test get attributes for root" -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
 } -body {
-    set result [list]
-    lappend result [file attributes $file -vfs]
-    lappend result [string equal [file attributes $file -handle] $fsid]
+    assertEq [file attributes $file -vfs] 1
+    assertEq [file attributes $file -handle] $fsid
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result
-} -result {1 1}
+    cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
+} -ok
 
-tcltest::test cookfsVfs-16.1.4 "Test get unknown attribute for root" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-16.1.4 "Test get unknown attribute for root" -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
 } -body {
     file attributes $file -foo
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result
-} -returnCodes error -result {bad option "-foo": must be -vfs or -handle}
+    cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
+} -error {bad option "-foo": must be -vfs or -handle}
 
-tcltest::test cookfsVfs-16.1.5 "Test -handle attribute for root when vfs created with -nocommand" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-16.1.5 "Test -handle attribute for root when vfs created with -nocommand" -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none -nocommand]
 } -body {
     file attributes $file -handle
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
+    cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
 } -result {}
 
-tcltest::test cookfsVfs-16.2.1 "Test set attributes for file" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-16.2.1 "Test set attributes for file" -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
-    set file2 [tcltest::makeBinFile "" test $file]
+    set file2 [makeBinFile "" test $file]
 } -body {
     file attributes $file2 -vfs 2
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid file2
-} -returnCodes {error} -result {attributes of CookFS objects are read-only}
+    cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
+} -error {attributes of CookFS objects are read-only}
 
-tcltest::test cookfsVfs-16.2.2 "Test list attributes for file" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-16.2.2 "Test list attributes for file" -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
-    set file2 [tcltest::makeBinFile "" test $file]
+    set file2 [makeBinFile "" test $file]
 } -body {
     lsort [dict keys [file attributes $file2]]
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result file2
+    cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
 } -result {-vfs}
 
-tcltest::test cookfsVfs-16.2.3 "Test get attributes for file" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-16.2.3 "Test get attributes for file" -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
-    set file2 [tcltest::makeBinFile "" test $file]
+    set file2 [makeBinFile "" test $file]
 } -body {
-    set result [list]
-    lappend result [file attributes $file2 -vfs]
-    lappend result [catch { file attributes $file2 -handle }]
+    assertEq [file attributes $file2 -vfs] 1
+    assertErrMsg { file attributes $file2 -handle } {bad option "-handle": must be -vfs}
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result file2
-} -result {1 1}
+    cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
+} -ok
 
-tcltest::test cookfsVfs-16.2.4 "Test get unknown attribute for file" -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfs-16.2.4 "Test get unknown attribute for file" -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
-    set file2 [tcltest::makeBinFile "" test $file]
+    set file2 [makeBinFile "" test $file]
 } -body {
-    file attributes $file2 -handle
+    file attributes $file2 -foo
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result file2
-} -returnCodes error -result {bad option "-handle": must be -vfs}
+    cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
+} -error {bad option "-foo": must be -vfs}
 
-tcltest::test cookfsVfs-17.1 "Test in-memory vfs, open with a file" -setup {
-    set dir [tcltest::makeDirectory cookfs.vfs]
+test cookfsVfs-17.1 "Test in-memory vfs, open with a file" -setup {
+    set dir [makeDirectory cookfs.vfs]
     makeSimpleTree2 $dir
-    set file [tcltest::makeBinFile {} cookfs.cfs]
-} -body {
+    set file [makeBinFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -writetomemory \
         -smallfilesize 0x10 -smallfilebuffer 0x30 -pagesize 0x10]
+} -body {
     file copy -force $dir [file join $file vfs]
-    set result [list]
-    lappend result [testIfEqual $dir [file join $file vfs]]
+    assertTrue [testIfEqual $dir [file join $file vfs]]
     cookfs::Unmount $file
-    lappend result [file size $file]
+    assertEq [file size $file] 0
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    tcltest::removeDirectory $dir
-    unset -nocomplain file fsid dir result
-} -result {1 0}
+} -ok
 
-tcltest::test cookfsVfs-17.2 "Test in-memory vfs, open without a file" -setup {
-    set dir [tcltest::makeDirectory cookfs.vfs]
+test cookfsVfs-17.2 "Test in-memory vfs, open without a file" -setup {
+    set dir [makeDirectory cookfs.vfs]
     makeSimpleTree2 $dir
     set mnt "/mountpoint"
-} -body {
     set fsid [cookfs::Mount $mnt -writetomemory \
         -smallfilesize 0x10 -smallfilebuffer 0x30 -pagesize 0x10]
+} -body {
     file copy -force $dir [file join $mnt vfs]
-    set result [testIfEqual $dir [file join $mnt vfs]]
+    assertTrue [testIfEqual $dir [file join $mnt vfs]]
     cookfs::Unmount $mnt
-    set result
 } -cleanup {
     catch { cookfs::Unmount $mnt }
-    tcltest::removeDirectory $dir
-    unset -nocomplain fsid dir result mnt
-} -result {1}
+} -ok
 
-tcltest::test cookfsVfs-17.3 "Test in-memory vfs, open existing archive" -setup {
-    set dir [tcltest::makeDirectory cookfs.vfs]
+test cookfsVfs-17.3 "Test in-memory vfs, open existing archive" -setup {
+    set dir [makeDirectory cookfs.vfs]
     makeSimpleTree2 $dir
-    set file [tcltest::makeBinFile {} cookfs.cfs]
+    set file [makeBinFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none \
         -smallfilesize 0x10 -smallfilebuffer 0x30 -pagesize 0x10]
     file copy -force $dir [file join $file vfs]
     cookfs::Unmount $file
-    set file2 [tcltest::makeBinFile {} cookfs2.cfs]
+    set file2 [makeBinFile {} cookfs2.cfs]
     file copy -force $file $file2
 } -body {
     set fsid [cookfs::Mount $file $file -writetomemory \
         -smallfilesize 0x10 -smallfilebuffer 0x30 -pagesize 0x10]
-    set result [list]
-    lappend result [testIfEqual $dir [file join $file vfs]]
+    assertTrue [testIfEqual $dir [file join $file vfs]]
     makeSimpleTree2 $file/subdirX
     cookfs::Unmount $file
     # Compare archive $file with its copy $file2 to make sure it hasn't changed.
-    lappend result [testIfEqual $file $file2]
+    assertTrue [testIfEqual $file $file2]
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    tcltest::removeFile $file2
-    tcltest::removeDirectory $dir
-    unset -nocomplain file fsid dir result file2
-} -result {1 1}
+} -ok
 
-tcltest::test cookfsVfs-18.1 "Test that fsindex/pages are available when their\
+test cookfsVfs-18.1 "Test that fsindex/pages are available when their\
      commands are deleted, but they are bound to existing VFS" -constraints {enabledTclCmds enabledCVfs} -setup {
-    set file [tcltest::makeBinFile {} cookfs.cfs]
+    set file [makeBinFile {} cookfs.cfs]
+    variable p
+    variable i
+    variable file2
 } -body {
     set p [cookfs::pages -compression none $file]
     set i [cookfs::fsindex]
@@ -1425,18 +1135,16 @@ tcltest::test cookfsVfs-18.1 "Test that fsindex/pages are available when their\
     rename $p ""
     rename $i ""
     # try to add a file
-    set file2 [tcltest::makeBinFile TEST01 test $file]
+    set file2 [makeBinFile TEST01 test $file]
     cookfs::Unmount $file
     cookfs::Mount $file $file -readonly
-    tcltest::viewBinFile $file2
+    viewBinFile $file2
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file p i file2
+    cookfs::Unmount $file
 } -result TEST01
 
-tcltest::test cookfsVfs-19.1 "Check if VFS is available in child interp" -setup {
-    set file [tcltest::makeBinFile {} cookfs.cfs]
+test cookfsVfs-19.1 "Check if VFS is available in child interp" -setup {
+    set file [makeBinFile {} cookfs.cfs]
     set i [interp create]
     interp eval $i [list set file $file]
 } -body {
@@ -1445,46 +1153,41 @@ tcltest::test cookfsVfs-19.1 "Check if VFS is available in child interp" -setup 
 } -cleanup {
     interp delete $i
     cookfs::Unmount $file
-    tcltest::removeFile $file
-    unset -nocomplain file i
+    catch { ::cookfs::c::reset_cache }
 } -result 1
 
-tcltest::test cookfsVfs-19.2.1 "Check if files can be copied to VFS in the child interp (small file)" -setup {
-    set file [tcltest::makeBinFile {} cookfs.cfs]
-    set file2 [tcltest::makeBinFile {TEST01} test]
+test cookfsVfs-19.2.1 "Check if files can be copied to VFS in the child interp (small file)" -setup {
+    set file [makeBinFile {} cookfs.cfs]
+    set file2 [makeBinFile {TEST01} test]
     set i [interp create]
     interp eval $i [list set file $file]
     interp eval $i [list set file2 $file]
 } -body {
     cookfs::Mount $file $file -compression none -smallfilesize 1024 -smallfilebuffer 2048 -pagesize 1024
     interp eval $i [list file copy $file2 [file join $file test]]
-    tcltest::viewBinFile [file join $file test]
+    viewBinFile [file join $file test]
 } -cleanup {
     interp delete $i
     cookfs::Unmount $file
-    tcltest::removeFile $file
-    unset -nocomplain file file2 i
 } -result TEST01
 
-tcltest::test cookfsVfs-19.2.2 "Check if files can be copied to VFS in the child interp (big file)" -setup {
-    set file [tcltest::makeBinFile {} cookfs.cfs]
-    set file2 [tcltest::makeBinFile {TEST02} test]
+test cookfsVfs-19.2.2 "Check if files can be copied to VFS in the child interp (big file)" -setup {
+    set file [makeBinFile {} cookfs.cfs]
+    set file2 [makeBinFile {TEST02} test]
     set i [interp create]
     interp eval $i [list set file $file]
     interp eval $i [list set file2 $file]
 } -body {
     cookfs::Mount $file $file -compression none -smallfilesize 1 -smallfilebuffer 0 -pagesize 1024
     interp eval $i [list file copy $file2 [file join $file test]]
-    tcltest::viewBinFile [file join $file test]
+    viewBinFile [file join $file test]
 } -cleanup {
     interp delete $i
     cookfs::Unmount $file
-    tcltest::removeFile $file
-    unset -nocomplain file file2 i
 } -result TEST02
 
-tcltest::test cookfsVfs-19.3 "Check if mount handler is available in child interp" -constraints {enabledCVfs enabledTclCmds} -setup {
-    set file [tcltest::makeBinFile {} cookfs.cfs]
+test cookfsVfs-19.3 "Check if mount handler is available in child interp" -constraints {enabledCVfs enabledTclCmds} -setup {
+    set file [makeBinFile {} cookfs.cfs]
     set i [interp create]
     interp eval $i [list set file $file]
 } -body {
@@ -1495,12 +1198,11 @@ tcltest::test cookfsVfs-19.3 "Check if mount handler is available in child inter
 } -cleanup {
     interp delete $i
     cookfs::Unmount $file
-    tcltest::removeFile $file
-    unset -nocomplain file i
+    catch { ::cookfs::c::reset_cache }
 } -result 0
 
-tcltest::test cookfsVfs-19.4 "Check if pages handler is available in child interp" -constraints {enabledCVfs enabledTclCmds} -setup {
-    set file [tcltest::makeBinFile {} cookfs.cfs]
+test cookfsVfs-19.4 "Check if pages handler is available in child interp" -constraints {enabledCVfs enabledTclCmds} -setup {
+    set file [makeBinFile {} cookfs.cfs]
     set i [interp create]
     interp eval $i [list set file $file]
 } -body {
@@ -1511,12 +1213,11 @@ tcltest::test cookfsVfs-19.4 "Check if pages handler is available in child inter
 } -cleanup {
     interp delete $i
     cookfs::Unmount $file
-    tcltest::removeFile $file
-    unset -nocomplain file i
+    catch { ::cookfs::c::reset_cache }
 } -result 0
 
-tcltest::test cookfsVfs-19.5 "Check if fsindex handler is available in child interp" -constraints {enabledCVfs enabledTclCmds} -setup {
-    set file [tcltest::makeBinFile {} cookfs.cfs]
+test cookfsVfs-19.5 "Check if fsindex handler is available in child interp" -constraints {enabledCVfs enabledTclCmds} -setup {
+    set file [makeBinFile {} cookfs.cfs]
     set i [interp create]
     interp eval $i [list set file $file]
 } -body {
@@ -1530,55 +1231,48 @@ tcltest::test cookfsVfs-19.5 "Check if fsindex handler is available in child int
 } -cleanup {
     interp delete $i
     cookfs::Unmount $file
-    tcltest::removeFile $file
-    unset -nocomplain file i
+    catch { ::cookfs::c::reset_cache }
 } -result ok
 
-tcltest::test cookfsVfs-19.6.1 "Check mount/unmount in child interp" -setup {
-    set file [tcltest::makeBinFile {} cookfs.cfs]
+test cookfsVfs-19.6.1 "Check mount/unmount in child interp" -setup {
+    set file [makeBinFile {} cookfs.cfs]
     set i [interp create]
     interp eval $i [list set file $file]
 } -body {
-    set result [list]
     interp eval $i {
         package require cookfs
         cookfs::Mount $file $file -compression none
     }
-    lappend result [file type $file]
+    assertEq [file type $file] "directory"
     interp eval $i {
         cookfs::Unmount $file
     }
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
 } -cleanup {
     interp delete $i
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file i result
-} -result {directory file}
+} -ok
 
-tcltest::test cookfsVfs-19.6.2 "Check unmount in child interp after interp died" -setup {
-    set file [tcltest::makeBinFile {} cookfs.cfs]
+test cookfsVfs-19.6.2 "Check unmount in child interp after interp died" -setup {
+    set file [makeBinFile {} cookfs.cfs]
     set i [interp create]
     interp eval $i [list set file $file]
 } -body {
-    set result [list]
     interp eval $i {
         package require cookfs
         cookfs::Mount $file $file -compression none
     }
-    lappend result [file type $file]
+    assertEq [file type $file] "directory"
     interp delete $i
-    lappend result [file type $file]
+    assertEq [file type $file] "file"
 } -cleanup {
     catch { interp delete $i }
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file i result
-} -result {directory file}
+} -ok
 
 # This test is related to cookfsVfs-20.1.2. If something needs to be changed here,
 # the appropriate changes should be added to cookfsVfs-20.1.2.
-tcltest::test cookfsVfs-20.1.1 "Don't crash when stamp is not present" -setup {
+test cookfsVfs-20.1.1 "Don't crash when stamp is not present" -setup {
     # base compression + base compression level + encryption
     set data [binary format ccc 0 0 0]
     # pgindex
@@ -1592,20 +1286,16 @@ tcltest::test cookfsVfs-20.1.1 "Don't crash when stamp is not present" -setup {
         {0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0} \
         0 0]
     append data "CFS0003"
-    set file [tcltest::makeBinFile $data pages.cfs]
+    set file [makeBinFile $data pages.cfs]
 } -body {
     cookfs::Mount $file $file -readonly
-    # We must not crash
-    set ok ok
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain data index file ok
-} -result ok
+    cookfs::Unmount $file
+} -ok
 
 # This test differs from the previous one in that there is no byte representing
 # the compression level in the tail of the archive
-tcltest::test cookfsVfs-20.1.2 "Don't crash when stamp is not present and archive suffix is malformed" -setup {
+test cookfsVfs-20.1.2 "Don't crash when stamp is not present and archive suffix is malformed" -setup {
     # base compression + encryption
     set data [binary format cc 0 0]
     # pgindex
@@ -1619,79 +1309,68 @@ tcltest::test cookfsVfs-20.1.2 "Don't crash when stamp is not present and archiv
         {0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0} \
         0 0]
     append data "CFS0003"
-    set file [tcltest::makeBinFile $data pages.cfs]
+    set file [makeBinFile $data pages.cfs]
 } -body {
     cookfs::Mount $file $file -readonly
-    # We must not crash
-    set ok notok
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain data index file ok
-} -returnCodes error -result {Unable to create Cookfs object: index not found}
+} -error {Unable to create Cookfs object: index not found}
 
-tcltest::test cookfsVfs-21.1 "Open a file that starts as a mount point without an error" -setup {
-    set cfs [tcltest::makeBinFile {} pages.cfs]
-    set checkfile1 [tcltest::makeFile {OUTSIDE} pages.cfs.test]
+test cookfsVfs-21.1 "Open a file that starts as a mount point without an error" -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    set checkfile1 [makeFile {OUTSIDE} pages.cfs.test]
+    variable checkfile2
 } -body {
     cookfs::Mount $cfs $cfs -compression none
-    set checkfile2 [tcltest::makeFile {INSIDE} test $cfs]
-    list [tcltest::viewFile $checkfile1] [tcltest::viewFile $checkfile2]
+    set checkfile2 [makeFile {INSIDE} test $cfs]
+    assertEq [viewFile $checkfile1] OUTSIDE
+    assertEq [viewFile $checkfile2] INSIDE
 } -cleanup {
-    catch { cookfs::Unmount $cfs }
-    tcltest::removeFile $checkfile1
-    tcltest::removeFile $cfs
-    unset -nocomplain cfs checkfile1 checkfile2
-} -result {OUTSIDE INSIDE}
+    cookfs::Unmount $cfs
+} -ok
 
-tcltest::test cookfsVfs-22.1.1 "Verify VFS mount point with a filesystem separator at the end" -setup {
-    set cfs [tcltest::makeBinFile {} pages.cfs]
+test cookfsVfs-22.1.1 "Verify VFS mount point with a filesystem separator at the end" -setup {
+    set cfs [makeBinFile {} pages.cfs]
     set mnt "mount:/"
 } -body {
     cookfs::Mount $cfs $mnt -compression none -volume
-    tcltest::makeFile {INSIDE} test $mnt
-    tcltest::viewFile "${mnt}test"
+    makeFile {INSIDE} test $mnt
+    viewFile "${mnt}test"
 } -cleanup {
-    catch { cookfs::Unmount $mnt }
-    tcltest::removeFile $cfs
-    unset -nocomplain cfs mnt
+    cookfs::Unmount $mnt
 } -result {INSIDE}
 
-tcltest::test cookfsVfs-22.1.2 "Verify VFS mount point with a filesystem separator at the end (using join)" -setup {
-    set cfs [tcltest::makeBinFile {} pages.cfs]
+test cookfsVfs-22.1.2 "Verify VFS mount point with a filesystem separator at the end (using join)" -setup {
+    set cfs [makeBinFile {} pages.cfs]
     set mnt "mount:/"
 } -body {
     cookfs::Mount $cfs $mnt -compression none -volume
-    tcltest::makeFile {INSIDE} test $mnt
-    tcltest::viewFile [file join $mnt "test"]
+    makeFile {INSIDE} test $mnt
+    viewFile [file join $mnt "test"]
 } -cleanup {
-    catch { cookfs::Unmount $mnt }
-    tcltest::removeFile $cfs
-    unset -nocomplain cfs mnt
+    cookfs::Unmount $mnt
 } -result {INSIDE}
 
-tcltest::test cookfsVfs-22.2.1 "Verify VFS mount point with 2 filesystem separators at the end" -setup {
-    set cfs [tcltest::makeBinFile {} pages.cfs]
+test cookfsVfs-22.2.1 "Verify VFS mount point with 2 filesystem separators at the end" -setup {
+    set cfs [makeBinFile {} pages.cfs]
     set mnt "mount://"
 } -body {
     cookfs::Mount $cfs $mnt -compression none -volume
-    tcltest::makeFile {INSIDE} test $mnt
-    tcltest::viewFile "${mnt}test"
+    makeFile {INSIDE} test $mnt
+    viewFile "${mnt}test"
 } -cleanup {
-    catch { cookfs::Unmount $mnt }
-    tcltest::removeFile $cfs
-    unset -nocomplain cfs mnt
+    cookfs::Unmount $mnt
 } -result {INSIDE}
 
-tcltest::test cookfsVfs-22.2.2 "Verify VFS mount point with 2 filesystem separators at the end (using join)" -setup {
-    set cfs [tcltest::makeBinFile {} pages.cfs]
+test cookfsVfs-22.2.2 "Verify VFS mount point with 2 filesystem separators at the end (using join)" -setup {
+    set cfs [makeBinFile {} pages.cfs]
     set mnt "mount://"
 } -body {
     cookfs::Mount $cfs $mnt -compression none -volume
-    tcltest::makeFile {INSIDE} test $mnt
-    tcltest::viewFile [file join $mnt "test"]
+    makeFile {INSIDE} test $mnt
+    viewFile [file join $mnt "test"]
 } -cleanup {
-    catch { cookfs::Unmount $mnt }
-    tcltest::removeFile $cfs
-    unset -nocomplain cfs mnt
+    cookfs::Unmount $mnt
 } -result {INSIDE}
+
+cleanupTests

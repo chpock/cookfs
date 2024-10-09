@@ -1,5 +1,6 @@
+source [file join [file dirname [info script]] common.tcl]
 
-tcltest::test cookfsPkgconfig-1 "Check pkgconfig fields and their types" -body {
+test cookfsPkgconfig-1 "Check pkgconfig fields and their types" -body {
     set result [list {}]
     foreach f [lsort [::cookfs::pkgconfig list]] {
         set v [::cookfs::pkgconfig get $f]
@@ -34,3 +35,5 @@ feature-zstd bool
 package-version version
 tcl-commands bool
 }
+
+cleanupTests

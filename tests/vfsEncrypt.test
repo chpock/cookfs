@@ -1,90 +1,80 @@
+source [file join [file dirname [info script]] common.tcl]
 
 # All complex cases should be checked in pagesEncrypt.test
 #
 # Here we are just checking if the encryption related commands/options
 # are correctly passed from VFS to the pages object.
 
-tcltest::test cookfsVfsEncrypt-1.1.1 "Test error when password argument has no value" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsEncrypt-1.1.1 "Test error when password argument has no value" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} cookfs.cfs]
 } -body {
     cookfs::Mount -password $file $file
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file
-} -returnCodes error -result {wrong # args: should be "cookfs::Mount ?-option value ...? archive local ?-option value ...?"}
+} -error {wrong # args: should be "cookfs::Mount ?-option value ...? archive local ?-option value ...?"}
 
-tcltest::test cookfsVfsEncrypt-1.1.2 "Test error when password argument has no value" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsEncrypt-1.1.2 "Test error when password argument has no value" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} cookfs.cfs]
 } -body {
     cookfs::Mount $file $file -password
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file
-} -returnCodes error -result {missing argument to -password option}
+} -error {missing argument to -password option}
 
-tcltest::test cookfsVfsEncrypt-1.1.3 "Test error when password argument ia an empty string" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsEncrypt-1.1.3 "Test error when password argument ia an empty string" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} cookfs.cfs]
 } -body {
     cookfs::Mount $file $file -password ""
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file
-} -returnCodes error -result {Unable to create Cookfs object: password value must not be an empty string}
+} -error {Unable to create Cookfs object: password value must not be an empty string}
 
-tcltest::test cookfsVfsEncrypt-1.2.1 "Test error when encryptlevel argument has no value" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsEncrypt-1.2.1 "Test error when encryptlevel argument has no value" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} cookfs.cfs]
 } -body {
     cookfs::Mount -encryptlevel $file $file
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file
-} -returnCodes error -match glob -result {integer argument is expected for -encryptlevel option, but got "*"}
+} -match glob -error {integer argument is expected for -encryptlevel option, but got "*"}
 
-tcltest::test cookfsVfsEncrypt-1.2.2 "Test error when encryptlevel argument has no value" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
+test cookfsVfsEncrypt-1.2.2 "Test error when encryptlevel argument has no value" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} cookfs.cfs]
 } -body {
     cookfs::Mount $file $file -encryptlevel
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file
-} -returnCodes error -result {missing argument to -encryptlevel option}
+} -error {missing argument to -encryptlevel option}
 
-tcltest::test cookfsVfsEncrypt-2.1 "Test error for password subcommand with no args" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
-} -body {
+test cookfsVfsEncrypt-2.1 "Test error for password subcommand with no args" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
+} -body {
     $fsid password
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::vfs::mount* password password"}
+    cookfs::Unmount $file
+} -match glob -error {wrong # args: should be "::cookfs::*::vfs::mount* password password"}
 
-tcltest::test cookfsVfsEncrypt-2.2 "Test error for password subcommand with wrong # args" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} cookfs.cfs]
-} -body {
+test cookfsVfsEncrypt-2.2 "Test error for password subcommand with wrong # args" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
+} -body {
     $fsid password a a
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::vfs::mount* password password"}
+    cookfs::Unmount $file
+} -match glob -error {wrong # args: should be "::cookfs::*::vfs::mount* password password"}
 
-tcltest::test cookfsVfsEncrypt-3.1 "Check that there are no additinal data after signature with no encryption" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsVfsEncrypt-3.1 "Check that there are no additinal data after signature with no encryption" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
+    variable size
+    variable data
+    variable offset
 } -body {
     cookfs::Mount $file $file -compression none
-    tcltest::makeFile {TEST} test.file $file
+    makeFile {TEST} test.file $file
     cookfs::Unmount $file
 
     set size [file size $file]
-    set data [tcltest::viewBinFile $file]
+    set data [viewBinFile $file]
     set offset [string last "CFS0003" $data]
     incr offset [string length "CFS0003"]
 
@@ -92,19 +82,20 @@ tcltest::test cookfsVfsEncrypt-3.1 "Check that there are no additinal data after
 
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file size data offset
 } -result 0
 
-tcltest::test cookfsVfsEncrypt-3.2 "Check that there are 16 bytes (password salt) additinal data after signature with file encryption" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsVfsEncrypt-3.2 "Check that there are 16 bytes (password salt) additinal data after signature with file encryption" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
+    variable size
+    variable data
+    variable offset
 } -body {
     cookfs::Mount $file $file -compression none -encryptlevel 0 -password foo
-    tcltest::makeFile {TEST} test.file $file
+    makeFile {TEST} test.file $file
     cookfs::Unmount $file
 
     set size [file size $file]
-    set data [tcltest::viewBinFile $file]
+    set data [viewBinFile $file]
     set offset [string last "CFS0003" $data]
     incr offset [string length "CFS0003"]
 
@@ -112,19 +103,20 @@ tcltest::test cookfsVfsEncrypt-3.2 "Check that there are 16 bytes (password salt
 
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file size data offset
 } -result 16
 
-tcltest::test cookfsVfsEncrypt-3.3 "Check that there are 64 bytes additinal data after signature with key encryption" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsVfsEncrypt-3.3 "Check that there are 64 bytes additinal data after signature with key encryption" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
+    variable size
+    variable data
+    variable offset
 } -body {
     cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey -password foo
-    tcltest::makeFile {TEST} test.file $file
+    makeFile {TEST} test.file $file
     cookfs::Unmount $file
 
     set size [file size $file]
-    set data [tcltest::viewBinFile $file]
+    set data [viewBinFile $file]
     set offset [string last "CFS0003" $data]
     incr offset [string length "CFS0003"]
 
@@ -137,411 +129,264 @@ tcltest::test cookfsVfsEncrypt-3.3 "Check that there are 64 bytes additinal data
 
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file size data offset
 } -result 80
 
-tcltest::test cookfsVfsEncrypt-4.1 "Test file encryption" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-} -body {
+test cookfsVfsEncrypt-4.1 "Test file encryption" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -password foo]
     # this file should be encrypted
-    tcltest::makeFile {TEST00TEST} test0 $file
+    makeFile {TEST00TEST} test0 $file
     $fsid password ""
     # this page should be not encrypted
-    tcltest::makeFile {TEST01TEST} test1 $file
+    makeFile {TEST01TEST} test1 $file
     $fsid password "bar"
     # this page should be encrypted
-    tcltest::makeFile {TEST02TEST} test2 $file
+    makeFile {TEST02TEST} test2 $file
     cookfs::Unmount $file
-
+    variable data
+} -body {
     # check how pages were stored to archive
-    set data [tcltest::viewBinFile $file]
-    set result [list]
-    if { [set pos [string first "TEST00TEST" $data]] != -1 } {
-        lappend result "test0: expected -1, but got $pos"
-    }
-    if { [set pos [string first "TEST01TEST" $data]] == -1 } {
-        lappend result "test1: expected NOT -1, but got $pos"
-    }
-    if { [set pos [string first "TEST02TEST" $data]] != -1 } {
-        lappend result "test2: expected -1, but got $pos"
-    }
+    set data [viewBinFile $file]
+    assertNotContain $data "TEST00TEST" "test0 should be encrypted"
+    assertContain $data "TEST01TEST" "test1 should be unencrypted"
+    assertNotContain $data "TEST02TEST" "test2 should be encrypted"
 
     # check how files can be read from archive
     set fsid [cookfs::Mount $file $file -readonly -password foo]
-    set data [tcltest::viewFile test0 $file]
-    if { $data ne "TEST00TEST" } {
-        lappend result "test0: incorrect data"
-    }
-    set data [tcltest::viewFile test1 $file]
-    if { $data ne "TEST01TEST" } {
-        lappend result "test1: incorrect data"
-    }
+    assertEq [viewFile test0 $file] "TEST00TEST" "test0: incorrect data"
+    assertEq [viewFile test1 $file] "TEST01TEST" "test1: incorrect data"
     $fsid password "bar"
-    set data [tcltest::viewFile test2 $file]
-    if { $data ne "TEST02TEST" } {
-        lappend result "test2: incorrect data"
-    }
-
-    join $result \n
+    assertEq [viewFile test2 $file] "TEST02TEST" "test2: incorrect data"
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid data result pos
-} -result {}
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfsEncrypt-4.2 "Test file encryption, password set after initialization" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-} -body {
+test cookfsVfsEncrypt-4.2 "Test file encryption, password set after initialization" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0]
     # this file should be not encrypted
-    tcltest::makeFile {TEST00TEST} test0 $file
+    makeFile {TEST00TEST} test0 $file
     $fsid password "foo"
     # this file should be encrypted
-    tcltest::makeFile {TEST01TEST} test1 $file
+    makeFile {TEST01TEST} test1 $file
     $fsid password "bar"
     # this page should be encrypted
-    tcltest::makeFile {TEST02TEST} test2 $file
+    makeFile {TEST02TEST} test2 $file
     cookfs::Unmount $file
-
+    variable data
+} -body {
     # check how pages were stored to archive
-    set data [tcltest::viewBinFile $file]
-    set result [list]
-    if { [set pos [string first "TEST00TEST" $data]] == -1 } {
-        lappend result "file0: expected NOT -1, but got $pos"
-    }
-    if { [set pos [string first "TEST01TEST" $data]] != -1 } {
-        lappend result "file1: expected -1, but got $pos"
-    }
-    if { [set pos [string first "TEST02TEST" $data]] != -1 } {
-        lappend result "file1: expected -1, but got $pos"
-    }
+    set data [viewBinFile $file]
+    assertContain $data "TEST00TEST" "test0 should be unencrypted"
+    assertNotContain $data "TEST01TEST" "test1 should be encrypted"
+    assertNotContain $data "TEST02TEST" "test2 should be encrypted"
 
     # check how files can be read from archive
     set fsid [cookfs::Mount $file $file -readonly]
-    set data [tcltest::viewFile test0 $file]
-    if { $data ne "TEST00TEST" } {
-        lappend result "test0: incorrect data"
-    }
+    assertEq [viewFile test0 $file] "TEST00TEST" "test0: incorrect data"
     $fsid password "foo"
-    set data [tcltest::viewFile test1 $file]
-    if { $data ne "TEST01TEST" } {
-        lappend result "test1: incorrect data"
-    }
+    assertEq [viewFile test1 $file] "TEST01TEST" "test1: incorrect data"
     $fsid password "bar"
-    set data [tcltest::viewFile test2 $file]
-    if { $data ne "TEST02TEST" } {
-        lappend result "test2: incorrect data"
-    }
-
-    join $result \n
+    assertEq [viewFile test2 $file] "TEST02TEST" "test2: incorrect data"
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid data result pos
-} -result {}
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfsEncrypt-4.3.1 "Test file encryption, no password when using writerchannel" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-} -body {
+test cookfsVfsEncrypt-4.3.1 "Test file encryption, no password when using writerchannel" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -password foo -smallfilebuffer 0]
-
-    set fd [open [file join $file test] w]
-    puts -nonewline $fd "TEST"
-    close $fd
-
+    set checkfile [makeBinFile "TEST" test $file]
+    variable fd
+} -body {
     $fsid password ""
-
-    set fd [open [file join $file test] r+]
-    set data [read $fd]
-    close $fd
-
-    # we expect an error when opening the file
-    set notok notok
+    set fd [open $checkfile r+]
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid fs data notok fd
-} -returnCodes error -match glob -result {couldn't open "*": no password specified for decrypting}
+    catch { close $fd }
+    cookfs::Unmount $file
+} -match glob -error {couldn't open "*": no password specified for decrypting}
 
-tcltest::test cookfsVfsEncrypt-4.3.2 "Test file encryption, wrong password when using writerchannel" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-} -body {
+test cookfsVfsEncrypt-4.3.2 "Test file encryption, wrong password when using writerchannel" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -password foo -smallfilebuffer 0]
-
-    set fd [open [file join $file test] w]
-    puts -nonewline $fd "TEST"
-    close $fd
-
+    set checkfile [makeBinFile "TEST" test $file]
+    variable fd
+} -body {
     $fsid password "bar"
-
-    set fd [open [file join $file test] r+]
-    set data [read $fd]
-    close $fd
-
-    # we expect an error when opening the file
-    set notok notok
+    set fd [open $checkfile r+]
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid fs data notok fd
-} -returnCodes error -match glob -result {couldn't open "*": failed to verify read data, the decryption password is incorrect or the archive is corrupted}
+    catch { close $fd }
+    cookfs::Unmount $file
+} -match glob -error {couldn't open "*": failed to verify read data, the decryption password is incorrect or the archive is corrupted}
 
-tcltest::test cookfsVfsEncrypt-4.4.1 "Test file encryption, no password when using readerchannel" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-} -body {
+test cookfsVfsEncrypt-4.4.1 "Test file encryption, no password when using readerchannel" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -password foo -smallfilebuffer 0]
-
-    set fd [open [file join $file test] w]
-    puts -nonewline $fd "TEST"
-    close $fd
-
+    set checkfile [makeBinFile "TEST" test $file]
+} -body {
     $fsid password ""
-
-    set fd [open [file join $file test] r]
-    set data [read $fd]
-    close $fd
-
-    # we expect an error when opening the file
-    set notok notok
+    set fd [open $checkfile rb]
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid fs data notok fd
-} -returnCodes error -match glob -result {couldn't open "*": no password specified for decrypting}
+    catch { close $fd }
+    cookfs::Unmount $file
+} -match glob -error {couldn't open "*": no password specified for decrypting}
 
-tcltest::test cookfsVfsEncrypt-4.4.2 "Test file encryption, wrong password when using readerchannel" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-} -body {
+test cookfsVfsEncrypt-4.4.2 "Test file encryption, wrong password when using readerchannel" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -password foo -smallfilebuffer 0]
-
-    set fd [open [file join $file test] w]
-    puts -nonewline $fd "TEST"
-    close $fd
-
-    $fsid password "bar"
-
-    set fd [open [file join $file test] r]
-    set data [read $fd]
-    close $fd
-
-    # we expect an error when opening the file
-    set notok notok
-} -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid fs data notok fd
-} -returnCodes error -match glob -result {couldn't open "*": failed to verify read data, the decryption password is incorrect or the archive is corrupted}
-
-tcltest::test cookfsVfsEncrypt-5.1 "Test key-index encryption" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+    set checkfile [makeBinFile "TEST" test $file]
 } -body {
+    $fsid password "bar"
+    set fd [open $checkfile rb]
+} -cleanup {
+    catch { close $fd }
+    cookfs::Unmount $file
+} -match glob -error {couldn't open "*": failed to verify read data, the decryption password is incorrect or the archive is corrupted}
+
+test cookfsVfsEncrypt-5.1 "Test key-index encryption" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     # Set a password at initialization to enable index encryption
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey -password foo]
     # this file should be encrypted
-    tcltest::makeFile {TEST00TEST} test0 $file
+    makeFile {TEST00TEST} test0 $file
     $fsid password ""
     # this file should be not encrypted
-    tcltest::makeFile {TEST01TEST} test1 $file
+    makeFile {TEST01TEST} test1 $file
     $fsid password "bar"
     # this file should be encrypted
-    tcltest::makeFile {TEST02TEST} test2 $file
+    makeFile {TEST02TEST} test2 $file
     cookfs::Unmount $file
-
+    variable data
+} -body {
     # check how pages were stored to archive
-    set data [tcltest::viewBinFile $file]
-    set result [list]
-    if { [set pos [string first "TEST00TEST" $data]] != -1 } {
-        lappend result "page #0: expected -1, but got $pos"
-    }
-    if { [set pos [string first "TEST01TEST" $data]] == -1 } {
-        lappend result "page #2: expected NOT -1, but got $pos"
-    }
-    if { [set pos [string first "TEST02TEST" $data]] != -1 } {
-        lappend result "page #2: expected -1, but got $pos"
-    }
+    set data [viewBinFile $file]
+    assertNotContain $data "TEST00TEST" "test0 should be encrypted"
+    assertContain $data "TEST01TEST" "test1 should be unencrypted"
+    assertNotContain $data "TEST02TEST" "test2 should be encrypted"
 
     # Check how files can be read from archive. The latest password was "bar".
     set fsid [cookfs::Mount $file $file -readonly -password bar]
-    if { [tcltest::viewFile test0 $file] ne "TEST00TEST" } {
-        lappend result "file #0: incorrect data"
-    }
-    if { [tcltest::viewFile test1 $file] ne "TEST01TEST" } {
-        lappend result "file #1: incorrect data"
-    }
+    assertEq [viewFile test0 $file] "TEST00TEST" "test0: incorrect data"
+    assertEq [viewFile test1 $file] "TEST01TEST" "test1: incorrect data"
     # As we have key-based encryption, we have set any password.
     $fsid password "foo"
-    if { [tcltest::viewFile test2 $file] ne "TEST02TEST" } {
-        lappend result "file #2: incorrect data"
-    }
-
-    join $result \n
+    assertEq [viewFile test2 $file] "TEST02TEST" "test2: incorrect data"
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid data result pos
-} -result {}
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfsEncrypt-5.2.1 "Test key-index encryption, open protected archive without password (readonly mode)" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsVfsEncrypt-5.2.1 "Test key-index encryption, open protected archive without password (readonly mode)" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     # Set a password at initialization to enable index encryption
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey -password foo]
-    tcltest::makeFile {TEST} test0 $file
+    makeFile {TEST} test0 $file
     cookfs::Unmount $file
 } -body {
     cookfs::Mount $file $file -readonly
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes error -result {Unable to create Cookfs object: the required password for the encrypted archive is missing}
+} -error {Unable to create Cookfs object: the required password for the encrypted archive is missing}
 
-tcltest::test cookfsVfsEncrypt-5.2.2 "Test key-index encryption, open protected archive without password (readwrite mode)" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsVfsEncrypt-5.2.2 "Test key-index encryption, open protected archive without password (readwrite mode)" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     # Set a password at initialization to enable index encryption
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey -password foo]
-    tcltest::makeFile {TEST} test0 $file
+    makeFile {TEST} test0 $file
     cookfs::Unmount $file
 } -body {
     cookfs::Mount $file $file
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes error -result {Unable to create Cookfs object: the required password for the encrypted archive is missing}
+} -error {Unable to create Cookfs object: the required password for the encrypted archive is missing}
 
-tcltest::test cookfsVfsEncrypt-5.3.1 "Test key-index encryption, open protected archive with wrong password (readonly mode)" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsVfsEncrypt-5.3.1 "Test key-index encryption, open protected archive with wrong password (readonly mode)" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     # Set a password at initialization to enable index encryption
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey -password foo]
-    tcltest::makeFile {TEST} test0 $file
+    makeFile {TEST} test0 $file
     cookfs::Unmount $file
 } -body {
     cookfs::Mount $file $file -readonly -password bar
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes error -result {Unable to create Cookfs object: could not decrypt the encryption key with the specified password}
+} -error {Unable to create Cookfs object: could not decrypt the encryption key with the specified password}
 
-tcltest::test cookfsVfsEncrypt-5.3.2 "Test key-index encryption, open protected archive with wrong password (readwrite mode)" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsVfsEncrypt-5.3.2 "Test key-index encryption, open protected archive with wrong password (readwrite mode)" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     # Set a password at initialization to enable index encryption
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey -password foo]
-    tcltest::makeFile {TEST} test0 $file
+    makeFile {TEST} test0 $file
     cookfs::Unmount $file
 } -body {
     cookfs::Mount $file $file -password bar
 } -cleanup {
     catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
-} -returnCodes error -result {Unable to create Cookfs object: could not decrypt the encryption key with the specified password}
+} -error {Unable to create Cookfs object: could not decrypt the encryption key with the specified password}
 
-tcltest::test cookfsVfsEncrypt-5.3.3 "Test key-index encryption, open protected archive with wrong password (readwrite mode), ensure that archive is not broken" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsVfsEncrypt-5.3.3 "Test key-index encryption, open protected archive with wrong password (readwrite mode), ensure that archive is not broken" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     # Set a password at initialization to enable index encryption
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey -password foo]
-    tcltest::makeFile {TEST} test0 $file
+    makeFile {TEST} test0 $file
     cookfs::Unmount $file
 } -body {
-    catch { cookfs::Mount $file /fake_mount_point -password bar }
-    catch { cookfs::Unmount /fake_mount_point }
+    assertErrMsg { cookfs::Mount $file /fake_mount_point -password bar } {Unable to create Cookfs object: could not decrypt the encryption key with the specified password}
     cookfs::Mount $file $file -password foo
-    tcltest::viewFile test0 $file
+    viewFile test0 $file
 } -cleanup {
-    catch { cookfs::Unmount $file }
+    cookfs::Unmount $file
     catch { cookfs::Unmount /fake_mount_point }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid
 } -result {TEST}
 
-tcltest::test cookfsVfsEncrypt-6.1 "Test key encryption" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-} -body {
+test cookfsVfsEncrypt-6.1 "Test key encryption" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     # Do not set a password at initialization to avoid encrypting the indexes
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey]
     $fsid password "foo"
     # this file should be encrypted
-    tcltest::makeFile {TEST00TEST} test0 $file
+    makeFile {TEST00TEST} test0 $file
     $fsid password ""
     # this file should be not encrypted
-    tcltest::makeFile {TEST01TEST} test1 $file
+    makeFile {TEST01TEST} test1 $file
     $fsid password "bar"
     # this file should be encrypted
-    tcltest::makeFile {TEST02TEST} test2 $file
+    makeFile {TEST02TEST} test2 $file
     cookfs::Unmount $file
-
+    variable data
+} -body {
     # check how pages were stored to archive
-    set data [tcltest::viewBinFile $file]
-    set result [list]
-    if { [set pos [string first "TEST00TEST" $data]] != -1 } {
-        lappend result "page #0: expected -1, but got $pos"
-    }
-    if { [set pos [string first "TEST01TEST" $data]] == -1 } {
-        lappend result "page #2: expected NOT -1, but got $pos"
-    }
-    if { [set pos [string first "TEST02TEST" $data]] != -1 } {
-        lappend result "page #2: expected -1, but got $pos"
-    }
+    set data [viewBinFile $file]
+    assertNotContain $data "TEST00TEST" "test0 should be encrypted"
+    assertContain $data "TEST01TEST" "test1 should be unencrypted"
+    assertNotContain $data "TEST02TEST" "test2 should be encrypted"
 
     # Check how files can be read from archive. The latest password was "bar".
     set fsid [cookfs::Mount $file $file -readonly -password bar]
-    if { [tcltest::viewFile test0 $file] ne "TEST00TEST" } {
-        lappend result "file #0: incorrect data"
-    }
-    if { [tcltest::viewFile test1 $file] ne "TEST01TEST" } {
-        lappend result "file #1: incorrect data"
-    }
+    assertEq [viewFile test0 $file] "TEST00TEST" "test0: incorrect data"
+    assertEq [viewFile test1 $file] "TEST01TEST" "test1: incorrect data"
     # As we have key-based encryption, we have set any password.
     $fsid password "foo"
-    if { [tcltest::viewFile test2 $file] ne "TEST02TEST" } {
-        lappend result "file #2: incorrect data"
-    }
-
-    join $result \n
+    assertEq [viewFile test2 $file] "TEST02TEST" "test2: incorrect data"
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid data result pos
-} -result {}
+    cookfs::Unmount $file
+} -ok
 
-tcltest::test cookfsVfsEncrypt-6.2 "Test key encryption, without password and with wrong password" -constraints {cookfsCrypto} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
-} -body {
+test cookfsVfsEncrypt-6.2 "Test key encryption, without password and with wrong password" -constraints {cookfsCrypto} -setup {
+    set file [makeFile {} pages.cfs]
     # Do not set a password at initialization to avoid encrypting the indexes
     set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0 -encryptkey]
-    tcltest::makeFile {TEST00TEST} test0 $file
+    makeFile {TEST00TEST} test0 $file
     $fsid password "foo"
-    tcltest::makeFile {TEST01TEST} test1 $file
+    makeFile {TEST01TEST} test1 $file
     cookfs::Unmount $file
-
-    set result [list]
+} -body {
     set fsid [cookfs::Mount $file $file -readonly]
-
-    # TEST00TEST
-    lappend result [tcltest::viewFile test0 $file]
-
-    # couldn't open "*": no password specified for decrypting
-    catch { tcltest::viewFile test1 $file } err
-    lappend result $err
-
-    # could not decrypt the encryption key with the specified password
-    catch { $fsid password "bar" } err
-    lappend result $err
-
+    assertEq [viewFile test0 $file] "TEST00TEST"
+    assertErrMsgMatch { viewFile test1 $file } {couldn't open "*": no password specified for decrypting}
+    assertErrMsg { $fsid password "bar" } {could not decrypt the encryption key with the specified password}
     $fsid password "foo"
-
-    # TEST01TEST
-    lappend result [tcltest::viewFile test1 $file]
-
-    join $result \n
+    assertEq [viewFile test1 $file] "TEST01TEST"
 } -cleanup {
-    catch { cookfs::Unmount $file }
-    tcltest::removeFile $file
-    unset -nocomplain file fsid result err
-} -match glob -result {TEST00TEST
-couldn't open "*": no password specified for decrypting
-could not decrypt the encryption key with the specified password
-TEST01TEST}
+    cookfs::Unmount $file
+} -ok
+
+cleanupTests

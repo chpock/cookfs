@@ -50,6 +50,7 @@ enum cookfsAttributes {
 
 typedef struct ThreadSpecificData {
     int initialized;
+    int initialized_objects;
     Tcl_Obj *attrListRoot;
     Tcl_Obj *attrList;
     Tcl_Obj *attrValVfs;
@@ -116,11 +117,11 @@ const Tcl_Filesystem *CookfsFilesystem(void) {
     return &cookfsFilesystem;
 }
 
-static void CookfsThreadExitProc(ClientData clientData) {
+void CookfsThreadExitProc(ClientData clientData) {
     UNUSED(clientData);
     CookfsLog(printf("CookfsThreadExitProc (driver): ENTER"));
     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
-    if (tsdPtr->initialized) {
+    if (tsdPtr->initialized_objects) {
         if (tsdPtr->attrListRoot != NULL) {
             Tcl_DecrRefCount(tsdPtr->attrListRoot);
             tsdPtr->attrListRoot = NULL;
@@ -133,7 +134,7 @@ static void CookfsThreadExitProc(ClientData clientData) {
             Tcl_DecrRefCount(tsdPtr->attrValVfs);
             tsdPtr->attrValVfs = NULL;
         }
-        tsdPtr->initialized = 0;
+        tsdPtr->initialized_objects = 0;
     }
     CookfsLog(printf("CookfsThreadExitProc (driver): ok"));
 }
@@ -142,6 +143,9 @@ static ThreadSpecificData *CookfsGetThreadSpecificData(void) {
     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
     if (!tsdPtr->initialized) {
         Tcl_CreateThreadExitHandler(CookfsThreadExitProc, NULL);
+        tsdPtr->initialized = 1;
+    }
+    if (!tsdPtr->initialized_objects) {
         Tcl_Obj *objv[2];
         objv[0] = Tcl_NewStringObj("-vfs", -1);
         objv[1] = Tcl_NewStringObj("-handle", -1);
@@ -151,8 +155,7 @@ static ThreadSpecificData *CookfsGetThreadSpecificData(void) {
         Tcl_IncrRefCount(tsdPtr->attrList);
         tsdPtr->attrValVfs = Tcl_NewIntObj(1);
         Tcl_IncrRefCount(tsdPtr->attrValVfs);
-
-        tsdPtr->initialized = 1;
+        tsdPtr->initialized_objects = 1;
     }
     return tsdPtr;
 }

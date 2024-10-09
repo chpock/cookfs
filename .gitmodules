@@ -10,3 +10,6 @@
 [submodule "brotli"]
 	path = brotli
 	url = https://github.com/google/brotli.git
+[submodule "tests/tcltestex"]
+	path = tests/tcltestex
+	url = https://github.com/chpock/tcltestex.git
