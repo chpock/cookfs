@@ -1,3 +1,56 @@
+# cookit tests
+#
+# Copyright (C) 2024 Konstantin Kushnir <chpock@gmail.com>
+#
+# See the file "license.terms" for information on usage and redistribution of
+# this file, and for a DISCLAIMER OF ALL WARRANTIES.
+
+source [file join [file dirname [info script]] tcltestex tcltestex.tcl]
+namespace import tcltest::*
+configure {*}$argv -testdir [file dirname [info script]]
+
+package require cookfs
+
+catch {
+    package require vfs
+    # Make sure this array exists to avoid messages from memory leak hunter
+    array set ::vfs::_unmountCmd [list]
+}
+catch { package require Thread }
+
+namespace eval ::tcltest {
+
+    testConstraint cookfsCompressionNone 1
+    testConstraint cookfsCompressionZlib 1
+    testConstraint cookfsCompressionBz2    [cookfs::pkgconfig get feature-bzip2]
+    testConstraint cookfsCompressionLzma   [cookfs::pkgconfig get feature-lzma]
+    testConstraint cookfsCompressionZstd   [cookfs::pkgconfig get feature-zstd]
+    testConstraint cookfsCompressionBrotli [cookfs::pkgconfig get feature-brotli]
+
+    testConstraint cookfsAside             [cookfs::pkgconfig get feature-aside]
+    testConstraint cookfsMetadata          [cookfs::pkgconfig get feature-metadata]
+    testConstraint cookfsCrypto            [cookfs::pkgconfig get feature-crypto]
+
+    testConstraint enabledCVfs     [cookfs::pkgconfig get c-vfs]
+    testConstraint disabledCVfs    [expr { ![cookfs::pkgconfig get c-vfs] }]
+    testConstraint enabledCPages   [cookfs::pkgconfig get c-pages]
+    testConstraint disabledCPages  [expr { ![cookfs::pkgconfig get c-pages] }]
+    testConstraint enabledTclCmds  [cookfs::pkgconfig get tcl-commands]
+    testConstraint disabledTclCmds [expr { ![cookfs::pkgconfig get tcl-commands] }]
+    testConstraint enabledCWriter  [cookfs::pkgconfig get c-writer]
+    testConstraint disabledCWriter [expr { ![cookfs::pkgconfig get c-writer] }]
+
+    testConstraint packageTclvfs [expr { ![catch { package present vfs }] }]
+
+    testConstraint threaded [::tcl::pkgconfig get threaded]
+
+    testConstraint tcl86 [expr { $::tcl_version < 9.0 }]
+    testConstraint tcl90 [expr { $::tcl_version >= 9.0 }]
+
+    testConstraint runCookfsWriter [file exists [file join [file dirname [info script]] .. cookfswriter cookfswriter.tcl]]
+
+}
+
 if {[info exists ::env(DEBUG)]} {
     proc cookfs::debug {code} {puts [uplevel 1 [list subst $code]]}
 }
@@ -208,15 +261,6 @@ proc testOptimizedList { base files fsindex } {
         }
     }
 
-}
-
-proc testMultipleMatch { result args } {
-    foreach match $args {
-        if { [string match $match $result] } {
-            return ok
-        }
-    }
-    return $result
 }
 
 proc testIfEqual {a b} {

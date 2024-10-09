@@ -11,6 +11,7 @@
 #include "fsindexIO.h"
 #include "vfsCmd.h"
 #include "vfsVfs.h"
+#include "vfsDriver.h"
 #include "pagesCompr.h"
 #include "pagesCmd.h"
 #include "fsindexCmd.h"
@@ -66,6 +67,9 @@ typedef int (Cookfs_MountHandleCommandProc)(Cookfs_Vfs *vfs,
 static Tcl_ObjCmdProc CookfsMountCmd;
 static Tcl_ObjCmdProc CookfsUnmountCmd;
 static Tcl_ObjCmdProc CookfsMountHandleCmd;
+#if defined(TCL_MEM_DEBUG)
+static Tcl_ObjCmdProc CookfsResetCacheCmd;
+#endif /* defined(TCL_MEM_DEBUG) */
 static Tcl_CmdDeleteProc CookfsMountHandleCmdDeleteProc;
 
 int Cookfs_InitVfsMountCmd(Tcl_Interp *interp) {
@@ -88,9 +92,28 @@ int Cookfs_InitVfsMountCmd(Tcl_Interp *interp) {
     Tcl_CreateAlias(interp, "::cookfs::Unmount", interp,
         "::cookfs::c::Unmount", 0, NULL);
 
+#if defined(TCL_MEM_DEBUG)
+    Tcl_CreateObjCommand(interp, "::cookfs::c::reset_cache",
+        CookfsResetCacheCmd, (ClientData) NULL, NULL);
+#endif /* defined(TCL_MEM_DEBUG) */
+
     return TCL_OK;
 
 }
+
+#if defined(TCL_MEM_DEBUG)
+static int CookfsResetCacheCmd(ClientData clientData, Tcl_Interp *interp,
+    int objc, Tcl_Obj * const objv[])
+{
+
+    UNUSED(clientData);
+    UNUSED(interp);
+    UNUSED(objc);
+    UNUSED(objv);
+    CookfsThreadExitProc(NULL);
+    return TCL_OK;
+}
+#endif /* defined(TCL_MEM_DEBUG) */
 
 Cookfs_VfsProps *Cookfs_VfsPropsInit(void) {
     Cookfs_VfsProps *p = ckalloc(sizeof(Cookfs_VfsProps));

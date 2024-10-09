@@ -1,216 +1,186 @@
-tcltest::test cookfsPagesAsync-1.1 "Ensure asynccompresscommand is called when no pages are created" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+source [file join [file dirname [info script]] common.tcl]
+
+test cookfsPagesAsync-1.1 "Ensure asynccompresscommand is called when no pages are created" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
     testasynccompress init 4 {}
+    variable pg
 } -body {
     set pg [cookfs::pages -alwayscompress -compression custom \
-    -asynccompresscommand testasynccompress \
-    -compresscommand testcompress -decompresscommand testdecompress $file]
+        -asynccompresscommand testasynccompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
     $pg delete
     set ::testasynccompresscount
 } -cleanup {
-    catch {$pg delete}
-    catch {file delete -force $file}
-    unset -nocomplain file pg
+    catch { $pg delete }
     testasynccleanup
-} -returnCodes {ok} -result 1
+} -result 1
 
-tcltest::test cookfsPagesAsync-1.2 "Ensure asynccompresscommand finalize is called when no pages are created" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsPagesAsync-1.2 "Ensure asynccompresscommand finalize is called when no pages are created" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
     set ::testasynccompressfinalized 0
     testasynccompress init 4 {}
+    variable pg
 } -body {
     set pg [cookfs::pages -alwayscompress -compression custom \
-    -asynccompresscommand testasynccompress \
-    -compresscommand testcompress -decompresscommand testdecompress $file]
+        -asynccompresscommand testasynccompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
     $pg delete
     set ::testasynccompressfinalized
 } -cleanup {
-    catch {$pg delete}
-    catch {file delete -force $file}
-    unset -nocomplain file pg
+    catch { $pg delete }
     testasynccleanup
-} -returnCodes {ok} -result 1
+} -result 1
 
-tcltest::test cookfsPagesAsync-1.3 "Create single page using async approach" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsPagesAsync-1.3 "Create single page using async approach" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
     testasynccompress init 4 {}
-} -body {
     set pg [cookfs::pages -alwayscompress -compression custom \
-	-asynccompresscommand testasynccompress \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -asynccompresscommand testasynccompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
+} -body {
     $pg add [string repeat "SAMPLE DATA1" 1024]
     set ::testasynccompresscount
 } -cleanup {
-    catch {$pg delete}
-    catch {file delete -force $file}
-    unset -nocomplain file pg
+    $pg delete
     testasynccleanup
-} -returnCodes {ok} -result 1
+} -result 1
 
-tcltest::test cookfsPagesAsync-1.4 "Create single page and delete pages object using async approach" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsPagesAsync-1.4 "Create single page and delete pages object using async approach" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
     testasynccompress init 4 {}
-} -body {
     set pg [cookfs::pages -alwayscompress -compression custom \
-	-asynccompresscommand testasynccompress \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -asynccompresscommand testasynccompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
+} -body {
     $pg add [string repeat "SAMPLE DATA1" 1024]
     $pg delete
     set ::testasynccompresscount
 } -cleanup {
-    catch {$pg delete}
-    catch {file delete -force $file}
-    unset -nocomplain file pg
+    catch { $pg delete }
     testasynccleanup
-} -returnCodes {ok} -result 2
+} -result 2
 
-tcltest::test cookfsPagesAsync-1.5 "Verify async page can be read" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsPagesAsync-1.5 "Verify async page can be read" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
     testasynccompress init 4 {}
-} -body {
     set pg [cookfs::pages -alwayscompress -compression custom \
-	-asynccompresscommand testasynccompress \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -asynccompresscommand testasynccompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
+} -body {
     $pg add "SAMPLE DATA SAMPLE DATA SAMPLE DATA"
     $pg delete
     set pg [cookfs::pages -readonly \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -compresscommand testcompress -decompresscommand testdecompress $file]
     $pg get 0
 } -cleanup {
-    catch {$pg delete}
-    catch {file delete -force $file}
-    unset -nocomplain file pg
+    $pg delete
     testasynccleanup
 } -returnCodes {ok} -result "SAMPLE DATA SAMPLE DATA SAMPLE DATA"
 
-tcltest::test cookfsPagesAsync-1.6 "Verify multiple async pages can be read" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsPagesAsync-1.6 "Verify multiple async pages can be read" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
     testasynccompress init 4 {}
-} -body {
     set pg [cookfs::pages -alwayscompress -compression custom \
-	-asynccompresscommand testasynccompress \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -asynccompresscommand testasynccompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
     set pages {}
+    variable i
+    variable c
+} -body {
     for {set i 0} {$i < 1024} {incr i} {
-	set c [string repeat [format "TESTDATA%04d" $i] 4096]
-	lappend pages [$pg add $c] $c
+        set c [string repeat [format "TESTDATA%04d" $i] 4096]
+        lappend pages [$pg add $c] $c
     }
     $pg delete
     set pg [cookfs::pages -readonly \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -compresscommand testcompress -decompresscommand testdecompress $file]
     foreach {i c} $pages {
-	if {![string equal [$pg get $i] $c]} {
-	    error "Page $i does not match criteria"
-	}
+        assertEq [$pg get $i] $c "Page $i does not match criteria"
     }
     $pg length
 } -cleanup {
-    catch {$pg delete}
-    catch {file delete -force $file}
-    unset -nocomplain file pg pages i c
+    $pg delete
     testasynccleanup
-} -returnCodes {ok} -result 1024
+} -result 1024
 
-tcltest::test cookfsPagesAsync-1.7 "Verify multiple async pages with repetitions can be read" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsPagesAsync-1.7 "Verify multiple async pages with repetitions can be read" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
     testasynccompress init 4 {}
-} -body {
     set pg [cookfs::pages -alwayscompress -compression custom \
-	-asynccompresscommand testasynccompress \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -asynccompresscommand testasynccompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
     set pages {}
-    for {set i 0} {$i <1024} {incr i} {
-	set c [string repeat [format "TESTDATA%04d" [expr {$i / 2}]] 4096]
-	lappend pages [$pg add $c] $c
+    variable i
+    variable c
+} -body {
+    for {set i 0} {$i < 1024} {incr i} {
+        set c [string repeat [format "TESTDATA%04d" [expr {$i / 2}]] 4096]
+        lappend pages [$pg add $c] $c
     }
     $pg delete
     set pg [cookfs::pages -readonly \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -compresscommand testcompress -decompresscommand testdecompress $file]
     foreach {i c} $pages {
-	if {![string equal [$pg get $i] $c]} {
-	    error "Page $i does not match criteria"
-	}
+        assertEq [$pg get $i] $c "Page $i does not match criteria"
     }
     $pg length
 } -cleanup {
-    catch {$pg delete}
-    catch {file delete -force $file}
-    unset -nocomplain file pg pages i c
+    $pg delete
     testasynccleanup
-} -returnCodes {ok} -result 512
+} -result 512
 
-tcltest::test cookfsPagesAsync-2.1 "Test custom async compression algorithm not used when size would not be smaller" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsPagesAsync-2.1 "Test custom async compression algorithm not used when size would not be smaller" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
     testasynccompress init 4 {}
-} -body {
-    set pg [cookfs::pages -compression custom \
-	-asynccompresscommand testasynccompress \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
     set data {QWERTYUIOPASDFGHJKLZXCVBNM0123456789}
+    set pg [cookfs::pages -compression custom \
+        -asynccompresscommand testasynccompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
+    variable i0
+    variable fh
+} -body {
     set i0 [$pg add $data]
     $pg delete
 
-    set fh [open $file r]
-    fconfigure $fh -translation binary
-    set fc [read $fh]
+    set fh [open $file rb]
+    assertNotContain [read $fh] "HEXTEST" "Used testcompress command"
     close $fh
 
-    if {[string match *HEXTEST* $fc]} {
-	error "Used testcompress command"
-    }
     set pg [cookfs::pages -readonly -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
-    if {![string equal $data [$pg get $i0]]} {
-	$pg delete
-	error "Page contents differs"
-    }
-    $pg delete
+    assertEq [$pg get $i0] $data "Page contents differs"
 } -cleanup {
-    catch {file delete -force $file}
-    unset -nocomplain file pg data i0 fh fc
+    $pg delete
     testasynccleanup
-} -returnCodes {ok}
+} -ok
 
-tcltest::test cookfsPagesAsync-2.2 "Test custom async compression algorithm used when size would not be smaller with -alwayscompress" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsPagesAsync-2.2 "Test custom async compression algorithm used when size would not be smaller with -alwayscompress" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
     testasynccompress init 4 {}
-} -body {
-    set pg [cookfs::pages -compression custom \
-	-alwayscompress \
-	-asynccompresscommand testasynccompress \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
     set data {QWERTYUIOPASDFGHJKLZXCVBNM0123456789}
+    set pg [cookfs::pages -compression custom -alwayscompress \
+        -asynccompresscommand testasynccompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
+    variable i0
+    variable fh
+} -body {
     set i0 [$pg add $data]
     $pg delete
 
-    set fh [open $file r]
-    fconfigure $fh -translation binary
-    set fc [read $fh]
+    set fh [open $file rb]
+    assertContain [read $fh] "HEXTEST" "Not used testcompress command"
     close $fh
 
-    if {![string match *HEXTEST* $fc]} {
-	error "Not used testcompress command"
-    }
     set pg [cookfs::pages -readonly -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
-    if {![string equal $data [$pg get $i0]]} {
-	$pg delete
-	error "Page contents differs"
-    }
-    $pg delete
+    assertEq [$pg get $i0] $data "Page contents differs"
 } -cleanup {
-    catch {file delete -force $file}
-    unset -nocomplain file pg data i0 fh fc
+    $pg delete
     testasynccleanup
-} -returnCodes {ok}
+} -ok
 
-tcltest::test cookfsPagesAsync-3.1 "Test correctness of async pages writing with adding same pages" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsPagesAsync-3.1 "Test correctness of async pages writing with adding same pages" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
     testasynccompress init 4 {}
     set idxlist {}
-} -body {
-    set pg [cookfs::pages -compression custom \
-	-alwayscompress \
-	-asynccompresscommand testasynccompress \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
     set pages {
         {string repeat TEST 1}
         {string repeat TEST 1024}
@@ -219,6 +189,12 @@ tcltest::test cookfsPagesAsync-3.1 "Test correctness of async pages writing with
         {string repeat TEST 16385}
         {string repeat TEST 16385}
     }
+    set pg [cookfs::pages -compression custom -alwayscompress \
+        -asynccompresscommand testasynccompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
+    variable p
+    variable idx
+} -body {
     foreach p $pages {
         lappend idxlist [$pg add [eval $p]]
     }
@@ -226,119 +202,110 @@ tcltest::test cookfsPagesAsync-3.1 "Test correctness of async pages writing with
 
     set pg [cookfs::pages -readonly -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
     foreach p $pages idx $idxlist {
-        if {![string equal [$pg get $idx] [eval $p]]} {
-            error "Page $idx contains invalid data"
-        }
+        assertEq [$pg get $idx] [eval $p] "Page $idx contains invalid data"
     }
-    $pg delete
 } -cleanup {
-    catch {file delete -force $file}
-    unset -nocomplain file pg idxlist pages p idx
+    $pg delete
     testasynccleanup
-} -returnCodes {ok}
+} -ok
 
-tcltest::test cookfsPagesAsync-4.1 "Verify async decompression does not call decompress command for subsequent pages" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsPagesAsync-4.1 "Verify async decompression does not call decompress command for subsequent pages" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
     set idxlist {}
     testasyncdecompress init 4 {}
-} -body {
     set pg [cookfs::pages -compression custom \
-	-alwayscompress \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -alwayscompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
+    variable i
+    variable c
+} -body {
     $pg add {HELPER}
     for {set i 0} {$i < 64} {incr i} {
-	set c [string repeat [format "TESTCONTENTS%04d" $i] 16]
-	lappend idxlist [$pg add $c] $c
+        set c [string repeat [format "TESTCONTENTS%04d" $i] 16]
+        lappend idxlist [$pg add $c] $c
     }
     $pg delete
 
     set pg [cookfs::pages -compression custom \
-	-cachesize 5 \
-	-alwayscompress \
-	-asyncdecompresscommand testasyncdecompress \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -cachesize 5 \
+        -alwayscompress \
+        -asyncdecompresscommand testasyncdecompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
     $pg get 0
     set ::testdecompresscount 0
     foreach {i c} $idxlist {
-	if {![string equal [$pg get $i] $c]} {
-	    error "Page $i contents does not match"
-	}
+        assertEq [$pg get $i] $c "Page $i contents does not match"
     }
     set ::testdecompresscount
 } -cleanup {
-    catch {$pg delete}
-    catch {file delete -force $file}
-    unset -nocomplain file pg idxlist c i
+    $pg delete
     testasynccleanup
-} -returnCodes {ok} -result 0
+} -result 0
 
-tcltest::test cookfsPagesAsync-4.2 "Verify async decompression does not call decompress command for subsequent pages with random return order" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsPagesAsync-4.2 "Verify async decompression does not call decompress command for subsequent pages with random return order" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
     set idxlist {}
     testasyncdecompress init 4 {}
-} -body {
     set pg [cookfs::pages -compression custom \
-	-alwayscompress \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -alwayscompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
+    variable i
+    variable c
+} -body {
     $pg add {HELPER}
     for {set i 0} {$i < 64} {incr i} {
-	set c [string repeat [format "TESTCONTENTS%04d" $i] 16]
-	lappend idxlist [$pg add $c] $c
+        set c [string repeat [format "TESTCONTENTS%04d" $i] 16]
+        lappend idxlist [$pg add $c] $c
     }
     $pg delete
 
     set pg [cookfs::pages -compression custom \
-	-cachesize 5 \
-	-alwayscompress \
-	-asyncdecompresscommand testasyncdecompressrandom \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -cachesize 5 \
+        -alwayscompress \
+        -asyncdecompresscommand testasyncdecompressrandom \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
     $pg get 0
     set ::testdecompresscount 0
     foreach {i c} $idxlist {
-	if {![string equal [$pg get $i] $c]} {
-	    error "Page $i contents does not match"
-	}
+        assertEq [$pg get $i] $c "Page $i contents does not match"
     }
     set ::testdecompresscount
 } -cleanup {
-    catch {$pg delete}
-    catch {file delete -force $file}
-    unset -nocomplain file pg idxlist i c
+    $pg delete
     testasynccleanup
-} -returnCodes {ok} -result 0
+} -result 0
 
-tcltest::test cookfsPagesAsync-4.3 "Verify async decompression does not async decompress multiple times" -constraints {enabledTclCmds} -setup {
-    set file [tcltest::makeFile {} pages.cfs]
+test cookfsPagesAsync-4.3 "Verify async decompression does not async decompress multiple times" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
     set idxlist {}
     testasyncdecompress init 4 {}
-} -body {
     set pg [cookfs::pages -compression custom \
-	-alwayscompress \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -alwayscompress \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
+    variable i
+    variable c
+} -body {
     $pg add {HELPER}
     for {set i 0} {$i < 128} {incr i} {
-	set c [string repeat [format "TESTCONTENTS%04d" $i] 16]
-	lappend idxlist [$pg add $c] $c
+        set c [string repeat [format "TESTCONTENTS%04d" $i] 16]
+        lappend idxlist [$pg add $c] $c
     }
     $pg delete
 
     set pg [cookfs::pages -compression custom \
-	-cachesize 10 \
-	-alwayscompress \
-	-asyncdecompresscommand testasyncdecompressrandom \
-	-compresscommand testcompress -decompresscommand testdecompress $file]
+        -cachesize 10 \
+        -alwayscompress \
+        -asyncdecompresscommand testasyncdecompressrandom \
+        -compresscommand testcompress -decompresscommand testdecompress $file]
     $pg get 0
     set ::testasyncdecompressprocesscount 0
     foreach {i c} $idxlist {
-	if {![string equal [$pg get $i] $c]} {
-	    error "Page $i contents does not match"
-	}
+        assertEq [$pg get $i] $c "Page $i contents does not match"
     }
     set ::testasyncdecompressprocesscount
 } -cleanup {
-    catch {$pg delete}
-    catch {file delete -force $file}
-    unset -nocomplain file pg idxlist i c
+    $pg delete
     testasynccleanup
-} -returnCodes {ok} -result 126
+} -result 126
 
+cleanupTests

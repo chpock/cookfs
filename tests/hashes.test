@@ -1,42 +1,45 @@
+source [file join [file dirname [info script]] common.tcl]
 
 # MD5 tests
 
-tcltest::test cookfsHashesMD5-1.1 {empty data} -body {
+test cookfsHashesMD5-1.1 {empty data} -body {
     ::cookfs::md5 ""
 } -result D41D8CD98F00B204E9800998ECF8427E
 
-tcltest::test cookfsHashesMD5-1.2 {-bin, empty data} -body {
+test cookfsHashesMD5-1.2 {-bin, empty data} -body {
     binary encode hex [::cookfs::md5 -bin ""]
 } -result d41d8cd98f00b204e9800998ecf8427e
 
-tcltest::test cookfsHashesMD5-2 {1 byte data} -body {
+test cookfsHashesMD5-2 {1 byte data} -body {
     ::cookfs::md5 "a"
 } -result 0CC175B9C0F1B6A831C399E269772661
 
-tcltest::test cookfsHashesMD5-3 {1kb byte data} -body {
+test cookfsHashesMD5-3 {1kb byte data} -body {
     ::cookfs::md5 [string repeat "a" 1024]
 } -result C9A34CFC85D982698C6AC89F76071ABD
 
-tcltest::test cookfsHashesMD5-4 {1kb+1 byte data} -body {
+test cookfsHashesMD5-4 {1kb+1 byte data} -body {
     ::cookfs::md5 [string repeat "a" 1025]
 } -result AE187E1FEBEE2A150B64849C32D566CA
 
-tcltest::test cookfsHashesMD5-5.1 {no args} -body {
+test cookfsHashesMD5-5.1 {no args} -body {
     ::cookfs::md5
-} -returnCodes error -result {wrong # args: should be "::cookfs::md5 ?-bin? data"}
+} -error {wrong # args: should be "::cookfs::md5 ?-bin? data"}
 
-tcltest::test cookfsHashesMD5-5.2 {no args} -body {
+test cookfsHashesMD5-5.2 {no args} -body {
     ::cookfs::c::md5
-} -returnCodes error -result {wrong # args: should be "::cookfs::c::md5 ?-bin? data"}
+} -error {wrong # args: should be "::cookfs::c::md5 ?-bin? data"}
 
-tcltest::test cookfsHashesMD5-5.3 {too many args} -body {
+test cookfsHashesMD5-5.3 {too many args} -body {
     ::cookfs::c::md5 1 2 3
-} -returnCodes error -result {wrong # args: should be "::cookfs::c::md5 ?-bin? data"}
+} -error {wrong # args: should be "::cookfs::c::md5 ?-bin? data"}
 
-tcltest::test cookfsHashesMD5-6.1 {wrong args} -body {
+test cookfsHashesMD5-6.1 {wrong args} -body {
     ::cookfs::md5 1 2
-} -returnCodes error -result {bad option "1": must be -bin}
+} -error {bad option "1": must be -bin}
 
-tcltest::test cookfsHashesMD5-6.2 {wrong args} -body {
+test cookfsHashesMD5-6.2 {wrong args} -body {
     ::cookfs::c::md5 1 2
-} -returnCodes error -result {bad option "1": must be -bin}
+} -error {bad option "1": must be -bin}
+
+cleanupTests

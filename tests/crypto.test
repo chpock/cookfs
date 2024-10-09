@@ -1,215 +1,208 @@
+source [file join [file dirname [info script]] common.tcl]
 
-tcltest::test cookfsCrypto-1.1.1 "Test crypto::rng without arguments" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-1.1.1 "Test crypto::rng without arguments" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::rng
-} -returnCodes error -result {wrong # args: should be "cookfs::crypto::rng size"}
+} -error {wrong # args: should be "cookfs::crypto::rng size"}
 
-tcltest::test cookfsCrypto-1.1.2 "Test crypto::rng with wrong # args" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-1.1.2 "Test crypto::rng with wrong # args" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::rng 1 2
-} -returnCodes error -result {wrong # args: should be "cookfs::crypto::rng size"}
+} -error {wrong # args: should be "cookfs::crypto::rng size"}
 
-tcltest::test cookfsCrypto-1.1.3 "Test crypto::rng with bad arg" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-1.1.3 "Test crypto::rng with bad arg" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::rng a
-} -returnCodes error -result {expected integer but got "a"}
+} -error {expected integer but got "a"}
 
-tcltest::test cookfsCrypto-1.2 "Test crypto::rng, get 1 random byte" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-1.2 "Test crypto::rng, get 1 random byte" -constraints {cookfsCrypto enabledTclCmds} -body {
     string length [cookfs::crypto::rng 1]
 } -result 1
 
-tcltest::test cookfsCrypto-1.3 "Test crypto::rng, get 2 random bytes" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-1.3 "Test crypto::rng, get 2 random bytes" -constraints {cookfsCrypto enabledTclCmds} -body {
     string length [cookfs::crypto::rng 2]
 } -result 2
 
-tcltest::test cookfsCrypto-1.4 "Test crypto::rng, get 8 random bytes and ensure they are not 0" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-1.4 "Test crypto::rng, get 8 random bytes and ensure they are not 0" -constraints {cookfsCrypto enabledTclCmds} -setup {
+    variable rng
+} -body {
     set rng [cookfs::crypto::rng 8]
-    set result [string length $rng]
-    set rng [binary encode hex $rng]
-    if { $rng eq [string repeat {00} 8] } {
-        append result " Not ok: $rng"
-    }
-    set result
-} -cleanup {
-    unset -nocomplain rng result
-} -result [list 8]
+    assertEq [string length $rng] 8 "8 bytes should be generated"
+    assertNe [binary encode hex $rng] [string repeat {00} 8] "generated data is not only null chars"
+} -ok
 
-tcltest::test cookfsCrypto-1.5 "Test crypto::rng, get 65 random bytes and ensure they are not 0" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-1.5 "Test crypto::rng, get 65 random bytes and ensure they are not 0" -constraints {cookfsCrypto enabledTclCmds} -setup {
+    variable rng
+} -body {
     set rng [cookfs::crypto::rng 65]
-    set result [string length $rng]
-    set rng [binary encode hex $rng]
-    if { $rng eq [string repeat {00} 65] } {
-        append result " Not ok: $rng"
-    }
-    set result
-} -cleanup {
-    unset -nocomplain rng result
-} -result [list 65]
+    assertEq [string length $rng] 65 "65 bytes should be generated"
+    assertNe [binary encode hex $rng] [string repeat {00} 65] "generated data is not only null chars"
+} -ok
 
-tcltest::test cookfsCrypto-2.1.1 "Test crypto::pbkdf2_hmac without arguments" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.1.1 "Test crypto::pbkdf2_hmac without arguments" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::pbkdf2_hmac
-} -returnCodes error -result {wrong # args: should be "cookfs::crypto::pbkdf2_hmac ?-iterations iterations? ?-dklen dklen? password salt"}
+} -error {wrong # args: should be "cookfs::crypto::pbkdf2_hmac ?-iterations iterations? ?-dklen dklen? password salt"}
 
-tcltest::test cookfsCrypto-2.1.2 "Test crypto::pbkdf2_hmac with 1 argument" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.1.2 "Test crypto::pbkdf2_hmac with 1 argument" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::pbkdf2_hmac a
-} -returnCodes error -result {wrong # args: should be "cookfs::crypto::pbkdf2_hmac ?-iterations iterations? ?-dklen dklen? password salt"}
+} -error {wrong # args: should be "cookfs::crypto::pbkdf2_hmac ?-iterations iterations? ?-dklen dklen? password salt"}
 
-tcltest::test cookfsCrypto-2.1.3 "Test crypto::pbkdf2_hmac with wrong args" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.1.3 "Test crypto::pbkdf2_hmac with wrong args" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::pbkdf2_hmac a b c
-} -returnCodes error -result {bad option "a": must be -iterations or -dklen}
+} -error {bad option "a": must be -iterations or -dklen}
 
-tcltest::test cookfsCrypto-2.1.4 "Test crypto::pbkdf2_hmac with no value for -iterations" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.1.4 "Test crypto::pbkdf2_hmac with no value for -iterations" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::pbkdf2_hmac -iterations b c
-} -returnCodes error -result {missing argument to -iterations option}
+} -error {missing argument to -iterations option}
 
-tcltest::test cookfsCrypto-2.1.5 "Test crypto::pbkdf2_hmac with no value for -dklen" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.1.5 "Test crypto::pbkdf2_hmac with no value for -dklen" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::pbkdf2_hmac -dklen b c
-} -returnCodes error -result {missing argument to -dklen option}
+} -error {missing argument to -dklen option}
 
-tcltest::test cookfsCrypto-2.1.6 "Test crypto::pbkdf2_hmac with bad value for -iterations" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.1.6 "Test crypto::pbkdf2_hmac with bad value for -iterations" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::pbkdf2_hmac -iterations a b c
-} -returnCodes error -result {option -iterations requires an unsigned integer >= 1 as value, but got "a"}
+} -error {option -iterations requires an unsigned integer >= 1 as value, but got "a"}
 
-tcltest::test cookfsCrypto-2.1.7 "Test crypto::pbkdf2_hmac with number for -iterations" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.1.7 "Test crypto::pbkdf2_hmac with number for -iterations" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::pbkdf2_hmac -iterations 0 b c
-} -returnCodes error -result {option -iterations requires an unsigned integer >= 1 as value, but got "0"}
+} -error {option -iterations requires an unsigned integer >= 1 as value, but got "0"}
 
-tcltest::test cookfsCrypto-2.1.8 "Test crypto::pbkdf2_hmac with bad value for -dklen" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.1.8 "Test crypto::pbkdf2_hmac with bad value for -dklen" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::pbkdf2_hmac -dklen a b c
-} -returnCodes error -result {option -dklen requires an unsigned integer >= 1 as value, but got "a"}
+} -error {option -dklen requires an unsigned integer >= 1 as value, but got "a"}
 
-tcltest::test cookfsCrypto-2.1.9 "Test crypto::pbkdf2_hmac with number for -dklen" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.1.9 "Test crypto::pbkdf2_hmac with number for -dklen" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::pbkdf2_hmac -dklen 0 b c
-} -returnCodes error -result {option -dklen requires an unsigned integer >= 1 as value, but got "0"}
+} -error {option -dklen requires an unsigned integer >= 1 as value, but got "0"}
 
-tcltest::test cookfsCrypto-2.2.1 "Test crypto::pbkdf2_hmac default dklen = 32" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.2.1 "Test crypto::pbkdf2_hmac default dklen = 32" -constraints {cookfsCrypto enabledTclCmds} -body {
     string length [cookfs::crypto::pbkdf2_hmac a b]
 } -result 32
 
-tcltest::test cookfsCrypto-2.2.2 "Test crypto::pbkdf2_hmac with dklen = 1" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.2.2 "Test crypto::pbkdf2_hmac with dklen = 1" -constraints {cookfsCrypto enabledTclCmds} -body {
     string length [cookfs::crypto::pbkdf2_hmac -dklen 1 a b]
 } -result 1
 
-tcltest::test cookfsCrypto-2.2.3 "Test crypto::pbkdf2_hmac with dklen = 2" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.2.3 "Test crypto::pbkdf2_hmac with dklen = 2" -constraints {cookfsCrypto enabledTclCmds} -body {
     string length [cookfs::crypto::pbkdf2_hmac -dklen 2 a b]
 } -result 2
 
-tcltest::test cookfsCrypto-2.2.4 "Test crypto::pbkdf2_hmac with dklen = 201" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.2.4 "Test crypto::pbkdf2_hmac with dklen = 201" -constraints {cookfsCrypto enabledTclCmds} -body {
     string length [cookfs::crypto::pbkdf2_hmac -dklen 201 a b]
 } -result 201
 
-tcltest::test cookfsCrypto-2.3.1 "Test crypto::pbkdf2_hmac known test vector #1" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.3.1 "Test crypto::pbkdf2_hmac known test vector #1" -constraints {cookfsCrypto enabledTclCmds} -body {
     binary encode hex [cookfs::crypto::pbkdf2_hmac -iterations 1 "password" "salt"]
 } -result {120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b}
 
-tcltest::test cookfsCrypto-2.3.2 "Test crypto::pbkdf2_hmac known test vector #2" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.3.2 "Test crypto::pbkdf2_hmac known test vector #2" -constraints {cookfsCrypto enabledTclCmds} -body {
     binary encode hex [cookfs::crypto::pbkdf2_hmac -iterations 2 "password" "salt"]
 } -result {ae4d0c95af6b46d32d0adff928f06dd02a303f8ef3c251dfd6e2d85a95474c43}
 
-tcltest::test cookfsCrypto-2.3.3 "Test crypto::pbkdf2_hmac known test vector #3" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.3.3 "Test crypto::pbkdf2_hmac known test vector #3" -constraints {cookfsCrypto enabledTclCmds} -body {
     binary encode hex [cookfs::crypto::pbkdf2_hmac -iterations 4096 "password" "salt"]
 } -result {c5e478d59288c841aa530db6845c4c8d962893a001ce4e11a4963873aa98134a}
 
-tcltest::test cookfsCrypto-2.3.4 "Test crypto::pbkdf2_hmac known test vector #4" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.3.4 "Test crypto::pbkdf2_hmac known test vector #4" -constraints {cookfsCrypto enabledTclCmds} -body {
     binary encode hex [cookfs::crypto::pbkdf2_hmac -iterations 4096 -dklen 16 "pass\0word" "sa\0lt"]
 } -result {89b69d0516f829893c696226650a8687}
 
-tcltest::test cookfsCrypto-2.3.5 "Test crypto::pbkdf2_hmac known test vector #5" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.3.5 "Test crypto::pbkdf2_hmac known test vector #5" -constraints {cookfsCrypto enabledTclCmds} -body {
     binary encode hex [cookfs::crypto::pbkdf2_hmac -iterations 4096 -dklen 40 "passwordPASSWORDpassword" "saltSALTsaltSALTsaltSALTsaltSALTsalt"]
 } -result {348c89dbcbd32b2f32d814b8116e84cf2b17347ebc1800181c4e2a1fb8dd53e1c635518c7dac47e9}
 
-tcltest::test cookfsCrypto-2.3.6 "Test crypto::pbkdf2_hmac known test vector #6" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.3.6 "Test crypto::pbkdf2_hmac known test vector #6" -constraints {cookfsCrypto enabledTclCmds} -body {
     binary encode hex [cookfs::crypto::pbkdf2_hmac -iterations 2048 -dklen 64 \
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about" \
         "6d6e656d6f6e6963e383a1e383bce38388e383abe382abe38299e3838fe38299e382a6e38299e382a1e381afe3829ae381afe38299e3818fe38299e3829de38299e381a1e381a1e38299e58d81e4babae58d81e889b2"]
 } -result {3b19907cb907d1ee6e5a0ecb80bd66e2776d1f2c73f4789eafcad94fda832e970471ceb0d200ede70e63ae021044cf4b58b1011e34252ace8d94a48c287906ec}
 
-tcltest::test cookfsCrypto-2.3.7 "Test crypto::pbkdf2_hmac empty values" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-2.3.7 "Test crypto::pbkdf2_hmac empty values" -constraints {cookfsCrypto enabledTclCmds} -body {
     binary encode hex [cookfs::crypto::pbkdf2_hmac "" ""]
 } -result {f7ce0b653d2d72a4108cf5abe912ffdd777616dbbb27a70e8204f3ae2d0f6fad}
 
-tcltest::test cookfsCrypto-3.1.1 "Test crypto::aes_encrypt without arguments" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-3.1.1 "Test crypto::aes_encrypt without arguments" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::aes_encrypt
-} -returnCodes error -result {wrong # args: should be "cookfs::crypto::aes_encrypt ?-iv iv? data key"}
+} -error {wrong # args: should be "cookfs::crypto::aes_encrypt ?-iv iv? data key"}
 
-tcltest::test cookfsCrypto-3.1.2 "Test crypto::aes_encrypt wrong # args 1" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-3.1.2 "Test crypto::aes_encrypt wrong # args 1" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::aes_encrypt a
-} -returnCodes error -result {wrong # args: should be "cookfs::crypto::aes_encrypt ?-iv iv? data key"}
+} -error {wrong # args: should be "cookfs::crypto::aes_encrypt ?-iv iv? data key"}
 
-tcltest::test cookfsCrypto-3.1.3 "Test crypto::aes_encrypt wrong # args 2" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-3.1.3 "Test crypto::aes_encrypt wrong # args 2" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::aes_encrypt -iv b c
-} -returnCodes error -result {wrong # args: should be "cookfs::crypto::aes_encrypt ?-iv iv? data key"}
+} -error {wrong # args: should be "cookfs::crypto::aes_encrypt ?-iv iv? data key"}
 
-tcltest::test cookfsCrypto-3.1.4 "Test crypto::aes_encrypt wrong # args 3" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-3.1.4 "Test crypto::aes_encrypt wrong # args 3" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::aes_encrypt a b c d
-} -returnCodes error -result {wrong # args: should be "cookfs::crypto::aes_encrypt ?-iv iv? data key"}
+} -error {wrong # args: should be "cookfs::crypto::aes_encrypt ?-iv iv? data key"}
 
-tcltest::test cookfsCrypto-3.1.5 "Test crypto::aes_encrypt wrong key" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-3.1.5 "Test crypto::aes_encrypt wrong key" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::aes_encrypt c d
-} -returnCodes error -result {the key size must be exactly 32 bytes, but a key of 1 bytes is specified}
+} -error {the key size must be exactly 32 bytes, but a key of 1 bytes is specified}
 
-tcltest::test cookfsCrypto-3.1.6 "Test crypto::aes_encrypt wrong IV" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-3.1.6 "Test crypto::aes_encrypt wrong IV" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::aes_encrypt -iv x c 12345678901234567890123456789012
-} -returnCodes error -result {the IV size must be exactly 16 bytes, but an IV of 1 bytes is specified}
+} -error {the IV size must be exactly 16 bytes, but an IV of 1 bytes is specified}
 
 # we expect IV (16) + padding (16) = 32
-tcltest::test cookfsCrypto-3.2.1 "Test crypto::aes_encrypt output size for null input" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-3.2.1 "Test crypto::aes_encrypt output size for null input" -constraints {cookfsCrypto enabledTclCmds} -body {
     string length [cookfs::crypto::aes_encrypt "" 12345678901234567890123456789012]
 } -result 32
 
 # we expect IV (16) + 1 byte + padding (15) = 32
-tcltest::test cookfsCrypto-3.2.2 "Test crypto::aes_encrypt output size for 1 byte input" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-3.2.2 "Test crypto::aes_encrypt output size for 1 byte input" -constraints {cookfsCrypto enabledTclCmds} -body {
     string length [cookfs::crypto::aes_encrypt "x" 12345678901234567890123456789012]
 } -result 32
 
 # we expect IV (16) + 15 bytes + padding (1) = 32
-tcltest::test cookfsCrypto-3.2.3 "Test crypto::aes_encrypt output size for 15 bytes input" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-3.2.3 "Test crypto::aes_encrypt output size for 15 bytes input" -constraints {cookfsCrypto enabledTclCmds} -body {
     string length [cookfs::crypto::aes_encrypt "123456789012345" 12345678901234567890123456789012]
 } -result 32
 
 # we expect IV (16) + 16 bytes + padding (16) = 48
-tcltest::test cookfsCrypto-3.2.4 "Test crypto::aes_encrypt output size for 16 bytes input" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-3.2.4 "Test crypto::aes_encrypt output size for 16 bytes input" -constraints {cookfsCrypto enabledTclCmds} -body {
     string length [cookfs::crypto::aes_encrypt "1234567890123456" 12345678901234567890123456789012]
 } -result 48
 
 # we expect IV (16) + 4096 bytes + padding (16) = 4128
-tcltest::test cookfsCrypto-3.2.5 "Test crypto::aes_encrypt output size for 16 bytes input" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-3.2.5 "Test crypto::aes_encrypt output size for 16 bytes input" -constraints {cookfsCrypto enabledTclCmds} -body {
     string length [cookfs::crypto::aes_encrypt [string repeat x 4096] 12345678901234567890123456789012]
 } -result 4128
 
-tcltest::test cookfsCrypto-3.2.6 "Test crypto::aes_encrypt, the first 16 bytes are default IV (0)" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-3.2.6 "Test crypto::aes_encrypt, the first 16 bytes are default IV (0)" -constraints {cookfsCrypto enabledTclCmds} -body {
     binary encode hex [string range [cookfs::crypto::aes_encrypt x 12345678901234567890123456789012] 0 15]
 } -result {00000000000000000000000000000000}
 
-tcltest::test cookfsCrypto-3.2.7 "Test crypto::aes_encrypt, the first 16 bytes are IV" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-3.2.7 "Test crypto::aes_encrypt, the first 16 bytes are IV" -constraints {cookfsCrypto enabledTclCmds} -body {
     binary encode hex [string range [cookfs::crypto::aes_encrypt \
         -iv [binary decode hex "11223344556677889900aabbccddff00"] x 12345678901234567890123456789012] 0 15]
 } -result {11223344556677889900aabbccddff00}
 
-tcltest::test cookfsCrypto-4.1.1 "Test crypto::aes_decrypt without arguments" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-4.1.1 "Test crypto::aes_decrypt without arguments" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::aes_decrypt
-} -returnCodes error -result {wrong # args: should be "cookfs::crypto::aes_decrypt data key"}
+} -error {wrong # args: should be "cookfs::crypto::aes_decrypt data key"}
 
-tcltest::test cookfsCrypto-4.1.2 "Test crypto::aes_decrypt wrong # args 1" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-4.1.2 "Test crypto::aes_decrypt wrong # args 1" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::aes_decrypt a
-} -returnCodes error -result {wrong # args: should be "cookfs::crypto::aes_decrypt data key"}
+} -error {wrong # args: should be "cookfs::crypto::aes_decrypt data key"}
 
-tcltest::test cookfsCrypto-4.1.3 "Test crypto::aes_decrypt wrong # args 2" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-4.1.3 "Test crypto::aes_decrypt wrong # args 2" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::aes_decrypt a b c
-} -returnCodes error -result {wrong # args: should be "cookfs::crypto::aes_decrypt data key"}
+} -error {wrong # args: should be "cookfs::crypto::aes_decrypt data key"}
 
-tcltest::test cookfsCrypto-4.1.4 "Test crypto::aes_decrypt wrong key" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-4.1.4 "Test crypto::aes_decrypt wrong key" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::aes_decrypt a b
-} -returnCodes error -result {the key size must be exactly 32 bytes, but a key of 1 bytes is specified}
+} -error {the key size must be exactly 32 bytes, but a key of 1 bytes is specified}
 
-tcltest::test cookfsCrypto-4.1.5 "Test crypto::aes_decrypt wrong data 1" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-4.1.5 "Test crypto::aes_decrypt wrong data 1" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::aes_decrypt a 12345678901234567890123456789012
-} -returnCodes error -result {unencrypted data was specified}
+} -error {unencrypted data was specified}
 
-tcltest::test cookfsCrypto-4.1.6 "Test crypto::aes_decrypt when data contains IV only" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-4.1.6 "Test crypto::aes_decrypt when data contains IV only" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::aes_decrypt 1234567890123456 12345678901234567890123456789012
-} -returnCodes error -result {failed to decrypt the specified data}
+} -error {failed to decrypt the specified data}
 
-tcltest::test cookfsCrypto-4.1.7 "Test crypto::aes_decrypt when data contains IV + 1 byte" -constraints {cookfsCrypto enabledTclCmds} -body {
+test cookfsCrypto-4.1.7 "Test crypto::aes_decrypt when data contains IV + 1 byte" -constraints {cookfsCrypto enabledTclCmds} -body {
     cookfs::crypto::aes_decrypt 12345678901234561 12345678901234567890123456789012
-} -returnCodes error -result {failed to decrypt the specified data}
+} -error {failed to decrypt the specified data}
 
 proc test_aes { t_num t_iv t_key t_data t_cipher } {
     set result [list]
@@ -256,33 +249,31 @@ proc test_aes { t_num t_iv t_key t_data t_cipher } {
 #     https://github.com/openbsd/src/blob/master/regress/sys/cryptoo/aes/vectors/ecbvk48.txt
 # These tests assume IV as: 00000000000000000000000000000000 (which is default)
 # and input data as "00000000000000000000000000000000"
-tcltest::test cookfsCrypto-5.1 "Test crypto::aes_* with known test vectors #1" -constraints {cookfsCrypto enabledTclCmds} -setup {
+test cookfsCrypto-5.1 "Test crypto::aes_* with known test vectors #1" -constraints {cookfsCrypto enabledTclCmds} -setup {
     unset -nocomplain vectors
-    set fp [open [file join [tcltest::testsDirectory] cookfsCrypto-5.1.txt] r]
+    set fp [open [file join [testsDirectory] cookfsCrypto-5.1.txt] r]
     while { [gets $fp line] != -1 } {
         set line [string trim $line]
         if { [string index $line 0] eq "#" || ![string length $line] } continue
         lappend vectors {*}[split $line]
     }
     close $fp
+    variable count 0
+    variable t_num
+    variable t_key
+    variable t_cipher
 } -body {
-    set result [list]
-    set count 0
     foreach { t_num t_key t_cipher } $vectors {
-        lappend result {*}[test_aes \
+        assertEq [join [test_aes \
             $t_num \
             "00000000000000000000000000000000" \
             $t_key \
             "00000000000000000000000000000000" \
-            $t_cipher]
+            $t_cipher] \n] "" "vector #$count failed"
         incr count
     }
-    lappend result $count
-    join $result \n
-} -cleanup {
-    unset -nocomplain vectors fp line
-    unset -nocomplain result t_num t_key t_cipher count
-} -result 769
+    assertEq $count 769 "total number of vectors"
+} -ok
 
 # Test vectors from:
 #     https://github.com/openbsd/src/blob/master/regress/sys/cryptoo/aes/vectors/ecbnt48.txt
@@ -291,79 +282,78 @@ tcltest::test cookfsCrypto-5.1 "Test crypto::aes_* with known test vectors #1" -
 # and key "0000000000000000000000000000000000000000000000000000000000000000"
 tcltest::test cookfsCrypto-5.2 "Test crypto::aes_* with known test vectors #2" -constraints {cookfsCrypto enabledTclCmds} -setup {
     unset -nocomplain vectors
-    set fp [open [file join [tcltest::testsDirectory] cookfsCrypto-5.2.txt] r]
+    set fp [open [file join [testsDirectory] cookfsCrypto-5.2.txt] r]
     while { [gets $fp line] != -1 } {
         set line [string trim $line]
         if { [string index $line 0] eq "#" || ![string length $line] } continue
         lappend vectors {*}[split $line]
     }
     close $fp
+    variable count 0
+    variable t_num
+    variable t_data
+    variable t_cipher
 } -body {
-    set result [list]
-    set count 0
     foreach { t_num t_data t_cipher } $vectors {
-        lappend result {*}[test_aes \
+        assertEq [join [test_aes \
             $t_num \
             "00000000000000000000000000000000" \
             "0000000000000000000000000000000000000000000000000000000000000000" \
             $t_data \
-            $t_cipher]
+            $t_cipher] \n] "" "vector #$count failed"
         incr count
     }
-    lappend result $count
-    join $result \n
-} -cleanup {
-    unset -nocomplain vectors fp line
-    unset -nocomplain result t_num t_data t_cipher count
-} -result 385
+    assertEq $count 385 "total number of vectors"
+} -ok
 
 # Test vectors from:
 #     https://github.com/openssl/openssl/blob/29696af689df734cae05181d85ee04470c3839d3/test/recipes/30-test_evp_data/evpciph_aes_common.txt#L211
-tcltest::test cookfsCrypto-5.3 "Test crypto::aes_* with known test vectors #3" -constraints {cookfsCrypto enabledTclCmds} -setup {
+test cookfsCrypto-5.3 "Test crypto::aes_* with known test vectors #3" -constraints {cookfsCrypto enabledTclCmds} -setup {
+    variable count 0
+    variable t_num
+    variable t_key
+    variable t_iv
+    variable t_data
+    variable t_cipher
 } -body {
-    set result [list]
-    set count 0
     foreach { t_num t_key t_iv t_data t_cipher } {
         1 603DEB1015CA71BE2B73AEF0857D77811F352C073B6108D72D9810A30914DFF4 000102030405060708090A0B0C0D0E0F 6BC1BEE22E409F96E93D7E117393172A F58C4C04D6E5F1BA779EABFB5F7BFBD6
         2 603DEB1015CA71BE2B73AEF0857D77811F352C073B6108D72D9810A30914DFF4 F58C4C04D6E5F1BA779EABFB5F7BFBD6 AE2D8A571E03AC9C9EB76FAC45AF8E51 9CFC4E967EDB808D679F777BC6702C7D
         3 603DEB1015CA71BE2B73AEF0857D77811F352C073B6108D72D9810A30914DFF4 9CFC4E967EDB808D679F777BC6702C7D 30C81C46A35CE411E5FBC1191A0A52EF 39F23369A9D9BACFA530E26304231461
         4 603DEB1015CA71BE2B73AEF0857D77811F352C073B6108D72D9810A30914DFF4 39F23369A9D9BACFA530E26304231461 F69F2445DF4F9B17AD2B417BE66C3710 B2EB05E2C39BE9FCDA6C19078C6A9D1B
     } {
-        lappend result {*}[test_aes $t_num $t_iv $t_key $t_data $t_cipher]
+        assertEq [join [test_aes $t_num $t_iv $t_key $t_data $t_cipher] \n] "" "vector #$count failed"
         incr count
     }
-    lappend result $count
-    join $result \n
-} -cleanup {
-    unset -nocomplain result count t_num t_iv t_key t_data t_cipher
-} -result 4
+    assertEq $count 4 "total number of vectors"
+} -ok
 
 # Tests from:
 #     https://www.nayuki.io/res/cryptoographic-primitives-in-plain-python/cipher-test.py
 # These tests assume IV as: 00000000000000000000000000000000 (which is default)
-tcltest::test cookfsCrypto-5.4 "Test crypto::aes_* with known test vectors #4" -constraints {cookfsCrypto enabledTclCmds} -setup {
+test cookfsCrypto-5.4 "Test crypto::aes_* with known test vectors #4" -constraints {cookfsCrypto enabledTclCmds} -setup {
     unset -nocomplain vectors
-    set fp [open [file join [tcltest::testsDirectory] cookfsCrypto-5.4.txt] r]
+    set fp [open [file join [testsDirectory] cookfsCrypto-5.4.txt] r]
     while { [gets $fp line] != -1 } {
         set line [string trim $line]
         if { [string index $line 0] eq "#" || ![string length $line] } continue
         lappend vectors {*}[split $line]
     }
     close $fp
+    variable count
+    variable t_data
+    variable t_key
+    variable t_cipher
 } -body {
-    set result [list]
-    set count 0
     foreach { t_data t_key t_cipher } $vectors {
-        lappend result {*}[test_aes \
+        assertEq [join [test_aes \
             [incr count] \
             "00000000000000000000000000000000" \
             $t_key \
             $t_data \
-            $t_cipher]
+            $t_cipher] \n] "" "vector #$count failed"
     }
-    lappend result $count
-    join $result \n
-} -cleanup {
-    unset -nocomplain vectors fp line
-    unset -nocomplain result t_data t_key t_cipher count
-} -result 83
+    assertEq $count 83 "total number of vectors"
+} -ok
+
+cleanupTests

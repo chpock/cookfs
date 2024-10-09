@@ -1,51 +1,43 @@
-tcltest::test cookfsFsindex-1.1 "Create empty fsindex" -constraints {enabledTclCmds} -setup {
+source [file join [file dirname [info script]] common.tcl]
+
+test cookfsFsindex-1.1 "Create empty fsindex" -constraints {enabledTclCmds} -setup {
+    variable fsidx
 } -body {
     set fsidx [cookfs::fsindex]
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -returnCodes {ok} -match glob -result {::cookfs::*::fsindex::handle*}
+} -match glob -result {::cookfs::*::fsindex::handle*}
 
-tcltest::test cookfsFsindex-1.2 "Create empty fsindex and create file" -constraints {enabledTclCmds} -setup {
+test cookfsFsindex-1.2 "Create empty fsindex and create file" -constraints {enabledTclCmds} -setup {
+    variable fsidx
 } -body {
     set fsidx [cookfs::fsindex]
     $fsidx set testfile 2 {0 1 2 3 4 5}
-    if {[$fsidx list ""] != "testfile"} {
-	error "Listing main directory failed: [$fsidx list ""]"
-    }
+    assertEq [$fsidx list ""] "testfile" "listing main directory failed"
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -returnCodes {ok}
+} -ok
 
-tcltest::test cookfsFsindex-1.3 "Create empty fsindex and create directory and files" -constraints {enabledTclCmds} -setup {
+test cookfsFsindex-1.3 "Create empty fsindex and create directory and files" -constraints {enabledTclCmds} -setup {
+    variable fsidx
 } -body {
     set fsidx [cookfs::fsindex]
     $fsidx set testdir 1
     $fsidx set testfile 2 {0 1 2 3 4 5}
     $fsidx set testdir/otherfile 3 {6 7 8}
     $fsidx set testfile 4 {9 10 11}
-    if {[lsort [$fsidx list ""]] != "testdir testfile"} {
-	error "Listing main directory failed"
-    }
-    if {[$fsidx list "testdir"] != "otherfile"} {
-	error "Listing testdir directory failed"
-    }
-    if {[$fsidx get testfile] != {4 11 {9 10 11}} } {
-	error "testfile contents differs from expected: [$fsidx get testfile]"
-    }
-    if {[$fsidx get testdir] != {1} } {
-	error "testdir contents differs from expected: [$fsidx get testdir]"
-    }
-    if {[$fsidx get testdir/otherfile] != {3 8 {6 7 8}} } {
-	error "testdir/otherfile contents differs from expected: [$fsidx get testdir/otherfile]"
-    }
+    assertEq [lsort [$fsidx list ""]] "testdir testfile" "Listing main directory failed"
+    assertEq [$fsidx list "testdir"] "otherfile" "Listing testdir directory failed"
+    assertEq [$fsidx get testfile] {4 11 {9 10 11}} "testfile contents differs from expected"
+    assertEq [$fsidx get testdir] 1 "testdir contents differs from expected"
+    assertEq [$fsidx get testdir/otherfile] {3 8 {6 7 8}} "testdir/otherfile contents differs from expected"
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -returnCodes {ok}
+} -ok
 
-tcltest::test cookfsFsindex-2.1 "Create fsindex based on other fsindex" -constraints {enabledTclCmds} -setup {
+test cookfsFsindex-2.1 "Create fsindex based on other fsindex" -constraints {enabledTclCmds} -setup {
+    variable fsidx
+    variable fsidx2
 } -body {
     set fsidx [cookfs::fsindex]
 
@@ -53,109 +45,108 @@ tcltest::test cookfsFsindex-2.1 "Create fsindex based on other fsindex" -constra
     $fsidx set test1/test2 0
 
     set fsidx2 [cookfs::fsindex [$fsidx export]]
-    format %d,%d \
-        [string equal [$fsidx export] [$fsidx2 export]] \
-        [catch {$fsidx2 get test1/test2}]
+    assertBinEq [$fsidx export] [$fsidx2 export]
+    $fsidx2 get test1/test2
 } -cleanup {
     $fsidx delete
     $fsidx2 delete
-    unset -nocomplain fsidx fsidx2
-} -returnCodes {ok} -result 1,0
+} -ok
 
-tcltest::test cookfsFsindex-2.2 "Test handling of entries in non-existing paths" -constraints {enabledTclCmds} -setup {
-} -body {
+test cookfsFsindex-2.2 "Test handling of entries in non-existing paths" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
-
+} -body {
     $fsidx set test1/test2 0
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -returnCodes {error} -result {Unable to create entry}
+} -error {Unable to create entry}
 
-tcltest::test cookfsFsindex-3.1 "Create small number of entries in single directory" -constraints {enabledTclCmds} -setup {
-} -body {
+test cookfsFsindex-3.1 "Create small number of entries in single directory" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+    variable i
+    variable j
+    variable d
+} -body {
     for {set i 0} {$i < 10} {incr i} {
-	$fsidx set file$i $i [list $i $i $i]
+        $fsidx set file$i $i [list $i $i $i]
     }
     set d [$fsidx export]
     $fsidx delete
     set fsidx [cookfs::fsindex $d]
     for {set i 0} {$i < 10} {incr i} {
-	set j [$fsidx get file$i]
-	if {([lindex $j 0] != $i) || ([lindex $j 1] != $i)} {
-	    error "Invalid value for file $i: $j"
-	}
-	if {([lindex $j 2 0] != $i) || ([lindex $j 2 1] != $i) || ([lindex $j 2 2] != $i)} {
-	    error "Invalid value for file $i: $j"
-	}
+        set j [$fsidx get file$i]
+        assertEq [lindex $j 0] $i "invalid mtime for file$i"
+        assertEq [lindex $j 1] $i "invalid size for file$i"
+        assertEq [lindex $j 2 0] $i "invalid block - page number for file$i"
+        assertEq [lindex $j 2 1] $i "invalid block - offset for file$i"
+        assertEq [lindex $j 2 2] $i "invalid block - size for file$i"
     }
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx i j d
-} -returnCodes {ok}
+} -ok
 
-tcltest::test cookfsFsindex-3.2 "Create medium number of entries in single directory" -constraints {enabledTclCmds} -setup {
-} -body {
+test cookfsFsindex-3.2 "Create medium number of entries in single directory" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+    variable i
+    variable j
+    variable d
+} -body {
     for {set i 0} {$i < 100} {incr i} {
-	$fsidx set file$i $i [list $i $i $i]
+        $fsidx set file$i $i [list $i $i $i]
     }
     set d [$fsidx export]
     $fsidx delete
     set fsidx [cookfs::fsindex $d]
     for {set i 0} {$i < 100} {incr i} {
-	set j [$fsidx get file$i]
-	if {([lindex $j 0] != $i) || ([lindex $j 1] != $i)} {
-	    error "Invalid value for file $i: $j"
-	}
-	if {([lindex $j 2 0] != $i) || ([lindex $j 2 1] != $i) || ([lindex $j 2 2] != $i)} {
-	    error "Invalid value for file $i: $j"
-	}
+        set j [$fsidx get file$i]
+        assertEq [lindex $j 0] $i "invalid mtime for file$i"
+        assertEq [lindex $j 1] $i "invalid size for file$i"
+        assertEq [lindex $j 2 0] $i "invalid block - page number for file$i"
+        assertEq [lindex $j 2 1] $i "invalid block - offset for file$i"
+        assertEq [lindex $j 2 2] $i "invalid block - size for file$i"
     }
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx i j d
-} -returnCodes {ok}
+} -ok
 
-tcltest::test cookfsFsindex-3.3 "Create large number of entries in single directory" -constraints {enabledTclCmds} -setup {
-} -body {
+test cookfsFsindex-3.3 "Create large number of entries in single directory" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+    variable i
+    variable j
+    variable d
+} -body {
     for {set i 0} {$i < 1000} {incr i} {
-	$fsidx set file$i $i [list $i $i $i]
+        $fsidx set file$i $i [list $i $i $i]
     }
     set d [$fsidx export]
     $fsidx delete
     set fsidx [cookfs::fsindex $d]
     for {set i 0} {$i < 1000} {incr i} {
-	set j [$fsidx get file$i]
-	if {([lindex $j 0] != $i) || ([lindex $j 1] != $i)} {
-	    error "Invalid value for file $i: $j"
-	}
-	if {([lindex $j 2 0] != $i) || ([lindex $j 2 1] != $i) || ([lindex $j 2 2] != $i)} {
-	    error "Invalid value for file $i: $j"
-	}
+        set j [$fsidx get file$i]
+        assertEq [lindex $j 0] $i "invalid mtime for file$i"
+        assertEq [lindex $j 1] $i "invalid size for file$i"
+        assertEq [lindex $j 2 0] $i "invalid block - page number for file$i"
+        assertEq [lindex $j 2 1] $i "invalid block - offset for file$i"
+        assertEq [lindex $j 2 2] $i "invalid block - size for file$i"
     }
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx i j d
-} -returnCodes {ok}
+} -ok
 
-tcltest::test cookfsFsindex-4.1 "Create filename outside iso8859-1 encoding" -constraints {enabledTclCmds} -setup {
-} -body {
+test cookfsFsindex-4.1 "Create filename outside iso8859-1 encoding" -constraints {enabledTclCmds} -setup {
+    set fsidx [cookfs::fsindex]
     set fn "File\u0105\u4e2d"
-    set fsidx [cookfs::fsindex]
+} -body {
     $fsidx set $fn 1
     lindex [$fsidx get $fn] 0
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx fn
-} -returnCodes {ok} -result 1
+} -result 1
 
-tcltest::test cookfsFsindex-4.2 "Create filename outside iso8859-1 encoding after export/import" -constraints {enabledTclCmds} -setup {
-} -body {
-    set fn "File\u0105\u4e2d"
+test cookfsFsindex-4.2 "Create filename outside iso8859-1 encoding after export/import" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+    set fn "File\u0105\u4e2d"
+    variable d
+} -body {
     $fsidx set $fn 1
     set d [$fsidx export]
     $fsidx delete
@@ -163,64 +154,62 @@ tcltest::test cookfsFsindex-4.2 "Create filename outside iso8859-1 encoding afte
     lindex [$fsidx get $fn] 0
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx fn d
-} -returnCodes {ok} -result 1
+} -result 1
 
-tcltest::test cookfsFsindex-5.1 "Test metadata setting" -constraints {cookfsMetadata enabledTclCmds} -setup {
-} -body {
+test cookfsFsindex-5.1 "Test metadata setting" -constraints {cookfsMetadata enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+} -body {
     $fsidx setmetadata test1 t0
     $fsidx setmetadata test2 t2
     $fsidx setmetadata test1 t1
-    format %s,%s [$fsidx getmetadata test1] [$fsidx getmetadata test2]
+    assertEq [$fsidx getmetadata test1] "t1" "medatada for time test1"
+    assertEq [$fsidx getmetadata test2] "t2" "medatada for time test2"
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -returnCodes {ok} -result t1,t2
+} -ok
 
-tcltest::test cookfsFsindex-5.2 "Test metadata setting across export/import" -constraints {cookfsMetadata enabledTclCmds} -setup {
-} -body {
+test cookfsFsindex-5.2 "Test metadata setting across export/import" -constraints {cookfsMetadata enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+    variable d
+} -body {
     $fsidx setmetadata test1 t0
     $fsidx setmetadata test2 t2
     $fsidx setmetadata test1 t1
     set d [$fsidx export]
     $fsidx delete
-    set fh [open [file join [tcltest::workingDirectory] cookfsFsindex-5.2.tmp] w]; fconfigure $fh -translation binary; puts -nonewline $fh $d ; close $fh
     set fsidx [cookfs::fsindex $d]
-    format %s,%s [$fsidx getmetadata test1] [$fsidx getmetadata test2]
+    assertEq [$fsidx getmetadata test1] "t1" "medatada for time test1"
+    assertEq [$fsidx getmetadata test2] "t2" "medatada for time test2"
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx fh d
-} -returnCodes {ok} -result t1,t2
+} -ok
 
-tcltest::test cookfsFsindex-6.1 "Test setmtime" -constraints {enabledTclCmds} -setup {
-} -body {
+test cookfsFsindex-6.1 "Test setmtime" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+} -body {
     $fsidx set testdir 1
     $fsidx setmtime testdir 3
     join [$fsidx get testdir] \n
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -returnCodes {ok} -result 3
+} -result 3
 
-tcltest::test cookfsFsindex-6.1 "Test unset for empty directory" -constraints {enabledTclCmds} -setup {
-} -body {
+test cookfsFsindex-6.1 "Test unset for empty directory" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+} -body {
     $fsidx set testdir1 1
     $fsidx set testdir2 1
     $fsidx set testdir3 1
     $fsidx unset testdir2
-    join [lsort [$fsidx list {}]] ,
+    assertEq [lsort [$fsidx list {}]] {testdir1 testdir3}
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -returnCodes {ok} -result testdir1,testdir3
+} -ok
 
-tcltest::test cookfsFsindex-6.2 "Test unset for empty directory after export and import" -constraints {enabledTclCmds} -setup {
-} -body {
+test cookfsFsindex-6.2 "Test unset for empty directory after export and import" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+    variable d
+} -body {
     $fsidx set testdir1 1
     $fsidx set testdir2 1
     $fsidx set testdir3 1
@@ -228,15 +217,15 @@ tcltest::test cookfsFsindex-6.2 "Test unset for empty directory after export and
     set d [$fsidx export]
     $fsidx delete
     set fsidx [cookfs::fsindex $d]
-    join [lsort [$fsidx list {}]] ,
+    assertEq [lsort [$fsidx list {}]] {testdir1 testdir3}
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx d
-} -returnCodes {ok} -result testdir1,testdir3
+} -ok
 
-tcltest::test cookfsFsindex-6.3 "Test unset for file" -constraints {enabledTclCmds} -setup {
-} -body {
+test cookfsFsindex-6.3 "Test unset for file" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+    variable d
+} -body {
     $fsidx set testdir1 1
     $fsidx set testfile2 1 {0 1 2 3 4 5}
     $fsidx set testdir3 1
@@ -244,15 +233,14 @@ tcltest::test cookfsFsindex-6.3 "Test unset for file" -constraints {enabledTclCm
     set d [$fsidx export]
     $fsidx delete
     set fsidx [cookfs::fsindex $d]
-    join [lsort [$fsidx list {}]] ,
+    assertEq [lsort [$fsidx list {}]] {testdir1 testdir3}
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx d
-} -returnCodes {ok} -result testdir1,testdir3
+} -ok
 
-tcltest::test cookfsFsindex-6.4 "Test unset for non-empty directory" -constraints {enabledTclCmds} -setup {
-} -body {
+test cookfsFsindex-6.4 "Test unset for non-empty directory" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+} -body {
     $fsidx set testdir1 1
     $fsidx set testdir2 1
     $fsidx set testdir2/testdir4 1
@@ -260,99 +248,96 @@ tcltest::test cookfsFsindex-6.4 "Test unset for non-empty directory" -constraint
     $fsidx unset testdir2
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -returnCodes {error} -result {Unable to unset item}
+} -error {Unable to unset item}
 
-tcltest::test cookfsFsindex-7.1 "Test getblockusage, without arguments" -constraints {enabledTclCmds} -body {
+test cookfsFsindex-7.1 "Test getblockusage, without arguments" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+} -body {
     $fsidx getblockusage
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::fsindex::handle* getblockusage block"}
+} -match glob -error {wrong # args: should be "::cookfs::*::fsindex::handle* getblockusage block"}
 
-tcltest::test cookfsFsindex-7.2 "Test getblockusage, wrong block number" -constraints {enabledTclCmds} -body {
+test cookfsFsindex-7.2 "Test getblockusage, wrong block number" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+} -body {
     $fsidx getblockusage 0
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
 } -result 0
 
-tcltest::test cookfsFsindex-7.3 "Test getblockusage, after set" -constraints {enabledTclCmds} -body {
+test cookfsFsindex-7.3 "Test getblockusage, after set" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+} -body {
     $fsidx set test1 1
     $fsidx set test2 1 {0 1 2 3 4 5}
-    list \
-        [$fsidx getblockusage 0] \
-        [$fsidx getblockusage 1] \
-        [$fsidx getblockusage 2] \
-        [$fsidx getblockusage 3]
+    assertEq [$fsidx getblockusage 0] 1 "block #0 is used by test2"
+    assertEq [$fsidx getblockusage 1] 0 "block #1 is not used"
+    assertEq [$fsidx getblockusage 2] 0 "block #2 is not used"
+    assertEq [$fsidx getblockusage 3] 1 "block #3 is used by test2"
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -result [list 1 0 0 1]
+} -ok
 
-tcltest::test cookfsFsindex-7.4 "Test getblockusage, after set and unset" -constraints {enabledTclCmds} -body {
+test cookfsFsindex-7.4 "Test getblockusage, after set and unset" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+} -body {
     $fsidx set test1 1
     $fsidx set test2 1 {0 1 2 3 4 5}
     $fsidx unset test2
-    list \
-        [$fsidx getblockusage 0] \
-        [$fsidx getblockusage 1] \
-        [$fsidx getblockusage 2] \
-        [$fsidx getblockusage 3]
+    assertEq [$fsidx getblockusage 0] 0 "block #0 is not used"
+    assertEq [$fsidx getblockusage 1] 0 "block #1 is not used"
+    assertEq [$fsidx getblockusage 2] 0 "block #2 is not used"
+    assertEq [$fsidx getblockusage 3] 0 "block #2 is not used"
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -result [list 0 0 0 0]
+} -ok
 
-tcltest::test cookfsFsindex-7.5 "Test getblockusage, after set, wrong block number" -constraints {enabledTclCmds} -body {
+test cookfsFsindex-7.5 "Test getblockusage, after set, wrong block number" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+} -body {
     $fsidx set test 1 {0 1 2 3 4 5}
     $fsidx getblockusage 4
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
 } -result 0
 
-tcltest::test cookfsFsindex-7.6 "Test getblockusage, after import" -constraints {enabledTclCmds} -body {
+test cookfsFsindex-7.6 "Test getblockusage, after import" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+    variable d
+} -body {
     $fsidx set testfile2 1 {0 1 2 3 4 5}
     set d [$fsidx export]
     $fsidx delete
     set fsidx [cookfs::fsindex $d]
-    list \
-        [$fsidx getblockusage 0] \
-        [$fsidx getblockusage 1] \
-        [$fsidx getblockusage 2] \
-        [$fsidx getblockusage 3]
+    assertEq [$fsidx getblockusage 0] 1 "block #0 is used by test2"
+    assertEq [$fsidx getblockusage 1] 0 "block #1 is not used"
+    assertEq [$fsidx getblockusage 2] 0 "block #2 is not used"
+    assertEq [$fsidx getblockusage 3] 1 "block #3 is used by test2"
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx d
-} -result [list 1 0 0 1]
+} -ok
 
-tcltest::test cookfsFsindex-7.7 "Test getblockusage, multiple set" -constraints {enabledTclCmds} -body {
+test cookfsFsindex-7.7 "Test getblockusage, multiple set" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+} -body {
     $fsidx set test1 1 {0 1 2 3 4 5}
     $fsidx set test2 1
     $fsidx set test2/foo 1
     $fsidx set test2/foo/bar 1 {3 4 5}
     $fsidx set test3 1 {2 0 0 3 4 5}
     $fsidx set test4 1 {}
-    list \
-        [$fsidx getblockusage 0] \
-        [$fsidx getblockusage 1] \
-        [$fsidx getblockusage 2] \
-        [$fsidx getblockusage 3]
+    assertEq [$fsidx getblockusage 0] 1 "block #0 is used by test1"
+    assertEq [$fsidx getblockusage 1] 0 "block #1 is not used"
+    assertEq [$fsidx getblockusage 2] 1 "block #2 is used by test3"
+    assertEq [$fsidx getblockusage 3] 3 "block #3 is used by test1/test3 and test2/foo/bar"
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -result [list 1 0 1 3]
+} -ok
 
-tcltest::test cookfsFsindex-7.8 "Test getblockusage, multiple set/unset" -constraints {enabledTclCmds} -body {
+test cookfsFsindex-7.8 "Test getblockusage, multiple set/unset" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+} -body {
     $fsidx set test1 1 {0 1 2 3 4 5}
     $fsidx set test2 1 {3 4 5}
     $fsidx set test3 1
@@ -362,183 +347,175 @@ tcltest::test cookfsFsindex-7.8 "Test getblockusage, multiple set/unset" -constr
     $fsidx unset test3/foo
     $fsidx unset test3
     $fsidx set test6 1 {2 0 0}
-    list \
-        [$fsidx getblockusage 0] \
-        [$fsidx getblockusage 1] \
-        [$fsidx getblockusage 2] \
-        [$fsidx getblockusage 3] \
-        [$fsidx getblockusage 4]
+    assertEq [$fsidx getblockusage 0] 1 "block #0 is used by test1"
+    assertEq [$fsidx getblockusage 1] 0 "block #1 is not used"
+    assertEq [$fsidx getblockusage 2] 1 "block #2 is used by test6"
+    assertEq [$fsidx getblockusage 3] 2 "block #3 is used by test1 and test2"
+    assertEq [$fsidx getblockusage 4] 1 "block #4 is test5"
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -result [list 1 0 1 2 1]
+} -ok
 
-tcltest::test cookfsFsindex-7.9 "Test getblockusage, set with override" -constraints {enabledTclCmds} -body {
+test cookfsFsindex-7.9 "Test getblockusage, set with override" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+} -body {
     $fsidx set test1 1 {0 1 2 3 4 5}
     $fsidx set test2 1 {3 4 5}
     $fsidx set test1 1 {4 5 6}
-    list \
-        [$fsidx getblockusage 0] \
-        [$fsidx getblockusage 1] \
-        [$fsidx getblockusage 2] \
-        [$fsidx getblockusage 3] \
-        [$fsidx getblockusage 4]
+    assertEq [$fsidx getblockusage 0] 0 "block #0 is not used"
+    assertEq [$fsidx getblockusage 1] 0 "block #1 is not used"
+    assertEq [$fsidx getblockusage 2] 0 "block #2 is not used"
+    assertEq [$fsidx getblockusage 3] 1 "block #3 is test2"
+    assertEq [$fsidx getblockusage 4] 1 "block #4 is test1"
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -result [list 0 0 0 1 1]
+} -ok
 
-tcltest::test cookfsFsindex-8.1 "Test changecount, wrong args" -constraints {enabledTclCmds} -body {
+test cookfsFsindex-8.1 "Test changecount, wrong args" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
+} -body {
     $fsidx changecount 1
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx
-} -returnCodes error -match glob -result {wrong # args: should be "::cookfs::*::fsindex::handle* changecount"}
+} -match glob -error {wrong # args: should be "::cookfs::*::fsindex::handle* changecount"}
 
-tcltest::test cookfsFsindex-8.2 "Test changecount, set/unset increments" -constraints {enabledTclCmds} -body {
-    set res [list]
+test cookfsFsindex-8.2 "Test changecount, set/unset increments" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
-    lappend res [$fsidx changecount]
+} -body {
+    assertEq [$fsidx changecount] 0
     $fsidx set test1 1 {4 5 6}
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 1
     $fsidx set test2 1 {3 4 5}
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     $fsidx set test3 1
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 3
     $fsidx set test3/test1 1 {3 4 5}
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 4
     $fsidx unset test3/test1
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 5
     $fsidx unset test3
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 6
     $fsidx unset test2
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 7
     $fsidx unset test1
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 8
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx res
-} -result {0 1 2 3 4 5 6 7 8}
+} -ok
 
-tcltest::test cookfsFsindex-8.3 "Test changecount, set/unset metadata increments" -constraints {enabledTclCmds} -body {
-    set res [list]
+test cookfsFsindex-8.3 "Test changecount, set/unset metadata increments" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
-    lappend res [$fsidx changecount]
+} -body {
+    assertEq [$fsidx changecount] 0
     $fsidx setmetadata a b
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 1
     $fsidx unsetmetadata a
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx res
-} -result {0 1 2}
+} -ok
 
-tcltest::test cookfsFsindex-8.4 "Test changecount, don't increase the counter on unset errors" -constraints {enabledTclCmds} -body {
-    set res [list]
+test cookfsFsindex-8.4 "Test changecount, don't increase the counter on unset errors" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
-    lappend res [$fsidx changecount]
+} -body {
+    assertEq [$fsidx changecount] 0
     $fsidx set test3 1
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 1
     $fsidx set test3/test1 1 {3 4 5}
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     # error here and the change counter should remain the same
     catch { $fsidx unset test3 }
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     $fsidx unset test3/test1
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 3
     $fsidx unset test3
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 4
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx res
-} -result {0 1 2 2 3 4}
+} -ok
 
-tcltest::test cookfsFsindex-8.5 "Test changecount, reset the change counter on import/export" -constraints {enabledTclCmds} -body {
-    set res [list]
+test cookfsFsindex-8.5 "Test changecount, reset the change counter on import/export" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
-    lappend res [$fsidx changecount]
+    variable exp
+} -body {
+    assertEq [$fsidx changecount] 0
     $fsidx set test3 1
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 1
     set exp [$fsidx export]
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 0
     $fsidx set test1 1
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 1
     $fsidx import $exp
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 0
     $fsidx set test2 1
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 1
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx res exp
-} -result {0 1 0 1 0 1}
+} -ok
 
-tcltest::test cookfsFsindex-8.6 "Test changecount, setmtime increment" -constraints {enabledTclCmds} -body {
-    set res [list]
+test cookfsFsindex-8.6 "Test changecount, setmtime increment" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
-    lappend res [$fsidx changecount]
+} -body {
+    assertEq [$fsidx changecount] 0
     $fsidx set test3 1
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 1
     $fsidx setmtime test3 2
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx res
-} -result {0 1 2}
+} -ok
 
-tcltest::test cookfsFsindex-8.7 "Test changecount, non-incremental operations" -constraints {enabledTclCmds} -body {
-    set res [list]
+test cookfsFsindex-8.7 "Test changecount, non-incremental operations" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
-    lappend res [$fsidx changecount]
+} -body {
+    assertEq [$fsidx changecount] 0
     $fsidx set test3 1 {3 4 5}
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 1
     $fsidx setmetadata a b
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     $fsidx list ""
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     $fsidx get test3
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     $fsidx getmtime test3
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     $fsidx getmetadata a
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     $fsidx getblockusage 3
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx res
-} -result {0 1 2 2 2 2 2 2}
+} -ok
 
-tcltest::test cookfsFsindex-8.8 "Test changecount, don't increment on errors" -constraints {enabledTclCmds} -body {
-    set res [list]
+test cookfsFsindex-8.8 "Test changecount, don't increment on errors" -constraints {enabledTclCmds} -setup {
     set fsidx [cookfs::fsindex]
-    lappend res [$fsidx changecount]
+} -body {
+    assertEq [$fsidx changecount] 0
     $fsidx set test3 1 {3 4 5}
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 1
     $fsidx setmetadata a b
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     catch { $fsidx list "foo" }
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     catch { $fsidx get "bar" }
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     catch { $fsidx getmtime "bar" }
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     catch { $fsidx getmetadata x }
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     catch { $fsidx getblockusage 100 }
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     # replace the file with the directory, this should result in an error
     catch { $fsidx set test3 1 }
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     # the parent doesn't exist, this should result in an error
     catch { $fsidx set foo/bar 1 {3 4 5} }
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
     # the parent is not a directory, this should result in an error
     catch { $fsidx set test3/bar 1 {3 4 5} }
-    lappend res [$fsidx changecount]
+    assertEq [$fsidx changecount] 2
 } -cleanup {
     $fsidx delete
-    unset -nocomplain fsidx res
-} -result {0 1 2 2 2 2 2 2 2 2 2}
+} -ok
 
+cleanupTests

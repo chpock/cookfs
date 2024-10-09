@@ -1,16 +1,17 @@
+source [file join [file dirname [info script]] common.tcl]
 
-tcltest::test cookfsWriterChannel-1.1 {opening a file for read/write and closing it without write doesn't add new pages} -constraints {enabledTclCmds} -setup {
-    set vfs [tcltest::makeFile {} cookfs.cfs]
+test cookfsWriterChannel-1.1 {opening a file for read/write and closing it without write doesn't add new pages} -constraints {enabledTclCmds} -setup {
+    set vfs [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount -compression none -smallfilebuffer 0 $vfs $vfs]
-    set file [tcltest::makeFile {TEST} test $vfs]
-} -body {
-    set result [list]
     set pg [$fsid getpages]
+    set file [makeFile {TEST} test $vfs]
+    variable fd
+} -body {
 
     # Make sure we have 1 page for the file
-    lappend result [$pg length]
+    assertEq [$pg length] 1 "we have not only 1 page"
     # Make sure the file size is 5 bytes
-    lappend result [file size $file]
+    assertEq [file size $file] 5
 
     # Open the file for read/write
     set fd [open $file r+]
@@ -18,15 +19,14 @@ tcltest::test cookfsWriterChannel-1.1 {opening a file for read/write and closing
     close $fd
 
     # Make sure we still have 1 page
-    lappend result [$pg length]
+    assertEq [$pg length] 1 "we have not only 1 page"
     # Make sure the file size is 5 bytes
-    lappend result [file size $file]
+    assertEq [file size $file] 5
 
     # Check to see if the file is corrupted
-    lappend result [tcltest::viewFile $file]
-} -result {1 5 1 5 TEST} -cleanup {
-    catch { cookfs::Unmount $vfs }
-    file delete -force $vfs
-    unset -nocomplain vfs fsid file result pg fd
-}
+    assertEq [viewFile $file] "TEST"
+} -cleanup {
+    cookfs::Unmount $vfs
+} -ok
 
+cleanupTests

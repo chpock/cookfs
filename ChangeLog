@@ -1,3 +1,6 @@
+2024-10-09 Konstantin Kushnir <chpock@gmail.com>
+	* Refactor tests
+
 2024-10-03 Konstantin Kushnir <chpock@gmail.com>
 	* Improve deduplication. Detect adding a file with the same contents
 	and using previously allocated disk space.
