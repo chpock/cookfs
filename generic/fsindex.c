@@ -371,7 +371,7 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
 
         type = Cookfs_FsindexFileSetLookupType(typeStr, &option_str);
 
-        const char *fileset_node_name;
+        const char *fileset_node_name = NULL;
         switch (type) {
         case COOKFS_FSINDEX_FILESET_NONE:
             // This case should be impossible as we don't have 'none' in
