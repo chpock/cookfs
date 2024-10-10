@@ -416,7 +416,7 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
     // contains something.
     CookfsLog2(printf("fsindex is NOT a newly created"));
 
-    const char *fileset_node_name;
+    const char *fileset_node_name = NULL;
     // Check current fsindex fileset type
     type = Cookfs_FsindexFileSetGetType(i);
 
