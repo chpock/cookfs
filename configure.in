@@ -20,7 +20,7 @@ AC_INIT([cookfs],[1.9.0])
 
 TEA_INIT([3.13])
 
-AC_CONFIG_AUX_DIR(tclconfig)
+#AC_CONFIG_AUX_DIR(tclconfig)
 
 #--------------------------------------------------------------------
 # Load the tclConfig.sh file
@@ -52,6 +52,8 @@ TEA_PREFIX
 
 TEA_SETUP_COMPILER
 
+COOKFS_SET_PLATFORM
+
 TEA_ADD_SOURCES([cookfs.c common.c md5.h bindata.c hashes.c pathObj.c threads.c])
 TEA_ADD_HEADERS([generic/tclCookfs.h])
 TEA_ADD_INCLUDES([-I\"`${CYGPATH} ${srcdir}/generic`\"])
@@ -66,6 +68,7 @@ TEA_ADD_TCL_SOURCES([
     scripts/readerchannel.tcl
     scripts/writer.tcl
 ])
+
 
 #--------------------------------------------------------------------
 # Define a special symbol for Windows (BUILD_sample in this case) so

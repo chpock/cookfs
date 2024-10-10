@@ -33,6 +33,7 @@ feature-lzma bool
 feature-metadata bool
 feature-zstd bool
 package-version version
+platform unknown
 tcl-commands bool
 }
 

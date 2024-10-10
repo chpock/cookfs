@@ -16,9 +16,30 @@
 #define COOKFSFSINDEX_FIND_DELETE           2
 #define COOKFSFSINDEX_FIND_DELETE_RECURSIVE 3
 
+const char *filesetMetadataKey = "cookfs.fileset";
+const char *fileset_platform = COOKFS_PLATFORM;
+const char *fileset_tcl_version = "tcl" STRINGIFY(TCL_MAJOR_VERSION)
+    STRINGIFY(TCL_MINOR_VERSION);
+const char *fileset_auto = COOKFS_PLATFORM ".tcl" STRINGIFY(TCL_MAJOR_VERSION)
+    STRINGIFY(TCL_MINOR_VERSION);
+
+
+// The 'custom' option should be the latest in the list. It will be used in
+// Cookfs_FsindexFileSetSet() if nothing else is found.
+static const struct {
+    const char *option;
+    Cookfs_FsindexFileSetType type;
+} cookfs_fileset_options[] = {
+    { "auto",        COOKFS_FSINDEX_FILESET_AUTO        },
+    { "tcl_version", COOKFS_FSINDEX_FILESET_TCL_VERSION },
+    { "platform",    COOKFS_FSINDEX_FILESET_PLATFORM    },
+    { "custom",      COOKFS_FSINDEX_FILESET_CUSTOM      },
+    { .option = NULL }
+};
+
 /* declarations of static and/or internal functions */
 static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexEntry **dirPtr, Cookfs_PathObj *pathObj, int command, Cookfs_FsindexEntry *newFileNode);
-static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *currentNode, char *pathTailStr, int command, Cookfs_FsindexEntry *newFileNode);
+static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *currentNode, const char *pathTailStr, int command, Cookfs_FsindexEntry *newFileNode);
 static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e);
 static void Cookfs_FsindexFree(Cookfs_Fsindex *i);
 static Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(Cookfs_Fsindex *fsindex, int fileNameLength, int numBlocks, int useHash);
@@ -153,6 +174,347 @@ int Cookfs_FsindexEntryUnlock(Cookfs_FsindexEntry *e) {
     // Treat this as an error.
     assert(e->refcount >= 0);
     return 1;
+}
+
+const char *Cookfs_FsindexFileSetGetActive(Cookfs_Fsindex *i) {
+    Cookfs_FsindexWantRead(i);
+    if (i->rootItem == i->rootItemVirtual) {
+        return NULL;
+    }
+    return i->rootItemVirtual->fileName;
+}
+
+static Cookfs_FsindexFileSetType Cookfs_FsindexFileSetGetType(Cookfs_Fsindex *i) {
+
+    Cookfs_FsindexWantRead(i);
+
+    Tcl_Obj *typeObj = Cookfs_FsindexGetMetadata(i, filesetMetadataKey);
+
+    if (typeObj == NULL) {
+        CookfsLog2(printf("return: [none]"));
+        return COOKFS_FSINDEX_FILESET_NONE;
+    }
+
+    Cookfs_FsindexFileSetType type;
+    const char *typeStr = Tcl_GetString(typeObj);
+
+    int idx = 0;
+    for (const char **option = (const char **)cookfs_fileset_options;;
+        option = (const char **)((char *)option +
+        sizeof(cookfs_fileset_options[0])),
+            idx++)
+    {
+        if (*option == NULL) {
+            type = COOKFS_FSINDEX_FILESET_CUSTOM;
+            assert(0 && "Cookfs_FsindexFileSetGetType(): unknown fileset type in metadata");
+        } else if (strcmp(*option, typeStr) == 0) {
+            type = cookfs_fileset_options[idx].type;
+        } else {
+            continue;
+        }
+        break;
+    }
+
+    Tcl_BounceRefCount(typeObj);
+
+    CookfsLog2(printf("return: [%s]",
+        type == COOKFS_FSINDEX_FILESET_NONE ? "none" :
+        type == COOKFS_FSINDEX_FILESET_AUTO ? "auto" :
+        type == COOKFS_FSINDEX_FILESET_TCL_VERSION ? "tcl_version" :
+        type == COOKFS_FSINDEX_FILESET_PLATFORM ? "platform" :
+        type == COOKFS_FSINDEX_FILESET_CUSTOM ? "custom" :
+        "UNKNOWN"));
+
+    return type;
+}
+
+static Cookfs_FsindexFileSetType Cookfs_FsindexFileSetLookupType(const char *typeStr,
+    const char **option_str_ptr)
+{
+
+    CookfsLog2(printf("type: [%s]", typeStr));
+
+    Cookfs_FsindexFileSetType type;
+    const char *option_str;
+    int idx = 0;
+    for (const char **option = (const char **)cookfs_fileset_options;;
+        option = (const char **)((char *)option +
+        sizeof(cookfs_fileset_options[0])),
+            idx++)
+    {
+        CookfsLog2(printf("check option: #%d [%s]", idx, *option));
+        if (*option == NULL) {
+            type = COOKFS_FSINDEX_FILESET_CUSTOM;
+        } else {
+            option_str = *option;
+            if (strcmp(*option, typeStr) == 0) {
+                type = cookfs_fileset_options[idx].type;
+            } else {
+                continue;
+            }
+        }
+        break;
+    }
+
+    CookfsLog2(printf("normalized type: [%s]",
+        type == COOKFS_FSINDEX_FILESET_AUTO ? "auto" :
+        type == COOKFS_FSINDEX_FILESET_TCL_VERSION ? "tcl_version" :
+        type == COOKFS_FSINDEX_FILESET_PLATFORM ? "platform" :
+        type == COOKFS_FSINDEX_FILESET_CUSTOM ? "custom" :
+        "UNKNOWN"));
+
+    *option_str_ptr = option_str;
+    return type;
+}
+
+static int Cookfs_FsindexFileSetCreateAndSet(Cookfs_Fsindex *i,
+    const char *fileset_node_name, Tcl_Obj **err)
+{
+
+    CookfsLog2(printf("create new entry: [%s]", fileset_node_name));
+
+    int length = strlen(fileset_node_name);
+
+    Cookfs_FsindexEntry *fileset_node = Cookfs_FsindexSetInDirectory(i->rootItem,
+        fileset_node_name, length, COOKFS_NUMBLOCKS_DIRECTORY);
+
+    if (fileset_node == NULL) {
+        CookfsLog2(printf("return: ERROR (unable to create entry)"));
+        SET_ERROR(Tcl_ObjPrintf("unable to create fileset with"
+            " the specified name '%s'", fileset_node_name));
+        return TCL_ERROR;
+    }
+
+    i->rootItemVirtual = fileset_node;
+
+    return TCL_OK;
+
+}
+
+static Cookfs_FsindexEntry *Cookfs_FsindexFileSetLookup(Cookfs_Fsindex *i,
+    const char *fileset_node_name)
+{
+
+    Cookfs_FsindexEntry *e = NULL;
+
+    if (fileset_node_name == NULL) {
+        CookfsLog2(printf("lookup for fileset: <first available>"));
+    } else {
+        CookfsLog2(printf("lookup for fileset: [%s]", fileset_node_name));
+    }
+
+    int count;
+    Cookfs_FsindexEntry **entry_list = Cookfs_FsindexListEntry(i->rootItem,
+        &count);
+    assert(entry_list != NULL && "Cookfs_FsindexFileSetLookup():"
+        " entry_list is NULL");
+
+    if (fileset_node_name == NULL) {
+
+        assert(count > 0 && "Cookfs_FsindexFileSetSelect(): count == 0,"
+            " no fileset found");
+
+        e = entry_list[0];
+
+    } else {
+
+        CookfsLog2(printf("have %d entries in the root", count));
+
+        for (int idx = 0; idx < count; idx++) {
+            CookfsLog2(printf("check entry: [%s]", entry_list[idx]->fileName));
+            if (strcmp(entry_list[idx]->fileName, fileset_node_name) == 0) {
+                CookfsLog2(printf("required fileset has been found,"
+                    " set it and return"));
+                e = entry_list[idx];
+                break;
+            }
+        }
+
+    }
+
+    Cookfs_FsindexListFree(entry_list);
+    CookfsLog2(printf("return fileset: [%s]", e == NULL ? "<NULL>" : e->fileName));
+    return e;
+
+}
+
+int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
+    int readonly, Tcl_Obj **err)
+{
+
+    Cookfs_FsindexWantWrite(i);
+    CookfsLog2(printf("type: [%s]", typeStr == NULL ? "<NULL>" : typeStr));
+
+    Cookfs_FsindexFileSetType type;
+    const char *option_str;
+
+    // Now let's check if fsindex is a newly created index or if it already
+    // contains files. The result of setting fileset will depend heavily
+    // on this fact.
+    if (i->rootItem->data.dirInfo.childCount == 0) {
+
+        // If we are here, then we have a newly created index
+        CookfsLog2(printf("fsindex is a newly created"));
+
+        // If we don't want to set any fileset type, then we have nothing
+        // to do.
+        if (typeStr == NULL) {
+            return TCL_OK;
+        }
+
+        if (readonly) {
+            CookfsLog2(printf("return: ERROR (readonly on empty fsindex)"));
+            SET_ERROR(Tcl_NewStringObj("unable to create fileset in readonly"
+                " fsindex", -1));
+            return TCL_ERROR;
+        }
+
+        type = Cookfs_FsindexFileSetLookupType(typeStr, &option_str);
+
+        const char *fileset_node_name;
+        switch (type) {
+        case COOKFS_FSINDEX_FILESET_NONE:
+            // This case should be impossible as we don't have 'none' in
+            // cookfs_fileset_options struct;
+            assert(0 && "Cookfs_FsindexFileSetSet(): got 'none' fileset type");
+            break;
+        case COOKFS_FSINDEX_FILESET_AUTO:
+            fileset_node_name = fileset_auto;
+            break;
+        case COOKFS_FSINDEX_FILESET_TCL_VERSION:
+            fileset_node_name = fileset_tcl_version;
+            break;
+        case COOKFS_FSINDEX_FILESET_PLATFORM:
+            fileset_node_name = fileset_platform;
+            break;
+        case COOKFS_FSINDEX_FILESET_CUSTOM:
+            fileset_node_name = typeStr;
+            break;
+        }
+
+        CookfsLog2(printf("create new entry: [%s]", fileset_node_name));
+
+        if (Cookfs_FsindexFileSetCreateAndSet(i, fileset_node_name, err)
+            != TCL_OK)
+        {
+            return TCL_ERROR;
+        }
+
+        CookfsLog2(printf("set metadata: [%s] = [%s]", filesetMetadataKey,
+            option_str));
+
+        Cookfs_FsindexSetMetadataRaw(i, filesetMetadataKey,
+            (const unsigned char *)option_str, strlen(option_str));
+
+        CookfsLog2(printf("return: ok"));
+
+        return TCL_OK;
+
+    }
+
+    // If we are here, then we have not a newly created index. It already
+    // contains something.
+    CookfsLog2(printf("fsindex is NOT a newly created"));
+
+    const char *fileset_node_name;
+    // Check current fsindex fileset type
+    type = Cookfs_FsindexFileSetGetType(i);
+
+    // If typeStr is not specified, we want to select a set of files
+    // automatically.
+    if (typeStr == NULL) {
+
+        CookfsLog2(printf("typeStr is NULL, we have to select fileset"
+            " automatically"));
+
+        switch (type) {
+
+        case COOKFS_FSINDEX_FILESET_NONE:
+
+            CookfsLog2(printf("fsindex has no fileset, there is nothing"
+                " to do"));
+
+            return TCL_OK;
+
+        case COOKFS_FSINDEX_FILESET_CUSTOM:
+
+            CookfsLog2(printf("fsindex has custom fileset type, select"
+                " the first available fileset"));
+
+            i->rootItemVirtual = Cookfs_FsindexFileSetLookup(i, NULL);
+
+            CookfsLog2(printf("activate custom fileset: [%s]",
+                i->rootItemVirtual->fileName));
+
+            return TCL_OK;
+
+        case COOKFS_FSINDEX_FILESET_AUTO:
+            fileset_node_name = fileset_auto;
+            break;
+        case COOKFS_FSINDEX_FILESET_TCL_VERSION:
+            fileset_node_name = fileset_tcl_version;
+            break;
+        case COOKFS_FSINDEX_FILESET_PLATFORM:
+            fileset_node_name = fileset_platform;
+            break;
+        }
+
+        // If we are here, then we have automatic fileset based on Tcl version,
+        // platform, or both. If we are in readonly mode, then try to
+        // select fileset based on current conditions. If we are in writable
+        // mode, then we will try to select existing fileset based on current
+        // conditions, and we don't have such fileset yet, then we will create
+        // a new one.
+
+        CookfsLog2(printf("want to set auto-fileset: [%s]", fileset_node_name));
+
+    } else {
+
+        if (type == COOKFS_FSINDEX_FILESET_NONE) {
+            CookfsLog2(printf("return: ERROR (unable to set fileset on"
+                " non-empty fsindex)"));
+            SET_ERROR(Tcl_NewStringObj("cannot set a fileset to a non-empty"
+                " fsindex without an initialized fileset", -1));
+            return TCL_ERROR;
+        }
+
+        CookfsLog2(printf("typeStr is defined, we have to select fileset:"
+            " [%s]", typeStr));
+
+        fileset_node_name = typeStr;
+
+    }
+
+    Cookfs_FsindexEntry *e = Cookfs_FsindexFileSetLookup(i, fileset_node_name);
+
+    if (e != NULL) {
+        CookfsLog2(printf("required fileset has been found, set it and"
+            " return"));
+        i->rootItemVirtual = e;
+        return TCL_OK;
+    }
+
+    // If we are here, then we don't have the required fileset in fsindex.
+    // If we are in readonly mode, consider this as an error.
+    if (readonly) {
+        CookfsLog2(printf("return: ERROR (unable to find the fileset and"
+            " unable to create it in RO mode)"));
+        SET_ERROR(Tcl_ObjPrintf("VFS does not have the required fileset"
+            " \"%s\", it cannot be created due to read-only mode",
+            fileset_node_name));
+        return TCL_ERROR;
+    }
+
+    if (Cookfs_FsindexFileSetCreateAndSet(i, fileset_node_name, err)
+        != TCL_OK)
+    {
+        CookfsLog2(printf("return: ERROR"));
+        return TCL_ERROR;
+    }
+
+    CookfsLog2(printf("return: ok"));
+    return TCL_OK;
+
 }
 
 int Cookfs_FsindexEntryGetBlock(Cookfs_FsindexEntry *e, int blockNumber,
@@ -526,6 +888,7 @@ Cookfs_Fsindex *Cookfs_FsindexInit(Tcl_Interp *interp, Cookfs_Fsindex *i) {
     }
     rc->rootItem = Cookfs_FsindexEntryAlloc(rc, 0, COOKFS_NUMBLOCKS_DIRECTORY, COOKFS_USEHASH_DEFAULT);
     rc->rootItem->fileName = ".";
+    rc->rootItemVirtual = rc->rootItem;
     rc->blockIndexSize = 0;
     rc->blockIndex = NULL;
     rc->changeCount = 0;
@@ -787,7 +1150,7 @@ Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Cookfs_PathObj *pathOb
  *----------------------------------------------------------------------
  */
 
-Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_FsindexEntry *currentNode, char *pathTailStr, int pathTailLen, int numBlocks) {
+Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_FsindexEntry *currentNode, const char *pathTailStr, int pathTailLen, int numBlocks) {
     Cookfs_FsindexEntryWantWrite(currentNode);
     Cookfs_FsindexEntry *fileNode;
     const Cookfs_FsindexEntry *foundFileNode;
@@ -1078,7 +1441,6 @@ static Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(Cookfs_Fsindex *fsindex, in
     return e;
 }
 
-
 /*
  *----------------------------------------------------------------------
  *
@@ -1322,7 +1684,7 @@ Cookfs_FsindexEntry *CookfsFsindexFindElement(const Cookfs_Fsindex *i, Cookfs_Pa
     Cookfs_FsindexEntry *nextNode;
 
     /* start off with root item */
-    currentNode = i->rootItem;
+    currentNode = i->rootItemVirtual;
 
     CookfsLog(printf("Recursively finding %d path elemnets", listSize))
 
@@ -1398,7 +1760,7 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
 
     if (pathObj->elementCount == 0) {
 	if (command == COOKFSFSINDEX_FIND_FIND) {
-            return i->rootItem;
+            return i->rootItemVirtual;
 	}  else  {
 	    /* create or delete will not work with empty file list */
 	    goto error;
@@ -1493,7 +1855,7 @@ error:
  *----------------------------------------------------------------------
  */
 
-static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *currentNode, char *pathTailStr, int command, Cookfs_FsindexEntry *newFileNode) {
+static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *currentNode, const char *pathTailStr, int command, Cookfs_FsindexEntry *newFileNode) {
     /* the main iteration occurs until the process has completed
      * usually either entry or NULL is returned in first iteration,
      * however if static array is converted into a hash table,

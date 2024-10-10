@@ -20,7 +20,7 @@ void Cookfs_FsindexCleanup(Cookfs_Fsindex *i);
 Cookfs_FsindexEntry *Cookfs_FsindexGet(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj);
 Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj, int numBlocks);
 Cookfs_FsindexEntry *Cookfs_FsindexSetDirectory(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj);
-Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_FsindexEntry *currentNode, char *pathTailStr, int pathTailLen, int numBlocks);
+Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_FsindexEntry *currentNode, const char *pathTailStr, int pathTailLen, int numBlocks);
 int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj);
 int Cookfs_FsindexUnsetRecursive(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj);
 
@@ -66,6 +66,9 @@ Tcl_WideInt Cookfs_FsindexEntryGetFileTime(Cookfs_FsindexEntry *e);
 
 const char *Cookfs_FsindexEntryGetFileName(Cookfs_FsindexEntry *e,
     unsigned char *fileNameLen);
+
+const char *Cookfs_FsindexFileSetGetActive(Cookfs_Fsindex *i);
+int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr, int readonly, Tcl_Obj **err);
 
 void Cookfs_FsindexForeach(Cookfs_Fsindex *i, Cookfs_FsindexForeachProc *proc, ClientData clientData);
 
