@@ -29,6 +29,7 @@ static int CookfsFsindexCmdUnsetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *in
 static int CookfsFsindexCmdGetBlockUsage(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdChangeCount(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdImport(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+static int CookfsFsindexCmdFileset(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdSetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 static int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
 
@@ -183,8 +184,29 @@ static int CookfsRegisterFsindexObjectCmd(ClientData clientData, Tcl_Interp *int
 
     /* import fsindex from specified data if specified, otherwise create new fsindex */
     if (objc == 2) {
+
         i = Cookfs_FsindexFromTclObj(interp, NULL, objv[1]);
+
         CookfsLog(printf("CookfsRegisterFsindexObjectCmd: created fsindex from obj [%p]", (void *)i));
+
+        if (i != NULL) {
+
+            Cookfs_FsindexLockWrite(i, NULL);
+            Tcl_Obj *err = NULL;
+            int rc = Cookfs_FsindexFileSetSelect(i, NULL, 0, &err);
+            Cookfs_FsindexUnlock(i);
+
+            if (rc != TCL_OK) {
+                if (err == NULL) {
+                    err = Tcl_NewStringObj("unknown error", -1);
+                }
+                Cookfs_FsindexFini(i);
+                Tcl_SetObjResult(interp, err);
+                return TCL_ERROR;
+            }
+
+        }
+
     } else {
         i = Cookfs_FsindexInit(interp, NULL);
         CookfsLog(printf("CookfsRegisterFsindexObjectCmd: created fsindex from scratch [%p]", (void *)i));
@@ -252,8 +274,17 @@ static void CookfsFsindexDeleteProc(ClientData clientData) {
  */
 
 static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
-    static char *commands[] = { "export", "list", "get", "getmtime", "set", "setmtime", "unset", "delete", "setmetadata", "getmetadata", "unsetmetadata", "getblockusage", "changecount", "import", NULL };
-    enum { cmdExport, cmdList, cmdGet, cmdGetmtime, cmdSet, cmdSetmtime, cmdUnset, cmdDelete, cmdSetMetadata, cmdGetMetadata, cmdUnsetMetadata, cmdGetBlockUsage, cmdChangeCount, cmdImport };
+    static char *commands[] = {
+        "export", "list", "get", "getmtime", "set", "setmtime", "unset",
+        "delete", "setmetadata", "getmetadata", "unsetmetadata",
+        "getblockusage", "changecount", "import", "fileset",
+        NULL
+    };
+    enum {
+        cmdExport, cmdList, cmdGet, cmdGetmtime, cmdSet, cmdSetmtime, cmdUnset,
+        cmdDelete, cmdSetMetadata, cmdGetMetadata, cmdUnsetMetadata,
+        cmdGetBlockUsage, cmdChangeCount, cmdImport, cmdFileset,
+    };
     int idx;
 
     Cookfs_Fsindex *fsIndex = (Cookfs_Fsindex *) clientData;
@@ -297,6 +328,8 @@ static int CookfsFsindexCmd(ClientData clientData, Tcl_Interp *interp, int objc,
 	     return CookfsFsindexCmdChangeCount(fsIndex, interp, objc, objv);
 	case cmdImport:
 	     return CookfsFsindexCmdImport(fsIndex, interp, objc, objv);
+	case cmdFileset:
+	     return CookfsFsindexCmdFileset(fsIndex, interp, objc, objv);
         default:
             return TCL_ERROR;
     }
@@ -451,6 +484,16 @@ static int CookfsFsindexCmdImport(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp, i
         return TCL_ERROR;
     }
     Cookfs_Fsindex *result = Cookfs_FsindexFromTclObj(interp, fsIndex, objv[2]);
+
+    Tcl_Obj *err = NULL;
+    if (Cookfs_FsindexFileSetSelect(fsIndex, NULL, 0, &err) != TCL_OK) {
+        if (err == NULL) {
+            err = Tcl_NewStringObj("unknown error", -1);
+        }
+        Tcl_SetObjResult(interp, err);
+        result = NULL;
+    }
+
     Cookfs_FsindexUnlock(fsIndex);
 
     return (result == NULL ? TCL_ERROR : TCL_OK);
@@ -1040,4 +1083,86 @@ static int CookfsFsindexCmdGetMetadata(Cookfs_Fsindex *fsIndex, Tcl_Interp *inte
     return TCL_OK;
 }
 
+static int CookfsFsindexCmdFileset(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
+    int objc, Tcl_Obj *const objv[])
+{
+
+    if (objc > 3) {
+        Tcl_WrongNumArgs(interp, 2, objv, "?active_fileset?");
+        return TCL_ERROR;
+    }
+
+    int rc = TCL_OK;
+    Tcl_Obj *result = NULL;
+
+    if (objc > 2) {
+
+        // Set active fileset
+
+        if (!Cookfs_FsindexLockWrite(fsIndex, NULL)) {
+            return TCL_ERROR;
+        }
+
+        if (Cookfs_FsindexFileSetSelect(fsIndex, Tcl_GetString(objv[2]), 0,
+            &result) != TCL_OK)
+        {
+            if (result == NULL) {
+                result = Tcl_NewStringObj("unknown error", -1);
+            }
+            rc = TCL_ERROR;
+        } else {
+            result = Tcl_NewStringObj(Cookfs_FsindexFileSetGetActive(fsIndex),
+                -1);
+        }
+
+        goto done;
+
+    }
+
+    // Get available fileset(s)
+
+    if (!Cookfs_FsindexLockRead(fsIndex, NULL)) {
+        return TCL_ERROR;
+    }
+
+    const char *fileset_active = Cookfs_FsindexFileSetGetActive(fsIndex);
+
+    if (fileset_active == NULL) {
+        result = Tcl_NewObj();
+        goto done;
+    }
+
+    result = Tcl_NewListObj(0, NULL);
+
+    Tcl_ListObjAppendElement(NULL, result, Tcl_NewStringObj(fileset_active,
+        -1));
+
+    int count;
+    Cookfs_FsindexEntry **entry_list = Cookfs_FsindexListEntry(
+        fsIndex->rootItem, &count);
+
+    for (int idx = 0; idx < count; idx++) {
+
+        unsigned char length;
+        const char *filename = Cookfs_FsindexEntryGetFileName(entry_list[idx],
+            &length);
+
+        if (strcmp(filename, fileset_active) == 0) {
+            continue;
+        }
+
+        Tcl_ListObjAppendElement(NULL, result, Tcl_NewStringObj(filename,
+            length));
+
+    }
+
+    Cookfs_FsindexListFree(entry_list);
+
+done:
+
+    Cookfs_FsindexUnlock(fsIndex);
+    Tcl_SetObjResult(interp, result);
+    return rc;
+
+}
 

@@ -8,6 +8,20 @@ builtin(include,tclconfig/tcl.m4)
 # Add here whatever m4 macros you want to define for your package
 #
 
+AC_DEFUN([COOKFS_SET_PLATFORM], [
+    AC_MSG_CHECKING([for platform])
+    AC_CANONICAL_BUILD
+    if test -n "$build_alias"; then
+        cookfs_platform="$build_alias"
+    elif test -n "$build"; then
+        cookfs_platform="$build"
+    else
+        AC_MSG_ERROR([could not detect current platform])
+    fi
+    AC_MSG_RESULT([$cookfs_platform])
+    AC_DEFINE_UNQUOTED(COOKFS_PLATFORM, ["$cookfs_platform"])
+])
+
 AC_DEFUN([COOKFS_PROG_TCLSH], [
     AC_MSG_CHECKING([for correct tclsh])
 

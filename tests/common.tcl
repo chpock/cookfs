@@ -39,6 +39,10 @@ namespace eval ::tcltest {
     testConstraint disabledTclCmds [expr { ![cookfs::pkgconfig get tcl-commands] }]
     testConstraint enabledCWriter  [cookfs::pkgconfig get c-writer]
     testConstraint disabledCWriter [expr { ![cookfs::pkgconfig get c-writer] }]
+    testConstraint enabledCFsindex  [cookfs::pkgconfig get c-fsindex]
+    testConstraint disabledCFsindex [expr { ![cookfs::pkgconfig get c-fsindex] }]
+    testConstraint enabledCPkgconfig  [expr { [cookfs::pkgconfig get platform] ne "unknown" }]
+    testConstraint disabledCPkgconfig [expr { [cookfs::pkgconfig get platform] eq "unknown" }]
 
     testConstraint packageTclvfs [expr { ![catch { package present vfs }] }]
 

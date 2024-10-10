@@ -30,7 +30,7 @@ static int CookfsFsindexImportMetadata(Cookfs_Fsindex *fsIndex, unsigned char *b
  *    <1:fileNameLength><X:fileName><1:null>
  *    <8:fileTime>
  *    <4:numBlocks>
- *    file: <12xX:data>
+ *    file: <12*numBlocks:data>
  *    dir:  (children - starting with <4:numChildren>)
  *
  *  all file names are exported as UTF-8 string

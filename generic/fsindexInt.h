@@ -11,6 +11,14 @@
 
 #define COOKFS_USEHASH_DEFAULT 0
 
+typedef enum {
+    COOKFS_FSINDEX_FILESET_NONE,
+    COOKFS_FSINDEX_FILESET_AUTO,
+    COOKFS_FSINDEX_FILESET_TCL_VERSION,
+    COOKFS_FSINDEX_FILESET_PLATFORM,
+    COOKFS_FSINDEX_FILESET_CUSTOM
+} Cookfs_FsindexFileSetType;
+
 /* all filenames are stored in UTF-8 */
 struct _Cookfs_FsindexEntry {
     char *fileName;
@@ -44,6 +52,7 @@ struct _Cookfs_FsindexEntry {
 
 struct _Cookfs_Fsindex {
     Cookfs_FsindexEntry *rootItem;
+    Cookfs_FsindexEntry *rootItemVirtual;
     Cookfs_FsindexEntry *inactiveItems;
     Tcl_HashTable metadataHash;
     int *blockIndex;

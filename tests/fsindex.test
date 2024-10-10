@@ -518,4 +518,243 @@ test cookfsFsindex-8.8 "Test changecount, don't increment on errors" -constraint
     $fsidx delete
 } -ok
 
+test cookfsFsindex-9.1.1 "Test fileset, wrong # args" -constraints {enabledTclCmds enabledCFsindex} -setup {
+    set fsidx [cookfs::fsindex]
+} -body {
+    $fsidx fileset 1 2
+} -cleanup {
+    $fsidx delete
+} -match glob -error {wrong # args: should be "::cookfs::c::fsindex::handle* fileset ?active_fileset?"}
+
+test cookfsFsindex-9.1.2 "Test fileset, no cookfs.fileset by default" -constraints {enabledTclCmds} -setup {
+    set fsidx [cookfs::fsindex]
+} -body {
+    $fsidx getmetadata "cookfs.fileset"
+} -cleanup {
+    $fsidx delete
+} -error {Parameter not defined}
+
+test cookfsFsindex-9.2.1 "Test fileset, newly created fsindex, set auto, auto" -constraints {enabledTclCmds enabledCFsindex enabledCPkgconfig} -setup {
+    set fsidx [cookfs::fsindex]
+} -body {
+    assertEq [$fsidx fileset auto] "[::cookfs::pkgconfig get platform].tcl[join [split [info tclver] .] {}]"
+    $fsidx getmetadata "cookfs.fileset"
+} -cleanup {
+    $fsidx delete
+} -result "auto"
+
+test cookfsFsindex-9.2.2 "Test fileset, newly created fsindex, set auto, platform" -constraints {enabledTclCmds enabledCFsindex enabledCPkgconfig} -setup {
+    set fsidx [cookfs::fsindex]
+} -body {
+    assertEq [$fsidx fileset platform] "[::cookfs::pkgconfig get platform]"
+    $fsidx getmetadata "cookfs.fileset"
+} -cleanup {
+    $fsidx delete
+} -result "platform"
+
+test cookfsFsindex-9.2.3 "Test fileset, newly created fsindex, set auto, tcl version" -constraints {enabledTclCmds enabledCFsindex} -setup {
+    set fsidx [cookfs::fsindex]
+} -body {
+    assertEq [$fsidx fileset tcl_version] "tcl[join [split [info tclver] .] {}]"
+    $fsidx getmetadata "cookfs.fileset"
+} -cleanup {
+    $fsidx delete
+} -result "tcl_version"
+
+test cookfsFsindex-9.2.4 "Test fileset, newly created fsindex, set auto, custom" -constraints {enabledTclCmds enabledCFsindex} -setup {
+    set fsidx [cookfs::fsindex]
+} -body {
+    assertEq [$fsidx fileset foo] "foo"
+    $fsidx getmetadata "cookfs.fileset"
+} -cleanup {
+    $fsidx delete
+} -result "custom"
+
+test cookfsFsindex-9.3.1 "Test fileset, set fileset on non-empty fsindex without fileset" -constraints {enabledTclCmds enabledCFsindex} -setup {
+    set fsidx [cookfs::fsindex]
+    $fsidx set testdir 1
+} -body {
+    $fsidx fileset auto
+} -cleanup {
+    $fsidx delete
+} -error {cannot set a fileset to a non-empty fsindex without an initialized fileset}
+
+test cookfsFsindex-9.4.1 "Test fileset, add multiple filesets" -constraints {enabledTclCmds enabledCFsindex} -setup {
+    set fsidx [cookfs::fsindex]
+} -body {
+    assertEq [$fsidx fileset foo] "foo"
+    assertEq [$fsidx fileset bar] "bar"
+    assertEq [$fsidx fileset qux] "qux"
+    lsort [$fsidx fileset]
+} -cleanup {
+    $fsidx delete
+} -result {bar foo qux}
+
+test cookfsFsindex-9.4.2 "Test fileset, add multiple, make sure there are no duplicates" -constraints {enabledTclCmds enabledCFsindex} -setup {
+    set fsidx [cookfs::fsindex]
+} -body {
+    assertEq [$fsidx fileset foo] "foo"
+    assertEq [$fsidx fileset bar] "bar"
+    assertEq [$fsidx fileset foo] "foo"
+    assertEq [$fsidx fileset bar] "bar"
+    lsort [$fsidx fileset]
+} -cleanup {
+    $fsidx delete
+} -result {bar foo}
+
+test cookfsFsindex-9.4.3 "Test fileset, check active fileset" -constraints {enabledTclCmds enabledCFsindex} -setup {
+    set fsidx [cookfs::fsindex]
+} -body {
+    assertEq [$fsidx fileset foo] "foo"
+    assertEq [lindex [$fsidx fileset] 0] "foo"
+    assertEq [$fsidx fileset bar] "bar"
+    assertEq [lindex [$fsidx fileset] 0] "bar"
+    assertEq [$fsidx fileset qux] "qux"
+    assertEq [lindex [$fsidx fileset] 0] "qux"
+    assertEq [$fsidx fileset foo] "foo"
+    assertEq [lindex [$fsidx fileset] 0] "foo"
+    assertEq [$fsidx fileset bar] "bar"
+    assertEq [lindex [$fsidx fileset] 0] "bar"
+    assertEq [$fsidx fileset foo] "foo"
+    assertEq [lindex [$fsidx fileset] 0] "foo"
+    lsort [$fsidx fileset]
+} -cleanup {
+    $fsidx delete
+} -result {bar foo qux}
+
+test cookfsFsindex-9.5.1 "Test fileset, test files in fileset" -constraints {enabledTclCmds enabledCFsindex} -setup {
+    set fsidx [cookfs::fsindex]
+    $fsidx fileset auto
+} -body {
+    $fsidx set testdir 1
+    $fsidx set testfile 2 {0 1 2 3 4 5}
+    $fsidx set testdir/otherfile 3 {6 7 8}
+    $fsidx set testfile 4 {9 10 11}
+    assertEq [lsort [$fsidx list ""]] "testdir testfile" "Listing main directory failed"
+    assertEq [$fsidx list "testdir"] "otherfile" "Listing testdir directory failed"
+    assertEq [$fsidx get testfile] {4 11 {9 10 11}} "testfile contents differs from expected"
+    assertEq [$fsidx get testdir] 1 "testdir contents differs from expected"
+    assertEq [$fsidx get testdir/otherfile] {3 8 {6 7 8}} "testdir/otherfile contents differs from expected"
+} -cleanup {
+    $fsidx delete
+} -ok
+
+test cookfsFsindex-9.6.1 "Test fileset, import-export, auto fileset" -constraints {enabledTclCmds enabledCFsindex enabledCPkgconfig} -setup {
+    set fsidx [cookfs::fsindex]
+    variable d
+} -body {
+    assertEq [$fsidx fileset auto] "[::cookfs::pkgconfig get platform].tcl[join [split [info tclver] .] {}]"
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    assertEq [lindex [$fsidx fileset] 0] "[::cookfs::pkgconfig get platform].tcl[join [split [info tclver] .] {}]"
+    $fsidx getmetadata "cookfs.fileset"
+} -cleanup {
+    $fsidx delete
+} -result "auto"
+
+test cookfsFsindex-9.6.2 "Test fileset, import-export, platform fileset" -constraints {enabledTclCmds enabledCFsindex enabledCPkgconfig} -setup {
+    set fsidx [cookfs::fsindex]
+    variable d
+} -body {
+    assertEq [$fsidx fileset platform] "[::cookfs::pkgconfig get platform]"
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    assertEq [lindex [$fsidx fileset] 0] "[::cookfs::pkgconfig get platform]"
+    $fsidx getmetadata "cookfs.fileset"
+} -cleanup {
+    $fsidx delete
+} -result "platform"
+
+test cookfsFsindex-9.6.3 "Test fileset, import-export, tcl version fileset" -constraints {enabledTclCmds enabledCFsindex} -setup {
+    set fsidx [cookfs::fsindex]
+    variable d
+} -body {
+    assertEq [$fsidx fileset tcl_version] "tcl[join [split [info tclver] .] {}]"
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    assertEq [lindex [$fsidx fileset] 0] "tcl[join [split [info tclver] .] {}]"
+    $fsidx getmetadata "cookfs.fileset"
+} -cleanup {
+    $fsidx delete
+} -result "tcl_version"
+
+test cookfsFsindex-9.6.4 "Test fileset, import-export, custom fileset" -constraints {enabledTclCmds enabledCFsindex} -setup {
+    set fsidx [cookfs::fsindex]
+    variable d
+} -body {
+    assertEq [$fsidx fileset foo] "foo"
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    assertEq [lindex [$fsidx fileset] 0] "foo"
+    $fsidx getmetadata "cookfs.fileset"
+} -cleanup {
+    $fsidx delete
+} -result "custom"
+
+test cookfsFsindex-9.6.5 "Test fileset, import-export, multiple filesets, the first is selected" -constraints {enabledTclCmds enabledCFsindex} -setup {
+    set fsidx [cookfs::fsindex]
+    variable d
+} -body {
+    assertEq [$fsidx fileset foo] "foo"
+    assertEq [$fsidx fileset bar] "bar"
+    assertEq [$fsidx fileset qux] "qux"
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    assertEq [lindex [$fsidx fileset] 0] "foo"
+    $fsidx getmetadata "cookfs.fileset"
+} -cleanup {
+    $fsidx delete
+} -result "custom"
+
+test cookfsFsindex-9.7.1 "Test fileset, switch between filesets" -constraints {enabledTclCmds enabledCFsindex} -setup {
+    set fsidx [cookfs::fsindex]
+    $fsidx fileset auto
+    variable d
+} -body {
+    $fsidx set 0testdir 1
+    $fsidx set 0testfile 2 {0 1 2 3 4 5}
+    $fsidx set 0testdir/0otherfile 3 {6 7 8}
+    $fsidx set 0testfile 4 {9 10 11}
+    assertEq [lsort [$fsidx list ""]] "0testdir 0testfile" "Listing main directory failed"
+    assertEq [$fsidx list "0testdir"] "0otherfile" "Listing testdir directory failed"
+    assertEq [$fsidx get 0testfile] {4 11 {9 10 11}} "testfile contents differs from expected"
+    assertEq [$fsidx get 0testdir] 1 "testdir contents differs from expected"
+    assertEq [$fsidx get 0testdir/0otherfile] {3 8 {6 7 8}} "testdir/otherfile contents differs from expected"
+    $fsidx fileset "foo"
+    assertEq [$fsidx list ""] "" "New fileset should be empty"
+    $fsidx fileset "[::cookfs::pkgconfig get platform].tcl[join [split [info tclver] .] {}]"
+    assertEq [lsort [$fsidx list ""]] "0testdir 0testfile" "Directories are available again"
+    $fsidx fileset "bar"
+    $fsidx set 1testdir 1
+    $fsidx set 1testfile 2 {0 1 2 3 4 5}
+    $fsidx set 1testdir/1otherfile 3 {6 7 8}
+    $fsidx set 1testfile 4 {9 10 11}
+    assertEq [lsort [$fsidx list ""]] "1testdir 1testfile" "Listing main directory failed"
+    $fsidx fileset "foo"
+    assertEq [$fsidx list ""] "" "New fileset should be empty still"
+    $fsidx fileset "bar"
+    assertEq [lsort [$fsidx list ""]] "1testdir 1testfile" "Listing main directory failed"
+    assertEq [$fsidx list "1testdir"] "1otherfile" "Listing testdir directory failed"
+    assertEq [$fsidx get 1testfile] {4 11 {9 10 11}} "testfile contents differs from expected"
+    assertEq [$fsidx get 1testdir] 1 "testdir contents differs from expected"
+    assertEq [$fsidx get 1testdir/1otherfile] {3 8 {6 7 8}} "testdir/otherfile contents differs from expected"
+    # export/import
+    set d [$fsidx export]
+    $fsidx delete
+    set fsidx [cookfs::fsindex $d]
+    # original platform+tcl_version fileset should be active
+    assertEq [lsort [$fsidx list ""]] "0testdir 0testfile" "Listing main directory failed"
+    assertEq [$fsidx list "0testdir"] "0otherfile" "Listing testdir directory failed"
+    assertEq [$fsidx get 0testfile] {4 11 {9 10 11}} "testfile contents differs from expected"
+    assertEq [$fsidx get 0testdir] 1 "testdir contents differs from expected"
+    assertEq [$fsidx get 0testdir/0otherfile] {3 8 {6 7 8}} "testdir/otherfile contents differs from expected"
+} -cleanup {
+    $fsidx delete
+} -ok
+
 cleanupTests

@@ -190,6 +190,7 @@ static Tcl_Config const cookfs_pkgconfig[] = {
     {"feature-brotli",   STRINGIFY(COOKFS_PKGCONFIG_USEBROTLI)},
     {"feature-metadata", STRINGIFY(COOKFS_PKGCONFIG_FEATURE_METADATA)},
     {"tcl-commands",     STRINGIFY(COOKFS_PKGCONFIG_USETCLCMDS)},
+    {"platform",         COOKFS_PLATFORM},
     {NULL, NULL}
 };
 #endif /* COOKFS_USECPKGCONFIG */

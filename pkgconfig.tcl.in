@@ -25,6 +25,8 @@ proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
 	    feature-brotli   "@COOKFS_PKGCONFIG_USEBROTLI@"
 	    feature-metadata "@COOKFS_PKGCONFIG_FEATURE_METADATA@"
 	    feature-crypto   "@COOKFS_PKGCONFIG_FEATURE_CRYPTO@"
+
+	    platform         "unknown"
 	}
 	set pkgconfigInitialized 1
     }
