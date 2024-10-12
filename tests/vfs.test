@@ -1374,7 +1374,7 @@ test cookfsVfs-22.2.2 "Verify VFS mount point with 2 filesystem separators at th
 } -result {INSIDE}
 
 test cookfsVfs-23.1.1 "Test fileset, missing argument to -fileset" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
 } -body {
@@ -1384,7 +1384,7 @@ test cookfsVfs-23.1.1 "Test fileset, missing argument to -fileset" -constraints 
 } -error {missing argument to -fileset option}
 
 test cookfsVfs-23.2.1 "Test fileset, attributes for fileset-disabled / fileset-enabled VFS" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     cookfs::Mount $cfs $cfs
@@ -1394,10 +1394,11 @@ test cookfsVfs-23.2.1 "Test fileset, attributes for fileset-disabled / fileset-e
     assertEq [file attributes $cfs -fileset] {foo}
 } -cleanup {
     cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
 } -ok
 
 test cookfsVfs-23.3.1.1 "Test fileset, RO VFS, open non-fileset VFS with -fileset" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     cookfs::Mount $cfs $cfs
@@ -1411,7 +1412,7 @@ test cookfsVfs-23.3.1.1 "Test fileset, RO VFS, open non-fileset VFS with -filese
 } -error {error when selecting a fileset: cannot set a fileset to a non-empty fsindex without an initialized fileset}
 
 test cookfsVfs-23.3.1.2 "Test fileset, RO VFS, set attribute for non-fileset VFS" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     cookfs::Mount $cfs $cfs
@@ -1423,10 +1424,11 @@ test cookfsVfs-23.3.1.2 "Test fileset, RO VFS, set attribute for non-fileset VFS
     file attributes $cfs -fileset foo
 } -cleanup {
     cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
 } -error {cannot set a fileset to a non-empty fsindex without an initialized fileset}
 
 test cookfsVfs-23.3.2.1 "Test fileset, RO VFS, open fileset VFS with unknown -fileset" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     cookfs::Mount $cfs $cfs -fileset foo
@@ -1435,10 +1437,11 @@ test cookfsVfs-23.3.2.1 "Test fileset, RO VFS, open fileset VFS with unknown -fi
     cookfs::Mount $cfs $cfs -readonly -fileset bar
 } -cleanup {
     catch { cookfs::Unmount $cfs }
+    catch { ::cookfs::c::reset_cache }
 } -error {error when selecting a fileset: VFS does not have the required fileset "bar", it cannot be created due to read-only mode}
 
 test cookfsVfs-23.3.2.2 "Test fileset, RO VFS, set wrong attribute for fileset VFS" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     cookfs::Mount $cfs $cfs -fileset foo
@@ -1448,10 +1451,11 @@ test cookfsVfs-23.3.2.2 "Test fileset, RO VFS, set wrong attribute for fileset V
     file attributes $cfs -fileset qux
 } -cleanup {
     cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
 } -error {VFS does not have the required fileset "qux", it cannot be created due to read-only mode}
 
 test cookfsVfs-23.3.3.1 "Test fileset, RO VFS, open fileset VFS with known -fileset" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     cookfs::Mount $cfs $cfs -fileset foo
@@ -1464,10 +1468,11 @@ test cookfsVfs-23.3.3.1 "Test fileset, RO VFS, open fileset VFS with known -file
     lsort [file attributes $cfs -fileset]
 } -cleanup {
     cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
 } -result {bar foo qux}
 
 test cookfsVfs-23.3.3.2 "Test fileset, RO VFS, set known attribute for fileset VFS" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     cookfs::Mount $cfs $cfs -fileset foo
@@ -1482,10 +1487,11 @@ test cookfsVfs-23.3.3.2 "Test fileset, RO VFS, set known attribute for fileset V
     lsort [file attributes $cfs -fileset]
 } -cleanup {
     cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
 } -result {bar foo qux}
 
 test cookfsVfs-23.4.1 "Test fileset, switch filesets on RW VFS" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
 } -body {
@@ -1512,10 +1518,11 @@ test cookfsVfs-23.4.1 "Test fileset, switch filesets on RW VFS" -constraints {
     assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
 } -cleanup {
     cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
 } -ok
 
 test cookfsVfs-23.4.2 "Test fileset, switch filesets on RO VFS" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     cookfs::Mount $cfs $cfs -fileset foo
@@ -1555,10 +1562,11 @@ test cookfsVfs-23.4.2 "Test fileset, switch filesets on RO VFS" -constraints {
 
 } -cleanup {
     cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
 } -ok
 
 test cookfsVfs-23.5.1 "Test fileset, aside, current fileset is preserved" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     set file2 [makeFile {} cookfs2.cfs]
@@ -1585,10 +1593,11 @@ test cookfsVfs-23.5.1 "Test fileset, aside, current fileset is preserved" -const
 
 } -cleanup {
     cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
 } -ok
 
 test cookfsVfs-23.5.2 "Test fileset, aside, current fileset is preserved, add a file" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     set file2 [makeBinFile {} cookfs2.cfs]
@@ -1623,10 +1632,11 @@ test cookfsVfs-23.5.2 "Test fileset, aside, current fileset is preserved, add a 
 
 } -cleanup {
     cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
 } -ok
 
 test cookfsVfs-23.5.3.1 "Test fileset, aside, RO VFS, current fileset is preserved" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     set file2 [makeBinFile {} cookfs2.cfs]
@@ -1663,10 +1673,11 @@ test cookfsVfs-23.5.3.1 "Test fileset, aside, RO VFS, current fileset is preserv
 
 } -cleanup {
     cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
 } -ok
 
 test cookfsVfs-23.5.3.2 "Test fileset, aside, RO VFS, current fileset is preserved, add a file" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     set file2 [makeBinFile {} cookfs2.cfs]
@@ -1706,10 +1717,11 @@ test cookfsVfs-23.5.3.2 "Test fileset, aside, RO VFS, current fileset is preserv
 
 } -cleanup {
     cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
 } -ok
 
 test cookfsVfs-23.5.3.2 "Test fileset, aside, RO VFS, current fileset is preserved, add a file, add a fileset" -constraints {
-    enabledCFsindex
+    enabledCVfs
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     set file2 [makeBinFile {} cookfs2.cfs]
@@ -1758,10 +1770,11 @@ test cookfsVfs-23.5.3.2 "Test fileset, aside, RO VFS, current fileset is preserv
 
 } -cleanup {
     cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
 } -ok
 
 test cookfsVfs-23.6.1 "Test fileset, open VFS with auto-fileset when platform is unknown" -constraints {
-    enabledTclCmds enabledCFsindex enabledCPkgconfig
+    enabledCVfs enabledCPkgconfig
 } -setup {
     set cfs [makeBinFile {} pages.cfs]
     set fsid [cookfs::Mount $cfs $cfs -fileset foo]
