@@ -696,6 +696,8 @@ test cookfsVfsThread-7.6 "VFS terminated while other thread accesses file stats"
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
     assertMatchAny [thread::send $tid [list set result]] {
+        {1 {couldn't open "*": bad file number}}
+        {1 {could not read "*": bad file number}}
         {1 {couldn't open "*": no locks available}}
         {1 {could not read "*": no locks available}}
         {1 {couldn't open "*": not a directory}}
