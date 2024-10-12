@@ -747,7 +747,9 @@ test cookfsVfsThread-7.7 "VFS terminated while other thread gets file attributes
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
     assertMatchAny [thread::send $tid [list set result]] {
+        {1 {couldn't get attributes "*": no locks available}}
         {1 {could not read "*": not a directory}}
+        {1 {could not read "*": no locks available}}
         {1 {could not read "*": no such file or directory}}
         {1 {could not read "*": invalid argument}}
         {1 {could not read "*": no such device}}

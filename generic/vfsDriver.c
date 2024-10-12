@@ -302,6 +302,7 @@ static int CookfsValidatePathAndLockFsindex(Tcl_Obj *pathPtr,
     if (internalRep == NULL) {
         CookfsLog(printf("CookfsValidatePathAndLockFsindex: ERROR:"
             " internalRep == NULL"));
+        Tcl_SetErrno(EBADF); // Bad file descriptor
         goto error;
     }
 
@@ -309,6 +310,7 @@ static int CookfsValidatePathAndLockFsindex(Tcl_Obj *pathPtr,
     if (!Cookfs_CookfsVfsLock(vfs)) {
         CookfsLog(printf("CookfsValidatePathAndLockFsindex: ERROR:"
             " failed to lock VFS"));
+        Tcl_SetErrno(ENOLCK); // No locks available
         goto error;
     }
 
@@ -330,6 +332,7 @@ static int CookfsValidatePathAndLockFsindex(Tcl_Obj *pathPtr,
     if (!lockResult) {
         CookfsLog(printf("CookfsValidatePathAndLockFsindex: ERROR:"
             " failed to lock fsindex"));
+        Tcl_SetErrno(ENOLCK); // No locks available
         goto error;
     }
 
@@ -338,7 +341,6 @@ static int CookfsValidatePathAndLockFsindex(Tcl_Obj *pathPtr,
     return 1;
 
 error:
-    Tcl_SetErrno(ENODEV); // Operation not supported by device
     return 0;
 }
 
@@ -1041,6 +1043,11 @@ static int CookfsFileAttrsGet(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
 
     cookfsInternalRep *ir;
     if (!CookfsValidatePathAndLockFsindex(pathPtr, COOKFS_LOCK_READ, &ir)) {
+        if (interp != NULL) {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf("couldn't %s attributes"
+                " \"%s\": %s", "get", Tcl_GetString(pathPtr),
+                Tcl_ErrnoMsg(Tcl_GetErrno())));
+        }
         return TCL_ERROR;
     }
 
@@ -1098,6 +1105,11 @@ static int CookfsFileAttrsSet(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
     if (!CookfsValidatePathAndLockFsindex(pathPtr, COOKFS_LOCK_WRITE_SOFT,
         &ir))
     {
+        if (interp != NULL) {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf("couldn't %s attributes"
+                " \"%s\": %s", "set", Tcl_GetString(pathPtr),
+                Tcl_ErrnoMsg(Tcl_GetErrno())));
+        }
         return TCL_ERROR;
     }
 
