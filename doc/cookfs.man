@@ -283,6 +283,15 @@ Specifies the password to be used for encryption. The [arg secret] argument must
 [para]
 See [sectref {ENCRYPTION}] for more details on encryption in cookfs.
 
+[def "[option -fileset] [arg fileset]"]
+For a newly created archive specifies the mode for filesets, which can be [arg auto], [arg platform] or [arg tcl_version]. Or it specifies a certain name for fileset. The mode in this case will be [arg custom].
+
+[para]
+When opening an already existing archive, it specifies the fileset that will be activated after opening.
+
+[para]
+See [sectref {FILESETS}] for more details on filesets in cookfs.
+
 [list_end]
 
 [section {COOKFS STORAGE}]
@@ -829,6 +838,46 @@ the password. The higher the number of iterations, the longer the delay will be.
 [para]
 The encryption level is set when the archive is created. It is saved in it and
 this value will be automatically used for all further opening of the archive.
+
+[section {FILESETS}]
+Cookfs allows the use of different sets of files in VFS and switching between them.
+
+[para]
+File sets can have either user-defined names or automatic names depending on
+the current platform or version of Tcl.
+
+[para]
+For example, this allows to create a single archive that when mounted in Linux
+and Tcl9.0 environment will have one set of files, and when mounted in Windows
+and Tcl8.6 environment will have another set of files.
+
+[para]
+The archive can be in 2 modes:
+[list_begin itemized]
+[item] file sets are disabled and cannot be used (this is the default mode)
+[item] file sets are enabled
+[list_end]
+
+[para]
+To enable the file set feature, it is necessary to use the [option -fileset] option
+when initializing the archive. This option accepts either one of the values
+[arg auto], [arg platform], [arg tcl_version], or the name of the file set.
+
+[para]
+The following modes are enabled:
+[list_begin itemized]
+[item] [arg auto] value - the active file set is automatically determined by the current Tcl version and platform
+[item] [arg platform] value - the active file set is automatically determined by the current platform
+[item] [arg tcl_version] value - the active file set is automatically determined by the current Tcl version
+[item] if another value is specified - this value will be used for the file set name
+[list_end]
+
+[para]
+When mounting an archive in which the file set feature is enabled and the mode
+is one of [arg auto], [arg platform] or [arg tcl_version], then the active file
+set will be selected automatically according to the current Tcl version and/or platform.
+If [arg custom] file set mode is set for the archive, then the first available
+file set will be selected.
 
 [see_also cookfs_pages cookfs_fsindex]
 [keywords vfs cookfs]

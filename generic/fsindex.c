@@ -176,6 +176,65 @@ int Cookfs_FsindexEntryUnlock(Cookfs_FsindexEntry *e) {
     return 1;
 }
 
+Tcl_Obj *Cookfs_FsindexFilesetListObj(Cookfs_Fsindex *fsIndex) {
+
+    Tcl_Obj *result = NULL;
+
+    CookfsLog2(printf("enter..."));
+
+    if (!Cookfs_FsindexLockRead(fsIndex, NULL)) {
+        result = Tcl_NewObj();
+        goto done;
+    }
+
+    const char *fileset_active = Cookfs_FsindexFileSetGetActive(fsIndex);
+
+    if (fileset_active == NULL) {
+        result = Tcl_NewObj();
+        goto unlock;
+    }
+
+    result = Tcl_NewListObj(0, NULL);
+
+    Tcl_ListObjAppendElement(NULL, result, Tcl_NewStringObj(fileset_active,
+        -1));
+
+    int count;
+    Cookfs_FsindexEntry **entry_list = Cookfs_FsindexListEntry(
+        fsIndex->rootItem, &count);
+
+    for (int idx = 0; idx < count; idx++) {
+
+        unsigned char length;
+        const char *filename = Cookfs_FsindexEntryGetFileName(entry_list[idx],
+            &length);
+
+        if (strcmp(filename, fileset_active) == 0) {
+            continue;
+        }
+
+        Tcl_ListObjAppendElement(NULL, result, Tcl_NewStringObj(filename,
+            length));
+
+    }
+
+    Cookfs_FsindexListFree(entry_list);
+
+unlock:
+
+    Cookfs_FsindexUnlock(fsIndex);
+
+done:
+
+    CookfsLog2(printf("return: [%s]", Tcl_GetString(result)));
+    return result;
+
+}
+
+int Cookfs_FsindexHasFileset(Cookfs_Fsindex *i) {
+    return (i->rootItem != i->rootItemVirtual);
+}
+
 const char *Cookfs_FsindexFileSetGetActive(Cookfs_Fsindex *i) {
     Cookfs_FsindexWantRead(i);
     if (i->rootItem == i->rootItemVirtual) {
@@ -755,8 +814,9 @@ void Cookfs_FsindexResetChangeCount(Cookfs_Fsindex *i) {
 int Cookfs_FsindexGetBlockUsage(Cookfs_Fsindex *i, int idx) {
     CookfsLog(printf("Cookfs_FsindexGetBlockUsage: from [%p] index [%d]", (void *)i, idx));
     Cookfs_FsindexWantRead(i);
-    if (idx < 0 || i->blockIndexSize <= idx)
+    if (idx < 0 || i->blockIndexSize <= idx) {
         return 0;
+    }
     return i->blockIndex[idx];
 }
 
@@ -783,13 +843,21 @@ void Cookfs_FsindexModifyBlockUsage(Cookfs_Fsindex *i, int idx, int count) {
 
     // if blockIndexSize is not zero and blockIndex is NULL then we are
     // in terminate mode so we just return
-    if (i->blockIndexSize && !i->blockIndex)
+    if (i->blockIndexSize && !i->blockIndex) {
         return;
+    }
 
     // if the index < 0, then the file has not used any blocks yet so
     // we just return
-    if (idx < 0)
+    if (idx < 0) {
         return;
+    }
+
+    // Ignore aside page numbers
+    if (COOKFS_PAGES_ISASIDE(idx)) {
+        CookfsLog2(printf("WARNING: called with aside page number"));
+        return;
+    }
 
     CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: increase block"
         " index [%d] by [%d]", idx, count));

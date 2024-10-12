@@ -1099,68 +1099,33 @@ static int CookfsFsindexCmdFileset(Cookfs_Fsindex *fsIndex, Tcl_Interp *interp,
 
         // Set active fileset
 
-        if (!Cookfs_FsindexLockWrite(fsIndex, NULL)) {
-            return TCL_ERROR;
-        }
+        if (Cookfs_FsindexLockWrite(fsIndex, &result)) {
 
-        if (Cookfs_FsindexFileSetSelect(fsIndex, Tcl_GetString(objv[2]), 0,
-            &result) != TCL_OK)
-        {
-            if (result == NULL) {
-                result = Tcl_NewStringObj("unknown error", -1);
+            rc = Cookfs_FsindexFileSetSelect(fsIndex, Tcl_GetString(objv[2]),
+                0, &result);
+
+            if (rc == TCL_OK) {
+                result = Tcl_NewStringObj(
+                    Cookfs_FsindexFileSetGetActive(fsIndex), -1);
             }
-            rc = TCL_ERROR;
+
+            Cookfs_FsindexUnlock(fsIndex);
+
         } else {
-            result = Tcl_NewStringObj(Cookfs_FsindexFileSetGetActive(fsIndex),
-                -1);
+            rc = TCL_ERROR;
         }
 
-        goto done;
-
-    }
-
-    // Get available fileset(s)
-
-    if (!Cookfs_FsindexLockRead(fsIndex, NULL)) {
-        return TCL_ERROR;
-    }
-
-    const char *fileset_active = Cookfs_FsindexFileSetGetActive(fsIndex);
-
-    if (fileset_active == NULL) {
-        result = Tcl_NewObj();
-        goto done;
-    }
-
-    result = Tcl_NewListObj(0, NULL);
-
-    Tcl_ListObjAppendElement(NULL, result, Tcl_NewStringObj(fileset_active,
-        -1));
-
-    int count;
-    Cookfs_FsindexEntry **entry_list = Cookfs_FsindexListEntry(
-        fsIndex->rootItem, &count);
-
-    for (int idx = 0; idx < count; idx++) {
-
-        unsigned char length;
-        const char *filename = Cookfs_FsindexEntryGetFileName(entry_list[idx],
-            &length);
-
-        if (strcmp(filename, fileset_active) == 0) {
-            continue;
+        if (rc != TCL_OK && result == NULL) {
+            result = Tcl_NewStringObj("unknown error", -1);
         }
 
-        Tcl_ListObjAppendElement(NULL, result, Tcl_NewStringObj(filename,
-            length));
+    } else {
+
+        // Get available fileset(s)
+        result = Cookfs_FsindexFilesetListObj(fsIndex);
 
     }
 
-    Cookfs_FsindexListFree(entry_list);
-
-done:
-
-    Cookfs_FsindexUnlock(fsIndex);
     Tcl_SetObjResult(interp, result);
     return rc;
 

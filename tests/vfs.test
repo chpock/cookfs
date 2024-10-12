@@ -982,7 +982,7 @@ test cookfsVfs-16.1.1 "Test set attributes for root" -setup {
 } -cleanup {
     cookfs::Unmount $file
     catch { ::cookfs::c::reset_cache }
-} -error {attributes of CookFS objects are read-only}
+} -error {attribute "-vfs" is read-only}
 
 test cookfsVfs-16.1.2 "Test list attributes for root" -setup {
     set file [makeFile {} cookfs.cfs]
@@ -992,7 +992,7 @@ test cookfsVfs-16.1.2 "Test list attributes for root" -setup {
 } -cleanup {
     cookfs::Unmount $file
     catch { ::cookfs::c::reset_cache }
-} -result {-handle -vfs}
+} -result {-fileset -handle -vfs}
 
 test cookfsVfs-16.1.3 "Test get attributes for root" -setup {
     set file [makeFile {} cookfs.cfs]
@@ -1013,7 +1013,7 @@ test cookfsVfs-16.1.4 "Test get unknown attribute for root" -setup {
 } -cleanup {
     cookfs::Unmount $file
     catch { ::cookfs::c::reset_cache }
-} -error {bad option "-foo": must be -vfs or -handle}
+} -error {bad option "-foo": must be -vfs, -handle, or -fileset}
 
 test cookfsVfs-16.1.5 "Test -handle attribute for root when vfs created with -nocommand" -setup {
     set file [makeFile {} cookfs.cfs]
@@ -1034,7 +1034,7 @@ test cookfsVfs-16.2.1 "Test set attributes for file" -setup {
 } -cleanup {
     cookfs::Unmount $file
     catch { ::cookfs::c::reset_cache }
-} -error {attributes of CookFS objects are read-only}
+} -error {attribute "-vfs" is read-only}
 
 test cookfsVfs-16.2.2 "Test list attributes for file" -setup {
     set file [makeFile {} cookfs.cfs]
@@ -1372,5 +1372,407 @@ test cookfsVfs-22.2.2 "Verify VFS mount point with 2 filesystem separators at th
 } -cleanup {
     cookfs::Unmount $mnt
 } -result {INSIDE}
+
+test cookfsVfs-23.1.1 "Test fileset, missing argument to -fileset" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+} -body {
+    cookfs::Mount $cfs $cfs -fileset
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+} -error {missing argument to -fileset option}
+
+test cookfsVfs-23.2.1 "Test fileset, attributes for fileset-disabled / fileset-enabled VFS" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    assertEq [file attributes $cfs -fileset] {}
+    file attribute $cfs -fileset foo
+    assertEq [file attributes $cfs -fileset] {foo}
+} -cleanup {
+    cookfs::Unmount $cfs
+} -ok
+
+test cookfsVfs-23.3.1.1 "Test fileset, RO VFS, open non-fileset VFS with -fileset" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+    # Make sure VFS is not empty
+    makeBinFile {} test $cfs
+    cookfs::Unmount $cfs
+} -body {
+    cookfs::Mount $cfs $cfs -readonly -fileset foo
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+} -error {error when selecting a fileset: cannot set a fileset to a non-empty fsindex without an initialized fileset}
+
+test cookfsVfs-23.3.1.2 "Test fileset, RO VFS, set attribute for non-fileset VFS" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+    # Make sure VFS is not empty
+    makeBinFile {} test $cfs
+    cookfs::Unmount $cfs
+} -body {
+    cookfs::Mount $cfs $cfs -readonly
+    file attributes $cfs -fileset foo
+} -cleanup {
+    cookfs::Unmount $cfs
+} -error {cannot set a fileset to a non-empty fsindex without an initialized fileset}
+
+test cookfsVfs-23.3.2.1 "Test fileset, RO VFS, open fileset VFS with unknown -fileset" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -fileset foo
+    cookfs::Unmount $cfs
+} -body {
+    cookfs::Mount $cfs $cfs -readonly -fileset bar
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+} -error {error when selecting a fileset: VFS does not have the required fileset "bar", it cannot be created due to read-only mode}
+
+test cookfsVfs-23.3.2.2 "Test fileset, RO VFS, set wrong attribute for fileset VFS" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -fileset foo
+    cookfs::Unmount $cfs
+} -body {
+    cookfs::Mount $cfs $cfs -readonly
+    file attributes $cfs -fileset qux
+} -cleanup {
+    cookfs::Unmount $cfs
+} -error {VFS does not have the required fileset "qux", it cannot be created due to read-only mode}
+
+test cookfsVfs-23.3.3.1 "Test fileset, RO VFS, open fileset VFS with known -fileset" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -fileset foo
+    file attributes $cfs -fileset qux
+    file attributes $cfs -fileset bar
+    cookfs::Unmount $cfs
+} -body {
+    cookfs::Mount $cfs $cfs -readonly -fileset qux
+    assertEq [lindex [file attributes $cfs -fileset] 0] qux
+    lsort [file attributes $cfs -fileset]
+} -cleanup {
+    cookfs::Unmount $cfs
+} -result {bar foo qux}
+
+test cookfsVfs-23.3.3.2 "Test fileset, RO VFS, set known attribute for fileset VFS" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -fileset foo
+    file attributes $cfs -fileset qux
+    file attributes $cfs -fileset bar
+    cookfs::Unmount $cfs
+} -body {
+    cookfs::Mount $cfs $cfs -readonly
+    assertEq [lindex [file attributes $cfs -fileset] 0] foo
+    file attributes $cfs -fileset bar
+    assertEq [lindex [file attributes $cfs -fileset] 0] bar
+    lsort [file attributes $cfs -fileset]
+} -cleanup {
+    cookfs::Unmount $cfs
+} -result {bar foo qux}
+
+test cookfsVfs-23.4.1 "Test fileset, switch filesets on RW VFS" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+} -body {
+    cookfs::Mount $cfs $cfs -fileset foo
+
+    makeBinFile {foo_test1} "foo_test1" $cfs
+    makeBinFile {foo_test2} "foo_test2" $cfs
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {foo_test1 foo_test2}
+
+    file attributes $cfs -fileset bar
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {}
+    makeBinFile {bar_test1} "bar_test1" $cfs
+    makeBinFile {bar_test2} "bar_test2" $cfs
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2}
+
+    file attributes $cfs -fileset foo
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {foo_test1 foo_test2}
+    assertEq [viewBinFile "foo_test1" $cfs] {foo_test1}
+    assertEq [viewBinFile "foo_test2" $cfs] {foo_test2}
+
+    file attributes $cfs -fileset bar
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2}
+    assertEq [viewBinFile "bar_test1" $cfs] {bar_test1}
+    assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
+} -cleanup {
+    cookfs::Unmount $cfs
+} -ok
+
+test cookfsVfs-23.4.2 "Test fileset, switch filesets on RO VFS" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -fileset foo
+    makeBinFile {foo_test1} "foo_test1" $cfs
+    makeBinFile {foo_test2} "foo_test2" $cfs
+    file attributes $cfs -fileset bar
+    makeBinFile {bar_test1} "bar_test1" $cfs
+    makeBinFile {bar_test2} "bar_test2" $cfs
+    cookfs::Unmount $cfs
+} -body {
+
+    # The 1st fileset by default: foo
+    cookfs::Mount $cfs $cfs -readonly
+
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {foo_test1 foo_test2}
+    assertEq [viewBinFile "foo_test1" $cfs] {foo_test1}
+    assertEq [viewBinFile "foo_test2" $cfs] {foo_test2}
+
+    file attributes $cfs -fileset bar
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2}
+    assertEq [viewBinFile "bar_test1" $cfs] {bar_test1}
+    assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
+
+    cookfs::Unmount $cfs
+
+    # Mount with specific fileset: bar
+    cookfs::Mount $cfs $cfs -readonly -fileset bar
+
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2}
+    assertEq [viewBinFile "bar_test1" $cfs] {bar_test1}
+    assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
+
+    file attributes $cfs -fileset foo
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {foo_test1 foo_test2}
+    assertEq [viewBinFile "foo_test1" $cfs] {foo_test1}
+    assertEq [viewBinFile "foo_test2" $cfs] {foo_test2}
+
+} -cleanup {
+    cookfs::Unmount $cfs
+} -ok
+
+test cookfsVfs-23.5.1 "Test fileset, aside, current fileset is preserved" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    set file2 [makeFile {} cookfs2.cfs]
+    set fsid [cookfs::Mount $cfs $cfs -fileset foo]
+} -body {
+
+    makeBinFile {foo_test1} "foo_test1" $cfs
+    makeBinFile {foo_test2} "foo_test2" $cfs
+
+    file attributes $cfs -fileset bar
+    makeBinFile {bar_test1} "bar_test1" $cfs
+    makeBinFile {bar_test2} "bar_test2" $cfs
+
+    $fsid aside $file2
+
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2}
+    assertEq [viewBinFile "bar_test1" $cfs] {bar_test1}
+    assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
+
+    file attributes $cfs -fileset foo
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {foo_test1 foo_test2}
+    assertEq [viewBinFile "foo_test1" $cfs] {foo_test1}
+    assertEq [viewBinFile "foo_test2" $cfs] {foo_test2}
+
+} -cleanup {
+    cookfs::Unmount $cfs
+} -ok
+
+test cookfsVfs-23.5.2 "Test fileset, aside, current fileset is preserved, add a file" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    set file2 [makeBinFile {} cookfs2.cfs]
+    set fsid [cookfs::Mount $cfs $cfs -fileset foo]
+} -body {
+
+    makeBinFile {foo_test1} "foo_test1" $cfs
+    makeBinFile {foo_test2} "foo_test2" $cfs
+
+    file attributes $cfs -fileset bar
+    makeBinFile {bar_test1} "bar_test1" $cfs
+    makeBinFile {bar_test2} "bar_test2" $cfs
+
+    $fsid aside $file2
+    makeBinFile {bar_test3} "bar_test3" $cfs
+
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2 bar_test3}
+    assertEq [viewBinFile "bar_test1" $cfs] {bar_test1}
+    assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
+    assertEq [viewBinFile "bar_test3" $cfs] {bar_test3}
+
+    file attributes $cfs -fileset foo
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {foo_test1 foo_test2}
+    assertEq [viewBinFile "foo_test1" $cfs] {foo_test1}
+    assertEq [viewBinFile "foo_test2" $cfs] {foo_test2}
+
+    file attributes $cfs -fileset bar
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2 bar_test3}
+    assertEq [viewBinFile "bar_test1" $cfs] {bar_test1}
+    assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
+    assertEq [viewBinFile "bar_test3" $cfs] {bar_test3}
+
+} -cleanup {
+    cookfs::Unmount $cfs
+} -ok
+
+test cookfsVfs-23.5.3.1 "Test fileset, aside, RO VFS, current fileset is preserved" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    set file2 [makeBinFile {} cookfs2.cfs]
+    set fsid [cookfs::Mount $cfs $cfs -fileset foo]
+    makeBinFile {foo_test1} "foo_test1" $cfs
+    makeBinFile {foo_test2} "foo_test2" $cfs
+    file attributes $cfs -fileset bar
+    makeBinFile {bar_test1} "bar_test1" $cfs
+    makeBinFile {bar_test2} "bar_test2" $cfs
+    cookfs::Unmount $cfs
+} -body {
+
+    set fsid [cookfs::Mount $cfs $cfs -readonly]
+
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {foo_test1 foo_test2}
+    assertEq [viewBinFile "foo_test1" $cfs] {foo_test1}
+    assertEq [viewBinFile "foo_test2" $cfs] {foo_test2}
+
+    $fsid aside $file2
+
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {foo_test1 foo_test2}
+    assertEq [viewBinFile "foo_test1" $cfs] {foo_test1}
+    assertEq [viewBinFile "foo_test2" $cfs] {foo_test2}
+
+    file attributes $cfs -fileset bar
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2}
+    assertEq [viewBinFile "bar_test1" $cfs] {bar_test1}
+    assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
+
+    file attributes $cfs -fileset foo
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {foo_test1 foo_test2}
+    assertEq [viewBinFile "foo_test1" $cfs] {foo_test1}
+    assertEq [viewBinFile "foo_test2" $cfs] {foo_test2}
+
+} -cleanup {
+    cookfs::Unmount $cfs
+} -ok
+
+test cookfsVfs-23.5.3.2 "Test fileset, aside, RO VFS, current fileset is preserved, add a file" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    set file2 [makeBinFile {} cookfs2.cfs]
+    set fsid [cookfs::Mount $cfs $cfs -fileset foo]
+    makeBinFile {foo_test1} "foo_test1" $cfs
+    makeBinFile {foo_test2} "foo_test2" $cfs
+    file attributes $cfs -fileset bar
+    makeBinFile {bar_test1} "bar_test1" $cfs
+    makeBinFile {bar_test2} "bar_test2" $cfs
+    cookfs::Unmount $cfs
+} -body {
+
+    set fsid [cookfs::Mount $cfs $cfs -readonly -fileset bar]
+
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2}
+    assertEq [viewBinFile "bar_test1" $cfs] {bar_test1}
+    assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
+
+    $fsid aside $file2
+    makeBinFile {bar_test3} "bar_test3" $cfs
+
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2 bar_test3}
+    assertEq [viewBinFile "bar_test1" $cfs] {bar_test1}
+    assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
+    assertEq [viewBinFile "bar_test3" $cfs] {bar_test3}
+
+    file attributes $cfs -fileset foo
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {foo_test1 foo_test2}
+    assertEq [viewBinFile "foo_test1" $cfs] {foo_test1}
+    assertEq [viewBinFile "foo_test2" $cfs] {foo_test2}
+
+    file attributes $cfs -fileset bar
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2 bar_test3}
+    assertEq [viewBinFile "bar_test1" $cfs] {bar_test1}
+    assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
+    assertEq [viewBinFile "bar_test3" $cfs] {bar_test3}
+
+} -cleanup {
+    cookfs::Unmount $cfs
+} -ok
+
+test cookfsVfs-23.5.3.2 "Test fileset, aside, RO VFS, current fileset is preserved, add a file, add a fileset" -constraints {
+    enabledCFsindex
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    set file2 [makeBinFile {} cookfs2.cfs]
+    set fsid [cookfs::Mount $cfs $cfs -fileset foo]
+    makeBinFile {foo_test1} "foo_test1" $cfs
+    makeBinFile {foo_test2} "foo_test2" $cfs
+    file attributes $cfs -fileset bar
+    makeBinFile {bar_test1} "bar_test1" $cfs
+    makeBinFile {bar_test2} "bar_test2" $cfs
+    cookfs::Unmount $cfs
+} -body {
+
+    set fsid [cookfs::Mount $cfs $cfs -readonly -fileset bar]
+
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2}
+    assertEq [viewBinFile "bar_test1" $cfs] {bar_test1}
+    assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
+
+    $fsid aside $file2
+    makeBinFile {bar_test3} "bar_test3" $cfs
+
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2 bar_test3}
+    assertEq [viewBinFile "bar_test1" $cfs] {bar_test1}
+    assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
+    assertEq [viewBinFile "bar_test3" $cfs] {bar_test3}
+
+    file attributes $cfs -fileset qux
+    makeBinFile {qux_test1} "qux_test1" $cfs
+    makeBinFile {qux_test2} "qux_test2" $cfs
+
+    file attributes $cfs -fileset foo
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {foo_test1 foo_test2}
+    assertEq [viewBinFile "foo_test1" $cfs] {foo_test1}
+    assertEq [viewBinFile "foo_test2" $cfs] {foo_test2}
+
+    file attributes $cfs -fileset bar
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {bar_test1 bar_test2 bar_test3}
+    assertEq [viewBinFile "bar_test1" $cfs] {bar_test1}
+    assertEq [viewBinFile "bar_test2" $cfs] {bar_test2}
+    assertEq [viewBinFile "bar_test3" $cfs] {bar_test3}
+
+    file attributes $cfs -fileset qux
+    assertEq [lsort [glob -tails -nocomplain -directory $cfs *]] {qux_test1 qux_test2}
+    assertEq [viewBinFile "qux_test1" $cfs] {qux_test1}
+    assertEq [viewBinFile "qux_test2" $cfs] {qux_test2}
+
+} -cleanup {
+    cookfs::Unmount $cfs
+} -ok
+
+test cookfsVfs-23.6.1 "Test fileset, open VFS with auto-fileset when platform is unknown" -constraints {
+    enabledTclCmds enabledCFsindex enabledCPkgconfig
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    set fsid [cookfs::Mount $cfs $cfs -fileset foo]
+    makeBinFile {foo_test1} "foo_test1" $cfs
+    # Let's brake the VFS by setting its fileset mode to auto
+    $fsid setmetadata "cookfs.fileset" "auto"
+    cookfs::Unmount $cfs
+} -body {
+    cookfs::Mount $cfs $cfs -readonly
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+} -error [format {error when selecting a fileset: VFS does not have the required fileset "%s", it cannot be created due to read-only mode} "[::cookfs::pkgconfig get platform].tcl[join [split [info tclver] .] {}]"]
 
 cleanupTests

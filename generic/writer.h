@@ -26,7 +26,7 @@ Cookfs_Writer *Cookfs_WriterInit(Tcl_Interp* interp,
 
 void Cookfs_WriterFini(Cookfs_Writer *w);
 
-int Cookfs_WriterPurge(Cookfs_Writer *w, Tcl_Obj **err);
+int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err);
 
 Tcl_Obj *Cookfs_WriterGetBufferObj(Cookfs_Writer *w, int blockNumber);
 const void *Cookfs_WriterGetBuffer(Cookfs_Writer *w, int blockNumber,

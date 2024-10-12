@@ -43,17 +43,52 @@ typedef struct cookfsInternalRep {
     Cookfs_PathObj *pathObj;
 } cookfsInternalRep;
 
-enum cookfsAttributes {
-    COOKFS_VFS_ATTR_VFS = 0,
-    COOKFS_VFS_ATTR_HANDLE
+TYPEDEF_ENUM_COUNT(Cookfs_VfsAttributeSetType, COOKFS_VFS_ATTRIBUTE_SET_COUNT,
+    COOKFS_VFS_ATTRIBUTE_SET_VFS,
+    COOKFS_VFS_ATTRIBUTE_SET_FILE,
+    COOKFS_VFS_ATTRIBUTE_SET_DIRECTORY
+);
+
+TYPEDEF_ENUM_COUNT(Cookfs_VfsAttribute, COOKFS_VFS_ATTRIBUTE_COUNT,
+    COOKFS_VFS_ATTRIBUTE_VFS,
+    COOKFS_VFS_ATTRIBUTE_HANDLE,
+    COOKFS_VFS_ATTRIBUTE_FILESET
+);
+
+static const unsigned char
+    cookfs_attribute_set_count[COOKFS_VFS_ATTRIBUTE_SET_COUNT] =
+{
+    3, 1, 1
+};
+
+static const Cookfs_VfsAttribute attr_arr_vfs[] = {
+    COOKFS_VFS_ATTRIBUTE_VFS, COOKFS_VFS_ATTRIBUTE_HANDLE,
+    COOKFS_VFS_ATTRIBUTE_FILESET
+};
+
+static const Cookfs_VfsAttribute attr_arr_file[] = {
+    COOKFS_VFS_ATTRIBUTE_VFS
+};
+
+static const Cookfs_VfsAttribute attr_arr_directory[] = {
+    COOKFS_VFS_ATTRIBUTE_VFS
+};
+
+static const Cookfs_VfsAttribute *const
+    cookfs_attribute_set2attribute[COOKFS_VFS_ATTRIBUTE_SET_COUNT] =
+{
+    attr_arr_vfs, attr_arr_file, attr_arr_directory
+};
+
+static const char *cookfs_attribute_names[COOKFS_VFS_ATTRIBUTE_COUNT] = {
+    "-vfs", "-handle", "-fileset"
 };
 
 typedef struct ThreadSpecificData {
     int initialized;
     int initialized_objects;
-    Tcl_Obj *attrListRoot;
-    Tcl_Obj *attrList;
-    Tcl_Obj *attrValVfs;
+    Tcl_Obj *attrs_list[COOKFS_VFS_ATTRIBUTE_SET_COUNT];
+    Tcl_Obj *attr_vfs_value;
 } ThreadSpecificData;
 
 static Tcl_ThreadDataKey dataKeyCookfs;
@@ -122,17 +157,15 @@ void CookfsThreadExitProc(ClientData clientData) {
     CookfsLog(printf("CookfsThreadExitProc (driver): ENTER"));
     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
     if (tsdPtr->initialized_objects) {
-        if (tsdPtr->attrListRoot != NULL) {
-            Tcl_DecrRefCount(tsdPtr->attrListRoot);
-            tsdPtr->attrListRoot = NULL;
+        for (unsigned char i = 0; i < COOKFS_VFS_ATTRIBUTE_SET_COUNT; i++) {
+            if (tsdPtr->attrs_list[i] != NULL) {
+                Tcl_DecrRefCount(tsdPtr->attrs_list[i]);
+                tsdPtr->attrs_list[i] = NULL;
+            }
         }
-        if (tsdPtr->attrList != NULL) {
-            Tcl_DecrRefCount(tsdPtr->attrList);
-            tsdPtr->attrList = NULL;
-        }
-        if (tsdPtr->attrValVfs != NULL) {
-            Tcl_DecrRefCount(tsdPtr->attrValVfs);
-            tsdPtr->attrValVfs = NULL;
+        if (tsdPtr->attr_vfs_value != NULL) {
+            Tcl_DecrRefCount(tsdPtr->attr_vfs_value);
+            tsdPtr->attr_vfs_value = NULL;
         }
         tsdPtr->initialized_objects = 0;
     }
@@ -146,16 +179,30 @@ static ThreadSpecificData *CookfsGetThreadSpecificData(void) {
         tsdPtr->initialized = 1;
     }
     if (!tsdPtr->initialized_objects) {
-        Tcl_Obj *objv[2];
-        objv[0] = Tcl_NewStringObj("-vfs", -1);
-        objv[1] = Tcl_NewStringObj("-handle", -1);
-        tsdPtr->attrListRoot = Tcl_NewListObj(2, objv);
-        Tcl_IncrRefCount(tsdPtr->attrListRoot);
-        tsdPtr->attrList = Tcl_NewListObj(1, objv);
-        Tcl_IncrRefCount(tsdPtr->attrList);
-        tsdPtr->attrValVfs = Tcl_NewIntObj(1);
-        Tcl_IncrRefCount(tsdPtr->attrValVfs);
+
+        Tcl_Obj *objv[3];
+        Tcl_Obj *attr[COOKFS_VFS_ATTRIBUTE_COUNT];
+        unsigned char i;
+
+        for (i = 0; i < COOKFS_VFS_ATTRIBUTE_COUNT; i++) {
+            attr[i] = Tcl_NewStringObj(cookfs_attribute_names[i], -1);
+        }
+
+        for (i = 0; i < COOKFS_VFS_ATTRIBUTE_SET_COUNT; i++) {
+            unsigned char j, count = cookfs_attribute_set_count[i];
+            for (j = 0; j < count; j++) {
+                unsigned char attr_id = cookfs_attribute_set2attribute[i][j];
+                objv[j] = attr[attr_id];
+            }
+            tsdPtr->attrs_list[i] = Tcl_NewListObj(count, objv);
+            Tcl_IncrRefCount(tsdPtr->attrs_list[i]);
+        }
+
+        tsdPtr->attr_vfs_value = Tcl_NewBooleanObj(1);
+        Tcl_IncrRefCount(tsdPtr->attr_vfs_value);
+
         tsdPtr->initialized_objects = 1;
+
     }
     return tsdPtr;
 }
@@ -240,8 +287,9 @@ static Tcl_Obj *CookfsFilesystemSeparator(Tcl_Obj *pathPtr) {
 }
 
 typedef enum {
-    COOKFS_LOCK_READ = 0,
-    COOKFS_LOCK_WRITE = 1,
+    COOKFS_LOCK_READ,
+    COOKFS_LOCK_WRITE,
+    COOKFS_LOCK_WRITE_SOFT
 } Cookfs_FsindexLockType;
 
 static int CookfsValidatePathAndLockFsindex(Tcl_Obj *pathPtr,
@@ -274,7 +322,8 @@ static int CookfsValidatePathAndLockFsindex(Tcl_Obj *pathPtr,
 
 
     Cookfs_Fsindex *index = vfs->index;
-    int lockResult = Cookfs_FsindexLockRW((int)lockType, index, NULL);
+    int lockResult = Cookfs_FsindexLockRW(
+        (lockType == COOKFS_LOCK_READ ? 0 : 1), index, NULL);
 
     Cookfs_CookfsVfsUnlock(vfs);
 
@@ -956,6 +1005,10 @@ done:
     return rc;
 }
 
+static Cookfs_VfsAttributeSetType CookfsAttrGetType(cookfsInternalRep *ir);
+static Cookfs_VfsAttribute CookfsAttrGetByIndex(cookfsInternalRep *ir,
+    int index);
+
 static const char *const *CookfsFileAttrStrings(Tcl_Obj *pathPtr,
     Tcl_Obj **objPtrRef)
 {
@@ -963,30 +1016,16 @@ static const char *const *CookfsFileAttrStrings(Tcl_Obj *pathPtr,
     CookfsLog(printf("CookfsFileAttrStrings: path [%s]",
         Tcl_GetString(pathPtr)));
 
-    cookfsInternalRep *internalRep =
-        (cookfsInternalRep *)Tcl_FSGetInternalRep(pathPtr, &cookfsFilesystem);
-
-    // Something is really wrong. CookfsFileAttrStrings() should only be called
-    // for files belonging to CookFS. But here we got NULL CookFS mount.
-    if (internalRep == NULL) {
-        CookfsLog(printf("CookfsFileAttrStrings: something really wrong,"
-            " return an error"));
+    cookfsInternalRep *ir;
+    if (!CookfsValidatePathAndLockFsindex(pathPtr, COOKFS_LOCK_READ, &ir)) {
         return NULL;
     }
 
     ThreadSpecificData *tsdPtr = CookfsGetThreadSpecificData();
-    // Check the length of the split path. If the length is zero, then
-    // we want to get attributes for cookfs.
-    if (internalRep->pathObj->fullNameLength) {
-        CookfsLog(printf("CookfsFileAttrStrings: return common"
-            " attr list"));
-        *objPtrRef = tsdPtr->attrList;
-    } else {
-        CookfsLog(printf("CookfsFileAttrStrings: return root"
-            " attr list"));
-        *objPtrRef = tsdPtr->attrListRoot;
-    }
 
+    *objPtrRef = tsdPtr->attrs_list[CookfsAttrGetType(ir)];
+
+    Cookfs_FsindexUnlock(ir->vfs->index);
     return NULL;
 
 }
@@ -996,61 +1035,131 @@ static int CookfsFileAttrsGet(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
 {
 
     UNUSED(interp);
-    int rc = TCL_OK;
 
     CookfsLog(printf("CookfsFileAttrsGet: path [%s] index:%d",
         Tcl_GetString(pathPtr), index));
 
+    cookfsInternalRep *ir;
+    if (!CookfsValidatePathAndLockFsindex(pathPtr, COOKFS_LOCK_READ, &ir)) {
+        return TCL_ERROR;
+    }
+
+    Cookfs_Vfs *vfs = ir->vfs;
+
     ThreadSpecificData *tsdPtr = CookfsGetThreadSpecificData();
 
-    switch ((enum cookfsAttributes) index) {
-    case COOKFS_VFS_ATTR_VFS: ; // empty statement
-        *objPtrRef = tsdPtr->attrValVfs;
+    Cookfs_VfsAttribute attr = CookfsAttrGetByIndex(ir, index);
+
+    switch (attr) {
+    case COOKFS_VFS_ATTRIBUTE_VFS:
+        *objPtrRef = tsdPtr->attr_vfs_value;
         CookfsLog(printf("CookfsFileAttrsGet: return value for -vfs"));
-        goto done;
         break;
-    case COOKFS_VFS_ATTR_HANDLE: ; // empty statement
-        cookfsInternalRep *internalRep =
-            (cookfsInternalRep *)Tcl_FSGetInternalRep(pathPtr,
-            &cookfsFilesystem);
-        if (internalRep != NULL) {
+    case COOKFS_VFS_ATTRIBUTE_HANDLE:
 #ifdef TCL_THREADS
-            if (internalRep->vfs->threadId != Tcl_GetCurrentThread()) {
-                CookfsLog(printf("CookfsFileAttrsGet: return empty value due"
-                    " to wrong threadId"));
-                *objPtrRef = Tcl_NewObj();
-                goto done;
-            } else {
+        if (vfs->threadId != Tcl_GetCurrentThread()) {
+            CookfsLog(printf("CookfsFileAttrsGet: return empty value due"
+                " to wrong threadId"));
+            *objPtrRef = Tcl_NewObj();
+        } else {
 #endif /* TCL_THREADS */
-                *objPtrRef = CookfsGetVfsObjectCmd(interp, internalRep->vfs);
-                CookfsLog(printf("CookfsFileAttrsGet: return value for -handle"));
-                goto done;
+            *objPtrRef = CookfsGetVfsObjectCmd(interp, vfs);
+            CookfsLog(printf("CookfsFileAttrsGet: return value for -handle"));
 #ifdef TCL_THREADS
-            }
-#endif /* TCL_THREADS */
         }
+#endif /* TCL_THREADS */
+        break;
+    case COOKFS_VFS_ATTRIBUTE_FILESET:
+        CookfsLog(printf("CookfsFileAttrsGet: return value for -fileset"));
+        *objPtrRef = Cookfs_VfsFilesetGet(vfs);
         break;
     }
 
-    CookfsLog(printf("CookfsFileAttrsGet: return error"));
-    rc = TCL_ERROR;
-
-done:
-    return rc;
+    Cookfs_FsindexUnlock(vfs->index);
+    return TCL_OK;
 }
 
 static int CookfsFileAttrsSet(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
     Tcl_Obj *objPtr)
 {
-    UNUSED(objPtr);
-    CookfsLog(printf("CookfsFileAttrsSet: path [%s] index:%d",
-        Tcl_GetString(pathPtr), index));
-    Tcl_SetErrno(EROFS);
-    if (interp != NULL) {
-        Tcl_SetObjResult(interp, Tcl_NewStringObj("attributes of CookFS"
-            " objects are read-only", -1));
+
+    CookfsLog(printf("CookfsFileAttrsSet: path [%s] index:%d = [%s]",
+        Tcl_GetString(pathPtr), index, Tcl_GetString(objPtr)));
+
+    // Note: we request LOCK_WRITE mode for CookfsValidatePathAndLockFsindex()
+    // and it should return an error for read-only VFS. However, here we allow
+    // write-locks for fsindex even if VFS is readonly. We need this, because
+    // we want to allow to change some attributes even for readonly VFS.
+    // E.g. we want to allow switching of filesets.
+    //
+    // This means, then for individual attributes we should check additionaly
+    // whether VFS is in readonly mode.
+    cookfsInternalRep *ir;
+    if (!CookfsValidatePathAndLockFsindex(pathPtr, COOKFS_LOCK_WRITE_SOFT,
+        &ir))
+    {
+        return TCL_ERROR;
     }
-    UNUSED(index);
-    UNUSED(pathPtr);
-    return TCL_ERROR;
+
+    Cookfs_Vfs *vfs = ir->vfs;
+
+    Cookfs_VfsAttribute attr = CookfsAttrGetByIndex(ir, index);
+
+    int rc = TCL_ERROR;
+    Tcl_Obj *result = NULL;
+
+    switch (attr) {
+    case COOKFS_VFS_ATTRIBUTE_FILESET: ; // empty statement
+
+        Tcl_Obj **result_ptr = (interp == NULL ? NULL : &result);
+
+        rc = Cookfs_VfsFilesetSelect(vfs, objPtr, result_ptr, result_ptr);
+
+        if (rc != TCL_OK && interp != NULL && result == NULL) {
+            result = Tcl_NewStringObj("unknown error", -1);
+        }
+
+        break;
+    case COOKFS_VFS_ATTRIBUTE_VFS:
+    case COOKFS_VFS_ATTRIBUTE_HANDLE:
+        Tcl_SetErrno(EROFS);
+        if (interp != NULL) {
+            result = Tcl_ObjPrintf("attribute \"%s\" is read-only",
+                cookfs_attribute_names[attr]);
+        }
+        break;
+    }
+
+    // We don't check here whether interp is NULL. If it is NULL, then we
+    // don't use the result variable and it remains NULL.
+    if (result != NULL) {
+        Tcl_SetObjResult(interp, result);
+    }
+    Cookfs_FsindexUnlock(vfs->index);
+    return rc;
+
+}
+
+static Cookfs_VfsAttributeSetType CookfsAttrGetType(cookfsInternalRep *ir) {
+    // Check the length of the split path. If the length is zero, then
+    // we want to get attributes for cookfs.
+    if (ir->pathObj->fullNameLength == 0) {
+        // We have a root element
+        return COOKFS_VFS_ATTRIBUTE_SET_VFS;
+    }
+
+    // Try to find the file entry
+    Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(ir->vfs->index,
+        ir->pathObj);
+    if (entry != NULL && !Cookfs_FsindexEntryIsDirectory(entry)) {
+        return COOKFS_VFS_ATTRIBUTE_SET_FILE;
+    }
+
+    return COOKFS_VFS_ATTRIBUTE_SET_DIRECTORY;
+}
+
+static Cookfs_VfsAttribute CookfsAttrGetByIndex(cookfsInternalRep *ir,
+    int index)
+{
+    return cookfs_attribute_set2attribute[CookfsAttrGetType(ir)][index];
 }

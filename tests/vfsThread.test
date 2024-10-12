@@ -750,6 +750,7 @@ test cookfsVfsThread-7.7 "VFS terminated while other thread gets file attributes
         {1 {could not read "*": not a directory}}
         {1 {could not read "*": no such file or directory}}
         {1 {could not read "*": invalid argument}}
+        {1 {could not read "*": no such device}}
     }
 } -cleanup {
     tsv::unset thread_ready

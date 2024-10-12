@@ -104,6 +104,22 @@ This counter is incremented by one after each [method set], [method unset],
 This method can be used to check whether changes have been made to an index
 and whether it should be saved before deleting it.
 
+[call [arg fsindexHandle] [method fileset] [arg fileset]]
+If argument [arg fileset] is specified and the fsindex is new, then this
+argument sets the file set mode or the name of the new file set.
+
+[para]
+If argument [arg fileset] is specified and the fsindex is not new, then
+this argument selects the active file set mode.
+
+[para]
+If argument [arg fileset] is not specified, then it returns a list of
+known file sets. The active mode will be in the first item in the list.
+If the file set mode is not active, then an empty list will be returned.
+
+[para]
+See [sectref-external cookfs] for more details on filesets in cookfs.
+
 [list_end]
 
 [section {BLOCK-OFFSET-SIZE INFORMATION}]
