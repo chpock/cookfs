@@ -793,7 +793,9 @@ test cookfsPages-12.1 "Test changing page compression" -constraints {enabledTclC
     $pg delete
 } -ok
 
-test cookfsPages-12.2 "Test getting current page compression" -constraints {enabledTclCmds} -setup {
+test cookfsPages-12.2 "Test getting current page compression" -constraints {
+    enabledTclCmds enabledCPages
+} -setup {
     set file [makeFile {} pages.cfs]
     set pg [cookfs::pages -compression zlib $file]
 } -body {
@@ -806,7 +808,9 @@ test cookfsPages-12.2 "Test getting current page compression" -constraints {enab
     $pg delete
 } -ok
 
-test cookfsPages-12.3 "Test getting current page compression to unknown compression" -constraints {enabledTclCmds} -setup {
+test cookfsPages-12.3 "Test getting current page compression to unknown compression" -constraints {
+    enabledTclCmds enabledCPages
+} -setup {
     set file [makeFile {} pages.cfs]
     set pg [cookfs::pages -compression zlib $file]
 } -body {

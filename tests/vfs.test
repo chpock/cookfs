@@ -626,7 +626,9 @@ test cookfsVfs-10.1.1 "Test changing compression without remounting, with custom
     testrawcleanup
 } -ok
 
-test cookfsVfs-10.1.2 "Test changing compression without remounting, with custom compression" -constraints {enabledTclCmds} -setup {
+test cookfsVfs-10.1.2 "Test changing compression without remounting, with custom compression" -constraints {
+    enabledTclCmds enabledCPages
+} -setup {
     set file [makeBinFile {} pages.cfs]
     variable fc
     variable idx
