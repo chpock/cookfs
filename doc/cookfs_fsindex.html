@@ -137,6 +137,7 @@
 <li><a href="#12"><i class="arg">fsindexHandle</i> <b class="method">unsetmetadata</b> <i class="arg">name</i></a></li>
 <li><a href="#13"><i class="arg">fsindexHandle</i> <b class="method">getblockusage</b> <i class="arg">block</i></a></li>
 <li><a href="#14"><i class="arg">fsindexHandle</i> <b class="method">changecount</b></a></li>
+<li><a href="#15"><i class="arg">fsindexHandle</i> <b class="method">fileset</b> <i class="arg">fileset</i></a></li>
 </ul>
 </div>
 </div>
@@ -201,6 +202,15 @@ the last import/export or create operation. Initially, this value is <b class="c
 <b class="method">setmetadata</b>, <b class="method">unsetmetadata</b> or <b class="method">setmtime</b> operation.</p>
 <p>This method can be used to check whether changes have been made to an index
 and whether it should be saved before deleting it.</p></dd>
+<dt><a name="15"><i class="arg">fsindexHandle</i> <b class="method">fileset</b> <i class="arg">fileset</i></a></dt>
+<dd><p>If argument <i class="arg">fileset</i> is specified and the fsindex is new, then this
+argument sets the file set mode or the name of the new file set.</p>
+<p>If argument <i class="arg">fileset</i> is specified and the fsindex is not new, then
+this argument selects the active file set mode.</p>
+<p>If argument <i class="arg">fileset</i> is not specified, then it returns a list of
+known file sets. The active mode will be in the first item in the list.
+If the file set mode is not active, then an empty list will be returned.</p>
+<p>See <b class="sectref">cookfs</b> for more details on filesets in cookfs.</p></dd>
 </dl>
 </div>
 <div id="section3" class="doctools_section"><h2><a name="section3">BLOCK-OFFSET-SIZE INFORMATION</a></h2>

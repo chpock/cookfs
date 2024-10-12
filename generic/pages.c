@@ -2087,6 +2087,29 @@ int Cookfs_PagesSetMaxAge(Cookfs_Pages *p, int maxAge) {
 
 int Cookfs_PagesIsEncrypted(Cookfs_Pages *p, int index) {
     Cookfs_PagesWantRead(p);
+    /* if specified index is an aside-index */
+    if (COOKFS_PAGES_ISASIDE(index)) {
+        CookfsLog2(printf("Detected get request for add-aside pages - %08x", index))
+        if (p->dataPagesIsAside) {
+            // if this pages instance is the aside instance, remove the
+            // COOKFS_PAGES_ASIDE flag and proceed
+            index = index & COOKFS_PAGES_MASK;
+            CookfsLog2(printf("New index = %08x", index))
+        } else if (p->dataAsidePages != NULL) {
+            // if this is not the aside instance, redirect to it
+            CookfsLog2(printf("Redirecting to add-aside pages object"))
+            if (!Cookfs_PagesLockRead(p->dataAsidePages, NULL)) {
+                return 0;
+            }
+            int rc = Cookfs_PagesIsEncrypted(p->dataAsidePages, index);
+            Cookfs_PagesUnlock(p->dataAsidePages);
+            return rc;
+        } else {
+            // if no aside instance specified, return 0
+            CookfsLog2(printf("No add-aside pages defined"))
+            return 0;
+        }
+    }
     return Cookfs_PgIndexGetEncryption(p->pagesIndex, index);
 }
 
@@ -2290,13 +2313,19 @@ void Cookfs_PagesSetAside(Cookfs_Pages *p, Cookfs_Pages *aside) {
             p->dataAsidePages = NULL;
             return;
         }
-	CookfsLog(printf("Cookfs_PagesSetAside: Checking if index in add-aside archive should be overwritten."))
-	Cookfs_PageObj asideIndex = Cookfs_PagesGetIndex(aside);
-	if (asideIndex == NULL) {
-	    CookfsLog(printf("Cookfs_PagesSetAside: Copying index from main archive to add-aside archive."))
-	    Cookfs_PagesSetIndex(aside, p->dataIndex);
-	    CookfsLog(printf("Cookfs_PagesSetAside: done copying index."))
-	}
+        if (p->dataIndex == NULL) {
+            CookfsLog2(printf("the base page object doesn't have index"));
+        } else {
+            CookfsLog2(printf("checking if index in add-aside archive should"
+                " be overwritten."));
+            Cookfs_PageObj asideIndex = Cookfs_PagesGetIndex(aside);
+            if (asideIndex == NULL) {
+                CookfsLog2(printf("copying index from main archive to"
+                    " add-aside archive."));
+                Cookfs_PagesSetIndex(aside, p->dataIndex);
+                CookfsLog2(printf("done copying index."));
+            }
+        }
 #ifdef COOKFS_USECCRYPTO
         // Copy encryption settings from base pages
         aside->encryption = p->encryption;

@@ -1,3 +1,6 @@
+2024-10-12 Konstantin Kushnir <chpock@gmail.com>
+	* Add a fileset feature to VFS
+
 2024-10-10 Konstantin Kushnir <chpock@gmail.com>
 	* Add a fileset feature to fsindex
 

@@ -69,8 +69,11 @@ const char *Cookfs_FsindexEntryGetFileName(Cookfs_FsindexEntry *e,
 
 const char *Cookfs_FsindexFileSetGetActive(Cookfs_Fsindex *i);
 int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr, int readonly, Tcl_Obj **err);
+int Cookfs_FsindexHasFileset(Cookfs_Fsindex *i);
 
 void Cookfs_FsindexForeach(Cookfs_Fsindex *i, Cookfs_FsindexForeachProc *proc, ClientData clientData);
+
+Tcl_Obj *Cookfs_FsindexFilesetListObj(Cookfs_Fsindex *fsIndex);
 
 int Cookfs_FsindexEntryUnlock(Cookfs_FsindexEntry *e);
 int Cookfs_FsindexEntryLock(Cookfs_FsindexEntry *e);

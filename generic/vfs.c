@@ -10,6 +10,7 @@
 #include "vfs.h"
 #include "fsindexIO.h"
 #include "pagesCmd.h"
+#include "fsindex.h"
 #include "fsindexCmd.h"
 
 Cookfs_Vfs *Cookfs_VfsInit(Tcl_Interp* interp, Tcl_Obj* mountPoint,
@@ -107,7 +108,7 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
     CookfsLog(printf("Cookfs_VfsFini: purge writer..."));
     // TODO: pass a pointer to err variable instead of NULL and handle
     // the corresponding error message
-    if (Cookfs_WriterPurge(vfs->writer, NULL) != TCL_OK) {
+    if (Cookfs_WriterPurge(vfs->writer, 0, NULL) != TCL_OK) {
         CookfsLog(printf("Cookfs_VfsFini: return an error, writer failed"));
         return TCL_ERROR;
     }
@@ -302,6 +303,52 @@ int Cookfs_VfsRegisterInTclvfs(Cookfs_Vfs *vfs) {
 }
 
 #endif
+
+const char *Cookfs_VfsFilesetGetActive(Cookfs_Vfs *vfs) {
+    return Cookfs_FsindexFileSetGetActive(vfs->index);
+}
+
+Tcl_Obj *Cookfs_VfsFilesetGet(Cookfs_Vfs *vfs) {
+    return Cookfs_FsindexFilesetListObj(vfs->index);
+}
+
+int Cookfs_VfsFilesetSelect(Cookfs_Vfs *vfs, Tcl_Obj *fileset,
+    Tcl_Obj **active, Tcl_Obj **err)
+{
+
+    int rc = TCL_ERROR;
+
+    if (!Cookfs_WriterLockWrite(vfs->writer, err)) {
+        goto done;
+    }
+
+    rc = Cookfs_WriterPurge(vfs->writer, 0, err);
+    if (rc != TCL_OK) {
+        goto unlock;
+    }
+
+    rc = Cookfs_FsindexFileSetSelect(vfs->index, Tcl_GetString(fileset),
+        Cookfs_VfsIsReadonly(vfs), err);
+
+    if (rc != TCL_OK || active == NULL) {
+        goto unlock;
+    }
+
+    *active = Tcl_NewStringObj(Cookfs_FsindexFileSetGetActive(vfs->index), -1);
+
+unlock:
+
+    Cookfs_WriterUnlock(vfs->writer);
+
+done:
+
+    return rc;
+
+}
+
+int Cookfs_VfsHasFileset(Cookfs_Vfs *vfs) {
+    return Cookfs_FsindexHasFileset(vfs->index);
+}
 
 int Cookfs_VfsIsReadonly(Cookfs_Vfs *vfs) {
     return vfs->isReadonly;

@@ -1178,7 +1178,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
 
         if (!w->isWriteToMemory && (w->bufferSize >= w->maxBufferSize)) {
             CookfsLog(printf("Cookfs_WriterAddFile: need to purge"));
-            result = Cookfs_WriterPurge(w, err);
+            result = Cookfs_WriterPurge(w, 1, err);
         } else {
             CookfsLog(printf("Cookfs_WriterAddFile: no need to purge"));
         }
@@ -1370,7 +1370,7 @@ static int Cookfs_WriterPurgeSortFunc(const void *a, const void *b) {
     return rc;
 }
 
-int Cookfs_WriterPurge(Cookfs_Writer *w, Tcl_Obj **err) {
+int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err) {
 
     Cookfs_WriterWantWrite(w);
 
@@ -1657,7 +1657,7 @@ next:
 
         CookfsLog(printf("Cookfs_WriterPurge: modify %d files",
             bufferIdx - firstBufferIdx));
-        if (!Cookfs_FsindexLockWrite(w->index, err)) {
+        if (lockIndex && !Cookfs_FsindexLockWrite(w->index, err)) {
             goto fatalError;
         };
         for (i = firstBufferIdx; i < bufferIdx; i++) {
@@ -1691,7 +1691,9 @@ next:
             Cookfs_FsindexEntryUnlock(wb->entry);
 
         }
-        Cookfs_FsindexUnlock(w->index);
+        if (lockIndex) {
+            Cookfs_FsindexUnlock(w->index);
+        }
 
         if (pageBlock != -1) {
             Cookfs_WriterPageMapInitializePage(w, pageBlock, pageBuffer);
@@ -1715,7 +1717,6 @@ skipAll:
     goto done;
 
 fatalError:
-
 
     CookfsLog(printf("Cookfs_WriterPurge: !!! SET FATAL ERROR STATE !!!"));
     w->fatalError = 1;
@@ -1741,8 +1742,6 @@ done:
 
     return result;
 }
-
-// IMPLEMENTED
 
 const void *Cookfs_WriterGetBuffer(Cookfs_Writer *w, int blockNumber,
     Tcl_WideInt *blockSize)

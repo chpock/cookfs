@@ -534,6 +534,7 @@ test cookfsVfsThread-7.3 "VFS terminated while other thread opens a file for rea
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
     assertMatchAny [thread::send $tid [list set result]] {
+        {1 {couldn't open "*": no locks available}}
         {1 {couldn't open "*": not a directory}}
         {1 {couldn't open "*": no such file or directory}}
         {1 {couldn't open "*": no such device}}
@@ -584,6 +585,7 @@ test cookfsVfsThread-7.4 "VFS terminated while other thread opens a file for rea
     vwait thread_done
     # let's retrieve the results
     assertMatchAny [thread::send $tid [list set result]] {
+        {1 {couldn't open "*": no locks available}}
         {1 {couldn't open "*": not a directory}}
         {1 {couldn't open "*": no such file or directory}}
         {1 {could not read "*": no such device}}
@@ -637,6 +639,7 @@ test cookfsVfsThread-7.5 "VFS terminated while other thread opens a file for wri
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
     assertMatchAny [thread::send $tid [list set result]] {
+        {1 {couldn't open "*": no locks available}}
         {1 {couldn't open "*": not a directory}}
         {1 {couldn't open "*": no such file or directory}}
         {1 {couldn't open "*": no such device}}
@@ -693,6 +696,8 @@ test cookfsVfsThread-7.6 "VFS terminated while other thread accesses file stats"
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
     assertMatchAny [thread::send $tid [list set result]] {
+        {1 {couldn't open "*": no locks available}}
+        {1 {could not read "*": no locks available}}
         {1 {couldn't open "*": not a directory}}
         {1 {couldn't open "*": no such file or directory}}
         {1 {could not read "*": not a directory}}
@@ -747,9 +752,12 @@ test cookfsVfsThread-7.7 "VFS terminated while other thread gets file attributes
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
     assertMatchAny [thread::send $tid [list set result]] {
+        {1 {couldn't get attributes "*": no locks available}}
         {1 {could not read "*": not a directory}}
+        {1 {could not read "*": no locks available}}
         {1 {could not read "*": no such file or directory}}
         {1 {could not read "*": invalid argument}}
+        {1 {could not read "*": no such device}}
     }
 } -cleanup {
     tsv::unset thread_ready

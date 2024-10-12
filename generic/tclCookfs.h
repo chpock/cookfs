@@ -40,7 +40,8 @@ typedef enum {
     COOKFS_PROP_SHARED,
     COOKFS_PROP_PASSWORD,
     COOKFS_PROP_ENCRYPTKEY,
-    COOKFS_PROP_ENCRYPTLEVEL
+    COOKFS_PROP_ENCRYPTLEVEL,
+    COOKFS_PROP_FILESET
 } Cookfs_VfsPropertiesType;
 
 typedef enum {
@@ -236,6 +237,12 @@ static inline void Cookfs_VfsPropSetEncryptLevel(Cookfs_VfsProps *p,
     int v)
 {
     Cookfs_VfsPropSet(p, COOKFS_PROP_ENCRYPTLEVEL, (intptr_t)v);
+}
+
+static inline void Cookfs_VfsPropSetFileset(Cookfs_VfsProps *p,
+    Tcl_Obj *v)
+{
+    Cookfs_VfsPropSet(p, COOKFS_PROP_FILESET, (intptr_t)v);
 }
 
 int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,

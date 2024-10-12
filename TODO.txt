@@ -13,6 +13,8 @@
 * add a feature to link with crypto-functions from mbedTLS. This will allow
   to save some bytes when application uses both cookfs&mbedtls.
 
+* add sha256 command if crypto is enabled
+
 * Investigate an issue with -directory parameter for glob.
   See tests cookfsVfs-1.8.4.1.1 and cookfsVfs-1.8.4.1.2.
   Then some variable (object) is passed to -directory argument
@@ -55,6 +57,17 @@ cookfs compression $mount_point "zlib"
 cookfs copy /foo/bar $mount_point
 cookfs gethead (and gettail?) - to get file part before cookfs
 
+* Combine readerchannel and writerchannel to one channel reader/writer
+
+* Refactore the aside feature. Currently it doesn't work at all. In particular:
+  - Cookfs_FsindexModifyBlockUsage() and Cookfs_FsindexGetBlockUsage() know
+    nothing about pages in aside (these are pages with COOKFS_PAGES_ASIDE bit set).
+    Cookfs_FsindexModifyBlockUsage() tries to alloc huge buffer size as aside
+    page numbers are 0x10000000+
+  - Cookfs_PgIndex* functions don't work with aside page numbers. Actually,
+    They should not be called on aside pages numbers. For aside page numbers,
+    these functions should be called from aside page object.
+
 == Examples
 
 * Add simple example of tclsh with cookfs. Compare with tclsh9+zipfs (size and
@@ -63,4 +76,10 @@ loading speed). This example will cover cookfs usage from C side.
 * Add an example of a Tcl archiver application that uses the cookfs format.
 It will be like any other archiver and will support file
 compression/decompression. This example will cover cookfs usage from Tcl side.
+
+===== Plans for cookfs 2.0
+
+* Remove support for Tcl layer for pages, fsindex, vfs, etc. Supporting both runtimes is too costly.
+
+* Remove support for CRC32 hash type. It is here only to provide compatibility with Tcl layer.
 

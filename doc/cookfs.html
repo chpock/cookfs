@@ -121,6 +121,7 @@
 <li class="doctools_section"><a href="#section11">ENCRYPTION - FILE-BASED</a></li>
 <li class="doctools_section"><a href="#section12">ENCRYPTION - KEY-BASED</a></li>
 <li class="doctools_section"><a href="#section13">ENCRYPTION STRENGTH</a></li>
+<li class="doctools_section"><a href="#section14">FILESETS</a></li>
 <li class="doctools_section"><a href="#see-also">See Also</a></li>
 <li class="doctools_section"><a href="#keywords">Keywords</a></li>
 <li class="doctools_section"><a href="#copyright">Copyright</a></li>
@@ -321,6 +322,10 @@ The default encryption level is 15.</p>
 <dt><b class="option">-password</b> <i class="arg">secret</i></dt>
 <dd><p>Specifies the password to be used for encryption. The <i class="arg">secret</i> argument must not be an empty string.</p>
 <p>See <span class="sectref"><a href="#section10">ENCRYPTION</a></span> for more details on encryption in cookfs.</p></dd>
+<dt><b class="option">-fileset</b> <i class="arg">fileset</i></dt>
+<dd><p>For a newly created archive specifies the mode for filesets, which can be <i class="arg">auto</i>, <i class="arg">platform</i> or <i class="arg">tcl_version</i>. Or it specifies a certain name for fileset. The mode in this case will be <i class="arg">custom</i>.</p>
+<p>When opening an already existing archive, it specifies the fileset that will be activated after opening.</p>
+<p>See <span class="sectref"><a href="#section14">FILESETS</a></span> for more details on filesets in cookfs.</p></dd>
 </dl>
 </div>
 <div id="section4" class="doctools_section"><h2><a name="section4">COOKFS STORAGE</a></h2>
@@ -710,6 +715,34 @@ as <b class="option">-encryptlevel</b>*81920. The default value is 15.</p>
 the password. The higher the number of iterations, the longer the delay will be.</p>
 <p>The encryption level is set when the archive is created. It is saved in it and
 this value will be automatically used for all further opening of the archive.</p>
+</div>
+<div id="section14" class="doctools_section"><h2><a name="section14">FILESETS</a></h2>
+<p>Cookfs allows the use of different sets of files in VFS and switching between them.</p>
+<p>File sets can have either user-defined names or automatic names depending on
+the current platform or version of Tcl.</p>
+<p>For example, this allows to create a single archive that when mounted in Linux
+and Tcl9.0 environment will have one set of files, and when mounted in Windows
+and Tcl8.6 environment will have another set of files.</p>
+<p>The archive can be in 2 modes:</p>
+<ul class="doctools_itemized">
+<li><p>file sets are disabled and cannot be used (this is the default mode)</p></li>
+<li><p>file sets are enabled</p></li>
+</ul>
+<p>To enable the file set feature, it is necessary to use the <b class="option">-fileset</b> option
+when initializing the archive. This option accepts either one of the values
+<i class="arg">auto</i>, <i class="arg">platform</i>, <i class="arg">tcl_version</i>, or the name of the file set.</p>
+<p>The following modes are enabled:</p>
+<ul class="doctools_itemized">
+<li><p><i class="arg">auto</i> value - the active file set is automatically determined by the current Tcl version and platform</p></li>
+<li><p><i class="arg">platform</i> value - the active file set is automatically determined by the current platform</p></li>
+<li><p><i class="arg">tcl_version</i> value - the active file set is automatically determined by the current Tcl version</p></li>
+<li><p>if another value is specified - this value will be used for the file set name</p></li>
+</ul>
+<p>When mounting an archive in which the file set feature is enabled and the mode
+is one of <i class="arg">auto</i>, <i class="arg">platform</i> or <i class="arg">tcl_version</i>, then the active file
+set will be selected automatically according to the current Tcl version and/or platform.
+If <i class="arg">custom</i> file set mode is set for the archive, then the first available
+file set will be selected.</p>
 </div>
 <div id="see-also" class="doctools_section"><h2><a name="see-also">See Also</a></h2>
 <p>cookfs_fsindex, cookfs_pages</p>

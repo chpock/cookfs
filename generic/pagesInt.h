@@ -56,10 +56,6 @@ enum {
 #define COOKFS_MAX_PRELOAD_PAGES 8
 #define COOKFS_MAX_CACHE_AGE 50
 
-#define COOKFS_PAGES_ASIDE 0x10000000
-#define COOKFS_PAGES_MASK  0x0fffffff
-#define COOKFS_PAGES_ISASIDE(value) (((value) & COOKFS_PAGES_ASIDE) == COOKFS_PAGES_ASIDE)
-
 #define COOKFS_PAGES_MAX_ASYNC          64
 
 typedef struct Cookfs_AsyncPage {

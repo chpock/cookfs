@@ -44,6 +44,11 @@ Cookfs_Vfs *Cookfs_VfsInit(Tcl_Interp* interp, Tcl_Obj* mountPoint,
 int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
     Tcl_WideInt *pagesCloseOffset);
 
+const char *Cookfs_VfsFilesetGetActive(Cookfs_Vfs *vfs);
+Tcl_Obj *Cookfs_VfsFilesetGet(Cookfs_Vfs *vfs);
+int Cookfs_VfsFilesetSelect(Cookfs_Vfs *vfs, Tcl_Obj *fileset,
+    Tcl_Obj **active, Tcl_Obj **err);
+int Cookfs_VfsHasFileset(Cookfs_Vfs *vfs);
 int Cookfs_VfsIsReadonly(Cookfs_Vfs *vfs);
 void Cookfs_VfsSetReadonly(Cookfs_Vfs *vfs, int status);
 
