@@ -30,7 +30,7 @@ int CookfsReadPageZlib(Cookfs_Pages *p, unsigned char *dataCompressed,
 
     int res;
 
-#if defined(HAVE_ZLIB)
+#if HAVE_ZLIB
 
     z_stream stream;
     memset(&stream, 0, sizeof(z_stream));
@@ -154,7 +154,7 @@ Cookfs_PageObj CookfsWritePageZlib(Cookfs_Pages *p, unsigned char *bytes,
         level = 9;
     }
 
-#if defined(HAVE_ZLIB)
+#if HAVE_ZLIB
 
     z_stream stream;
     memset(&stream, 0, sizeof(z_stream));

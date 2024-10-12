@@ -294,7 +294,7 @@ static Cookfs_FsindexFileSetType Cookfs_FsindexFileSetLookupType(const char *typ
     CookfsLog2(printf("type: [%s]", typeStr));
 
     Cookfs_FsindexFileSetType type;
-    const char *option_str;
+    const char *option_str = NULL;
     int idx = 0;
     for (const char **option = (const char **)cookfs_fileset_options;;
         option = (const char **)((char *)option +
