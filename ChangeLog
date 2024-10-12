@@ -1,5 +1,7 @@
 2024-10-12 Konstantin Kushnir <chpock@gmail.com>
 	* Add a fileset feature to VFS
+	* Allow to link with zlib directly (without Tcl layer)
+	* Allow to link with mbedtls and use its crypto functions
 
 2024-10-10 Konstantin Kushnir <chpock@gmail.com>
 	* Add a fileset feature to fsindex

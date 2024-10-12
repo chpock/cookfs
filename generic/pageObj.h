@@ -12,7 +12,11 @@
 // pageObj structure.
 
 #ifdef COOKFS_USECCRYPTO
+#if HAVE_MBEDTLS
+#define AES_BLOCK_SIZE 16
+#else
 #include "../7zip/C/Aes.h"
+#endif /* !HAVE_MBEDTLS */
 #define COOKFS_PAGEOBJ_BLOCK_SIZE AES_BLOCK_SIZE
 #else
 #define COOKFS_PAGEOBJ_BLOCK_SIZE 16

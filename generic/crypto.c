@@ -25,13 +25,40 @@
 #include <ntdef.h>
 #endif /* _WIN32 */
 
+#if HAVE_MBEDTLS
+#include <mbedtls/sha256.h>
+#include <mbedtls/aes.h>
+#include <mbedtls/pkcs5.h>
+#else
 #include "../7zip/C/Aes.h"
 #include "../7zip/C/Sha256.h"
+#endif /* HAVE_MBEDTLS */
 
 void Cookfs_CryptoInit(void) {
+#if !HAVE_MBEDTLS
     Sha256Prepare();
     AesGenTables();
+#endif /* !HAVE_MBEDTLS */
 }
+
+#if HAVE_MBEDTLS
+
+#define CSha256 mbedtls_sha256_context
+
+#define SHA256_NUM_BLOCK_WORDS  16
+#define SHA256_NUM_DIGEST_WORDS  8
+#define SHA256_BLOCK_SIZE   (SHA256_NUM_BLOCK_WORDS * 4)
+#define SHA256_DIGEST_SIZE  (SHA256_NUM_DIGEST_WORDS * 4)
+
+#define Sha256_Init(ctx) \
+    mbedtls_sha256_init(ctx); \
+    mbedtls_sha256_starts((ctx), 0)
+
+#define Sha256_Update(ctx, key, keySize) mbedtls_sha256_update((ctx), (key), (keySize))
+
+#define Sha256_Final(ctx, k) mbedtls_sha256_finish((ctx), (k))
+
+#endif /* HAVE_MBEDTLS */
 
 typedef struct {
   CSha256 inner;
@@ -51,6 +78,24 @@ void Cookfs_AesEncryptRaw(unsigned char *buffer, Tcl_Size bufferSize,
 {
     CookfsLog2(printf("enter..."));
 
+#if HAVE_MBEDTLS
+
+    mbedtls_aes_context ctx;
+
+    unsigned char _iv[AES_BLOCK_SIZE];
+    memcpy(_iv, iv, AES_BLOCK_SIZE);
+
+    mbedtls_aes_init(&ctx);
+    mbedtls_aes_setkey_enc(&ctx, key, COOKFS_ENCRYPT_KEY_SIZE * 8);
+
+    CookfsLog2(printf("run mbedtls_aes_crypt_cbc() ..."));
+    mbedtls_aes_crypt_cbc(&ctx, MBEDTLS_AES_ENCRYPT, bufferSize, _iv, buffer,
+        buffer);
+
+    mbedtls_aes_free(&ctx);
+
+#else
+
     UInt32 ivAes[AES_NUM_IVMRK_WORDS];
 
     AesCbc_Init(ivAes, iv);
@@ -60,6 +105,8 @@ void Cookfs_AesEncryptRaw(unsigned char *buffer, Tcl_Size bufferSize,
 
     CookfsLog2(printf("run AesCbc_Encode() ..."));
     AesCbc_Encode(ivAes, buffer, bufferSize / AES_BLOCK_SIZE);
+
+#endif /* HAVE_MBEDTLS */
 
     CookfsLog2(printf("ok"));
 
@@ -82,6 +129,24 @@ void Cookfs_AesDecryptRaw(unsigned char *buffer, Tcl_Size bufferSize,
 {
     CookfsLog2(printf("enter..."));
 
+#if HAVE_MBEDTLS
+
+    mbedtls_aes_context ctx;
+
+    unsigned char _iv[AES_BLOCK_SIZE];
+    memcpy(_iv, iv, AES_BLOCK_SIZE);
+
+    mbedtls_aes_init(&ctx);
+    mbedtls_aes_setkey_dec(&ctx, key, COOKFS_ENCRYPT_KEY_SIZE * 8);
+
+    CookfsLog2(printf("run mbedtls_aes_crypt_cbc() ..."));
+    mbedtls_aes_crypt_cbc(&ctx, MBEDTLS_AES_DECRYPT, bufferSize, _iv, buffer,
+        buffer);
+
+    mbedtls_aes_free(&ctx);
+
+#else
+
     UInt32 ivAes[AES_NUM_IVMRK_WORDS];
 
     AesCbc_Init(ivAes, iv);
@@ -91,6 +156,8 @@ void Cookfs_AesDecryptRaw(unsigned char *buffer, Tcl_Size bufferSize,
 
     CookfsLog2(printf("run AesCbc_Decode() ..."));
     AesCbc_Decode(ivAes, buffer, bufferSize / AES_BLOCK_SIZE);
+
+#endif /* HAVE_MBEDTLS */
 
     CookfsLog2(printf("ok"));
 
@@ -111,6 +178,24 @@ int Cookfs_AesDecrypt(Cookfs_PageObj pg, unsigned char *key) {
     return rc;
 
 }
+
+#if HAVE_MBEDTLS
+
+void Cookfs_Pbkdf2Hmac(unsigned char *secret, Tcl_Size secretSize,
+    unsigned char *salt, Tcl_Size saltSize, unsigned int iterations,
+    unsigned int dklen, unsigned char *output)
+{
+
+    CookfsLog2(printf("enter; secretSize: %" TCL_SIZE_MODIFIER "d, saltSize: %"
+        TCL_SIZE_MODIFIER "d, iter: %u, dklen: %u", secretSize, saltSize,
+        iterations, dklen));
+
+    mbedtls_pkcs5_pbkdf2_hmac_ext(MBEDTLS_MD_SHA256, secret, secretSize,
+        salt, saltSize, iterations, dklen, output);
+
+}
+
+#else
 
 static void Cookfs_HmacInit(HMAC_CTX *ctx, unsigned char *key,
     Tcl_Size keySize)
@@ -209,6 +294,8 @@ void Cookfs_Pbkdf2Hmac(unsigned char *secret, Tcl_Size secretSize,
         counter++;
     }
 }
+
+#endif /* HAVE_MBEDTLS */
 
 void Cookfs_RandomGenerate(Tcl_Interp *interp, unsigned char *buf, Tcl_Size size) {
 

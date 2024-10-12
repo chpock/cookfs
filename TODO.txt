@@ -4,15 +4,6 @@
   an archive for writing, then store these new values. This will allow to
   use the same parameters each time when an archive is opened for writing.
 
-* add a feature to link with zlib directly, but not using zlib functions
-  from Tcl. This will allow to use zlib more efficiently as zlib functions
-  are more suitable to work with plain byte buffers without Tcl objects.
-  This will be useful when cookfs is statically linked, but not built as
-  a loadable package.
-
-* add a feature to link with crypto-functions from mbedTLS. This will allow
-  to save some bytes when application uses both cookfs&mbedtls.
-
 * add sha256 command if crypto is enabled
 
 * Investigate an issue with -directory parameter for glob.

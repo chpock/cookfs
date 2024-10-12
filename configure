@@ -808,6 +808,8 @@ enable_c_vfs
 enable_c_writer
 enable_c_crypto
 enable_tcl_commands
+with_zlib
+with_mbedtls
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1470,6 +1472,8 @@ Optional Packages:
                           (tclConfig.sh)
   --with-tcl8             Compile for Tcl8 in Tcl9 environment
   --with-tclinclude       directory containing the public Tcl header files
+  --with-zlib=PATH        prefix where zlib is installed (optional)
+  --with-mbedtls=PATH     prefix where mbedtls is installed (optional)
 
 Some influential environment variables:
   CC          C compiler command
@@ -8874,6 +8878,24 @@ fi
 
 
 
+# Check whether --with-zlib was given.
+if test ${with_zlib+y}
+then :
+  withval=$with_zlib; WITH_ZLIB="${withval}"
+else $as_nop
+  WITH_ZLIB="no"
+fi
+
+
+# Check whether --with-mbedtls was given.
+if test ${with_mbedtls+y}
+then :
+  withval=$with_mbedtls; WITH_MBEDTLS="${withval}"
+else $as_nop
+  WITH_MBEDTLS="no"
+fi
+
+
 if test ${INTERNALDEBUG} = yes; then
     printf "%s\n" "#define COOKFS_INTERNAL_DEBUG 1" >>confdefs.h
 
@@ -9844,13 +9866,79 @@ fi
 
 if test ${USECCRYPTO} = yes; then
 
-    # AES requires AES/PCLMUL instructions
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for AES/PCLMUL instruction set" >&5
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for mbedtls" >&5
+printf %s "checking for mbedtls... " >&6; }
+    if test "${WITH_MBEDTLS}" != "no"; then
+
+        if test "${WITH_MBEDTLS}" = "yes"; then
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes, auto" >&5
+printf "%s\n" "yes, auto" >&6; }
+            ac_fn_c_check_header_compile "$LINENO" "mbedtls/private_access.h" "ac_cv_header_mbedtls_private_access_h" "$ac_includes_default"
+if test "x$ac_cv_header_mbedtls_private_access_h" = xyes
+then :
+
+else $as_nop
+  as_fn_error $? "could not find mbedtls headers)" "$LINENO" 5
+fi
+
+        else
+            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes, ${WITH_MBEDTLS}" >&5
+printf "%s\n" "yes, ${WITH_MBEDTLS}" >&6; }
+            as_ac_Header=`printf "%s\n" "ac_cv_header_${WITH_MBEDTLS}/include/mbedtls/private_access.h" | $as_tr_sh`
+ac_fn_c_check_header_compile "$LINENO" "${WITH_MBEDTLS}/include/mbedtls/private_access.h" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"
+then :
+
+else $as_nop
+  as_fn_error $? "could not find mbedtls headers" "$LINENO" 5
+fi
+
+
+    vars="-I\"`${CYGPATH} ${WITH_MBEDTLS}/include`\""
+    for i in $vars; do
+	PKG_INCLUDES="$PKG_INCLUDES $i"
+    done
+
+
+
+    vars="-L${WITH_MBEDTLS}/lib"
+    for i in $vars; do
+	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" = "yes" ; then
+	    # Convert foo.lib to -lfoo for GCC.  No-op if not *.lib
+	    i=`echo "$i" | sed -e 's/^\([^-].*\)\.[lL][iI][bB]$/-l\1/'`
+	fi
+	PKG_LIBS="$PKG_LIBS $i"
+    done
+
+
+        fi
+
+
+    vars="-lmbedcrypto"
+    for i in $vars; do
+	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" = "yes" ; then
+	    # Convert foo.lib to -lfoo for GCC.  No-op if not *.lib
+	    i=`echo "$i" | sed -e 's/^\([^-].*\)\.[lL][iI][bB]$/-l\1/'`
+	fi
+	PKG_LIBS="$PKG_LIBS $i"
+    done
+
+
+        HAVE_MBEDTLS=1
+
+    else
+
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+        HAVE_MBEDTLS=0
+
+        # AES requires AES/PCLMUL instructions
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for AES/PCLMUL instruction set" >&5
 printf %s "checking for AES/PCLMUL instruction set... " >&6; }
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-        #include <wmmintrin.h>
+            #include <wmmintrin.h>
 
 int
 main (void)
@@ -9874,14 +9962,8 @@ printf "%s\n" "no, adding -maes" >&6; };
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 
-    printf "%s\n" "#define COOKFS_USECRYPTO 1" >>confdefs.h
 
-    printf "%s\n" "#define COOKFS_USECCRYPTO 1" >>confdefs.h
-
-    COOKFS_PKGCONFIG_USECCRYPTO=1
-    COOKFS_PKGCONFIG_FEATURE_CRYPTO=1
-
-    vars="crypto.c cryptoCmd.c"
+    vars="7zip/C/Aes.c 7zip/C/AesOpt.c 7zip/C/Sha256.c 7zip/C/Sha256Opt.c"
     for i in $vars; do
 	case $i in
 	    \$*)
@@ -9916,7 +9998,60 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 
 
 
-    vars="7zip/C/Aes.c 7zip/C/AesOpt.c 7zip/C/Sha256.c 7zip/C/Sha256Opt.c"
+        # Include CpuArch.c only if we are not using c-lzma. Otherwise, this file
+        # will be included when processing the lzma option.
+        if test ${USELZMA} != yes; then
+
+    vars="7zip/C/CpuArch.c"
+    for i in $vars; do
+	case $i in
+	    \$*)
+		# allow $-var names
+		PKG_SOURCES="$PKG_SOURCES $i"
+		PKG_OBJECTS="$PKG_OBJECTS $i"
+		;;
+	    *)
+		# check for existence - allows for generic/win/unix VPATH
+		# To add more dirs here (like 'src'), you have to update VPATH
+		# in Makefile.in as well
+		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
+		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
+		    -a ! -f "${srcdir}/macosx/$i" \
+		    ; then
+		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
+		fi
+		PKG_SOURCES="$PKG_SOURCES $i"
+		# this assumes it is in a VPATH dir
+		i=`basename $i`
+		# handle user calling this before or after TEA_SETUP_COMPILER
+		if test x"${OBJEXT}" != x ; then
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
+		else
+		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
+		fi
+		PKG_OBJECTS="$PKG_OBJECTS $j"
+		;;
+	esac
+    done
+
+
+
+        fi
+
+    fi
+
+
+printf "%s\n" "#define HAVE_MBEDTLS $HAVE_MBEDTLS" >>confdefs.h
+
+
+    printf "%s\n" "#define COOKFS_USECRYPTO 1" >>confdefs.h
+
+    printf "%s\n" "#define COOKFS_USECCRYPTO 1" >>confdefs.h
+
+    COOKFS_PKGCONFIG_USECCRYPTO=1
+    COOKFS_PKGCONFIG_FEATURE_CRYPTO=1
+
+    vars="crypto.c cryptoCmd.c"
     for i in $vars; do
 	case $i in
 	    \$*)
@@ -9963,45 +10098,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
 
 
     fi
-    # Include CpuArch.c only if we are not using c-lzma. Otherwise, this file
-    # will be included when processing the lzma option.
-    if test ${USELZMA} != yes; then
 
-    vars="7zip/C/CpuArch.c"
-    for i in $vars; do
-	case $i in
-	    \$*)
-		# allow $-var names
-		PKG_SOURCES="$PKG_SOURCES $i"
-		PKG_OBJECTS="$PKG_OBJECTS $i"
-		;;
-	    *)
-		# check for existence - allows for generic/win/unix VPATH
-		# To add more dirs here (like 'src'), you have to update VPATH
-		# in Makefile.in as well
-		if test ! -f "${srcdir}/$i" -a ! -f "${srcdir}/generic/$i" \
-		    -a ! -f "${srcdir}/win/$i" -a ! -f "${srcdir}/unix/$i" \
-		    -a ! -f "${srcdir}/macosx/$i" \
-		    ; then
-		    as_fn_error $? "could not find source file '$i'" "$LINENO" 5
-		fi
-		PKG_SOURCES="$PKG_SOURCES $i"
-		# this assumes it is in a VPATH dir
-		i=`basename $i`
-		# handle user calling this before or after TEA_SETUP_COMPILER
-		if test x"${OBJEXT}" != x ; then
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.${OBJEXT}"
-		else
-		    j="`echo $i | sed -e 's/\.[^.]*$//'`.\${OBJEXT}"
-		fi
-		PKG_OBJECTS="$PKG_OBJECTS $j"
-		;;
-	esac
-    done
-
-
-
-    fi
 else
     COOKFS_PKGCONFIG_USECCRYPTO=0
     COOKFS_PKGCONFIG_FEATURE_CRYPTO=0
@@ -10079,6 +10176,74 @@ else
     COOKFS_PKGCONFIG_USECPKGCONFIG=0
 fi
 
+
+
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for zlib" >&5
+printf %s "checking for zlib... " >&6; }
+if test "${WITH_ZLIB}" != "no"; then
+    if test "${WITH_ZLIB}" = "yes"; then
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes, auto" >&5
+printf "%s\n" "yes, auto" >&6; }
+        ac_fn_c_check_header_compile "$LINENO" "zlib.h" "ac_cv_header_zlib_h" "$ac_includes_default"
+if test "x$ac_cv_header_zlib_h" = xyes
+then :
+
+else $as_nop
+  as_fn_error $? "could not find zlib headers)" "$LINENO" 5
+fi
+
+    else
+        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes, ${WITH_ZLIB}" >&5
+printf "%s\n" "yes, ${WITH_ZLIB}" >&6; }
+        as_ac_Header=`printf "%s\n" "ac_cv_header_${WITH_ZLIB}/include/zlib.h" | $as_tr_sh`
+ac_fn_c_check_header_compile "$LINENO" "${WITH_ZLIB}/include/zlib.h" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"
+then :
+
+else $as_nop
+  as_fn_error $? "could not find zlib headers" "$LINENO" 5
+fi
+
+
+    vars="-I\"`${CYGPATH} ${WITH_ZLIB}/include`\""
+    for i in $vars; do
+	PKG_INCLUDES="$PKG_INCLUDES $i"
+    done
+
+
+
+    vars="-L${WITH_ZLIB}/lib"
+    for i in $vars; do
+	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" = "yes" ; then
+	    # Convert foo.lib to -lfoo for GCC.  No-op if not *.lib
+	    i=`echo "$i" | sed -e 's/^\([^-].*\)\.[lL][iI][bB]$/-l\1/'`
+	fi
+	PKG_LIBS="$PKG_LIBS $i"
+    done
+
+
+    fi
+
+    vars="-lz"
+    for i in $vars; do
+	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" = "yes" ; then
+	    # Convert foo.lib to -lfoo for GCC.  No-op if not *.lib
+	    i=`echo "$i" | sed -e 's/^\([^-].*\)\.[lL][iI][bB]$/-l\1/'`
+	fi
+	PKG_LIBS="$PKG_LIBS $i"
+    done
+
+
+    HAVE_ZLIB=1
+else
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+    HAVE_ZLIB=0
+fi
+
+
+printf "%s\n" "#define HAVE_ZLIB $HAVE_ZLIB" >>confdefs.h
 
 
 # Treat compiler warnings as errors on all platforms except MacOS.
