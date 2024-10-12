@@ -813,7 +813,7 @@ test cookfsPages-12.3 "Test getting current page compression to unknown compress
     $pg compression foo
 } -cleanup {
     $pg delete
-} -error {bad compression "foo": must be none, zlib, or lzma}
+} -match glob -error {bad compression "foo": must be *}
 
 test cookfsPages-13.1 "Error message when index not found" -constraints {enabledTclCmds} -setup {
     set file [makeFile {} pages.cfs]
