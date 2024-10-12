@@ -18,10 +18,6 @@
 
 * Add documentation as HTML to github pages
 
-* Add ability to disable custom compression to reduce size footprint when it is not needed
-
-* Add ability to disable async compression to reduce size footprint when it is not needed
-
 * Update bzip2 and use it as a submodule. Perhaps this will get rid of its compile-time warnings.
 
 * Add ability/subcommand to copy files from/to cookfs more efficiently than using 'file copy'.

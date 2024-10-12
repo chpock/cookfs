@@ -17,6 +17,7 @@ proc cookfs::pkgconfig {{command ""} {value ""} {newValue ""}} {
 	    c-crypto		"@COOKFS_PKGCONFIG_USECCRYPTO@"
 
 	    tcl-commands	"@COOKFS_PKGCONFIG_USETCLCMDS@"
+	    tcl-callbacks	"@COOKFS_PKGCONFIG_USECALLBACKS@"
 
 	    feature-aside    "@COOKFS_PKGCONFIG_FEATURE_ASIDE@"
 	    feature-bzip2    "@COOKFS_PKGCONFIG_USEBZ2@"

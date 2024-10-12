@@ -143,6 +143,7 @@ struct _Cookfs_Pages {
 
     /* compression information */
     int alwaysCompress;
+#if defined(COOKFS_USECALLBACKS)
     int compressCommandLen;
     Tcl_Obj **compressCommandPtr;
     int decompressCommandLen;
@@ -151,12 +152,14 @@ struct _Cookfs_Pages {
     Tcl_Obj **asyncCompressCommandPtr;
     int asyncDecompressCommandLen;
     Tcl_Obj **asyncDecompressCommandPtr;
+#endif /* COOKFS_USECALLBACKS */
 
     /* cache */
     int cacheSize;
     int cacheMaxAge;
     Cookfs_CacheEntry cache[COOKFS_MAX_CACHE_PAGES];
 
+#if defined(COOKFS_USECALLBACKS)
     /* async compress */
     Tcl_Obj *asyncCommandProcess;
     Tcl_Obj *asyncCommandWait;
@@ -168,6 +171,7 @@ struct _Cookfs_Pages {
     int asyncDecompressQueue;
     int asyncDecompressQueueSize;
     int asyncDecompressIdx[COOKFS_MAX_PRELOAD_PAGES];
+#endif /* COOKFS_USECALLBACKS */
 };
 
 #ifdef TCL_THREADS

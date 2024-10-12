@@ -435,7 +435,9 @@ test cookfsPages-6.1 "Test multiple compression algorithms" -constraints {enable
     $pg delete
 } -ok
 
-test cookfsPages-7.1 "Test custom compression algorithm" -constraints {enabledTclCmds} -setup {
+test cookfsPages-7.1 "Test custom compression algorithm" -constraints {
+    enabledTclCmds enabledTclCallbacks
+} -setup {
     set file [makeFile {} pages.cfs]
     set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
     variable i0
@@ -455,7 +457,9 @@ test cookfsPages-7.1 "Test custom compression algorithm" -constraints {enabledTc
     testcompresscleanup
 } -ok
 
-test cookfsPages-7.2 "Test custom compression algorithm - no decompress command error" -constraints {enabledTclCmds} -setup {
+test cookfsPages-7.2 "Test custom compression algorithm - no decompress command error" -constraints {
+    enabledTclCmds enabledTclCallbacks
+} -setup {
     set file [makeFile {} pages.cfs]
     set pg [cookfs::pages -compression custom -compresscommand testcompress $file]
     variable i0
@@ -470,7 +474,9 @@ test cookfsPages-7.2 "Test custom compression algorithm - no decompress command 
     testcompresscleanup
 } -error {Unable to retrieve chunk: No decompresscommand specified}
 
-test cookfsPages-7.3 "Test custom compression algorithm - no decompress command error when adding same page" -constraints {enabledTclCmds} -setup {
+test cookfsPages-7.3 "Test custom compression algorithm - no decompress command error when adding same page" -constraints {
+    enabledTclCmds enabledTclCallbacks
+} -setup {
     set file [makeFile {} pages.cfs]
     set pg [cookfs::pages -compression custom -compresscommand testcompress $file]
 } -body {
@@ -481,7 +487,9 @@ test cookfsPages-7.3 "Test custom compression algorithm - no decompress command 
     testcompresscleanup
 } -error {No decompresscommand specified}
 
-test cookfsPages-7.4 "Test custom compression algorithm not used when size would not be smaller" -constraints {enabledTclCmds} -setup {
+test cookfsPages-7.4 "Test custom compression algorithm not used when size would not be smaller" -constraints {
+    enabledTclCmds enabledTclCallbacks
+} -setup {
     set file [makeFile {} pages.cfs]
     set data {QWERTYUIOPASDFGHJKLZXCVBNM0123456789}
     set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
@@ -502,7 +510,9 @@ test cookfsPages-7.4 "Test custom compression algorithm not used when size would
     testcompresscleanup
 } -ok
 
-test cookfsPages-7.5 "Test custom compression algorithm not used when size would not be smaller with -alwayscompress" -constraints {enabledTclCmds} -setup {
+test cookfsPages-7.5 "Test custom compression algorithm not used when size would not be smaller with -alwayscompress" -constraints {
+    enabledTclCmds enabledTclCallbacks
+} -setup {
     set file [makeFile {} pages.cfs]
     set data {QWERTYUIOPASDFGHJKLZXCVBNM0123456789}
     set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress -alwayscompress $file]
@@ -677,7 +687,9 @@ test cookfsPages-10.3 "Test crc32 checksum algorithm after re-reading" -constrai
     $pg delete
 } -ok
 
-test cookfsPages-10.4 "Test crc32 with large chunks" -constraints {enabledTclCmds} -setup {
+test cookfsPages-10.4 "Test crc32 with large chunks" -constraints {
+    enabledTclCmds enabledTclCallbacks
+} -setup {
     set file [makeFile {} pages.cfs]
     set pg [cookfs::pages -compression custom -compresscommand testcompress $file]
 } -body {
@@ -689,7 +701,9 @@ test cookfsPages-10.4 "Test crc32 with large chunks" -constraints {enabledTclCmd
     testcompresscleanup
 } -error {No decompresscommand specified}
 
-test cookfsPages-11.1 "Test increasing page cache" -constraints {enabledTclCmds} -setup {
+test cookfsPages-11.1 "Test increasing page cache" -constraints {
+    enabledTclCmds enabledTclCallbacks
+} -setup {
     set file [makeFile {} pages.cfs]
     set il {}
     set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
@@ -713,7 +727,9 @@ test cookfsPages-11.1 "Test increasing page cache" -constraints {enabledTclCmds}
     testcompresscleanup
 } -result 20
 
-test cookfsPages-11.2 "Test decreasing page cache" -constraints {enabledTclCmds} -setup {
+test cookfsPages-11.2 "Test decreasing page cache" -constraints {
+    enabledTclCmds enabledTclCallbacks
+} -setup {
     set file [makeFile {} pages.cfs]
     set il {}
     set pg [cookfs::pages -compression custom -compresscommand testcompress -decompresscommand testdecompress $file]
@@ -784,11 +800,20 @@ test cookfsPages-12.2 "Test getting current page compression" -constraints {enab
     assertEq [$pg compression] "zlib" "Getting initial compression as zlib failed"
     $pg compression none
     assertEq [$pg compression] "none" "Getting compression as none failed"
-    $pg compression custom
-    assertEq [$pg compression] "custom" "Getting compression as custom failed"
+    $pg compression lzma
+    assertEq [$pg compression] "lzma" "Getting compression as lzma failed"
 } -cleanup {
     $pg delete
 } -ok
+
+test cookfsPages-12.3 "Test getting current page compression to unknown compression" -constraints {enabledTclCmds} -setup {
+    set file [makeFile {} pages.cfs]
+    set pg [cookfs::pages -compression zlib $file]
+} -body {
+    $pg compression foo
+} -cleanup {
+    $pg delete
+} -error {bad compression "foo": must be none, zlib, or lzma}
 
 test cookfsPages-13.1 "Error message when index not found" -constraints {enabledTclCmds} -setup {
     set file [makeFile {} pages.cfs]

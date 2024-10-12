@@ -162,9 +162,13 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
         "-password", "-encryptkey", "-encryptlevel",
 #endif /* COOKFS_USECCRYPTO */
         "-readonly", "-readwrite", "-compression", "-cachesize",
-        "-endoffset", "-compresscommand", "-decompresscommand",
+        "-endoffset",
+#if defined(COOKFS_USECALLBACKS)
+        "-compresscommand", "-decompresscommand",
         "-asynccompresscommand", "-asyncdecompresscommand",
-        "-alwayscompress", "-asyncdecompressqueuesize",
+        "-asyncdecompressqueuesize",
+#endif /* COOKFS_USECALLBACKS */
+        "-alwayscompress",
         NULL
     };
     enum {
@@ -172,9 +176,13 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
         optPassword, optEncryptKey, optEncryptLevel,
 #endif /* COOKFS_USECCRYPTO */
         optReadonly, optReadwrite, optCompression, optCachesize,
-        optEndoffset, optCompressCommand, optDecompressCommand,
+        optEndoffset,
+#if defined(COOKFS_USECALLBACKS)
+        optCompressCommand, optDecompressCommand,
         optAsyncCompressCommand, optAsyncDecompressCommand,
-        optAlwaysCompress, optAsyncDecompressQueue
+        optAsyncDecompressQueue,
+#endif /* COOKFS_USECALLBACKS */
+        optAlwaysCompress
     };
     Cookfs_Pages *pages;
     int idx;
@@ -185,13 +193,15 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     int oCachesize = -1;
     int useFoffset = 0;
     int alwaysCompress = 0;
-    int asyncDecompressQueueSize = 2;
     Tcl_WideInt foffset = 0;
     Tcl_Obj **tobjv = (Tcl_Obj **) objv;
+#if defined(COOKFS_USECALLBACKS)
+    int asyncDecompressQueueSize = 2;
     Tcl_Obj *compressCmd = NULL;
     Tcl_Obj *asyncCompressCmd = NULL;
     Tcl_Obj *asyncDecompressCmd = NULL;
     Tcl_Obj *decompressCmd = NULL;
+#endif /* COOKFS_USECALLBACKS */
     Tcl_Obj *compression = NULL;
     Tcl_Obj *password = NULL;
     int encryptKey = 0;
@@ -240,13 +250,13 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 compression = tobjv[1];
                 break;
             }
+#if defined(COOKFS_USECALLBACKS)
             case optCompressCommand: {
                 if (tobjc <= 3) {
                     goto error;
                 }
                 tobjc--;
                 tobjv++;
-
                 compressCmd = tobjv[1];
                 break;
             }
@@ -256,7 +266,6 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 }
                 tobjc--;
                 tobjv++;
-
                 decompressCmd = tobjv[1];
                 break;
             }
@@ -266,7 +275,6 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 }
                 tobjc--;
                 tobjv++;
-
                 asyncCompressCmd = tobjv[1];
                 break;
             }
@@ -276,10 +284,22 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
                 }
                 tobjc--;
                 tobjv++;
-
                 asyncDecompressCmd = tobjv[1];
                 break;
             }
+            case optAsyncDecompressQueue: {
+                if (tobjc <= 3) {
+                    goto error;
+                }
+                tobjc--;
+                tobjv++;
+
+                if (Tcl_GetIntFromObj(interp, tobjv[1], &asyncDecompressQueueSize) != TCL_OK) {
+                    return TCL_ERROR;
+                }
+                break;
+            }
+#endif /* COOKFS_USECALLBACKS */
             case optEndoffset: {
                 if (tobjc <= 3) {
                     goto error;
@@ -323,19 +343,6 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
             case optAlwaysCompress:
                 alwaysCompress = 1;
                 break;
-            case optAsyncDecompressQueue:
-            {
-                if (tobjc <= 3) {
-                    goto error;
-                }
-                tobjc--;
-                tobjv++;
-
-                if (Tcl_GetIntFromObj(interp, tobjv[1], &asyncDecompressQueueSize) != TCL_OK) {
-                    return TCL_ERROR;
-                }
-                break;
-            }
             default:
                 goto error;
         }
@@ -360,8 +367,11 @@ static int CookfsRegisterPagesObjectCmd(ClientData clientData, Tcl_Interp *inter
     pages = Cookfs_PagesInit(interp, tobjv[1], oReadOnly, oCompression,
         oCompressionLevel, oCompression, oCompressionLevel, password,
         encryptKey, encryptLevel, NULL, useFoffset, foffset, 0,
+#if defined(COOKFS_USECALLBACKS)
         asyncDecompressQueueSize, compressCmd, decompressCmd, asyncCompressCmd,
-        asyncDecompressCmd, &err);
+        asyncDecompressCmd,
+#endif /* COOKFS_USECALLBACKS */
+        &err);
     if (err != NULL) {
         Tcl_SetObjResult(interp, err);
     }
@@ -861,7 +871,11 @@ static int CookfsPagesCmdAside(Cookfs_Pages *pages, Tcl_Interp *interp, int objc
         asidePages = Cookfs_PagesInit(pages->interp, objv[2], 0,
             pages->baseCompression, pages->baseCompressionLevel,
             pages->currentCompression, pages->currentCompressionLevel,
-            NULL, 0, -1, NULL, 0, 0, 1, 0, NULL, NULL, NULL, NULL, NULL);
+            NULL, 0, -1, NULL, 0, 0, 1,
+#if defined(COOKFS_USECALLBACKS)
+            0, NULL, NULL, NULL, NULL,
+#endif /* COOKFS_USECALLBACKS */
+            NULL);
 
         if (asidePages == NULL) {
             CookfsLog(printf("Failed to create add-aside pages object"))
@@ -908,6 +922,7 @@ static int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, in
         if (Cookfs_CompressionFromObj(interp, objv[2], &oCompression,
             &oCompressionLevel) != TCL_OK)
         {
+            Cookfs_PagesUnlock(pages);
             return TCL_ERROR;
         }
         Cookfs_PagesSetCompression(pages, oCompression, oCompressionLevel);

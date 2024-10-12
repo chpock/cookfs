@@ -17,11 +17,13 @@ int Cookfs_CompressionFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
 void Cookfs_PagesInitCompr(Cookfs_Pages *rc);
 void Cookfs_PagesFiniCompr(Cookfs_Pages *rc);
 
+#if defined(COOKFS_USECALLBACKS)
 int Cookfs_SetCompressCommands(Cookfs_Pages *p,
     Tcl_Obj *compressCommand,
     Tcl_Obj *decompressCommand,
     Tcl_Obj *asyncCompressCommand,
     Tcl_Obj *asyncDecompressCommand);
+#endif /* COOKFS_USECALLBACKS */
 
 void Cookfs_SeekToPage(Cookfs_Pages *p, int idx);
 

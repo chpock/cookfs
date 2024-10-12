@@ -16,9 +16,12 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     int currentCompression, int currentCompressionLevel,
     Tcl_Obj *password, int encryptKey, int encryptLevel,
     char *fileSignature, int useFoffset, Tcl_WideInt foffset, int isAside,
+#if defined(COOKFS_USECALLBACKS)
     int asyncDecompressQueueSize, Tcl_Obj *compressCommand,
     Tcl_Obj *decompressCommand, Tcl_Obj *asyncCompressCommand,
-    Tcl_Obj *asyncDecompressCommand, Tcl_Obj **err);
+    Tcl_Obj *asyncDecompressCommand,
+#endif /* COOKFS_USECALLBACKS */
+    Tcl_Obj **err);
 
 Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p);
 Tcl_WideInt Cookfs_GetFilesize(Cookfs_Pages *p);

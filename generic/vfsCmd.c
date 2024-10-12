@@ -315,9 +315,12 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 #ifdef COOKFS_USECCRYPTO
         "-password", "-encryptkey", "-encryptlevel",
 #endif /* COOKFS_USECCRYPTO */
-        "-nocommand", "-compression", "-alwayscompress", "-compresscommand",
+#if defined(COOKFS_USECALLBACKS)
+        "-compresscommand",
         "-asynccompresscommand", "-asyncdecompresscommand",
-        "-asyncdecompressqueuesize", "-decompresscommand", "-endoffset",
+        "-asyncdecompressqueuesize", "-decompresscommand",
+#endif /* COOKFS_USECALLBACKS */
+        "-nocommand", "-compression", "-alwayscompress", "-endoffset",
         "-setmetadata", "-readonly", "-writetomemory", "-pagesize",
         "-pagecachesize", "-volume", "-smallfilesize", "-smallfilebuffer",
         "-nodirectorymtime", "-pagehash", "-shared", "-fileset",
@@ -331,9 +334,12 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 #ifdef COOKFS_USECCRYPTO
         OPT_PASSWORD, OPT_ENCRYPTKEY, OPT_ENCRYPTLEVEL,
 #endif /* COOKFS_USECCRYPTO */
-        OPT_NOCOMMAND, OPT_COMPRESSION, OPT_ALWAYSCOMPRESS, OPT_COMPRESSCOMMAND,
+#if defined(COOKFS_USECALLBACKS)
+        OPT_COMPRESSCOMMAND,
         OPT_ASYNCCOMPRESSCOMMAND, OPT_ASYNCDECOMPRESSCOMMAND,
-        OPT_ASYNCDECOMPRESSQUEUESIZE, OPT_DECOMPRESSCOMMAND, OPT_ENDOFFSET,
+        OPT_ASYNCDECOMPRESSQUEUESIZE, OPT_DECOMPRESSCOMMAND,
+#endif /* COOKFS_USECALLBACKS */
+        OPT_NOCOMMAND, OPT_COMPRESSION, OPT_ALWAYSCOMPRESS, OPT_ENDOFFSET,
         OPT_SETMETADATA, OPT_READONLY, OPT_WRITETOMEMORY, OPT_PAGESIZE,
         OPT_PAGECACHESIZE, OPT_VOLUME, OPT_SMALLFILESIZE, OPT_SMALLFILEBUFFER,
         OPT_NODIRECTORYMTIME, OPT_PAGEHASH, OPT_SHARED, OPT_FILESET
@@ -406,17 +412,23 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
         PROCESS_OPT_OBJ(OPT_PASSWORD, props->password);
 #endif /* COOKFS_USECCRYPTO */
         PROCESS_OPT_OBJ(OPT_COMPRESSION, compression);
+#if defined(COOKFS_USECALLBACKS)
         PROCESS_OPT_OBJ(OPT_COMPRESSCOMMAND, props->compresscommand);
         PROCESS_OPT_OBJ(OPT_ASYNCCOMPRESSCOMMAND, props->asynccompresscommand);
         PROCESS_OPT_OBJ(OPT_ASYNCDECOMPRESSCOMMAND, props->asyncdecompresscommand);
         PROCESS_OPT_OBJ(OPT_DECOMPRESSCOMMAND, props->decompresscommand);
+#endif /* COOKFS_USECALLBACKS */
         PROCESS_OPT_OBJ(OPT_SETMETADATA, props->setmetadata);
         PROCESS_OPT_OBJ(OPT_PAGEHASH, pagehash);
         PROCESS_OPT_OBJ(OPT_FILESET, props->fileset);
 
         // OPT_ASYNCDECOMPRESSQUEUESIZE / OPT_PAGECACHESIZE - are unsigned int
         // values
-        if (opt == OPT_ASYNCDECOMPRESSQUEUESIZE || opt == OPT_PAGECACHESIZE) {
+        if (opt == OPT_PAGECACHESIZE
+#if defined(COOKFS_USECALLBACKS)
+            || opt == OPT_ASYNCDECOMPRESSQUEUESIZE
+#endif /* COOKFS_USECALLBACKS */
+        ) {
 
             int ival;
             if (Tcl_GetIntFromObj(interp, objv[idx], &ival) != TCL_OK
@@ -428,7 +440,9 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
                 goto error;
             }
 
+#if defined(COOKFS_USECALLBACKS)
             PROCESS_OPT_INT(OPT_ASYNCDECOMPRESSQUEUESIZE, props->asyncdecompressqueuesize);
+#endif /* COOKFS_USECALLBACKS */
             PROCESS_OPT_INT(OPT_PAGECACHESIZE, props->pagecachesize);
 
         }
@@ -589,6 +603,7 @@ int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
         goto error;
     }
 
+#if defined(COOKFS_USECALLBACKS)
     if (props->shared && (
         props->compresscommand != NULL ||
         props->decompresscommand != NULL ||
@@ -599,6 +614,7 @@ int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
             " in thread-shared mode", -1));
         goto error;
     }
+#endif /* COOKFS_USECALLBACKS */
 
     // if write to memory option was selected, open archive as read only anyway
     if (props->writetomemory) {
@@ -694,9 +710,11 @@ skipArchive:
             NULL, 0, -1,
 #endif /* COOKFS_USECCRYPTO */
             NULL, (props->endoffset == -1 ? 0 : 1), props->endoffset, 0,
+#if defined(COOKFS_USECALLBACKS)
             props->asyncdecompressqueuesize,
             props->compresscommand, props->decompresscommand,
             props->asynccompresscommand, props->asyncdecompresscommand,
+#endif /* COOKFS_USECALLBACKS */
             NULL);
 
         if (pages == NULL) {

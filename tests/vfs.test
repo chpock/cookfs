@@ -588,7 +588,9 @@ test cookfsVfs-9.4 "Test deleting non-empty directories with complex structure" 
     cookfs::Unmount $file
 } -result {testdir1,testfile1,testfile2}
 
-test cookfsVfs-10.1 "Test changing compression without remounting" -constraints {enabledTclCmds} -setup {
+test cookfsVfs-10.1.1 "Test changing compression without remounting, with custom compression" -constraints {
+    enabledTclCmds enabledTclCallbacks
+} -setup {
     set file [makeBinFile {} pages.cfs]
     variable fc
     variable idx
@@ -619,6 +621,35 @@ test cookfsVfs-10.1 "Test changing compression without remounting" -constraints 
     assertNotContain $fc [string repeat "TEST" 256] "File testfile1 should be compressed"
     assertContain $fc [string repeat "test" 256] "File testfile2 should not be compressed"
     assertContain $fc [testcompressraw $idx] "Index not found"
+} -cleanup {
+    catch { cookfs::Unmount $file }
+    testrawcleanup
+} -ok
+
+test cookfsVfs-10.1.2 "Test changing compression without remounting, with custom compression" -constraints {enabledTclCmds} -setup {
+    set file [makeBinFile {} pages.cfs]
+    variable fc
+    variable idx
+    set fsid [cookfs::Mount $file $file -compression lzma -smallfilesize 32768 -alwayscompress]
+} -body {
+    $fsid compression zlib
+    assertEq [$fsid compression] "zlib" "Getting compression does not return 'zlib'"
+
+    makeBinFile [string repeat "TEST" 256] testfile1 $file
+
+    $fsid compression none
+    assertEq [$fsid compression] "none" "Getting compression does not return 'none'"
+
+    makeBinFile [string repeat "test" 256] testfile2 $file
+
+    $fsid compression lzma
+    assertEq [$fsid compression] "lzma" "Getting compression does not return 'lzma'"
+    cookfs::Unmount $file
+
+    set fc [viewBinFile $file]
+
+    assertNotContain $fc [string repeat "TEST" 256] "File testfile1 should be compressed"
+    assertContain $fc [string repeat "test" 256] "File testfile2 should not be compressed"
 } -cleanup {
     catch { cookfs::Unmount $file }
     testrawcleanup
