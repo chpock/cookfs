@@ -11,7 +11,9 @@
 #include "pages.h"
 #include "pagesInt.h"
 #include "pagesCompr.h"
+#if defined(COOKFS_USECALLBACKS)
 #include "pagesAsync.h"
+#endif /* COOKFS_USECALLBACKS */
 
 // For ptrdiff_t type
 #include <stddef.h>
@@ -359,8 +361,10 @@ int Cookfs_PagesSetPassword(Cookfs_Pages *p, Tcl_Obj *passObj) {
 
     Cookfs_PagesWantWrite(p);
 
+#if defined(COOKFS_USECALLBACKS)
     // ensure all async pages are written
     while(Cookfs_AsyncCompressWait(p, 1)) {};
+#endif /* COOKFS_USECALLBACKS */
 
     if (passObj == NULL || !Tcl_GetCharLength(passObj)) {
         CookfsLog2(printf("reset password as it is NULL or an empty string"));
@@ -478,9 +482,12 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     int currentCompression, int currentCompressionLevel,
     Tcl_Obj *password, int encryptKey, int encryptLevel,
     char *fileSignature, int useFoffset, Tcl_WideInt foffset,
-    int isAside, int asyncDecompressQueueSize,
+    int isAside,
+#if defined(COOKFS_USECALLBACKS)
+    int asyncDecompressQueueSize,
     Tcl_Obj *compressCommand, Tcl_Obj *decompressCommand,
     Tcl_Obj *asyncCompressCommand, Tcl_Obj *asyncDecompressCommand,
+#endif /* COOKFS_USECALLBACKS */
     Tcl_Obj **err)
 {
 
@@ -508,6 +515,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     rc->isAside = isAside;
     Cookfs_PagesInitCompr(rc);
 
+#if defined(COOKFS_USECALLBACKS)
     if (Cookfs_SetCompressCommands(rc, compressCommand, decompressCommand, asyncCompressCommand, asyncDecompressCommand) != TCL_OK) {
 	if (interp != NULL) {
 	    Tcl_SetObjResult(interp, Tcl_NewStringObj(COOKFS_PAGES_ERRORMSG ": unable to initialize compression", -1));
@@ -515,6 +523,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
 	ckfree((void *) rc);
 	return NULL;
     }
+#endif /* COOKFS_USECALLBACKS */
 
 #ifdef TCL_THREADS
     /* initialize thread locks */
@@ -570,8 +579,9 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
     rc->pagesIndex = NULL;
     rc->dataAsidePages = NULL;
     rc->dataPagesIsAside = isAside;
-
     rc->dataIndex = NULL;
+
+#if defined(COOKFS_USECALLBACKS)
     rc->asyncPageSize = 0;
     rc->asyncDecompressQueue = 0;
     // TODO: un-hardcode!
@@ -589,6 +599,7 @@ Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
 	rc->asyncCommandWait = NULL;
 	rc->asyncCommandFinalize = NULL;
     }
+#endif /* COOKFS_USECALLBACKS */
 
     rc->pageHash = COOKFS_HASH_MD5;
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
@@ -897,11 +908,13 @@ Tcl_WideInt Cookfs_PagesClose(Cookfs_Pages *p) {
     if ((!p->pagesUptodate) || (p->indexChanged)) {
         unsigned char buf[COOKFS_SUFFIX_BYTES];
 
+#if defined(COOKFS_USECALLBACKS)
         /* ensure all async pages are written */
         while(Cookfs_AsyncCompressWait(p, 1)) {};
         while(Cookfs_AsyncDecompressWait(p, -1, 1)) {};
         Cookfs_AsyncCompressFinalize(p);
         Cookfs_AsyncDecompressFinalize(p);
+#endif /* COOKFS_USECALLBACKS */
 
         // Add initial stamp if needed
         Cookfs_PageAddStamp(p, 0);
@@ -1191,6 +1204,7 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
 	}
     }
 
+#if defined(COOKFS_USECALLBACKS)
     if (p->asyncCommandProcess != NULL) {
 	Tcl_DecrRefCount(p->asyncCommandProcess);
     }
@@ -1200,6 +1214,7 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
     if (p->asyncCommandFinalize != NULL) {
 	Tcl_DecrRefCount(p->asyncCommandFinalize);
     }
+#endif /* COOKFS_USECALLBACKS */
 
     /* clean up compression information */
     Cookfs_PagesFiniCompr(p);
@@ -1618,7 +1633,6 @@ int Cookfs_PageAddRaw(Cookfs_Pages *p, unsigned char *bytes, int objLength,
     Cookfs_PagesWantWrite(p);
 
     int idx;
-    int dataSize;
     unsigned char md5sum[16];
 
     CookfsLog(printf("Cookfs_PageAdd: new page with [%d] bytes", objLength))
@@ -1732,14 +1746,18 @@ next:
         -1, objLength, md5sum);
 #endif /* COOKFS_USECCRYPTO */
 
+#if defined(COOKFS_USECALLBACKS)
     if (!Cookfs_AsyncPageAdd(p, idx, bytes, objLength)) {
-        dataSize = Cookfs_WritePage(p, idx, bytes, objLength, md5sum, NULL);
+#endif /* COOKFS_USECALLBACKS */
+        int dataSize = Cookfs_WritePage(p, idx, bytes, objLength, md5sum, NULL);
         if (dataSize < 0) {
             /* TODO: if writing failed, we can't be certain of archive state - need to handle this at vfs layer somehow */
             CookfsLog(printf("Unable to compress page"))
             return -1;
         }
+#if defined(COOKFS_USECALLBACKS)
     }
+#endif /* COOKFS_USECALLBACKS */
 
     p->pagesUptodate = 0;
 
@@ -1787,15 +1805,17 @@ Cookfs_PageObj Cookfs_PageGet(Cookfs_Pages *p, int index, int weight,
     Cookfs_PagesWantRead(p);
 
     Cookfs_PageObj rc;
-    int preloadIndex = index + 1;
 
     CookfsLog(printf("Cookfs_PageGet: index [%d] with weight [%d]", index, weight))
 
+#if defined(COOKFS_USECALLBACKS)
+    int preloadIndex = index + 1;
     for (; preloadIndex < Cookfs_PagesGetLength(p) ; preloadIndex++) {
 	if (!Cookfs_AsyncPagePreload(p, preloadIndex)) {
 	    break;
 	}
     }
+#endif /* COOKFS_USECALLBACKS */
 
     /* TODO: cleanup refcount for cached vs non-cached entries */
 
@@ -1806,6 +1826,7 @@ Cookfs_PageObj Cookfs_PageGet(Cookfs_Pages *p, int index, int weight,
         goto done;
     }
 
+#if defined(COOKFS_USECALLBACKS)
     Cookfs_AsyncDecompressWaitIfLoading(p, index);
 
     for (; preloadIndex < Cookfs_PagesGetLength(p) ; preloadIndex++) {
@@ -1813,6 +1834,7 @@ Cookfs_PageObj Cookfs_PageGet(Cookfs_Pages *p, int index, int weight,
 	    break;
 	}
     }
+#endif /* COOKFS_USECALLBACKS */
 
 #ifdef TCL_THREADS
     Tcl_MutexLock(&p->mxCache);
@@ -2595,8 +2617,10 @@ void Cookfs_PagesSetCompression(Cookfs_Pages *p,
     if (p->currentCompression != fileCompression ||
         p->currentCompressionLevel != fileCompressionLevel)
     {
+#if defined(COOKFS_USECALLBACKS)
         // ensure all async pages are written
         while(Cookfs_AsyncCompressWait(p, 1)) {};
+#endif /* COOKFS_USECALLBACKS */
         p->currentCompression = fileCompression;
         p->currentCompressionLevel = fileCompressionLevel;
     }
@@ -2686,12 +2710,14 @@ static Cookfs_PageObj CookfsPagesPageGetInt(Cookfs_Pages *p, int index,
 	return NULL;
     }
 
+#if defined(COOKFS_USECALLBACKS)
     buffer = Cookfs_AsyncPageGet(p, index);
     if (buffer != NULL) {
         Cookfs_PageObjIncrRefCount(buffer);
         CookfsLog2(printf("return: result from Cookfs_AsyncPageGet()"));
 	return buffer;
     }
+#endif /* COOKFS_USECALLBACKS */
 
 #ifdef TCL_THREADS
     Tcl_MutexLock(&p->mxIO);

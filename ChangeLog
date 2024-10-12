@@ -2,6 +2,7 @@
 	* Add a fileset feature to VFS
 	* Allow to link with zlib directly (without Tcl layer)
 	* Allow to link with mbedtls and use its crypto functions
+	* Allow to build without Tcl callbacks
 
 2024-10-10 Konstantin Kushnir <chpock@gmail.com>
 	* Add a fileset feature to fsindex

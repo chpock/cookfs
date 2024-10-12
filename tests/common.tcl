@@ -37,6 +37,8 @@ namespace eval ::tcltest {
     testConstraint disabledCPages  [expr { ![cookfs::pkgconfig get c-pages] }]
     testConstraint enabledTclCmds  [cookfs::pkgconfig get tcl-commands]
     testConstraint disabledTclCmds [expr { ![cookfs::pkgconfig get tcl-commands] }]
+    testConstraint enabledTclCallbacks  [cookfs::pkgconfig get tcl-callbacks]
+    testConstraint disabledTclCallbacks [expr { ![cookfs::pkgconfig get tcl-callbacks] }]
     testConstraint enabledCWriter  [cookfs::pkgconfig get c-writer]
     testConstraint disabledCWriter [expr { ![cookfs::pkgconfig get c-writer] }]
     testConstraint enabledCFsindex  [cookfs::pkgconfig get c-fsindex]

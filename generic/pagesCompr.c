@@ -13,7 +13,9 @@
 #include "pagesInt.h"
 #include "pagesCompr.h"
 #include "pagesComprZlib.h"
+#if defined(COOKFS_USECALLBACKS)
 #include "pagesComprCustom.h"
+#endif /* COOKFS_USECALLBACKS */
 #ifdef COOKFS_USEBZ2
 #include "pagesComprBz2.h"
 #endif
@@ -27,8 +29,10 @@
 #include "pagesComprBrotli.h"
 #endif
 
+#if defined(COOKFS_USECALLBACKS)
 /* declarations of static and/or internal functions */
 static Tcl_Obj **CookfsCreateCompressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd, int *lenPtr, int additionalElements);
+#endif /* COOKFS_USECALLBACKS */
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
 static int CookfsCheckCommandExists(Tcl_Interp *interp, const char *commandName);
 #endif
@@ -49,7 +53,9 @@ const char *cookfsCompressionOptions[] = {
 #ifdef COOKFS_USEBROTLI
     "brotli",
 #endif
+#if defined(COOKFS_USECALLBACKS)
     "custom",
+#endif /* COOKFS_USECALLBACKS */
     NULL
 };
 
@@ -68,7 +74,9 @@ const int cookfsCompressionOptionMap[] = {
 #ifdef COOKFS_USEBROTLI
     COOKFS_COMPRESSION_BROTLI,
 #endif
+#if defined(COOKFS_USECALLBACKS)
     COOKFS_COMPRESSION_CUSTOM,
+#endif /* COOKFS_USECALLBACKS */
     -1 /* dummy entry */
 };
 
@@ -341,6 +349,7 @@ void Cookfs_PagesFiniCompr(Cookfs_Pages *rc) {
     }
 #endif
 
+#if defined(COOKFS_USECALLBACKS)
     /* clean up compress/decompress commands, if present - for non-aside pages only */
     if (!rc->isAside) {
 	if (rc->compressCommandPtr != NULL) {
@@ -372,9 +381,13 @@ void Cookfs_PagesFiniCompr(Cookfs_Pages *rc) {
 	    ckfree((void *) rc->asyncDecompressCommandPtr);
 	}
     }
+#else
+    UNUSED(rc);
+#endif /* COOKFS_USECALLBACKS */
 }
 
 
+#if defined(COOKFS_USECALLBACKS)
 /*
  *----------------------------------------------------------------------
  *
@@ -448,6 +461,7 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
 
     return TCL_OK;
 }
+#endif /* COOKFS_USECALLBACKS */
 
 
 /*
@@ -616,10 +630,12 @@ decryptionFailed:
         rc = CookfsReadPageZlib(p, dataCompressed->buf, sizeCompressed,
             dataUncompressed->buf, sizeUncompressed, err);
         break;
+#if defined(COOKFS_USECALLBACKS)
     case COOKFS_COMPRESSION_CUSTOM:
         rc = CookfsReadPageCustom(p, dataCompressed->buf, sizeCompressed,
             dataUncompressed->buf, sizeUncompressed, err);
         break;
+#endif /* COOKFS_USECALLBACKS */
 #ifdef COOKFS_USEBZ2
     case COOKFS_COMPRESSION_BZ2:
         rc = CookfsReadPageBz2(p, dataCompressed->buf, sizeCompressed,
@@ -802,9 +818,11 @@ Tcl_Size Cookfs_WritePage(Cookfs_Pages *p, int idx, unsigned char *bytes,
     case COOKFS_COMPRESSION_ZLIB:
         pgCompressed = CookfsWritePageZlib(p, bytes, sizeUncompressed);
         break;
+#if defined(COOKFS_USECALLBACKS)
     case COOKFS_COMPRESSION_CUSTOM:
         pgCompressed = CookfsWritePageCustom(p, bytes, sizeUncompressed);
         break;
+#endif /* COOKFS_USECALLBACKS */
 #ifdef COOKFS_USEBZ2
     case COOKFS_COMPRESSION_BZ2:
         pgCompressed = CookfsWritePageBz2(p, bytes, sizeUncompressed);
@@ -914,6 +932,8 @@ int Cookfs_WriteTclObj(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compres
 
 /* definitions of static and/or internal functions */
 
+#if defined(COOKFS_USECALLBACKS)
+
 /*
  *----------------------------------------------------------------------
  *
@@ -951,6 +971,8 @@ static Tcl_Obj **CookfsCreateCompressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd
     *lenPtr = listObjc + additionalElements;
     return rc;
 }
+#endif /* COOKFS_USECALLBACKS */
+
 
 #ifdef USE_VFS_COMMANDS_FOR_ZIP
 

@@ -676,7 +676,9 @@ test cookfsPagesEncrypt-6.4 "Test password change for key encryption" -constrain
     catch { $pg delete }
 } -ok
 
-test cookfsPagesEncrypt-7.1 "Test encryption with custom compression" -constraints {enabledTclCmds cookfsCrypto} -setup {
+test cookfsPagesEncrypt-7.1 "Test encryption with custom compression" -constraints {
+    enabledTclCmds cookfsCrypto enabledTclCallbacks
+} -setup {
     set file [makeFile {} pages.cfs]
     set pg [cookfs::pages -compression custom -alwayscompress \
         -compresscommand testcompress -decompresscommand testdecompress \
@@ -716,7 +718,9 @@ test cookfsPagesEncrypt-7.1 "Test encryption with custom compression" -constrain
     unset -nocomplain testcompresscount testdecompresscount
 } -ok
 
-test cookfsPagesEncrypt-8.1 "Test encryption with async compression" -constraints {enabledTclCmds cookfsCrypto} -setup {
+test cookfsPagesEncrypt-8.1 "Test encryption with async compression" -constraints {
+    enabledTclCmds cookfsCrypto enabledTclCallbacks
+} -setup {
     set file [makeFile {} pages.cfs]
     set ::testasynccompressfinalized 0
     set pg [cookfs::pages -compression custom -alwayscompress \

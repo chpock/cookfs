@@ -36,6 +36,9 @@ jobs:
           - compiler: gcc
             configure: "--disable-c-crypto"
             description: "no crypto"
+          - compiler: gcc
+            configure: "--disable-tcl-callbacks"
+            description: "no tcl-callbacks"
     name: build (${{ matrix.compiler }}, ${{ matrix.description }})
     steps:
       - name: Checkout

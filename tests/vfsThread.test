@@ -135,7 +135,9 @@ test cookfsVfsThread-3.2 "Test simple read files from other thread from pages" -
     cookfs::Unmount $file
 } -result {TEST01XTEST02Y}
 
-test cookfsVfsThread-4.1 "Test error for tcl commands for shared VFS" -constraints {threaded enabledCVfs} -setup {
+test cookfsVfsThread-4.1 "Test error for tcl commands for shared VFS" -constraints {
+    threaded enabledCVfs enabledTclCallbacks
+} -setup {
     set file [makeFile {} cookfs.cfs]
 } -body {
     assertErrMsg { cookfs::Mount $file $file -compression none -shared -compresscommand foo } \
