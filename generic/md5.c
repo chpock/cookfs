@@ -53,6 +53,9 @@
  */
 
 #include "cookfs.h"
+
+#if !HAVE_MBEDTLS
+
 #include "md5.h"
 
 /*
@@ -325,6 +328,20 @@ void Cookfs_MD5(unsigned char *buf, Tcl_Size len, unsigned char digest[16]) {
     MD5Final(digest, &ctx);
 }
 
+#else
+
+#include <mbedtls/md5.h>
+
+void Cookfs_MD5(unsigned char *buf, Tcl_Size len, unsigned char digest[16]) {
+    mbedtls_md5_context ctx;
+    mbedtls_md5_init(&ctx);
+    mbedtls_md5_starts(&ctx);
+    mbedtls_md5_update(&ctx, buf, len);
+    mbedtls_md5_finish(&ctx, digest);
+    mbedtls_md5_free(&ctx);
+}
+
+#endif /* HAVE_MBEDTLS */
 
 /*
  *----------------------------------------------------------------------
