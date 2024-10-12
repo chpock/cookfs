@@ -974,7 +974,7 @@ test cookfsVfs-15.2 "Test optimizelist with non-empty base" -constraints {enable
 
 # Attributes will work only for c-vfs
 
-test cookfsVfs-16.1.1 "Test set attributes for root" -setup {
+test cookfsVfs-16.1.1 "Test set attributes for root" -constraints {enabledCVfs} -setup {
     set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
 } -body {
@@ -984,7 +984,7 @@ test cookfsVfs-16.1.1 "Test set attributes for root" -setup {
     catch { ::cookfs::c::reset_cache }
 } -error {attribute "-vfs" is read-only}
 
-test cookfsVfs-16.1.2 "Test list attributes for root" -setup {
+test cookfsVfs-16.1.2 "Test list attributes for root" -constraints {enabledCVfs} -setup {
     set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
 } -body {
@@ -1005,7 +1005,7 @@ test cookfsVfs-16.1.3 "Test get attributes for root" -setup {
     catch { ::cookfs::c::reset_cache }
 } -ok
 
-test cookfsVfs-16.1.4 "Test get unknown attribute for root" -setup {
+test cookfsVfs-16.1.4 "Test get unknown attribute for root" -constraints {enabledCVfs} -setup {
     set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
 } -body {
@@ -1025,7 +1025,7 @@ test cookfsVfs-16.1.5 "Test -handle attribute for root when vfs created with -no
     catch { ::cookfs::c::reset_cache }
 } -result {}
 
-test cookfsVfs-16.2.1 "Test set attributes for file" -setup {
+test cookfsVfs-16.2.1 "Test set attributes for file" -constraints {enabledCVfs} -setup {
     set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
     set file2 [makeBinFile "" test $file]

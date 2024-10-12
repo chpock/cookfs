@@ -848,7 +848,6 @@ skipPages:
                 CookfsLog(printf("Cookfs_Mount: bootstrap is empty"));
             } else {
                 CookfsLog(printf("Cookfs_Mount: add bootstrap"));
-                Tcl_Obj *err = NULL;
                 int idx = Cookfs_PageAddTclObj(pages, props->bootstrap, &err);
                 if (idx < 0) {
                     Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unable to add"
