@@ -405,7 +405,7 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
     CookfsLog2(printf("type: [%s]", typeStr == NULL ? "<NULL>" : typeStr));
 
     Cookfs_FsindexFileSetType type;
-    const char *option_str;
+    const char *option_str = NULL;
 
     // Now let's check if fsindex is a newly created index or if it already
     // contains files. The result of setting fileset will depend heavily
