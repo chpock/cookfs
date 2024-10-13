@@ -38,14 +38,14 @@ struct _Cookfs_FsindexEntry {
             Tcl_WideInt fileSize;
             int fileBlockOffsetSize[1];
         } fileInfo;
-	struct {
-	    union {
-		Tcl_HashTable children;
-		Cookfs_FsindexEntry *childTable[COOKFS_FSINDEX_TABLE_MAXENTRIES];
-	    } dirData;
-	    char isHash;
-	    int childCount;
-	} dirInfo;
+        struct {
+            union {
+                Tcl_HashTable children;
+                Cookfs_FsindexEntry *childTable[COOKFS_FSINDEX_TABLE_MAXENTRIES];
+            } dirData;
+            char isHash;
+            int childCount;
+        } dirInfo;
     } data;
     /* this stores series of 3 values: block number, block offset, size of element */
 };

@@ -246,15 +246,15 @@ done:
  *
  * Cookfs_PagesInitCompr --
  *
- *	Initializes pages compression handling for specified pages object
+ *      Initializes pages compression handling for specified pages object
  *
- *	Invoked as part of Cookfs_PagesInit()
+ *      Invoked as part of Cookfs_PagesInit()
  *
  * Results:
- *	None
+ *      None
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */
@@ -313,15 +313,15 @@ void Cookfs_PagesInitCompr(Cookfs_Pages *rc) {
  *
  * Cookfs_PagesFiniCompr --
  *
- *	Cleans up pages compression handling for specified pages object
+ *      Cleans up pages compression handling for specified pages object
  *
- *	Invoked as part of Cookfs_PagesFini()
+ *      Invoked as part of Cookfs_PagesFini()
  *
  * Results:
- *	None
+ *      None
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */
@@ -347,34 +347,34 @@ void Cookfs_PagesFiniCompr(Cookfs_Pages *rc) {
 #if defined(COOKFS_USECALLBACKS)
     /* clean up compress/decompress commands, if present - for non-aside pages only */
     if (!rc->isAside) {
-	if (rc->compressCommandPtr != NULL) {
-	    Tcl_Obj **ptr;
-	    for (ptr = rc->compressCommandPtr; *ptr; ptr++) {
-		Tcl_DecrRefCount(*ptr);
-	    }
-	    ckfree((void *) rc->compressCommandPtr);
-	}
-	if (rc->decompressCommandPtr != NULL) {
-	    Tcl_Obj **ptr;
-	    for (ptr = rc->decompressCommandPtr; *ptr; ptr++) {
-		Tcl_DecrRefCount(*ptr);
-	    }
-	    ckfree((void *) rc->decompressCommandPtr);
-	}
-	if (rc->asyncCompressCommandPtr != NULL) {
-	    Tcl_Obj **ptr;
-	    for (ptr = rc->asyncCompressCommandPtr; *ptr; ptr++) {
-		Tcl_DecrRefCount(*ptr);
-	    }
-	    ckfree((void *) rc->asyncCompressCommandPtr);
-	}
-	if (rc->asyncDecompressCommandPtr != NULL) {
-	    Tcl_Obj **ptr;
-	    for (ptr = rc->asyncDecompressCommandPtr; *ptr; ptr++) {
-		Tcl_DecrRefCount(*ptr);
-	    }
-	    ckfree((void *) rc->asyncDecompressCommandPtr);
-	}
+        if (rc->compressCommandPtr != NULL) {
+            Tcl_Obj **ptr;
+            for (ptr = rc->compressCommandPtr; *ptr; ptr++) {
+                Tcl_DecrRefCount(*ptr);
+            }
+            ckfree((void *) rc->compressCommandPtr);
+        }
+        if (rc->decompressCommandPtr != NULL) {
+            Tcl_Obj **ptr;
+            for (ptr = rc->decompressCommandPtr; *ptr; ptr++) {
+                Tcl_DecrRefCount(*ptr);
+            }
+            ckfree((void *) rc->decompressCommandPtr);
+        }
+        if (rc->asyncCompressCommandPtr != NULL) {
+            Tcl_Obj **ptr;
+            for (ptr = rc->asyncCompressCommandPtr; *ptr; ptr++) {
+                Tcl_DecrRefCount(*ptr);
+            }
+            ckfree((void *) rc->asyncCompressCommandPtr);
+        }
+        if (rc->asyncDecompressCommandPtr != NULL) {
+            Tcl_Obj **ptr;
+            for (ptr = rc->asyncDecompressCommandPtr; *ptr; ptr++) {
+                Tcl_DecrRefCount(*ptr);
+            }
+            ckfree((void *) rc->asyncDecompressCommandPtr);
+        }
     }
 #else
     UNUSED(rc);
@@ -388,16 +388,16 @@ void Cookfs_PagesFiniCompr(Cookfs_Pages *rc) {
  *
  * Cookfs_SetCompressCommands --
  *
- *	Set compress, decompress and async compress commands
- *	for specified pages object
+ *      Set compress, decompress and async compress commands
+ *      for specified pages object
  *
- *	Creates a copy of objects' list elements
+ *      Creates a copy of objects' list elements
  *
  * Results:
- *	TCL_OK on success; TCL_ERROR otherwise
+ *      TCL_OK on success; TCL_ERROR otherwise
  *
  * Side effects:
- *	May set interpreter's result to error message, if error occurred
+ *      May set interpreter's result to error message, if error occurred
  *
  *----------------------------------------------------------------------
  */
@@ -414,34 +414,34 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
 
     /* copy compress command */
     if (compressCommand != NULL) {
-	compressPtr = CookfsCreateCompressionCommand(NULL, compressCommand, &compressLen, 1);
-	if (compressPtr == NULL) {
-	    return TCL_ERROR;
-	}
+        compressPtr = CookfsCreateCompressionCommand(NULL, compressCommand, &compressLen, 1);
+        if (compressPtr == NULL) {
+            return TCL_ERROR;
+        }
     }
 
     /* copy decompress command */
     if (decompressCommand != NULL) {
-	decompressPtr = CookfsCreateCompressionCommand(NULL, decompressCommand, &decompressLen, 1);
-	if (decompressPtr == NULL) {
-	    return TCL_ERROR;
-	}
+        decompressPtr = CookfsCreateCompressionCommand(NULL, decompressCommand, &decompressLen, 1);
+        if (decompressPtr == NULL) {
+            return TCL_ERROR;
+        }
     }
 
     /* copy async compress command */
     if (asyncCompressCommand != NULL) {
-	asyncCompressPtr = CookfsCreateCompressionCommand(NULL, asyncCompressCommand, &asyncCompressLen, 3);
-	if (asyncCompressPtr == NULL) {
-	    return TCL_ERROR;
-	}
+        asyncCompressPtr = CookfsCreateCompressionCommand(NULL, asyncCompressCommand, &asyncCompressLen, 3);
+        if (asyncCompressPtr == NULL) {
+            return TCL_ERROR;
+        }
     }
 
     /* copy async decompress command */
     if (asyncDecompressCommand != NULL) {
-	asyncDecompressPtr = CookfsCreateCompressionCommand(NULL, asyncDecompressCommand, &asyncDecompressLen, 3);
-	if (asyncDecompressPtr == NULL) {
-	    return TCL_ERROR;
-	}
+        asyncDecompressPtr = CookfsCreateCompressionCommand(NULL, asyncDecompressCommand, &asyncDecompressLen, 3);
+        if (asyncDecompressPtr == NULL) {
+            return TCL_ERROR;
+        }
     }
 
     /* store copied list and number of items in lists */
@@ -464,14 +464,14 @@ int Cookfs_SetCompressCommands(Cookfs_Pages *p, Tcl_Obj *compressCommand, Tcl_Ob
  *
  * Cookfs_ReadPage --
  *
- *	Read page and invoke proper decompression function, if requested
+ *      Read page and invoke proper decompression function, if requested
  *
  * Results:
- *	Page; decompressed if decompress was specified
- *	NOTE: Reference counter for the page is already incremented
+ *      Page; decompressed if decompress was specified
+ *      NOTE: Reference counter for the page is already incremented
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */
@@ -737,13 +737,13 @@ skipHashCheck:
  *
  * Cookfs_SeekToPage --
  *
- *	Seek to offset where specified page is / should be
+ *      Seek to offset where specified page is / should be
  *
  * Results:
- *	None
+ *      None
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */
@@ -934,14 +934,14 @@ int Cookfs_WriteTclObj(Cookfs_Pages *p, int idx, Tcl_Obj *data, Tcl_Obj *compres
  *
  * CookfsCreateCompressionCommand --
  *
- *	Copy specified command and store length of entire command
+ *      Copy specified command and store length of entire command
  *
  * Results:
- * 	Pointer to array of Tcl_Obj for the command; placeholder for
- * 	actual data to (de)compress is added as last element of the list
+ *      Pointer to array of Tcl_Obj for the command; placeholder for
+ *      actual data to (de)compress is added as last element of the list
  *
  * Side effects:
- *	In case of error, interp will be set with proper error message
+ *      In case of error, interp will be set with proper error message
  *
  *----------------------------------------------------------------------
  */
@@ -954,13 +954,13 @@ static Tcl_Obj **CookfsCreateCompressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd
 
     /* get command as list of attributes */
     if (Tcl_ListObjGetElements(interp, cmd, &listObjc, &listObjv) != TCL_OK) {
-	return NULL;
+        return NULL;
     }
 
     rc = (Tcl_Obj **) ckalloc(sizeof(Tcl_Obj *) * (listObjc + additionalElements));
     for (i = 0; i < listObjc; i++) {
-	rc[i] = listObjv[i];
-	Tcl_IncrRefCount(rc[i]);
+        rc[i] = listObjv[i];
+        Tcl_IncrRefCount(rc[i]);
     }
     rc[listObjc] = NULL;
     *lenPtr = listObjc + additionalElements;
@@ -976,14 +976,14 @@ static Tcl_Obj **CookfsCreateCompressionCommand(Tcl_Interp *interp, Tcl_Obj *cmd
  *
  * CookfsCheckCommandExists --
  *
- *	Checks whether specified command exists, providing Tcl 8.4
- *	backwards compatibility
+ *      Checks whether specified command exists, providing Tcl 8.4
+ *      backwards compatibility
  *
  * Results:
- *	non-zero if command exists; 0 otherwise
+ *      non-zero if command exists; 0 otherwise
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */

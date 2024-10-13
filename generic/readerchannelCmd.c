@@ -27,16 +27,16 @@ static int CookfsCreateReaderchannelCmd(ClientData clientData, Tcl_Interp *inter
     pages = Cookfs_PagesGetHandle(interp, Tcl_GetStringFromObj(objv[1], NULL));
 
     if (pages == NULL) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to find pages object", -1));
-	return TCL_ERROR;
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to find pages object", -1));
+        return TCL_ERROR;
     }
 
     fsindex = Cookfs_FsindexGetHandle(interp, Tcl_GetStringFromObj(objv[2], NULL));
 
     CookfsLog(printf("fsindex [%p]", (void *)fsindex));
     if (fsindex == NULL) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to find fsindex object", -1));
-	return TCL_ERROR;
+        Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to find fsindex object", -1));
+        return TCL_ERROR;
     }
 
     Tcl_Obj *err = NULL;

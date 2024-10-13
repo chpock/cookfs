@@ -170,8 +170,8 @@ int Cookfs_CreateReaderchannelCreate(Cookfs_ReaderChannelInstData *instData, Tcl
         (ClientData) instData, TCL_READABLE);
 
     if (instData->channel == NULL) {
-	CookfsLog(printf("Unable to create channel"))
-	return TCL_ERROR;
+        CookfsLog(printf("Unable to create channel"))
+        return TCL_ERROR;
     }
 
     Tcl_RegisterChannel(interp, instData->channel);

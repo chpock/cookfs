@@ -19,14 +19,14 @@ static Tcl_Obj *CookfsBinaryDataCreateAddress(void *address);
  *
  * Cookfs_InitBinaryDataCmd --
  *
- *	Initializes binary data command in specific
- *	Tcl interpreter
+ *      Initializes binary data command in specific
+ *      Tcl interpreter
  *
  * Results:
- *	TCL_OK on success; TCL_ERROR on error
+ *      TCL_OK on success; TCL_ERROR on error
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */

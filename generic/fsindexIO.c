@@ -43,14 +43,14 @@ static int CookfsFsindexImportMetadata(Cookfs_Fsindex *fsIndex, unsigned char *b
  *
  * Cookfs_FsindexToObject --
  *
- *	Creates a byte array object with fsindex information
- *	stored as platform-independant binary data
+ *      Creates a byte array object with fsindex information
+ *      stored as platform-independant binary data
  *
  * Results:
- *	Binary data as Tcl_Obj; NULL in case of error
+ *      Binary data as Tcl_Obj; NULL in case of error
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */
@@ -90,14 +90,14 @@ Cookfs_Fsindex *Cookfs_FsindexFromTclObj(Tcl_Interp *interp, Cookfs_Fsindex *fsi
  *
  * Cookfs_FsindexFromBytes --
  *
- *	Imports fsindex information from raw buffer storing platform-independant
- *	binary data
+ *      Imports fsindex information from raw buffer storing platform-independant
+ *      binary data
  *
  * Results:
- *	Pointer to imported Cookfs_Fsindex; NULL in case of import error
+ *      Pointer to imported Cookfs_Fsindex; NULL in case of import error
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */
@@ -176,17 +176,17 @@ done:
  *
  * CookfsFsindexExportDirectory --
  *
- *	Exports a single directory to byte array object at specified offset
+ *      Exports a single directory to byte array object at specified offset
  *
  * Results:
- *	Offset pointing to end of binary data in the result object
- *	This can be used to appending subsequent entries
- *	by parent directory export
+ *      Offset pointing to end of binary data in the result object
+ *      This can be used to appending subsequent entries
+ *      by parent directory export
  *
  * Side effects:
- *	Byte array may have its size changed, therefore depending on
- *	location of bytes (such as from Tcl_GetByteArrayFromObj())
- *	is not recommended
+ *      Byte array may have its size changed, therefore depending on
+ *      location of bytes (such as from Tcl_GetByteArrayFromObj())
+ *      is not recommended
  *
  *----------------------------------------------------------------------
  */
@@ -204,112 +204,112 @@ static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
     objOffset += 4;
 
     if (entry->data.dirInfo.isHash) {
-	Tcl_HashSearch hashSearch;
-	/* iterate using hash table */
-	Tcl_HashEntry *hashEntry = Tcl_FirstHashEntry(&entry->data.dirInfo.dirData.children, &hashSearch);
-	while (hashEntry != NULL) {
-	    /* get next item in hash table */
-	    itemNode = (Cookfs_FsindexEntry *) Tcl_GetHashValue(hashEntry);
-	    hashEntry = Tcl_NextHashEntry(&hashSearch);
+        Tcl_HashSearch hashSearch;
+        /* iterate using hash table */
+        Tcl_HashEntry *hashEntry = Tcl_FirstHashEntry(&entry->data.dirInfo.dirData.children, &hashSearch);
+        while (hashEntry != NULL) {
+            /* get next item in hash table */
+            itemNode = (Cookfs_FsindexEntry *) Tcl_GetHashValue(hashEntry);
+            hashEntry = Tcl_NextHashEntry(&hashSearch);
 
-	    /* if size of object might not be sufficient to store current page */
-	    if (objLength < (objOffset + COOKFS_FSINDEX_MAXENTRYSIZE)) {
-		objLength += COOKFS_FSINDEX_BUFFERINCREASE;
-		bytes = Tcl_SetByteArrayLength(result, objLength);
-	    }
+            /* if size of object might not be sufficient to store current page */
+            if (objLength < (objOffset + COOKFS_FSINDEX_MAXENTRYSIZE)) {
+                objLength += COOKFS_FSINDEX_BUFFERINCREASE;
+                bytes = Tcl_SetByteArrayLength(result, objLength);
+            }
 
-	    /* copy filename to binary data; append \0 */
-	    bytes[objOffset] = itemNode->fileNameLen;
-	    objOffset++;
+            /* copy filename to binary data; append \0 */
+            bytes[objOffset] = itemNode->fileNameLen;
+            objOffset++;
 
-	    CookfsLog(printf("Copying filename \"%s\" (%d bytes at %d)",
-	        itemNode->fileName, ((int) itemNode->fileNameLen), objOffset));
+            CookfsLog(printf("Copying filename \"%s\" (%d bytes at %d)",
+                itemNode->fileName, ((int) itemNode->fileNameLen), objOffset));
 
-	    memcpy(bytes + objOffset, itemNode->fileName, itemNode->fileNameLen);
-	    objOffset += itemNode->fileNameLen;
-	    bytes[objOffset] = 0;
-	    objOffset ++;
+            memcpy(bytes + objOffset, itemNode->fileName, itemNode->fileNameLen);
+            objOffset += itemNode->fileNameLen;
+            bytes[objOffset] = 0;
+            objOffset ++;
 
-	    /* add file modification time and number of blocks */
-	    // CookfsLog(printf("DEBUG 1 - %d", objOffset))
-	    Cookfs_WideInt2Binary(&itemNode->fileTime, bytes + objOffset, 1);
-	    objOffset += 8;
+            /* add file modification time and number of blocks */
+            // CookfsLog(printf("DEBUG 1 - %d", objOffset))
+            Cookfs_WideInt2Binary(&itemNode->fileTime, bytes + objOffset, 1);
+            objOffset += 8;
 
-	    // CookfsLog(printf("DEBUG 2 - %d", objOffset))
-	    Cookfs_Int2Binary(&itemNode->fileBlocks, bytes + objOffset, 1);
-	    objOffset += 4;
+            // CookfsLog(printf("DEBUG 2 - %d", objOffset))
+            Cookfs_Int2Binary(&itemNode->fileBlocks, bytes + objOffset, 1);
+            objOffset += 4;
 
-	    // CookfsLog(printf("DEBUG 3 - %d", objOffset))
-	    if (itemNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
-		/* add child directory's structure inlined; append
-		 * rest of current directory after child's export data */
-		objOffset = CookfsFsindexExportDirectory(fsIndex, itemNode, result, objOffset);
-		bytes = Tcl_GetByteArrayFromObj(result, &objLength);
-	    }  else  {
-		/* reallocate memory if will not store all block-offset-size triplets */
-		if (objLength < (objOffset + (itemNode->fileBlocks * 12))) {
-		    objLength += COOKFS_FSINDEX_BUFFERINCREASE;
-		    bytes = Tcl_SetByteArrayLength(result, objLength);
-		}
+            // CookfsLog(printf("DEBUG 3 - %d", objOffset))
+            if (itemNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
+                /* add child directory's structure inlined; append
+                 * rest of current directory after child's export data */
+                objOffset = CookfsFsindexExportDirectory(fsIndex, itemNode, result, objOffset);
+                bytes = Tcl_GetByteArrayFromObj(result, &objLength);
+            }  else  {
+                /* reallocate memory if will not store all block-offset-size triplets */
+                if (objLength < (objOffset + (itemNode->fileBlocks * 12))) {
+                    objLength += COOKFS_FSINDEX_BUFFERINCREASE;
+                    bytes = Tcl_SetByteArrayLength(result, objLength);
+                }
 
-		/* add block-offset-size triplets and increase offset*/
-		Cookfs_Int2Binary(itemNode->data.fileInfo.fileBlockOffsetSize, bytes + objOffset, itemNode->fileBlocks * 3);
-		objOffset += itemNode->fileBlocks * 12;
-	    }
-	    // CookfsLog(printf("DEBUG 4 - %d", objOffset))
-	}
+                /* add block-offset-size triplets and increase offset*/
+                Cookfs_Int2Binary(itemNode->data.fileInfo.fileBlockOffsetSize, bytes + objOffset, itemNode->fileBlocks * 3);
+                objOffset += itemNode->fileBlocks * 12;
+            }
+            // CookfsLog(printf("DEBUG 4 - %d", objOffset))
+        }
     }  else  {
-	int i;
-	for (i = 0 ; i < COOKFS_FSINDEX_TABLE_MAXENTRIES; i++) {
-	    itemNode = entry->data.dirInfo.dirData.childTable[i];
-	    if (itemNode != NULL) {
-		/* if size of object might not be sufficient to store current page */
-		if (objLength < (objOffset + COOKFS_FSINDEX_MAXENTRYSIZE)) {
-		    objLength += COOKFS_FSINDEX_BUFFERINCREASE;
-		    bytes = Tcl_SetByteArrayLength(result, objLength);
-		}
+        int i;
+        for (i = 0 ; i < COOKFS_FSINDEX_TABLE_MAXENTRIES; i++) {
+            itemNode = entry->data.dirInfo.dirData.childTable[i];
+            if (itemNode != NULL) {
+                /* if size of object might not be sufficient to store current page */
+                if (objLength < (objOffset + COOKFS_FSINDEX_MAXENTRYSIZE)) {
+                    objLength += COOKFS_FSINDEX_BUFFERINCREASE;
+                    bytes = Tcl_SetByteArrayLength(result, objLength);
+                }
 
-		/* copy filename to binary data; append \0 */
-		bytes[objOffset] = itemNode->fileNameLen;
-		objOffset++;
+                /* copy filename to binary data; append \0 */
+                bytes[objOffset] = itemNode->fileNameLen;
+                objOffset++;
 
-		CookfsLog(printf("Copying filename \"%s\" (%d bytes at %d)",
-		    itemNode->fileName, ((int) itemNode->fileNameLen), objOffset))
+                CookfsLog(printf("Copying filename \"%s\" (%d bytes at %d)",
+                    itemNode->fileName, ((int) itemNode->fileNameLen), objOffset))
 
-		memcpy(bytes + objOffset, itemNode->fileName, itemNode->fileNameLen);
-		objOffset += itemNode->fileNameLen;
-		bytes[objOffset] = 0;
-		objOffset ++;
+                memcpy(bytes + objOffset, itemNode->fileName, itemNode->fileNameLen);
+                objOffset += itemNode->fileNameLen;
+                bytes[objOffset] = 0;
+                objOffset ++;
 
-		/* add file modification time and number of blocks */
-		CookfsLog(printf("DEBUG 1 - %d", objOffset))
-		Cookfs_WideInt2Binary(&itemNode->fileTime, bytes + objOffset, 1);
-		objOffset += 8;
+                /* add file modification time and number of blocks */
+                CookfsLog(printf("DEBUG 1 - %d", objOffset))
+                Cookfs_WideInt2Binary(&itemNode->fileTime, bytes + objOffset, 1);
+                objOffset += 8;
 
-		CookfsLog(printf("DEBUG 2 - %d", objOffset))
-		Cookfs_Int2Binary(&itemNode->fileBlocks, bytes + objOffset, 1);
-		objOffset += 4;
+                CookfsLog(printf("DEBUG 2 - %d", objOffset))
+                Cookfs_Int2Binary(&itemNode->fileBlocks, bytes + objOffset, 1);
+                objOffset += 4;
 
-		CookfsLog(printf("DEBUG 3 - %d", objOffset))
-		if (itemNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
-		    /* add child directory's structure inlined; append
-		     * rest of current directory after child's export data */
-		    objOffset = CookfsFsindexExportDirectory(fsIndex, itemNode, result, objOffset);
-		    bytes = Tcl_GetByteArrayFromObj(result, &objLength);
-		}  else  {
-		    /* reallocate memory if will not store all block-offset-size triplets */
-		    if (objLength < (objOffset + (itemNode->fileBlocks * 12))) {
-			objLength += COOKFS_FSINDEX_BUFFERINCREASE;
-			bytes = Tcl_SetByteArrayLength(result, objLength);
-		    }
+                CookfsLog(printf("DEBUG 3 - %d", objOffset))
+                if (itemNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
+                    /* add child directory's structure inlined; append
+                     * rest of current directory after child's export data */
+                    objOffset = CookfsFsindexExportDirectory(fsIndex, itemNode, result, objOffset);
+                    bytes = Tcl_GetByteArrayFromObj(result, &objLength);
+                }  else  {
+                    /* reallocate memory if will not store all block-offset-size triplets */
+                    if (objLength < (objOffset + (itemNode->fileBlocks * 12))) {
+                        objLength += COOKFS_FSINDEX_BUFFERINCREASE;
+                        bytes = Tcl_SetByteArrayLength(result, objLength);
+                    }
 
-		    /* add block-offset-size triplets and increase offset*/
-		    Cookfs_Int2Binary(itemNode->data.fileInfo.fileBlockOffsetSize, bytes + objOffset, itemNode->fileBlocks * 3);
-		    objOffset += itemNode->fileBlocks * 12;
-		}
-		CookfsLog(printf("DEBUG 4 - %d", objOffset))
-	    }
-	}
+                    /* add block-offset-size triplets and increase offset*/
+                    Cookfs_Int2Binary(itemNode->data.fileInfo.fileBlockOffsetSize, bytes + objOffset, itemNode->fileBlocks * 3);
+                    objOffset += itemNode->fileBlocks * 12;
+                }
+                CookfsLog(printf("DEBUG 4 - %d", objOffset))
+            }
+        }
     }
 
     return objOffset;
@@ -321,18 +321,18 @@ static int CookfsFsindexExportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
  *
  * CookfsFsindexImportDirectory --
  *
- *	Imports a directory from specified bytes array
- *	starting at specified offset
+ *      Imports a directory from specified bytes array
+ *      starting at specified offset
  *
- *	TODO: protect against malicious index information
+ *      TODO: protect against malicious index information
  *
  * Results:
- *	Offset specifying end of imported data; can be used by parent
- *	entry import to continue processing its data
- *	-1 in case of import error
+ *      Offset specifying end of imported data; can be used by parent
+ *      entry import to continue processing its data
+ *      -1 in case of import error
  *
  * Side effects:
- *	TODO
+ *      TODO
  *
  *----------------------------------------------------------------------
  */
@@ -351,53 +351,53 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
     /* import all children in current directory */
     CookfsLog(printf("IMPORT BEGIN (%d childCount)", childCount))
     for (int fileId = 0; fileId < childCount; fileId++) {
-	char *fileName;
-	int fileNameLength;
-	int fileBlocks;
-	Tcl_WideInt fileTime;
-	Cookfs_FsindexEntry *itemNode;
+        char *fileName;
+        int fileNameLength;
+        int fileBlocks;
+        Tcl_WideInt fileTime;
+        Cookfs_FsindexEntry *itemNode;
 
-	CookfsLog(printf("IMPORT ITER %d/%d", fileId, childCount))
-	/* get file name from binary data */
+        CookfsLog(printf("IMPORT ITER %d/%d", fileId, childCount))
+        /* get file name from binary data */
         fileNameLength = bytes[objOffset];
         objOffset++;
         fileName = (char *) (bytes + objOffset);
         objOffset += fileNameLength + 1;
 
-	/* get file modification time and number of blocks */
+        /* get file modification time and number of blocks */
         Cookfs_Binary2WideInt(bytes + objOffset, &fileTime, 1);
         objOffset += 8;
         Cookfs_Binary2Int(bytes + objOffset, &fileBlocks, 1);
         objOffset += 4;
         CookfsLog(printf("importing %s (%d blocks)", fileName, fileBlocks))
 
-	/* create fsindex entry and set its modification time */
-	itemNode = Cookfs_FsindexSetInDirectory(entry, fileName, fileNameLength, fileBlocks);
-	itemNode->fileTime = fileTime;
+        /* create fsindex entry and set its modification time */
+        itemNode = Cookfs_FsindexSetInDirectory(entry, fileName, fileNameLength, fileBlocks);
+        itemNode->fileTime = fileTime;
 
         if (fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
-	    /* for directory, import child recursively and get offset to continue import from */
+            /* for directory, import child recursively and get offset to continue import from */
             objOffset = CookfsFsindexImportDirectory(fsIndex, itemNode, bytes, objLength, objOffset);
 
-	    /* if child import failed, pass the error to caller */
+            /* if child import failed, pass the error to caller */
             if (objOffset < 0) {
                 CookfsLog(printf("failure - rolling back"))
                 return objOffset;
             }
         }  else  {
-	    /* copy all block-offset-size triplets from binary data to newly created entry */
-	    Tcl_WideInt fileSize = 0;
+            /* copy all block-offset-size triplets from binary data to newly created entry */
+            Tcl_WideInt fileSize = 0;
             Cookfs_Binary2Int(bytes + objOffset, itemNode->data.fileInfo.fileBlockOffsetSize, fileBlocks * 3);
             objOffset += fileBlocks * 12;
             for (int i = 0; i < fileBlocks; i++) {
                 fileSize += itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 2];
-		Cookfs_FsindexModifyBlockUsage(fsIndex, itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 0], 1);
-		CookfsLog(printf("%d/%d/%d",
-		    itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 0],
-		    itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 1],
-		    itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 2]))
+                Cookfs_FsindexModifyBlockUsage(fsIndex, itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 0], 1);
+                CookfsLog(printf("%d/%d/%d",
+                    itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 0],
+                    itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 1],
+                    itemNode->data.fileInfo.fileBlockOffsetSize[i*3 + 2]))
             }
-	    /* calculate and store file size */
+            /* calculate and store file size */
             itemNode->data.fileInfo.fileSize = fileSize;
             itemNode->isFileBlocksInitialized = fsIndex;
         }
@@ -414,18 +414,18 @@ static int CookfsFsindexImportDirectory(Cookfs_Fsindex *fsIndex, Cookfs_FsindexE
  *
  * CookfsFsindexExportMetadata --
  *
- *	Exports metadata from fsindex into a binary object
- *	starting at specified offset
+ *      Exports metadata from fsindex into a binary object
+ *      starting at specified offset
  *
- *	TODO: protect against malicious index information
+ *      TODO: protect against malicious index information
  *
  * Results:
- *	Offset specifying end of imported data; can be used by
- *	export to continue processing its data
- *	-1 in case of import error
+ *      Offset specifying end of imported data; can be used by
+ *      export to continue processing its data
+ *      -1 in case of import error
  *
  * Side effects:
- *	TODO
+ *      TODO
  *
  *----------------------------------------------------------------------
  */
@@ -503,18 +503,18 @@ static int CookfsFsindexExportMetadata(Cookfs_Fsindex *fsIndex, Tcl_Obj *result,
  *
  * CookfsFsindexImportMetadata --
  *
- *	Imports metadata from fsindex into a binary object
- *	starting at specified offset
+ *      Imports metadata from fsindex into a binary object
+ *      starting at specified offset
  *
- *	TODO: protect against malicious index information
+ *      TODO: protect against malicious index information
  *
  * Results:
- *	Offset specifying end of imported data; can be used by
- *	import to continue processing its data
- *	-1 in case of import error
+ *      Offset specifying end of imported data; can be used by
+ *      import to continue processing its data
+ *      -1 in case of import error
  *
  * Side effects:
- *	TODO
+ *      TODO
  *
  *----------------------------------------------------------------------
  */
