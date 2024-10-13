@@ -43,13 +43,13 @@
  *
  * Cookfs_Init --
  *
- *	Initializes Cookfs C layer in a Tcl interpreter.
+ *      Initializes Cookfs C layer in a Tcl interpreter.
  *
  * Results:
- *	TCL_OK on success; TCL_ERROR otherwise
+ *      TCL_OK on success; TCL_ERROR otherwise
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */

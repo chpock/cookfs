@@ -28,8 +28,7 @@ static int CookfsCreateWriterchannelCmd(ClientData clientData,
 
     Cookfs_Pages *pages = Cookfs_PagesGetHandle(interp,
         Tcl_GetStringFromObj(objv[1], NULL));
-    CookfsLog(printf("CookfsCreateWriterchannelCmd: pages [%p]",
-        (void *)pages));
+    CookfsLog(printf("pages [%p]", (void *)pages));
 
     if (pages == NULL) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to find"
@@ -39,8 +38,7 @@ static int CookfsCreateWriterchannelCmd(ClientData clientData,
 
     Cookfs_Fsindex *index = Cookfs_FsindexGetHandle(interp,
         Tcl_GetStringFromObj(objv[2], NULL));
-    CookfsLog(printf("CookfsCreateWriterchannelCmd: index [%p]",
-        (void *)index));
+    CookfsLog(printf("index [%p]", (void *)index));
 
     if (index == NULL) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to find"
@@ -50,8 +48,7 @@ static int CookfsCreateWriterchannelCmd(ClientData clientData,
 
     Cookfs_Writer *writer = Cookfs_WriterGetHandle(interp,
         Tcl_GetStringFromObj(objv[3], NULL));
-    CookfsLog(printf("CookfsCreateWriterchannelCmd: writer [%p]",
-        (void *)writer));
+    CookfsLog(printf("writer [%p]", (void *)writer));
 
     if (writer == NULL) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to find"

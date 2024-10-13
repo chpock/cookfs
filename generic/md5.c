@@ -309,14 +309,14 @@ static void Transform(register UINT4 *buf, register UINT4 *in)
  *
  * Cookfs_MD5 --
  *
- *	Calculates MD5 checksum of specified amount of bytes.
- *	Result is stored as 16 binary bytes at memory specified as digest.
+ *      Calculates MD5 checksum of specified amount of bytes.
+ *      Result is stored as 16 binary bytes at memory specified as digest.
  *
  * Results:
- *	None
+ *      None
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */
@@ -348,14 +348,14 @@ void Cookfs_MD5(unsigned char *buf, Tcl_Size len, unsigned char digest[16]) {
  *
  * Cookfs_MD5FromObj --
  *
- *	Calculates MD5 checksum of specified Tcl object.
- *	It calculates checksum of contents as byte array.
+ *      Calculates MD5 checksum of specified Tcl object.
+ *      It calculates checksum of contents as byte array.
  *
  * Results:
- *	Tcl_Obj that contains MD5 checksum as hexadecimal string
+ *      Tcl_Obj that contains MD5 checksum as hexadecimal string
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */

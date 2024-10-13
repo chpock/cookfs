@@ -64,9 +64,9 @@ const Tcl_ChannelType *CookfsWriterChannel(void) {
 static int Cookfs_Writerchannel_Realloc(Cookfs_WriterChannelInstData *instData,
     Tcl_WideInt newBufferSize, int clear)
 {
-    CookfsLog(printf("Cookfs_Writerchannel_Realloc: channel [%s] at [%p]"
-        " resize buffer from [%" TCL_LL_MODIFIER "d] to [%" TCL_LL_MODIFIER
-        "d] clear?%d", Tcl_GetChannelName(instData->channel), (void *)instData,
+    CookfsLog(printf("channel [%s] at [%p] resize buffer from [%"
+        TCL_LL_MODIFIER "d] to [%" TCL_LL_MODIFIER "d] clear?%d",
+        Tcl_GetChannelName(instData->channel), (void *)instData,
         instData->bufferSize, newBufferSize, clear));
 
     void *newBuffer;
@@ -85,7 +85,7 @@ static int Cookfs_Writerchannel_Realloc(Cookfs_WriterChannelInstData *instData,
     Tcl_WideInt diffActual;
 
     if (diff == 0) {
-        CookfsLog(printf("Cookfs_Writerchannel_Realloc: nothing to do"));
+        CookfsLog(printf("nothing to do"));
         return 1;
     } else if (diff > 0) {
         // We need to increase the buffer size
@@ -115,8 +115,8 @@ static int Cookfs_Writerchannel_Realloc(Cookfs_WriterChannelInstData *instData,
         clear = 1;
     }
 
-    CookfsLog(printf("Cookfs_Writerchannel_Realloc: try to realloc to [%"
-        TCL_LL_MODIFIER "d]", newBufferSize));
+    CookfsLog(printf("try to realloc to [%" TCL_LL_MODIFIER "d]",
+        newBufferSize));
 
     if (instData->buffer == NULL) {
         newBuffer = ckalloc(newBufferSize);
@@ -125,20 +125,20 @@ static int Cookfs_Writerchannel_Realloc(Cookfs_WriterChannelInstData *instData,
     }
 
     if (newBuffer == NULL) {
-        CookfsLog(printf("Cookfs_Writerchannel_Realloc: failed"));
+        CookfsLog(printf("failed"));
         return 0;
     }
 
     if (clear == 0) {
-        CookfsLog(printf("Cookfs_Writerchannel_Realloc: cleanup from offset"
-            " [%" TCL_LL_MODIFIER "d] count bytes [%" TCL_LL_MODIFIER "d]",
-            instData->bufferSize + diff, diffActual - diff));
+        CookfsLog(printf("cleanup from offset [%" TCL_LL_MODIFIER "d] count"
+            " bytes [%" TCL_LL_MODIFIER "d]", instData->bufferSize + diff,
+            diffActual - diff));
         memset((void *)((char *)newBuffer + instData->bufferSize + diff),
             0, diffActual - diff);
     } else if (diffActual != diff) {
-        CookfsLog(printf("Cookfs_Writerchannel_Realloc: cleanup from offset"
-            " [%" TCL_LL_MODIFIER "d] count bytes [%" TCL_LL_MODIFIER "d]",
-            instData->bufferSize, diffActual));
+        CookfsLog(printf("cleanup from offset [%" TCL_LL_MODIFIER "d] count"
+            " bytes [%" TCL_LL_MODIFIER "d]", instData->bufferSize,
+            diffActual));
         memset((void *)((char *)newBuffer + instData->bufferSize),
             0, diffActual);
     }
@@ -156,16 +156,15 @@ void Cookfs_Writerchannel_CloseHandler(ClientData clientData) {
     // We don't need to do anything if channel is in RO mode (when pathObj
     // is NULL)
     if (instData->pathObj == NULL) {
-        CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: channel [%s]"
-            " at [%p] is in RO mode", Tcl_GetChannelName(instData->channel),
-            (void *)instData));
+        CookfsLog(printf("channel [%s] at [%p] is in RO mode",
+            Tcl_GetChannelName(instData->channel), (void *)instData));
         return;
     }
 
-    CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: channel [%s] at [%p]",
+    CookfsLog(printf("channel [%s] at [%p]",
         Tcl_GetChannelName(instData->channel), (void *)instData));
 
-    CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: flush channel"));
+    CookfsLog(printf("flush channel"));
     Tcl_Flush(instData->channel);
 
     // Release the closeResult if it exists
@@ -174,7 +173,7 @@ void Cookfs_Writerchannel_CloseHandler(ClientData clientData) {
         instData->closeResult = NULL;
     }
 
-    CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: write file..."));
+    CookfsLog(printf("write file..."));
     Tcl_Obj *err = NULL;
     if (!Cookfs_WriterLockWrite(instData->writer, &err)) {
         goto done;
@@ -205,7 +204,7 @@ static int Cookfs_Writerchannel_Close(ClientData instanceData,
     Cookfs_WriterChannelInstData *instData =
         (Cookfs_WriterChannelInstData *) instanceData;
 
-    CookfsLog(printf("Cookfs_Writerchannel_Close: channel [%s] at [%p]",
+    CookfsLog(printf("channel [%s] at [%p]",
         Tcl_GetChannelName(instData->channel), (void *)instData));
 
     int closeResult;
@@ -246,28 +245,26 @@ static int Cookfs_Writerchannel_Input(ClientData instanceData, char *buf,
         (Cookfs_WriterChannelInstData *) instanceData;
     *errorCodePtr = 0;
 
-    CookfsLog(printf("Cookfs_Writerchannel_Input: channel [%s] at [%p]"
-        " want to read [%d] bytes", Tcl_GetChannelName(instData->channel),
-        (void *)instData, toRead));
+    CookfsLog(printf("channel [%s] at [%p] want to read [%d] bytes",
+        Tcl_GetChannelName(instData->channel), (void *)instData, toRead));
 
     if (toRead == 0) {
-        CookfsLog(printf("Cookfs_Writerchannel_Input: want to read zero bytes"));
+        CookfsLog(printf("want to read zero bytes"));
         return 0;
     }
 
     Tcl_WideInt available = instData->currentSize - instData->currentOffset;
-    CookfsLog(printf("Cookfs_Writerchannel_Input: have [%" TCL_LL_MODIFIER "d]"
-        " data available", available));
+    CookfsLog(printf("have [%" TCL_LL_MODIFIER "d] data available",
+        available));
 
     if (available <= 0) {
-        CookfsLog(printf("Cookfs_Writerchannel_Input: return EOF"));
+        CookfsLog(printf("return EOF"));
         return 0;
     }
 
     if (available < toRead) {
         toRead = available;
-        CookfsLog(printf("Cookfs_Writerchannel_Input: return only"
-            " available data"));
+        CookfsLog(printf("return only available data"));
     }
 
     memcpy((void*)buf, (void*)((char*)instData->buffer + instData->currentOffset),
@@ -286,9 +283,8 @@ static int Cookfs_Writerchannel_Output(ClientData instanceData,
         (Cookfs_WriterChannelInstData *) instanceData;
     *errorCodePtr = 0;
 
-    CookfsLog(printf("Cookfs_Writerchannel_Output: channel [%s] at [%p]"
-        " want to write [%d] bytes", Tcl_GetChannelName(instData->channel),
-        (void *)instData, toWrite));
+    CookfsLog(printf("channel [%s] at [%p] want to write [%d] bytes",
+        Tcl_GetChannelName(instData->channel), (void *)instData, toWrite));
 
     if (toWrite == 0) {
         goto done;
@@ -298,7 +294,7 @@ static int Cookfs_Writerchannel_Output(ClientData instanceData,
 
     if (endOffset > instData->bufferSize) {
         if (!Cookfs_Writerchannel_Realloc(instData, endOffset, 0)) {
-            CookfsLog(printf("Cookfs_Writerchannel_Output: failed"));
+            CookfsLog(printf("failed"));
             *errorCodePtr = ENOSPC;
             return -1;
         }
@@ -310,12 +306,12 @@ static int Cookfs_Writerchannel_Output(ClientData instanceData,
 
     if (endOffset > instData->currentSize) {
         instData->currentSize = endOffset;
-        CookfsLog(printf("Cookfs_Writerchannel_Output: set current"
-            " size as [%" TCL_LL_MODIFIER "d]", instData->currentSize));
+        CookfsLog(printf("set current size as [%" TCL_LL_MODIFIER "d]",
+            instData->currentSize));
     }
 
 done:
-    CookfsLog(printf("Cookfs_Writerchannel_Output: ok"));
+    CookfsLog(printf("ok"));
     return toWrite;
 }
 
@@ -325,9 +321,8 @@ static Tcl_WideInt Cookfs_Writerchannel_WideSeek(ClientData instanceData,
     Cookfs_WriterChannelInstData *instData =
         (Cookfs_WriterChannelInstData *) instanceData;
 
-    CookfsLog(printf("Cookfs_Writerchannel_WideSeek: channel [%s] at [%p]"
-        " seek to [%" TCL_LL_MODIFIER "d] mode %s(%d)",
-        Tcl_GetChannelName(instData->channel),
+    CookfsLog(printf("channel [%s] at [%p] seek to [%" TCL_LL_MODIFIER "d]"
+        " mode %s(%d)", Tcl_GetChannelName(instData->channel),
         (void *)instData, offset, (seekMode == SEEK_SET ? "SEEK_SET" :
         (seekMode == SEEK_CUR ? "SEEK_CUR" :
         (seekMode == SEEK_END ? "SEEK_END" : "???"))), seekMode));
@@ -344,13 +339,12 @@ static Tcl_WideInt Cookfs_Writerchannel_WideSeek(ClientData instanceData,
         offset += instData->currentSize;
         break;
     default:
-        CookfsLog(printf("Cookfs_Writerchannel_WideSeek: unknown mode"));
+        CookfsLog(printf("unknown mode"));
         return -1;
     }
 
     if (offset < 0) {
-        CookfsLog(printf("Cookfs_Writerchannel_WideSeek: incorrect"
-            " offset [%" TCL_LL_MODIFIER "d]", offset));
+        CookfsLog(printf("incorrect offset [%" TCL_LL_MODIFIER "d]", offset));
         *errorCodePtr = EINVAL;
         return -1;
     }
@@ -364,13 +358,13 @@ static Tcl_WideInt Cookfs_Writerchannel_WideSeek(ClientData instanceData,
 
     if (instData->currentSize < offset) {
         instData->currentSize = offset;
-        CookfsLog(printf("Cookfs_Writerchannel_WideSeek: set current"
-            " size as [%" TCL_LL_MODIFIER "d]", instData->currentSize));
+        CookfsLog(printf("set current size as [%" TCL_LL_MODIFIER "d]",
+            instData->currentSize));
     }
 
     instData->currentOffset = offset;
-    CookfsLog(printf("Cookfs_Writerchannel_WideSeek: set current"
-        " offset as [%" TCL_LL_MODIFIER "d]", instData->currentOffset));
+    CookfsLog(printf("set current offset as [%" TCL_LL_MODIFIER "d]",
+        instData->currentOffset));
     return offset;
 }
 
@@ -390,12 +384,11 @@ static void Cookfs_Writerchannel_ThreadAction(ClientData instanceData,
         (Cookfs_WriterChannelInstData *) instanceData;
 
     if (instData->channel == NULL) {
-        CookfsLog(printf("Cookfs_Writerchannel_ThreadAction: channel [NULL] at [%p]"
-            " action [%d]", (void *)instData, action));
-    } else {
-        CookfsLog(printf("Cookfs_Writerchannel_ThreadAction: channel [%s] at [%p]"
-            " action [%d]", Tcl_GetChannelName(instData->channel),
+        CookfsLog(printf("channel [NULL] at [%p] action [%d]",
             (void *)instData, action));
+    } else {
+        CookfsLog(printf("channel [%s] at [%p] action [%d]",
+            Tcl_GetChannelName(instData->channel), (void *)instData, action));
     }
 
     if (action == TCL_CHANNEL_THREAD_REMOVE) {
@@ -412,27 +405,26 @@ static int Cookfs_Writerchannel_Ready(Tcl_Event* evPtr, int flags) {
         ((Cookfs_WriterChannelEvent *)evPtr)->instData;
 
     if (instData == NULL) {
-        CookfsLog(printf("Cookfs_Writerchannel_Ready: NULL data"));
+        CookfsLog(printf("NULL data"));
         return 1;
     }
 
-    CookfsLog(printf("Cookfs_Writerchannel_Ready: channel [%s] at [%p]"
-        " flags [%d]", Tcl_GetChannelName(instData->channel),
-        (void *)instData, flags));
+    CookfsLog(printf("channel [%s] at [%p] flags [%d]",
+        Tcl_GetChannelName(instData->channel), (void *)instData, flags));
 
     if (!(flags & TCL_FILE_EVENTS)) {
-        CookfsLog(printf("Cookfs_Writerchannel_Ready: not TCL_FILE_EVENTS"));
+        CookfsLog(printf("not TCL_FILE_EVENTS"));
         return 0;
     }
 
     instData->event = NULL;
 
     if (instData->interest) {
-        CookfsLog(printf("Cookfs_Writerchannel_Ready: call Tcl_NotifyChannel"
-            " with mask [%d]", instData->interest));
+        CookfsLog(printf("call Tcl_NotifyChannel with mask [%d]",
+            instData->interest));
         Tcl_NotifyChannel(instData->channel, instData->interest);
     } else {
-        CookfsLog(printf("Cookfs_Writerchannel_Ready: interest is zero"));
+        CookfsLog(printf("interest is zero"));
     }
 
     return 1;
@@ -442,9 +434,8 @@ static void Cookfs_Writerchannel_Watch(ClientData instanceData, int mask) {
     Cookfs_WriterChannelInstData *instData =
         (Cookfs_WriterChannelInstData *) instanceData;
 
-    CookfsLog(printf("Cookfs_Writerchannel_Watch: channel [%s] at [%p]"
-        " mask [%d]", Tcl_GetChannelName(instData->channel),
-        (void *)instData, mask));
+    CookfsLog(printf("channel [%s] at [%p] mask [%d]",
+        Tcl_GetChannelName(instData->channel), (void *)instData, mask));
 
     instData->interest = mask;
 
@@ -466,19 +457,18 @@ static void Cookfs_Writerchannel_Watch(ClientData instanceData, int mask) {
         instData->event->instData = instData;
         Tcl_QueueEvent(&instData->event->header, TCL_QUEUE_TAIL);
     }
-    CookfsLog(printf("Cookfs_Writerchannel_Watch: ok"));
+    CookfsLog(printf("ok"));
 }
 
 static int Cookfs_Writerchannel_Truncate(ClientData instanceData, Tcl_WideInt length) {
     Cookfs_WriterChannelInstData *instData =
         (Cookfs_WriterChannelInstData *) instanceData;
 
-    CookfsLog(printf("Cookfs_Writerchannel_Truncate: channel [%s] at [%p]"
-        " to [%" TCL_LL_MODIFIER "d]", Tcl_GetChannelName(instData->channel),
-        (void *)instData, length));
+    CookfsLog(printf("channel [%s] at [%p] to [%" TCL_LL_MODIFIER "d]",
+        Tcl_GetChannelName(instData->channel), (void *)instData, length));
 
     if (length < 0) {
-        CookfsLog(printf("Cookfs_Writerchannel_Truncate: negative length"));
+        CookfsLog(printf("negative length"));
         return EINVAL;
     }
 
@@ -496,6 +486,6 @@ static int Cookfs_Writerchannel_Truncate(ClientData instanceData, Tcl_WideInt le
     }
 
     instData->currentSize = length;
-    CookfsLog(printf("Cookfs_Writerchannel_Truncate: ok"));
+    CookfsLog(printf("ok"));
     return 0;
 }

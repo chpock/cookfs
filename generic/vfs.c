@@ -19,10 +19,10 @@ Cookfs_Vfs *Cookfs_VfsInit(Tcl_Interp* interp, Tcl_Obj* mountPoint,
     Cookfs_Writer *writer)
 {
 
-    CookfsLog(printf("Cookfs_VfsInit: init mount in interp [%p];"
-        " pages:%p index:%p writer:%p volume?%d mount_point:[%s](%p)",
-        (void *)interp, (void *)pages, (void *)index, (void *)writer,
-        isVolume, Tcl_GetString(mountPoint), (void *)mountPoint));
+    CookfsLog(printf("init mount in interp [%p]; pages:%p index:%p writer:%p"
+        " volume?%d mount_point:[%s](%p)", (void *)interp, (void *)pages,
+        (void *)index, (void *)writer, isVolume, Tcl_GetString(mountPoint),
+        (void *)mountPoint));
 
     Cookfs_Vfs *vfs = NULL;
 
@@ -64,7 +64,7 @@ Cookfs_Vfs *Cookfs_VfsInit(Tcl_Interp* interp, Tcl_Obj* mountPoint,
     vfs->index = index;
     vfs->writer = writer;
 
-    CookfsLog(printf("Cookfs_VfsInit: ok [%p]", (void *)vfs));
+    CookfsLog(printf("ok [%p]", (void *)vfs));
     return vfs;
 
 error:
@@ -74,7 +74,7 @@ error:
         }
         ckfree(vfs);
     }
-    CookfsLog(printf("Cookfs_VfsInit: fail [NULL]"));
+    CookfsLog(printf("fail [NULL]"));
     return NULL;
 
 }
@@ -83,8 +83,8 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
     Tcl_WideInt *pagesCloseOffset)
 {
 
-    CookfsLog(printf("Cookfs_VfsFini: terminate mount [%s] at [%p]",
-        vfs->mountStr, (void *)vfs));
+    CookfsLog(printf("terminate mount [%s] at [%p]", vfs->mountStr,
+        (void *)vfs));
 
     // If something goes wrong, return pagesCloseOffset to zero to
     // avoid undefined behavior
@@ -93,8 +93,8 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
     }
 
     if (vfs->isDead) {
-        CookfsLog(printf("Cookfs_VfsFini: the mount point is already in"
-            " a terminating state"));
+        CookfsLog(printf("the mount point is already in a terminating"
+            " state"));
         return TCL_OK;
     }
 
@@ -105,40 +105,40 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
     }
 
     // Let's purge writer first
-    CookfsLog(printf("Cookfs_VfsFini: purge writer..."));
+    CookfsLog(printf("purge writer..."));
     // TODO: pass a pointer to err variable instead of NULL and handle
     // the corresponding error message
     if (Cookfs_WriterPurge(vfs->writer, 0, NULL) != TCL_OK) {
-        CookfsLog(printf("Cookfs_VfsFini: return an error, writer failed"));
+        CookfsLog(printf("return an error, writer failed"));
         return TCL_ERROR;
     }
 
     Tcl_WideInt changecount = Cookfs_FsindexIncrChangeCount(vfs->index, 0);
-    CookfsLog(printf("Cookfs_VfsFini: changecount from index: %" TCL_LL_MODIFIER
-        "d", changecount));
+    CookfsLog(printf("changecount from index: %" TCL_LL_MODIFIER "d",
+        changecount));
     if (!changecount) {
         goto skipSavingIndex;
     }
 
     if (Cookfs_VfsIsReadonly(vfs)) {
-        CookfsLog(printf("Cookfs_VfsFini: pages readonly: true"));
+        CookfsLog(printf("pages readonly: true"));
         goto skipSavingIndex;
     } else {
-        CookfsLog(printf("Cookfs_VfsFini: pages readonly: false"));
+        CookfsLog(printf("pages readonly: false"));
     }
 
     if (Cookfs_WriterGetWritetomemory(vfs->writer)) {
-        CookfsLog(printf("Cookfs_VfsFini: writer writetomemory: true"));
+        CookfsLog(printf("writer writetomemory: true"));
         goto skipSavingIndex;
     } else {
-        CookfsLog(printf("Cookfs_VfsFini: writer writetomemory: false"));
+        CookfsLog(printf("writer writetomemory: false"));
     }
 
     // If we are here, then we need to store index
-    CookfsLog(printf("Cookfs_VfsFini: dump index..."));
+    CookfsLog(printf("dump index..."));
     Tcl_Obj *exportObjTcl = Cookfs_FsindexToObject(vfs->index);
     if (exportObjTcl == NULL) {
-        CookfsLog(printf("Cookfs_VfsFini: failed to get index dump"));
+        CookfsLog(printf("failed to get index dump"));
         Tcl_SetObjResult(interp, Tcl_NewStringObj("unable to get index"
             " dump", -1));
         return TCL_ERROR;
@@ -147,14 +147,14 @@ int Cookfs_VfsFini(Tcl_Interp *interp, Cookfs_Vfs *vfs,
     Cookfs_PageObj exportObj = Cookfs_PageObjNewFromByteArray(exportObjTcl);
     Tcl_DecrRefCount(exportObjTcl);
     if (exportObj == NULL) {
-        CookfsLog(printf("Cookfs_VfsFini: failed to convert index dump"));
+        CookfsLog(printf("failed to convert index dump"));
         Tcl_SetObjResult(interp, Tcl_NewStringObj("unable to convert index"
             " dump", -1));
         return TCL_ERROR;
     }
     Cookfs_PageObjIncrRefCount(exportObj);
 
-    CookfsLog(printf("Cookfs_VfsFini: store index..."));
+    CookfsLog(printf("store index..."));
     Cookfs_PagesSetIndex(vfs->pages, exportObj);
     Cookfs_PageObjDecrRefCount(exportObj);
 
@@ -165,7 +165,7 @@ skipSavingIndex:
     vfs->isDead = 1;
 
     // Cleanup writer
-    CookfsLog(printf("Cookfs_VfsFini: delete writer..."));
+    CookfsLog(printf("delete writer..."));
     Cookfs_WriterFini(vfs->writer);
 
     if (vfs->pages == NULL) {
@@ -173,36 +173,36 @@ skipSavingIndex:
     }
 
     // Cleanup pages
-    CookfsLog(printf("Cookfs_VfsFini: close pages..."));
+    CookfsLog(printf("close pages..."));
     Tcl_WideInt offset = Cookfs_PagesClose(vfs->pages);
     if (pagesCloseOffset != NULL) {
         *pagesCloseOffset = offset;
     }
-    CookfsLog(printf("Cookfs_VfsFini: delete pages..."));
+    CookfsLog(printf("delete pages..."));
     Cookfs_PagesUnlockHard(vfs->pages);
     Cookfs_PagesFini(vfs->pages);
 
 skipPages:
 
     // Cleanup index
-    CookfsLog(printf("Cookfs_VfsFini: delete index..."));
+    CookfsLog(printf("delete index..."));
     Cookfs_FsindexUnlockHard(vfs->index);
     Cookfs_FsindexFini(vfs->index);
 
     // Remove mount Tcl command is exists
     if (vfs->commandToken != NULL) {
-        CookfsLog(printf("Cookfs_VfsFini: delete comand..."));
+        CookfsLog(printf("delete comand..."));
         Tcl_DeleteCommandFromToken(vfs->interp, vfs->commandToken);
     } else {
-        CookfsLog(printf("Cookfs_VfsFini: command is not registered"));
+        CookfsLog(printf("command is not registered"));
     }
 
     // Cleanup own fields
-    CookfsLog(printf("Cookfs_VfsFini: cleanup own fields"));
+    CookfsLog(printf("cleanup own fields"));
     ckfree((char *)vfs->mountStr);
     ckfree((char *)vfs);
 
-    CookfsLog(printf("Cookfs_VfsFini: ok"));
+    CookfsLog(printf("ok"));
     return TCL_OK;
 }
 
@@ -214,7 +214,7 @@ void Cookfs_VfsUnregisterInTclvfs(Cookfs_Vfs *vfs) {
         return;
     }
 
-    CookfsLog(printf("Cookfs_VfsUnregisterInTclvfs: vfs [%p]", (void *)vfs));
+    CookfsLog(printf("vfs [%p]", (void *)vfs));
 
     // Mark VFS as dead now. Tclfvs will call our Unmount command, and
     // we don't want to run it since we're probably already in
@@ -227,20 +227,17 @@ void Cookfs_VfsUnregisterInTclvfs(Cookfs_Vfs *vfs) {
     objv[1] = Tcl_NewStringObj(vfs->mountStr, vfs->mountLen);
     Tcl_Obj *cmd = Tcl_NewListObj(2, objv);
     Tcl_IncrRefCount(cmd);
-    CookfsLog(printf("Cookfs_VfsUnregisterInTclvfs: call tclvfs: [%s]",
-        Tcl_GetString(cmd)));
+    CookfsLog(printf("call tclvfs: [%s]", Tcl_GetString(cmd)));
     int ret = Tcl_EvalObjEx(vfs->interp, cmd, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
     Tcl_DecrRefCount(cmd);
-    CookfsLog(printf("Cookfs_VfsUnregisterInTclvfs: tclvfs returned: %d",
-        ret));
+    CookfsLog(printf("tclvfs returned: %d", ret));
     if (ret != TCL_OK) {
         // Let's ignore failure from tclvfs and cleanup interp from
         // its error
         Tcl_ResetResult(vfs->interp);
-        CookfsLog(printf("Cookfs_VfsUnregisterInTclvfs: cleanup interp from"
-            " tclvfs failure"));
+        CookfsLog(printf("cleanup interp from tclvfs failure"));
     } else {
-        CookfsLog(printf("Cookfs_VfsUnregisterInTclvfs: ok"));
+        CookfsLog(printf("ok"));
     }
 
     // The VFS is not registered in tclvfs anymore
@@ -258,13 +255,12 @@ int Cookfs_VfsRegisterInTclvfs(Cookfs_Vfs *vfs) {
     }
 
     if (Tcl_PkgPresent(vfs->interp, "vfs", NULL, 0) == NULL) {
-        CookfsLog(printf("Cookfs_VfsRegisterInTclvfs: want to register cookfs,"
-            " but vfs package is not loaded"));
+        CookfsLog(printf("want to register cookfs, but vfs package is not"
+            " loaded"));
         return TCL_OK;
     }
 
-    CookfsLog(printf("Cookfs_VfsRegisterInTclvfs: vfs [%p] in [%s]",
-        (void *)vfs, vfs->mountStr));
+    CookfsLog(printf("vfs [%p] in [%s]", (void *)vfs, vfs->mountStr));
 
     Tcl_Obj *objv[3];
 
@@ -284,19 +280,17 @@ int Cookfs_VfsRegisterInTclvfs(Cookfs_Vfs *vfs) {
     Tcl_Obj *cmd = Tcl_NewListObj(3, objv);
 
     Tcl_IncrRefCount(cmd);
-    CookfsLog(printf("Cookfs_VfsRegisterInTclvfs: call tclvfs: [%s]",
-        Tcl_GetString(cmd)));
+    CookfsLog(printf("call tclvfs: [%s]", Tcl_GetString(cmd)));
     int ret = Tcl_EvalObjEx(vfs->interp, cmd, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
     Tcl_DecrRefCount(cmd);
-    CookfsLog(printf("Cookfs_VfsRegisterInTclvfs: tclvfs returned: %d",
-        ret));
+    CookfsLog(printf("tclvfs returned: %d", ret));
     if (ret == TCL_OK) {
         // If registration fails, leave the error message in interp result
         // and do not set the registered flag
         vfs->isRegistered = 1;
-        CookfsLog(printf("Cookfs_VfsRegisterInTclvfs: ok"));
+        CookfsLog(printf("ok"));
     } else {
-        CookfsLog(printf("Cookfs_VfsRegisterInTclvfs: ERROR"));
+        CookfsLog(printf("ERROR"));
     }
 
     return ret;
@@ -360,8 +354,8 @@ void Cookfs_VfsSetReadonly(Cookfs_Vfs *vfs, int status) {
 }
 
 Tcl_Obj *CookfsGetVfsObjectCmd(Tcl_Interp* interp, Cookfs_Vfs *vfs) {
-    CookfsLog(printf("CookfsGetVfsObjectCmd: enter interp:%p my interp:%p",
-        (void *)interp, (void *)vfs->interp));
+    CookfsLog(printf("enter interp:%p my interp:%p", (void *)interp,
+        (void *)vfs->interp));
     Tcl_Obj *rc = Tcl_NewObj();
     if (vfs->commandToken != NULL) {
         Tcl_GetCommandFullName(vfs->interp, vfs->commandToken, rc);
@@ -370,10 +364,10 @@ Tcl_Obj *CookfsGetVfsObjectCmd(Tcl_Interp* interp, Cookfs_Vfs *vfs) {
         }
         const char *cmd = Tcl_GetString(rc);
         if (Tcl_GetAliasObj(interp, cmd, NULL, NULL, NULL, NULL) == TCL_OK) {
-            CookfsLog(printf("CookfsGetVfsObjectCmd: alias already exists"));
+            CookfsLog(printf("alias already exists"));
             goto done;
         }
-        CookfsLog(printf("CookfsGetVfsObjectCmd: create interp alias"));
+        CookfsLog(printf("create interp alias"));
         Tcl_CreateAlias(interp, cmd, vfs->interp, cmd, 0, NULL);
         // Create aliases for pages/fsindex commands as well. This is necessary
         // for correct operation of getpages/getindex subcommands. When mount
@@ -398,10 +392,9 @@ Tcl_Obj *CookfsGetVfsObjectCmd(Tcl_Interp* interp, Cookfs_Vfs *vfs) {
             Tcl_DecrRefCount(tmp);
         }
 done:
-        CookfsLog(printf("CookfsGetVfsObjectCmd: return [%s]",
-            Tcl_GetString(rc)));
+        CookfsLog(printf("return [%s]", Tcl_GetString(rc)));
     } else {
-        CookfsLog(printf("CookfsGetVfsObjectCmd: return empty result"));
+        CookfsLog(printf("return empty result"));
     }
     return rc;
 }

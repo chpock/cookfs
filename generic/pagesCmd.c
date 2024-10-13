@@ -28,14 +28,14 @@ static void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, void *p);
  *
  * Cookfs_InitPagesCmd --
  *
- *	Initializes pages component for specified
- *	Tcl interpreter
+ *      Initializes pages component for specified
+ *      Tcl interpreter
  *
  * Results:
- *	TCL_OK on success; TCL_ERROR on error
+ *      TCL_OK on success; TCL_ERROR on error
  *
  * Side effects:
- *	Creates command for creating pages instances
+ *      Creates command for creating pages instances
  *
  *----------------------------------------------------------------------
  */
@@ -67,12 +67,12 @@ int Cookfs_InitPagesCmd(Tcl_Interp *interp) {
 
 Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, void *p) {
     if (p == NULL) {
-        CookfsLog(printf("CookfsGetPagesObjectCmd: return NULL"));
+        CookfsLog(printf("return NULL"));
         return NULL;
     }
     Cookfs_Pages *pages = (Cookfs_Pages *)p;
-    CookfsLog(printf("CookfsGetPagesObjectCmd: enter interp:%p my interp:%p",
-        (void *)interp, (void *)pages->interp));
+    CookfsLog(printf("enter interp:%p my interp:%p", (void *)interp,
+        (void *)pages->interp));
     CookfsRegisterExistingPagesObjectCmd(pages->interp, pages);
     Tcl_Obj *rc = Tcl_NewObj();
     Tcl_GetCommandFullName(pages->interp, pages->commandToken, rc);
@@ -81,14 +81,13 @@ Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, void *p) {
     }
     const char *cmd = Tcl_GetString(rc);
     if (Tcl_GetAliasObj(interp, cmd, NULL, NULL, NULL, NULL) == TCL_OK) {
-        CookfsLog(printf("CookfsGetPagesObjectCmd: alias already exists"));
+        CookfsLog(printf("alias already exists"));
         goto done;
     }
-    CookfsLog(printf("CookfsGetPagesObjectCmd: create interp alias"));
+    CookfsLog(printf("create interp alias"));
     Tcl_CreateAlias(interp, cmd, pages->interp, cmd, 0, NULL);
 done:
-    CookfsLog(printf("CookfsGetPagesObjectCmd: return [%s]",
-        Tcl_GetString(rc)));
+    CookfsLog(printf("return [%s]", Tcl_GetString(rc)));
     return rc;
 }
 
@@ -131,26 +130,26 @@ static void CookfsRegisterExistingPagesObjectCmd(Tcl_Interp *interp, void *p) {
  *
  * CookfsRegisterPagesObjectCmd --
  *
- *	Creates a new pages instance and Tcl command for managing
- *	this pages object
+ *      Creates a new pages instance and Tcl command for managing
+ *      this pages object
  *
- *	It accepts the following flags
- *	  -readonly		Open file as read-only
- *	  -readwrite		Open file for reading and writing
- *	  -cachesize		Number of pages to cache
- *	  -endoffset		If specified, use following offset as end of cookfs archive
- *	  			If not specified, end of file used as end of cookfs archive
- *	  -compression		Compression to use for new pages/index
- *	  			(allowed values: none, zlib, bzip2, custom)
- *	  -compresscommand	Command used for compressing archive, if -compression is set to custom
- *	  -decompresscommand	Command to use for decompressing pages with custom compression
+ *      It accepts the following flags
+ *        -readonly             Open file as read-only
+ *        -readwrite            Open file for reading and writing
+ *        -cachesize            Number of pages to cache
+ *        -endoffset            If specified, use following offset as end of cookfs archive
+ *                              If not specified, end of file used as end of cookfs archive
+ *        -compression          Compression to use for new pages/index
+ *                              (allowed values: none, zlib, bzip2, custom)
+ *        -compresscommand      Command used for compressing archive, if -compression is set to custom
+ *        -decompresscommand    Command to use for decompressing pages with custom compression
  *
  * Results:
- *	TCL_OK on success; TCL_ERROR on error; result for interp
- *	is set with proper error message in case of failure
+ *      TCL_OK on success; TCL_ERROR on error; result for interp
+ *      is set with proper error message in case of failure
  *
  * Side effects:
- *	New Tcl command is created on success
+ *      New Tcl command is created on success
  *
  *----------------------------------------------------------------------
  */
@@ -420,15 +419,15 @@ static int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, in
  *
  * CookfsPagesCmd --
  *
- *	TODO: split into subcommands as functions
+ *      TODO: split into subcommands as functions
  *
- *	Handles subcommands for pages instance command
+ *      Handles subcommands for pages instance command
  *
  * Results:
- *	See subcommand comments for details
+ *      See subcommand comments for details
  *
  * Side effects:
- *	See subcommand comments for details
+ *      See subcommand comments for details
  *
  *----------------------------------------------------------------------
  */
@@ -720,21 +719,21 @@ static int CookfsPagesCmd(ClientData clientData, Tcl_Interp *interp, int objc, T
             if (!Cookfs_PagesLockRead(p, NULL)) {
                 return TCL_ERROR;
             }
-	    if (objc == 3) {
+            if (objc == 3) {
                 if (Tcl_GetIntFromObj(interp, objv[2], &idx) != TCL_OK) {
                     Cookfs_PagesUnlock(p);
                     return TCL_ERROR;
                 }
-		if (idx > Cookfs_PagesGetLength(p)) {
-		    Tcl_SetObjResult(interp, Tcl_NewStringObj("Invalid page index", -1));
-		    Cookfs_PagesUnlock(p);
-		    return TCL_ERROR;
-		}
-		Tcl_SetObjResult(interp, Tcl_NewWideIntObj(Cookfs_PagesGetPageOffset(p, idx)));
-	    }  else  {
-		Tcl_SetObjResult(interp, Tcl_NewWideIntObj(p->dataInitialOffset));
-	    }
-	    Cookfs_PagesUnlock(p);
+                if (idx > Cookfs_PagesGetLength(p)) {
+                    Tcl_SetObjResult(interp, Tcl_NewStringObj("Invalid page index", -1));
+                    Cookfs_PagesUnlock(p);
+                    return TCL_ERROR;
+                }
+                Tcl_SetObjResult(interp, Tcl_NewWideIntObj(Cookfs_PagesGetPageOffset(p, idx)));
+            }  else  {
+                Tcl_SetObjResult(interp, Tcl_NewWideIntObj(p->dataInitialOffset));
+            }
+            Cookfs_PagesUnlock(p);
             break;
         }
         case cmdAside:
@@ -940,14 +939,14 @@ static int CookfsPagesCmdCompression(Cookfs_Pages *pages, Tcl_Interp *interp, in
  *
  * CookfsPagesCmdHash --
  *
- *	Set hash function used for storing cookfs pages
+ *      Set hash function used for storing cookfs pages
  *
  * Results:
- *	Returns TCL_OK on success; TCL_ERROR on error
- *	On success hash method is set
+ *      Returns TCL_OK on success; TCL_ERROR on error
+ *      On success hash method is set
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */
@@ -1015,13 +1014,13 @@ static int CookfsPagesCmdPassword(Cookfs_Pages *pages, Tcl_Interp *interp,
  *
  * CookfsPagesDeleteProc --
  *
- *	Deletes instance of pages when Tcl command is deleted
+ *      Deletes instance of pages when Tcl command is deleted
  *
  * Results:
- *	None
+ *      None
  *
  * Side effects:
- *	None
+ *      None
  *
  *----------------------------------------------------------------------
  */
