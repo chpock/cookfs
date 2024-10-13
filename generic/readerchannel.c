@@ -45,29 +45,29 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages,
     Tcl_Interp *interp, char **channelNamePtr)
 {
 
-    CookfsLog2(printf("welcome"))
+    CookfsLog(printf("welcome"))
 
     Tcl_Obj *err = NULL;
 
-    CookfsLog2(printf("alloc..."));
+    CookfsLog(printf("alloc..."));
     Cookfs_ReaderChannelInstData *instData =
         Cookfs_CreateReaderchannelAlloc(pages, fsindex, entry);
 
     if (instData == NULL) {
-        CookfsLog2(printf("failed to alloc"));
+        CookfsLog(printf("failed to alloc"));
         err = Tcl_NewStringObj("failed to alloc", -1);
         goto error;
     }
 
     if (Cookfs_CreateReaderchannelCreate(instData, interp) != TCL_OK) {
-        CookfsLog2(printf("Cookfs_CreateReaderchannelCreate failed"));
+        CookfsLog(printf("Cookfs_CreateReaderchannelCreate failed"));
         Cookfs_CreateReaderchannelFree(instData);
         err = Tcl_NewStringObj("failed to create a channel", -1);
         goto error;
     }
 
     if (entry == NULL) {
-        CookfsLog2(printf("skip encryption check, entry is NULL"));
+        CookfsLog(printf("skip encryption check, entry is NULL"));
         goto done;
     }
 
@@ -76,7 +76,7 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages,
     }
 
     if (Cookfs_FsindexEntryGetBlockCount(entry) < 1) {
-        CookfsLog2(printf("skip encryption check, block count < 1"));
+        CookfsLog(printf("skip encryption check, block count < 1"));
         goto doneAndUnlock;
     }
 
@@ -84,17 +84,17 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages,
     Cookfs_FsindexEntryGetBlock(entry, 0, &pageIndex, NULL, NULL);
 
     if (pageIndex < 0) {
-        CookfsLog2(printf("skip encryption check, pageIndex < 0"));
+        CookfsLog(printf("skip encryption check, pageIndex < 0"));
         goto doneAndUnlock;
     }
 
     if (!Cookfs_PagesLockRead(pages, &err)) {
-        CookfsLog2(printf("ERROR: failed to lock pages"));
+        CookfsLog(printf("ERROR: failed to lock pages"));
         goto errorAndUnlock;
     }
 
     if (!Cookfs_PagesIsEncrypted(pages, pageIndex)) {
-        CookfsLog2(printf("skip encryption check, the page is not encrypted"));
+        CookfsLog(printf("skip encryption check, the page is not encrypted"));
         Cookfs_PagesUnlock(pages);
         goto doneAndUnlock;
     }
@@ -114,7 +114,7 @@ Tcl_Channel Cookfs_CreateReaderchannel(Cookfs_Pages *pages,
 
     // If page read failed, then return an error
     if (instData->cachedPageObj == NULL) {
-        CookfsLog2(printf("ERROR: encryption check failed"));
+        CookfsLog(printf("ERROR: encryption check failed"));
         goto errorAndUnlock;
     }
 
@@ -170,7 +170,7 @@ int Cookfs_CreateReaderchannelCreate(Cookfs_ReaderChannelInstData *instData, Tcl
         (ClientData) instData, TCL_READABLE);
 
     if (instData->channel == NULL) {
-	CookfsLog(printf("Cookfs_CreateReaderchannelCreate: Unable to create channel"))
+	CookfsLog(printf("Unable to create channel"))
 	return TCL_ERROR;
     }
 
@@ -207,7 +207,7 @@ Cookfs_ReaderChannelInstData *Cookfs_CreateReaderchannelAlloc(Cookfs_Pages *page
 }
 
 void Cookfs_CreateReaderchannelFree(Cookfs_ReaderChannelInstData *instData) {
-    CookfsLog(printf("Cookfs_CreateReaderchannelFree: freeing channel=%s",
+    CookfsLog(printf("freeing channel=%s",
         Tcl_GetChannelName(instData->channel)));
     if (instData->event != NULL) {
         instData->event->instData = NULL;

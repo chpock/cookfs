@@ -19,8 +19,7 @@ static int Cookfs_CreateWriterchannelCreate(Cookfs_WriterChannelInstData
         channelName, (ClientData) instData, TCL_READABLE | TCL_WRITABLE);
 
     if (instData->channel == NULL) {
-        CookfsLog(printf("Cookfs_CreateWriterchannelCreate: Unable to create"
-            " channel"));
+        CookfsLog(printf("Unable to create channel"));
         return TCL_ERROR;
     }
 
@@ -39,15 +38,15 @@ static Cookfs_WriterChannelInstData *Cookfs_CreateWriterchannelAlloc(
     Tcl_WideInt initialBufferSize)
 {
 
-    CookfsLog(printf("Cookfs_CreateWriterchannelAlloc: start,"
-        " initial buff size [%" TCL_LL_MODIFIER "d]", initialBufferSize));
+    CookfsLog(printf("start, initial buff size [%" TCL_LL_MODIFIER "d]",
+        initialBufferSize));
 
     Cookfs_WriterChannelInstData *instData =
         (Cookfs_WriterChannelInstData *)ckalloc(
         sizeof(Cookfs_WriterChannelInstData));
 
     if (instData == NULL) {
-        CookfsLog(printf("Cookfs_CreateWriterchannelAlloc: failed"));
+        CookfsLog(printf("failed"));
         return NULL;
     }
 
@@ -55,8 +54,7 @@ static Cookfs_WriterChannelInstData *Cookfs_CreateWriterchannelAlloc(
         instData->bufferSize = initialBufferSize;
         instData->buffer = ckalloc(initialBufferSize);
         if (instData->buffer == NULL) {
-            CookfsLog(printf("Cookfs_CreateWriterchannelAlloc: failed"
-                " to alloc buffer"));
+            CookfsLog(printf("failed to alloc buffer"));
             ckfree(instData);
             return NULL;
         }
@@ -91,17 +89,15 @@ static Cookfs_WriterChannelInstData *Cookfs_CreateWriterchannelAlloc(
     instData->currentOffset = 0;
     instData->currentSize = 0;
 
-    CookfsLog(printf("Cookfs_CreateWriterchannelAlloc: ok [%p]",
-        (void *)instData));
+    CookfsLog(printf("ok [%p]", (void *)instData));
 
     return instData;
 }
 
 void Cookfs_CreateWriterchannelFree(Cookfs_WriterChannelInstData *instData) {
 
-    CookfsLog(printf("Cookfs_CreateWriterchannelFree: freeing channel"
-        " [%s] at [%p]", Tcl_GetChannelName(instData->channel),
-        (void *)instData));
+    CookfsLog(printf("freeing channel [%s] at [%p]",
+        Tcl_GetChannelName(instData->channel), (void *)instData));
 
     if (instData->event != NULL) {
         instData->event->instData = NULL;
@@ -129,7 +125,7 @@ void Cookfs_CreateWriterchannelFree(Cookfs_WriterChannelInstData *instData) {
     Cookfs_WriterUnlockSoft(instData->writer);
 
     ckfree((void *)instData);
-    CookfsLog(printf("Cookfs_CreateWriterchannelFree: ok"))
+    CookfsLog(printf("ok"))
 
 }
 
@@ -138,7 +134,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
     Cookfs_FsindexEntry *entry, Tcl_Interp *interp)
 {
 
-    CookfsLog(printf("Cookfs_CreateWriterchannel: start"));
+    CookfsLog(printf("start"));
 
     Cookfs_WriterChannelInstData *instData = Cookfs_CreateWriterchannelAlloc(
         pages, index, writer, pathObj, entry, interp,
@@ -154,8 +150,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
     Cookfs_PageObj blockObj = NULL;
 
     if (Cookfs_CreateWriterchannelCreate(instData, interp) != TCL_OK) {
-        CookfsLog(printf("Cookfs_CreateWriterchannel: "
-            "Cookfs_CreateWriterchannelCreate failed"))
+        CookfsLog(printf("Cookfs_CreateWriterchannelCreate failed"))
         Cookfs_CreateWriterchannelFree(instData);
         err = Tcl_NewStringObj("failed to create a channel", -1);
         goto errorReturn;
@@ -171,7 +166,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
         goto done;
     }
 
-    CookfsLog(printf("Cookfs_CreateWriterchannel: reading existing data..."));
+    CookfsLog(printf("reading existing data..."));
     if (!Cookfs_FsindexLockRead(index, &err)) {
         goto error;
     }
@@ -187,8 +182,8 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
         Cookfs_FsindexEntryGetBlock(entry, i, &pageIndex, &pageOffset,
             &pageSize);
 
-        CookfsLog(printf("Cookfs_CreateWriterchannel: reading block [%d]"
-            " offset [%d] size [%d]", pageIndex, pageOffset, pageSize));
+        CookfsLog(printf("reading block [%d] offset [%d] size [%d]",
+            pageIndex, pageOffset, pageSize));
 
         // Nothing to read from this block
         if (pageSize <= 0) {
@@ -201,16 +196,14 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
         if (pageIndex < 0) {
 
             // If block is < 0, this block is in the writer's smallfilebuffer
-            CookfsLog(printf("Cookfs_CreateWriterchannel: reading the block"
-                " from writer"));
+            CookfsLog(printf("reading the block from writer"));
 
             Tcl_WideInt blockSizeWide;
             blockBuffer = Cookfs_WriterGetBuffer(writer, pageIndex, &blockSizeWide);
 
             // Returns an error if the pages was unable to retrieve the block
             if (blockBuffer == NULL) {
-                CookfsLog(printf("Cookfs_CreateWriterchannel: return an error"
-                    " as writer failed"));
+                CookfsLog(printf("return an error as writer failed"));
                 err = Tcl_NewStringObj("failed to get a page from writer", -1);
                 goto errorAndUnlock;
             }
@@ -220,8 +213,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
         } else {
 
             // If block is >= 0 then get it from pages
-            CookfsLog(printf("Cookfs_CreateWriterchannel: reading the block"
-                " from pages"));
+            CookfsLog(printf("reading the block from pages"));
 
             int pageUsage = Cookfs_FsindexGetBlockUsage(index, pageIndex);
 
@@ -243,8 +235,7 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
 
             // Returns an error if the pages was unable to retrieve the block
             if (blockObj == NULL) {
-                CookfsLog(printf("Cookfs_CreateWriterchannel: return an error"
-                    " as pages failed"));
+                CookfsLog(printf("return an error as pages failed"));
                 // We have an error from Cookfs_PageGet() in the err variable
                 goto errorAndUnlock;
             }
@@ -254,28 +245,25 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
 
         }
 
-        CookfsLog(printf("Cookfs_CreateWriterchannel: got block size [%"
-            TCL_SIZE_MODIFIER "d]", blockSize));
+        CookfsLog(printf("got block size [%" TCL_SIZE_MODIFIER "d]", blockSize));
 
         // Check if we have enough bytes in the block
         if ((pageOffset + pageSize) > blockSize) {
-            CookfsLog(printf("Cookfs_Writerchannel_CloseHandler: not enough"
-                " bytes in block, return an error"));
+            CookfsLog(printf("not enough bytes in block, return an error"));
             err = Tcl_NewStringObj("got malformed page", -1);
             goto errorAndUnlock;
         }
 
-        CookfsLog(printf("Cookfs_CreateWriterchannel: push [%d] bytes"
-            " from retrieved block to the channel", pageSize));
+        CookfsLog(printf("push [%d] bytes from retrieved block to"
+            " the channel", pageSize));
 
         int errorCode;
         int writtenBytes = Tcl_ChannelOutputProc(CookfsWriterChannel())(
             (ClientData)instData, blockBuffer + pageOffset, pageSize, &errorCode);
 
         if (writtenBytes != pageSize) {
-            CookfsLog(printf("Cookfs_CreateWriterchannel: only [%d]"
-                " bytes were written to the channel, consider this"
-                " an error", writtenBytes));
+            CookfsLog(printf("only [%d] bytes were written to the channel,"
+                " consider this an error", writtenBytes));
             err = Tcl_NewStringObj("failed to write to the buffer", -1);
             goto errorAndUnlock;
         }
@@ -291,13 +279,11 @@ Tcl_Channel Cookfs_CreateWriterchannel(Cookfs_Pages *pages,
     Cookfs_WriterUnlock(writer);
     // Set current position to the start of file
     instData->currentOffset = 0;
-    CookfsLog(printf("Cookfs_CreateWriterchannel: reading of existing data"
-        " is completed"));
+    CookfsLog(printf("reading of existing data is completed"));
 
 done:
 
-    CookfsLog(printf("Cookfs_CreateWriterchannel: ok [%s]",
-        Tcl_GetChannelName(instData->channel)));
+    CookfsLog(printf("ok [%s]", Tcl_GetChannelName(instData->channel)));
 
     return instData->channel;
 

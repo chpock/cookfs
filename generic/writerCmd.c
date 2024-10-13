@@ -71,13 +71,13 @@ static int CookfsWriterCmd(ClientData clientData, Tcl_Interp *interp,
     UNUSED(objc);
     UNUSED(objv);
 
-    CookfsLog(printf("CookfsWriterCmd: ENTER"));
+    CookfsLog(printf("ENTER"));
 
     Tcl_SetObjResult(interp, Tcl_ObjPrintf("%s is not implemented."
         " A new writer object should be created by cookfs::Mount command.",
         Tcl_GetString(objv[0])));
 
-    CookfsLog(printf("CookfsWriterCmd: return ERROR"));
+    CookfsLog(printf("return ERROR"));
 
     return TCL_ERROR;
 }
@@ -114,7 +114,7 @@ static int CookfsWriterHandlerCmd(ClientData clientData, Tcl_Interp *interp,
     if (Tcl_GetIndexFromObj(interp, objv[1], commands, "command", 0,
             &command) != TCL_OK)
     {
-        CookfsLog(printf("CookfsWriterHandlerCmd: ERROR: unknown command [%s]",
+        CookfsLog(printf("ERROR: unknown command [%s]",
             Tcl_GetString(objv[1])));
         return TCL_ERROR;
     }
@@ -134,18 +134,17 @@ static int CookfsWriterHandleCommandGetbuf(Cookfs_Writer *w,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
 
-    CookfsLog(printf("CookfsWriterHandleCommandGetbuf: enter"));
+    CookfsLog(printf("enter"));
 
     if (objc != 3) {
-        CookfsLog(printf("CookfsWriterHandleCommandGetbuf: ERR: wrong # args"));
+        CookfsLog(printf("ERROR: wrong # args"));
         Tcl_WrongNumArgs(interp, 2, objv, "index");
         return TCL_ERROR;
     }
 
     int bufNumber;
     if (Tcl_GetIntFromObj(interp, objv[2], &bufNumber) != TCL_OK) {
-        CookfsLog(printf("CookfsWriterHandleCommandGetbuf: ERROR: wrong buf #"
-            " [%s]", Tcl_GetString(objv[2])));
+        CookfsLog(printf("ERROR: wrong buf # [%s]", Tcl_GetString(objv[2])));
         Tcl_SetObjResult(interp, Tcl_ObjPrintf("integer index is expected,"
             " but got \"%s\"", Tcl_GetString(objv[2])));
         return TCL_ERROR;
@@ -158,14 +157,14 @@ static int CookfsWriterHandleCommandGetbuf(Cookfs_Writer *w,
     Cookfs_WriterUnlock(w);
 
     if (rc == NULL) {
-        CookfsLog(printf("CookfsWriterHandleCommandGetbuf: ERROR: got NULL"));
+        CookfsLog(printf("ERROR: got NULL"));
         Tcl_SetObjResult(interp, Tcl_ObjPrintf("unable to get buf index %d",
             bufNumber));
         return TCL_ERROR;
     }
 
     Tcl_SetObjResult(interp, rc);
-    CookfsLog(printf("CookfsWriterHandleCommandGetbuf: ok"));
+    CookfsLog(printf("ok"));
     return TCL_OK;
 
 }
@@ -174,11 +173,10 @@ static int CookfsWriterHandleCommandWrite(Cookfs_Writer *w,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
 
-    CookfsLog(printf("CookfsWriterHandleCommandWrite: enter"));
+    CookfsLog(printf("enter"));
 
     if (objc < 3 || ((objc - 2) % 4) != 0) {
-        CookfsLog(printf("CookfsWriterHandleCommandWrite: ERR: wrong # args"
-            " (%d)", objc));
+        CookfsLog(printf("ERROR: wrong # args (%d)", objc));
         Tcl_WrongNumArgs(interp, 2, objv, "path datatype data size ?path"
             " datatype data size...?");
         return TCL_ERROR;
@@ -198,8 +196,8 @@ static int CookfsWriterHandleCommandWrite(Cookfs_Writer *w,
         if (Tcl_GetIndexFromObj(interp, objv[i++], dataTypes, "datatype",
             TCL_EXACT, &dataTypeInt) != TCL_OK)
         {
-            CookfsLog(printf("CookfsWriterHandleCommandWrite: ERR: unknown"
-                " datatype [%s]", Tcl_GetString(objv[i - 1])));
+            CookfsLog(printf("ERROE: unknown datatype [%s]",
+                Tcl_GetString(objv[i - 1])));
             goto error;
         }
 
@@ -209,15 +207,15 @@ static int CookfsWriterHandleCommandWrite(Cookfs_Writer *w,
             int mode;
             channel = Tcl_GetChannel(interp, Tcl_GetString(data), &mode);
             if (channel == NULL) {
-                CookfsLog(printf("CookfsWriterHandleCommandWrite: ERR: is not a"
-                    " channel [%s]", Tcl_GetString(data)));
+                CookfsLog(printf("ERROE: is not a channel [%s]",
+                    Tcl_GetString(data)));
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf("channel name expected,"
                     " but got \"%s\"", Tcl_GetString(data)));
                 goto error;
             }
             if (!(mode & TCL_READABLE)) {
-                CookfsLog(printf("CookfsWriterHandleCommandWrite: ERR: channel"
-                    " [%s] is not readable", Tcl_GetString(data)));
+                CookfsLog(printf("ERR: channel [%s] is not readable",
+                    Tcl_GetString(data)));
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf("channel \"%s\" is not"
                     " readable", Tcl_GetString(data)));
                 goto error;
@@ -230,8 +228,8 @@ static int CookfsWriterHandleCommandWrite(Cookfs_Writer *w,
             if (Tcl_GetWideIntFromObj(interp, dataSizeObj, &dataSize)
                 != TCL_OK)
             {
-                CookfsLog(printf("CookfsWriterHandleCommandWrite: ERR: datasize"
-                    " [%s] is not a wide int", Tcl_GetString(dataSizeObj)));
+                CookfsLog(printf("ERROR: datasize [%s] is not a wide int",
+                    Tcl_GetString(dataSizeObj)));
                 goto error;
             }
         }
@@ -250,12 +248,12 @@ static int CookfsWriterHandleCommandWrite(Cookfs_Writer *w,
 
         if (ret != TCL_OK) {
             if (err == NULL) {
-                CookfsLog(printf("CookfsWriterHandleCommandWrite: got error"
-                    " and unknown message from Cookfs_WriterAddFile()"));
+                CookfsLog(printf("got error and unknown message from"
+                    " Cookfs_WriterAddFile()"));
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf("unknown error"));
             } else {
-                CookfsLog(printf("CookfsWriterHandleCommandWrite: got error"
-                    " from Cookfs_WriterAddFile(): %s", Tcl_GetString(err)));
+                CookfsLog(printf("got error from Cookfs_WriterAddFile(): %s",
+                    Tcl_GetString(err)));
                 Tcl_SetObjResult(interp, err);
             }
             goto error;
@@ -269,8 +267,7 @@ error:
 
         Tcl_SetObjResult(interp, Tcl_ObjPrintf("unable to add \"%s\": %s",
             Tcl_GetString(path), Tcl_GetString(Tcl_GetObjResult(interp))));
-        CookfsLog(printf("CookfsWriterHandleCommandWrite: ERROR while adding"
-            " [%s]", Tcl_GetString(path)));
+        CookfsLog(printf("ERROR while adding [%s]", Tcl_GetString(path)));
         Cookfs_PathObjDecrRefCount(pathObj);
         return TCL_ERROR;
 

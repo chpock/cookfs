@@ -98,7 +98,7 @@ static void Cookfs_CookfsRemoveVfsEntry(Cookfs_VfsEntry **vfsListToPtr,
 static void Cookfs_CookfsFillCache(Cookfs_VfsEntry **vfsListToPtr,
     Tcl_Obj **volumeListToPtr, Cookfs_VfsEntry *vfsListFrom)
 {
-    CookfsLog(printf("Cookfs_CookfsFillCache: enter"));
+    CookfsLog(printf("enter"));
 
     while (vfsListFrom != NULL) {
 
@@ -108,8 +108,7 @@ static void Cookfs_CookfsFillCache(Cookfs_VfsEntry **vfsListToPtr,
             Tcl_Panic("failed to alloc Cookfs_VfsEntry");
             return; // <- to avoid cppcheck complaints
         }
-        CookfsLog(printf("Cookfs_CookfsFillCache: new entry %p",
-            (void *)newEntryVfs));
+        CookfsLog(printf("new entry %p", (void *)newEntryVfs));
         newEntryVfs->isShared = vfsListFrom->vfs->isShared;
         newEntryVfs->interp = vfsListFrom->vfs->interp;
         newEntryVfs->mountLen = vfsListFrom->vfs->mountLen;
@@ -120,46 +119,43 @@ static void Cookfs_CookfsFillCache(Cookfs_VfsEntry **vfsListToPtr,
         newEntryVfs->next = *vfsListToPtr;
         *vfsListToPtr = newEntryVfs;
 
-        // CookfsLog(printf("Cookfs_CookfsFillCache: added vfs [%s]",
-        //     newEntryVfs->mountStr));
+        // CookfsLog(printf("added vfs [%s]", newEntryVfs->mountStr));
 
         if (vfsListFrom->vfs->isVolume) {
             if (*volumeListToPtr == NULL) {
                 *volumeListToPtr = Tcl_NewListObj(0, NULL);
                 Tcl_IncrRefCount(*volumeListToPtr);
-                CookfsLog(printf("Cookfs_CookfsFillCache: volume list %p",
+                CookfsLog(printf("volume list %p",
                     (void *)(*volumeListToPtr)));
             }
             Tcl_Obj *obj = Tcl_NewStringObj(vfsListFrom->vfs->mountStr,
                 vfsListFrom->vfs->mountLen);
             Tcl_ListObjAppendElement(NULL, *volumeListToPtr, obj);
-            CookfsLog(printf("Cookfs_CookfsFillCache: add volume to list"
-                " [%s](tcl obj: %p)", vfsListFrom->vfs->mountStr,
-                (void *)obj));
+            CookfsLog(printf("add volume to list [%s](tcl obj: %p)",
+                vfsListFrom->vfs->mountStr, (void *)obj));
         }
 
         vfsListFrom = vfsListFrom->next;
 
     }
 
-    CookfsLog(printf("Cookfs_CookfsFillCache: ok"));
+    CookfsLog(printf("ok"));
 }
 
 static void Cookfs_CookfsUpdateThreadSpecificData(ThreadSpecificData *tsdPtr) {
 
-    CookfsLog(printf("Cookfs_CookfsUpdateThreadSpecificData: enter"));
+    CookfsLog(printf("enter"));
 
     // Free anything we have now.
     while (tsdPtr->vfsListCached != NULL) {
         Cookfs_VfsEntry *entryVfs = tsdPtr->vfsListCached;
         tsdPtr->vfsListCached = entryVfs->next;
-        CookfsLog(printf("Cookfs_CookfsUpdateThreadSpecificData: free entry %p",
-            (void *)entryVfs));
+        CookfsLog(printf("free entry %p", (void *)entryVfs));
         ckfree(entryVfs);
     }
 
     if (tsdPtr->volumeListObjCached != NULL) {
-        CookfsLog(printf("Cookfs_CookfsUpdateThreadSpecificData: free list obj %p",
+        CookfsLog(printf("free list obj %p",
             (void *)tsdPtr->volumeListObjCached));
         Tcl_DecrRefCount(tsdPtr->volumeListObjCached);
         tsdPtr->volumeListObjCached = NULL;
@@ -181,15 +177,14 @@ static void Cookfs_CookfsUpdateThreadSpecificData(ThreadSpecificData *tsdPtr) {
     Tcl_MutexUnlock(&global.mx);
 #endif /* TCL_THREADS */
 
-    CookfsLog(printf("Cookfs_CookfsUpdateThreadSpecificData: ok"));
+    CookfsLog(printf("ok"));
     return;
 
 }
 
 void Cookfs_CookfsRegister(Tcl_Interp *interp) {
 
-    CookfsLog(printf("Cookfs_CookfsRegister: register in interp [%p]",
-        (void *)interp));
+    CookfsLog(printf("register in interp [%p]", (void *)interp));
 
     // Register Cookfs if it is not already registered
     void *fsdata = (void *)Tcl_FSData(CookfsFilesystem());
@@ -198,7 +193,7 @@ void Cookfs_CookfsRegister(Tcl_Interp *interp) {
         Tcl_CreateExitHandler(Cookfs_CookfsExitProc, (ClientData) NULL);
         Tcl_CreateThreadExitHandler(Cookfs_CookfsThreadExitProc, NULL);
     } else {
-        CookfsLog(printf("Cookfs_CookfsRegister: already registered"));
+        CookfsLog(printf("already registered"));
     }
 
     // Set callback to cleanup mount points for deleted interp
@@ -211,18 +206,17 @@ static void Cookfs_CookfsUnregister(ClientData clientData,
 {
     UNUSED(clientData);
 
-    CookfsLog(printf("Cookfs_CookfsUnregister: unregister in interp [%p]",
-        (void *)interp));
+    CookfsLog(printf("unregister in interp [%p]", (void *)interp));
 
     // Remove all mount points
     while (1) {
-        CookfsLog(printf("Cookfs_CookfsUnregister: remove the next vfs..."));
+        CookfsLog(printf("remove the next vfs..."));
         Cookfs_Vfs *vfs = Cookfs_CookfsRemoveVfs(interp, NULL);
         if (vfs == NULL) {
-            CookfsLog(printf("Cookfs_CookfsUnregister: no more vfs"));
+            CookfsLog(printf("no more vfs"));
             break;
         }
-        CookfsLog(printf("Cookfs_CookfsUnregister: free vfs..."));
+        CookfsLog(printf("free vfs..."));
         Cookfs_VfsFini(interp, vfs, NULL);
     }
 
@@ -235,25 +229,25 @@ static void Cookfs_CookfsUnregister(ClientData clientData,
 
 static void Cookfs_CookfsExitProc(ClientData clientData) {
     UNUSED(clientData);
-    CookfsLog(printf("Cookfs_CookfsExitProc: ENTER"));
+    CookfsLog(printf("ENTER"));
     Tcl_FSUnregister(CookfsFilesystem());
-    CookfsLog(printf("Cookfs_CookfsExitProc: ok"));
+    CookfsLog(printf("ok"));
 }
 
 static void Cookfs_CookfsThreadExitProc(ClientData clientData) {
     UNUSED(clientData);
-    CookfsLog(printf("Cookfs_CookfsThreadExitProc: ENTER"));
+    CookfsLog(printf("ENTER"));
     // ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
     // There is nothing here at the moment. Perhaps in the future it will be
     // used for thread-specific data cleansing.
     // UNUSED(tsdPtr);
-    CookfsLog(printf("Cookfs_CookfsThreadExitProc: ok"));
+    CookfsLog(printf("ok"));
 }
 
 int Cookfs_CookfsAddVfs(Tcl_Interp *interp, Cookfs_Vfs *vfs) {
 
-    CookfsLog(printf("Cookfs_CookfsAddVfs: add mount [%s] at [%p] isShared %d",
-        vfs->mountStr, (void *)vfs, vfs->isShared));
+    CookfsLog(printf("add mount [%s] at [%p] isShared %d", vfs->mountStr,
+        (void *)vfs, vfs->isShared));
 
     // Check if interp is properly configured to cleanup mount points
     if (Tcl_GetAssocData(interp, COOKFS_ASSOC_KEY, NULL) == NULL) {
@@ -300,8 +294,8 @@ Cookfs_Vfs *Cookfs_CookfsRemoveVfs(Tcl_Interp *interp,
     Cookfs_Vfs *vfsToRemove)
 {
 
-    CookfsLog(printf("Cookfs_CookfsRemoveVfs: want to remove vfs with mount"
-        " ptr [%p] interp [%p]", (void *)vfsToRemove, (void *)interp));
+    CookfsLog(printf("want to remove vfs with mount ptr [%p] interp [%p]",
+        (void *)vfsToRemove, (void *)interp));
 
     //ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
     //ThreadSpecificData *tsdPtr = Cookfs_CookfsGetThreadSpecificData(1);
@@ -310,24 +304,23 @@ Cookfs_Vfs *Cookfs_CookfsRemoveVfs(Tcl_Interp *interp,
     Cookfs_VfsEntry *e = tsdPtr->vfsListCached;
     while (e != NULL) {
 
-        CookfsLog(printf("Cookfs_CookfsRemoveVfs: check vfs [%p] at [%s] in"
-            " interp [%p]", (void *)e->vfs, e->mountStr, (void *)e->interp));
+        CookfsLog(printf("check vfs [%p] at [%s] in interp [%p]",
+            (void *)e->vfs, e->mountStr, (void *)e->interp));
 
         if (interp != e->interp) {
-            CookfsLog(printf("Cookfs_CookfsRemoveVfs: wrong interp"));
+            CookfsLog(printf("wrong interp"));
             goto next;
         }
 
         if (vfsToRemove != NULL) {
             if (e->vfs != vfsToRemove) {
-                CookfsLog(printf("Cookfs_CookfsRemoveVfs: wrong ptr"));
+                CookfsLog(printf("wrong ptr"));
                 goto next;
             }
         }
 
         // We have found the mount
-        CookfsLog(printf("Cookfs_CookfsRemoveVfs: the vfs for deletion"
-            " was found"));
+        CookfsLog(printf("the vfs for deletion was found"));
         break;
 
 next:
@@ -337,7 +330,7 @@ next:
 
     // If we have e == NULL here, then there is no suitable vfs to delete.
     if (e == NULL) {
-        CookfsLog(printf("Cookfs_CookfsRemoveMount: return NULL"));
+        CookfsLog(printf("return NULL"));
         return NULL;
     }
 
@@ -379,8 +372,7 @@ next:
 
     Tcl_FSMountsChanged(CookfsFilesystem());
 
-    CookfsLog(printf("Cookfs_CookfsRemoveVfs: return [%p]",
-        (void *)vfsToRemove));
+    CookfsLog(printf("return [%p]", (void *)vfsToRemove));
     return vfsToRemove;
 
 }
@@ -389,7 +381,7 @@ void Cookfs_CookfsSearchVfsToListObj(Tcl_Obj *path, const char *pattern,
     Tcl_Obj *returnObj)
 {
 
-    CookfsLog(printf("Cookfs_CookfsSearchVfsToListObj: check mount points"));
+    CookfsLog(printf("check mount points"));
 
     // ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
     // ThreadSpecificData *tsdPtr = Cookfs_CookfsGetThreadSpecificData(1);
@@ -407,32 +399,31 @@ void Cookfs_CookfsSearchVfsToListObj(Tcl_Obj *path, const char *pattern,
     Cookfs_VfsEntry *e = tsdPtr->vfsListCached;
     while (e != NULL) {
         if (e->mountLen <= (searchLen + 1)) {
-            CookfsLog(printf("Cookfs_CookfsSearchVfsToListObj: skip vfs"
-                " [%s] - %s", e->mountStr, "mount path len is too small"));
+            CookfsLog(printf("skip vfs [%s] - %s", e->mountStr,
+                "mount path len is too small"));
             goto nextVfs;
         }
         if (strncmp(e->mountStr, searchStr, (size_t)searchLen) != 0) {
-            CookfsLog(printf("Cookfs_CookfsSearchVfsToListObj: skip vfs"
-                " [%s] - %s", e->mountStr, "doesn't match"));
+            CookfsLog(printf("skip vfs [%s] - %s", e->mountStr,
+                "doesn't match"));
             goto nextVfs;
         }
         if (e->mountStr[searchLen] != '/') {
-            CookfsLog(printf("Cookfs_CookfsSearchVfsToListObj: skip vfs"
-                    " [%s] - %s", e->mountStr, "no sep"));
+            CookfsLog(printf("skip vfs [%s] - %s", e->mountStr,
+                "no sep"));
             goto nextVfs;
         }
         if (strchr(e->mountStr + searchLen + 1, '/') != NULL) {
-            CookfsLog(printf("Cookfs_CookfsSearchVfsToListObj: skip vfs"
-                " [%s] - %s", e->mountStr, "found sep"));
+            CookfsLog(printf("skip vfs [%s] - %s", e->mountStr,
+                "found sep"));
             goto nextVfs;
         }
         if (!Tcl_StringCaseMatch(e->mountStr + searchLen + 1, pattern, 0)) {
-            CookfsLog(printf("CookfsMatchInDirectory: skip vfs"
-                " [%s] - %s", e->mountStr, "doesn't match pattern"));
+            CookfsLog(printf("skip vfs [%s] - %s", e->mountStr,
+                "doesn't match pattern"));
             goto nextVfs;
         }
-        CookfsLog(printf("CookfsMatchInDirectory: add vfs [%s]",
-                e->mountStr));
+        CookfsLog(printf("add vfs [%s]", e->mountStr));
         Tcl_ListObjAppendElement(NULL, returnObj,
             Tcl_NewStringObj(e->mountStr, e->mountLen));
 nextVfs:
@@ -446,7 +437,7 @@ int Cookfs_CookfsIsVfsExist(Cookfs_Vfs *vfsToSearch) {
         return 0;
     }
 
-    CookfsLog(printf("Cookfs_CookfsIsVfsExist: ENTER"));
+    CookfsLog(printf("ENTER"));
     //ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
     //ThreadSpecificData *tsdPtr = Cookfs_CookfsGetThreadSpecificData(1);
     TCL_TSD_UPDATE(tsdPtr, &dataKeyCookfs);
@@ -538,7 +529,7 @@ Cookfs_Vfs *Cookfs_CookfsFindVfs(Tcl_Obj *path, Tcl_Size len) {
     } else {
         searchStr = Tcl_GetString(path);
     }
-    // CookfsLog(printf("Cookfs_CookfsFindVfs: ENTER [%s]", searchStr));
+    // CookfsLog(printf("ENTER [%s]", searchStr));
 
     Cookfs_VfsEntry *e = tsdPtr->vfsListCached;
     while (e != NULL) {
@@ -556,8 +547,7 @@ Cookfs_Vfs *Cookfs_CookfsFindVfs(Tcl_Obj *path, Tcl_Size len) {
 Cookfs_Vfs *Cookfs_CookfsSplitWithVfs(Tcl_Obj *path,
     Cookfs_PathObj **pathObjPtr)
 {
-    // CookfsLog(printf("Cookfs_CookfsSplitWithVfs: ENTER [%s]",
-    //     Tcl_GetString(path)));
+    // CookfsLog(printf("ENTER [%s]", Tcl_GetString(path)));
 
     TCL_TSD_UPDATE(tsdPtr, &dataKeyCookfs);
 
@@ -612,7 +602,7 @@ Cookfs_Vfs *Cookfs_CookfsSplitWithVfs(Tcl_Obj *path,
 
     // Return NULL if we didn't find anything.
     if (foundEntry == NULL) {
-        // CookfsLog(printf("Cookfs_CookfsSplitWithVfs: return NULL"));
+        // CookfsLog(printf("return NULL"));
         return NULL;
     }
 
@@ -643,11 +633,11 @@ Tcl_Obj *Cookfs_CookfsGetVolumesList(void) {
     TCL_TSD_UPDATE(tsdPtr, &dataKeyCookfs);
 
     //ThreadSpecificData *tsdPtr = Cookfs_CookfsGetThreadSpecificData(1);
-    //CookfsLog(printf("Cookfs_CookfsGetVolumesList: ENTER"));
+    //CookfsLog(printf("ENTER"));
     //
     // if (tsdPtr->volumesObj == NULL && tsdPtr->volumesList != NULL) {
 
-    //     // CookfsLog(printf("Cookfs_CookfsGetVolumesList: need to rebuild cache"));
+    //     // CookfsLog(printf("need to rebuild cache"));
     //     // Need to rebuild volume list cache
     //     tsdPtr->volumesObj = Tcl_NewListObj(0, NULL);
     //     Tcl_IncrRefCount(tsdPtr->volumesObj);
@@ -661,8 +651,7 @@ Tcl_Obj *Cookfs_CookfsGetVolumesList(void) {
 
     // }
 
-    // // CookfsLog(printf("Cookfs_CookfsGetVolumesList: ok [%s]",
-    // //     tsdPtr->volumesObj == NULL ?
+    // // CookfsLog(printf("ok [%s]", tsdPtr->volumesObj == NULL ?
     // //     "NULL" : Tcl_GetString(tsdPtr->volumesObj)));
 
     return tsdPtr->volumeListObjCached;

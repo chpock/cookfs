@@ -92,12 +92,12 @@ int Cookfs_InitFsindexCmd(Tcl_Interp *interp) {
 
 Tcl_Obj *CookfsGetFsindexObjectCmd(Tcl_Interp *interp, void *i) {
     if (i == NULL) {
-        CookfsLog(printf("CookfsGetFsindexObjectCmd: return NULL"));
+        CookfsLog(printf("return: NULL"));
         return NULL;
     }
     Cookfs_Fsindex *fsindex = (Cookfs_Fsindex *)i;
-    CookfsLog(printf("CookfsGetFsindexObjectCmd: enter interp:%p my interp:%p",
-        (void *)interp, (void *)fsindex->interp));
+    CookfsLog(printf("enter interp:%p my interp:%p", (void *)interp,
+        (void *)fsindex->interp));
     CookfsRegisterExistingFsindexObjectCmd(fsindex->interp, fsindex);
     Tcl_Obj *rc = Tcl_NewObj();
     Tcl_GetCommandFullName(fsindex->interp, fsindex->commandToken, rc);
@@ -106,14 +106,13 @@ Tcl_Obj *CookfsGetFsindexObjectCmd(Tcl_Interp *interp, void *i) {
     }
     const char *cmd = Tcl_GetString(rc);
     if (Tcl_GetAliasObj(interp, cmd, NULL, NULL, NULL, NULL) == TCL_OK) {
-        CookfsLog(printf("CookfsGetFsindexObjectCmd: alias already exists"));
+        CookfsLog(printf("alias already exists"));
         goto done;
     }
-    CookfsLog(printf("CookfsGetFsindexObjectCmd: create interp alias"));
+    CookfsLog(printf("create interp alias"));
     Tcl_CreateAlias(interp, cmd, fsindex->interp, cmd, 0, NULL);
 done:
-    CookfsLog(printf("CookfsGetFsindexObjectCmd: return [%s]",
-        Tcl_GetString(rc)));
+    CookfsLog(printf("return [%s]", Tcl_GetString(rc)));
     return rc;
 }
 
@@ -187,7 +186,7 @@ static int CookfsRegisterFsindexObjectCmd(ClientData clientData, Tcl_Interp *int
 
         i = Cookfs_FsindexFromTclObj(interp, NULL, objv[1]);
 
-        CookfsLog(printf("CookfsRegisterFsindexObjectCmd: created fsindex from obj [%p]", (void *)i));
+        CookfsLog(printf("created fsindex from obj [%p]", (void *)i));
 
         if (i != NULL) {
 
@@ -209,7 +208,7 @@ static int CookfsRegisterFsindexObjectCmd(ClientData clientData, Tcl_Interp *int
 
     } else {
         i = Cookfs_FsindexInit(interp, NULL);
-        CookfsLog(printf("CookfsRegisterFsindexObjectCmd: created fsindex from scratch [%p]", (void *)i));
+        CookfsLog(printf("created fsindex from scratch [%p]", (void *)i));
     }
 
     /* throw error if import or creation failed */

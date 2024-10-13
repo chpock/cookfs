@@ -33,7 +33,7 @@ static int CookfsCreateReaderchannelCmd(ClientData clientData, Tcl_Interp *inter
 
     fsindex = Cookfs_FsindexGetHandle(interp, Tcl_GetStringFromObj(objv[2], NULL));
 
-    CookfsLog(printf("CookfsCreateReaderchannelCmd: fsindex [%p]", (void *)fsindex));
+    CookfsLog(printf("fsindex [%p]", (void *)fsindex));
     if (fsindex == NULL) {
 	Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to find fsindex object", -1));
 	return TCL_ERROR;

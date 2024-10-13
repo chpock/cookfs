@@ -29,11 +29,10 @@ static void Cookfs_WriterFree(Cookfs_Writer *w);
 int Cookfs_WriterLockRW(int isWrite, Cookfs_Writer *w, Tcl_Obj **err) {
     int ret = 1;
 #ifdef TCL_THREADS
+    CookfsLog(printf("try to %s lock...", isWrite ? "WRITE" : "READ"));
     if (isWrite) {
-        CookfsLog(printf("Cookfs_WriterLockWrite: try to lock..."));
         ret = Cookfs_RWMutexLockWrite(w->mx);
     } else {
-        CookfsLog(printf("Cookfs_WriterLockRead: try to lock..."));
         ret = Cookfs_RWMutexLockRead(w->mx);
     }
     if (ret && w->isDead == 1) {
@@ -42,14 +41,13 @@ int Cookfs_WriterLockRW(int isWrite, Cookfs_Writer *w, Tcl_Obj **err) {
         Cookfs_RWMutexUnlock(w->mx);
     }
     if (!ret) {
-        CookfsLog(printf("%s: FAILED", isWrite ? "Cookfs_WriterLockWrite" :
-            "Cookfs_WriterLockRead"));
+        CookfsLog(printf("FAILED to %s lock", isWrite ? "WRITE" : "READ"));
         if (err != NULL) {
-            *err = Tcl_NewStringObj("stalled fsindex object detected", -1);
+            *err = Tcl_NewStringObj("stalled writer object detected", -1);
         }
     } else {
-        CookfsLog(printf("%s: ok", isWrite ? "Cookfs_WriterLockWrite" :
-            "Cookfs_WriterLockRead"));
+        CookfsLog(printf("ok - %s lock (%d)", isWrite ? "WRITE" : "READ",
+            Cookfs_RWMutexGetLocks(w->mx)));
     }
 #else
     UNUSED(isWrite);
@@ -62,7 +60,7 @@ int Cookfs_WriterLockRW(int isWrite, Cookfs_Writer *w, Tcl_Obj **err) {
 int Cookfs_WriterUnlock(Cookfs_Writer *w) {
 #ifdef TCL_THREADS
     Cookfs_RWMutexUnlock(w->mx);
-    CookfsLog(printf("Cookfs_WriterUnlock: ok"));
+    CookfsLog(printf("ok (%d)", Cookfs_RWMutexGetLocks(w->mx)));
 #else
     UNUSED(w);
 #endif /* TCL_THREADS */
@@ -103,9 +101,9 @@ int Cookfs_WriterUnlockSoft(Cookfs_Writer *w) {
 
 void Cookfs_WriterLockExclusive(Cookfs_Writer *w) {
 #ifdef TCL_THREADS
-    CookfsLog2(printf("try to lock exclusive..."));
+    CookfsLog(printf("try to lock exclusive..."));
     Cookfs_RWMutexLockExclusive(w->mx);
-    CookfsLog2(printf("ok"));
+    CookfsLog(printf("ok"));
 #else
     UNUSED(w);
 #endif /* TCL_THREADS */
@@ -125,14 +123,12 @@ static Cookfs_WriterBuffer *Cookfs_WriterWriterBufferAlloc(
         wb->sortKey = NULL;
         wb->next = NULL;
     }
-    CookfsLog(printf("Cookfs_WriterWriterBufferAlloc: buffer [%p]",
-        (void *)wb));
+    CookfsLog(printf("buffer [%p]", (void *)wb));
     return wb;
 }
 
 static void Cookfs_WriterWriterBufferFree(Cookfs_WriterBuffer *wb) {
-    CookfsLog(printf("Cookfs_WriterWriterBufferFree: buffer [%p]",
-        (void *)wb));
+    CookfsLog(printf("buffer [%p]", (void *)wb));
     if (wb->buffer != NULL) {
         ckfree(wb->buffer);
     }
@@ -151,27 +147,26 @@ Cookfs_Writer *Cookfs_WriterInit(Tcl_Interp* interp,
     Tcl_WideInt pagesize, int writetomemory)
 {
 
-    CookfsLog(printf("Cookfs_WriterInit: init mount in interp [%p];"
-        " pages:%p index:%p smbuf:%" TCL_LL_MODIFIER "d sms:%" TCL_LL_MODIFIER
-        "d pagesize:%" TCL_LL_MODIFIER "d writetomem:%d",
-        (void *)interp, (void *)pages, (void *)index,
-        smallfilebuffer, smallfilesize, pagesize, writetomemory));
+    CookfsLog(printf("init mount in interp [%p]; pages:%p index:%p smbuf:%"
+        TCL_LL_MODIFIER "d sms:%" TCL_LL_MODIFIER "d pagesize:%"
+        TCL_LL_MODIFIER "d writetomem:%d", (void *)interp, (void *)pages,
+        (void *)index, smallfilebuffer, smallfilesize, pagesize,
+        writetomemory));
 
     if (interp == NULL || (pages == NULL && !writetomemory) || index == NULL) {
-        CookfsLog(printf("Cookfs_WriterInit: failed, something is NULL"));
+        CookfsLog(printf("failed, something is NULL"));
         return NULL;
     }
 
     // Double check that smallfilesize is less than pagesize
     if (smallfilesize > pagesize) {
-        CookfsLog(printf("Cookfs_WriterInit: failed,"
-            " smallfilesize > pagesize"));
+        CookfsLog(printf("failed, smallfilesize > pagesize"));
         return NULL;
     }
 
     Cookfs_Writer *w = (Cookfs_Writer *)ckalloc(sizeof(Cookfs_Writer));
     if (w == NULL) {
-        CookfsLog(printf("Cookfs_WriterInit: failed, OOM"));
+        CookfsLog(printf("failed, OOM"));
         return NULL;
     }
 
@@ -208,7 +203,7 @@ Cookfs_Writer *Cookfs_WriterInit(Tcl_Interp* interp,
     w->pageMapByPage = NULL;
     w->pageMapBySize = NULL;
 
-    CookfsLog(printf("Cookfs_WriterInit: ok [%p]", (void *)w));
+    CookfsLog(printf("ok [%p]", (void *)w));
     return w;
 
 }
@@ -228,7 +223,7 @@ static void Cookfs_WriterFree(Cookfs_Writer *w) {
 void Cookfs_WriterFini(Cookfs_Writer *w) {
 
     if (w == NULL) {
-        CookfsLog(printf("Cookfs_WriterFini: ERROR: writer is NULL"));
+        CookfsLog(printf("ERROR: writer is NULL"));
         return;
     }
 
@@ -238,7 +233,7 @@ void Cookfs_WriterFini(Cookfs_Writer *w) {
 
     Cookfs_WriterLockExclusive(w);
 
-    CookfsLog(printf("Cookfs_WriterFini: aquire mutex"));
+    CookfsLog(printf("aquire mutex"));
     // By acquisition the lockSoft mutex, we will be sure that no other
     // thread calls Cookfs_WriterUnlockSoft() that can release this object
     // while this function is running.
@@ -247,16 +242,16 @@ void Cookfs_WriterFini(Cookfs_Writer *w) {
 #endif /* TCL_THREADS */
     w->isDead = 1;
 
-    CookfsLog(printf("Cookfs_WriterFini: enter [%p]", (void *)w));
+    CookfsLog(printf("enter [%p]", (void *)w));
 
     if (w->commandToken != NULL) {
-        CookfsLog(printf("Cookfs_WriterFini: Cleaning tcl command"));
+        CookfsLog(printf("Cleaning tcl command"));
         Tcl_DeleteCommandFromToken(w->interp, w->commandToken);
     } else {
-        CookfsLog(printf("Cookfs_WriterFini: No tcl command"));
+        CookfsLog(printf("No tcl command"));
     }
 
-    CookfsLog(printf("Cookfs_WriterFini: free buffers"));
+    CookfsLog(printf("free buffers"));
     Cookfs_WriterBuffer *wb = w->bufferFirst;
     while (wb != NULL) {
         Cookfs_WriterBuffer *next = wb->next;
@@ -267,7 +262,7 @@ void Cookfs_WriterFini(Cookfs_Writer *w) {
         wb = next;
     }
 
-    CookfsLog(printf("Cookfs_WriterFini: free all"));
+    CookfsLog(printf("free all"));
     Cookfs_FsindexUnlockSoft(w->index);
     if (w->pages != NULL) {
         Cookfs_PagesUnlockSoft(w->pages);
@@ -275,7 +270,7 @@ void Cookfs_WriterFini(Cookfs_Writer *w) {
 
     if (w->pageMapByPage != NULL) {
 
-        CookfsLog2(printf("free page map"));
+        CookfsLog(printf("free page map"));
 
         Tcl_HashSearch hSearch;
 
@@ -287,7 +282,7 @@ void Cookfs_WriterFini(Cookfs_Writer *w) {
                 (Cookfs_WriterPageMapEntry *)Tcl_GetHashValue(hPtr);
             while(pme != NULL) {
                 Cookfs_WriterPageMapEntry *next = pme->nextByPage;
-                CookfsLog2(printf("free pme: %p", (void *)pme));
+                CookfsLog(printf("free pme: %p", (void *)pme));
                 ckfree(pme);
                 pme = next;
             }
@@ -330,7 +325,7 @@ static Cookfs_WriterPageMapEntry *Cookfs_WriterPageMapEntryAlloc(int pageNum,
     pme->is_md5_initialized = 0;
     pme->nextByPage = NULL;
     pme->nextBySize = NULL;
-    CookfsLog2(printf("return: %p (pageNum: %d; pageOffset: %d; pageSize: %d)",
+    CookfsLog(printf("return: %p (pageNum: %d; pageOffset: %d; pageSize: %d)",
         (void *)pme, pageNum, pageOffset, pageSize));
     return pme;
 
@@ -395,9 +390,9 @@ static void Cookfs_WriterPageMapEntryAddBySize(Cookfs_Writer *w,
     Tcl_HashEntry *hPtr = Tcl_CreateHashEntry(w->pageMapBySize,
         INT2PTR(pme->pageSize), &is_new);
     if (is_new) {
-        // CookfsLog2(printf("new hash value by size"));
+        // CookfsLog(printf("new hash value by size"));
     } else {
-        // CookfsLog2(printf("add hash value by size"));
+        // CookfsLog(printf("add hash value by size"));
         pme->nextBySize = Tcl_GetHashValue(hPtr);
     }
     Tcl_SetHashValue(hPtr, pme);
@@ -408,11 +403,11 @@ static void Cookfs_WriterPageMapEntryAdd(Cookfs_Writer *w, int pageNum,
     int pageOffset, int pageSize)
 {
 
-    CookfsLog2(printf("pageNum:%d pageOffset:%d pageSize:%d", pageNum,
+    CookfsLog(printf("pageNum:%d pageOffset:%d pageSize:%d", pageNum,
         pageOffset, pageSize));
 
     if (Cookfs_WriterPageMapEntryIsExists(w, pageNum, pageOffset, pageSize)) {
-        CookfsLog2(printf("return: ok (the page map entry already exists)"));
+        CookfsLog(printf("return: ok (the page map entry already exists)"));
     }
 
     Cookfs_WriterPageMapEntry *pme = Cookfs_WriterPageMapEntryAlloc(pageNum,
@@ -432,31 +427,31 @@ static void Cookfs_WriterPageMapEntryAdd(Cookfs_Writer *w, int pageNum,
     // cppcheck-suppress redundantAssignment
     hPtr = Tcl_CreateHashEntry(w->pageMapByPage, INT2PTR(pageNum), &is_new);
     if (is_new) {
-        // CookfsLog2(printf("new hash value by page"));
+        // CookfsLog(printf("new hash value by page"));
         Tcl_SetHashValue(hPtr, pme);
     } else {
-        // CookfsLog2(printf("add hash value by page"));
+        // CookfsLog(printf("add hash value by page"));
         current_pme = Tcl_GetHashValue(hPtr);
         if (current_pme->pageOffset > pageOffset) {
-            // CookfsLog2(printf("insert value as a head because the first pme"
+            // CookfsLog(printf("insert value as a head because the first pme"
             //     " has offset: %d", current_pme->pageOffset));
             pme->nextByPage = current_pme;
             Tcl_SetHashValue(hPtr, pme);
         } else {
-            // CookfsLog2(printf("head pme has offset: %d",
+            // CookfsLog(printf("head pme has offset: %d",
             //     current_pme->pageOffset));
             while (current_pme->nextByPage != NULL &&
                 current_pme->nextByPage->pageOffset < pageOffset)
             {
                 current_pme = current_pme->nextByPage;
-                // CookfsLog2(printf("go to the next pme with offset %d",
+                // CookfsLog(printf("go to the next pme with offset %d",
                 //     current_pme->pageOffset));
             }
             if (current_pme->nextByPage == NULL) {
-                // CookfsLog2(printf("insert value here as we have reached"
+                // CookfsLog(printf("insert value here as we have reached"
                 //     " the end of the list"));
             } else {
-                // CookfsLog2(printf("insert value here"));
+                // CookfsLog(printf("insert value here"));
             }
             pme->nextByPage = current_pme->nextByPage;
             current_pme->nextByPage = pme;
@@ -468,35 +463,35 @@ static void Cookfs_WriterPageMapEntryAdd(Cookfs_Writer *w, int pageNum,
 static void Cookfs_WriterFillMap(Cookfs_FsindexEntry *e, ClientData clientData) {
 
     if (Cookfs_FsindexEntryIsDirectory(e)) {
-        // CookfsLog2(printf("return: entry [%s] is a directory", Cookfs_FsindexEntryGetFileName(e, NULL)));
+        // CookfsLog(printf("return: entry [%s] is a directory", Cookfs_FsindexEntryGetFileName(e, NULL)));
         return;
     }
 
     if (Cookfs_FsindexEntryIsPending(e)) {
-        // CookfsLog2(printf("return: entry [%s] is pending", Cookfs_FsindexEntryGetFileName(e, NULL)));
+        // CookfsLog(printf("return: entry [%s] is pending", Cookfs_FsindexEntryGetFileName(e, NULL)));
         return;
     }
 
     if (Cookfs_FsindexEntryGetBlockCount(e) > 1) {
-        // CookfsLog2(printf("return: entry [%s] uses more than 1 block", Cookfs_FsindexEntryGetFileName(e, NULL)));
+        // CookfsLog(printf("return: entry [%s] uses more than 1 block", Cookfs_FsindexEntryGetFileName(e, NULL)));
         return;
     }
 
     int pageNum, pageOffset, pageSize;
     Cookfs_FsindexEntryGetBlock(e, 0, &pageNum, &pageOffset, &pageSize);
     if (pageSize == 0) {
-        // CookfsLog2(printf("return: entry [%s] has zero size", Cookfs_FsindexEntryGetFileName(e, NULL)));
+        // CookfsLog(printf("return: entry [%s] has zero size", Cookfs_FsindexEntryGetFileName(e, NULL)));
         return;
     }
 
     Cookfs_Writer *w = (Cookfs_Writer *)clientData;
 
     if (Cookfs_PagesIsEncrypted(w->pages, pageNum)) {
-        // CookfsLog2(printf("return: entry [%s] is for encrypted file", Cookfs_FsindexEntryGetFileName(e, NULL)));
+        // CookfsLog(printf("return: entry [%s] is for encrypted file", Cookfs_FsindexEntryGetFileName(e, NULL)));
         return;
     }
 
-    CookfsLog2(printf("new entry %p : [%s]", (void *)e, Cookfs_FsindexEntryGetFileName(e, NULL)));
+    CookfsLog(printf("new entry %p : [%s]", (void *)e, Cookfs_FsindexEntryGetFileName(e, NULL)));
 
     Cookfs_WriterPageMapEntryAdd(w, pageNum, pageOffset, pageSize);
 
@@ -505,12 +500,12 @@ static void Cookfs_WriterFillMap(Cookfs_FsindexEntry *e, ClientData clientData) 
 static int Cookfs_WriterInitPageMap(Cookfs_Writer *w, Tcl_Obj **err) {
 
     if (!Cookfs_PagesLockRead(w->pages, NULL)) {
-        CookfsLog2(printf("failed to lock pages"));
+        CookfsLog(printf("failed to lock pages"));
         SET_ERROR_STR("failed to lock pages");
         return TCL_ERROR;
     };
 
-    CookfsLog2(printf("initialize page map hash tables"));
+    CookfsLog(printf("initialize page map hash tables"));
 
     w->pageMapByPage = (Tcl_HashTable *)ckalloc(sizeof(Tcl_HashTable));
     Tcl_InitHashTable(w->pageMapByPage, TCL_ONE_WORD_KEYS);
@@ -537,7 +532,7 @@ static int Cookfs_WriterInitPageMap(Cookfs_Writer *w, Tcl_Obj **err) {
 
             size = pme->pageOffset;
 
-            CookfsLog2(printf("page %d: found a gap at beggining of page,"
+            CookfsLog(printf("page %d: found a gap at beggining of page,"
                 " size:%d", pme->pageNum, size));
 
             tmp = pme;
@@ -559,7 +554,7 @@ static int Cookfs_WriterInitPageMap(Cookfs_Writer *w, Tcl_Obj **err) {
                 continue;
             }
 
-            CookfsLog2(printf("page %d: found a gap at offset %d, size:%d",
+            CookfsLog(printf("page %d: found a gap at offset %d, size:%d",
                 pme->pageNum, offset, size));
 
             tmp = pme;
@@ -586,7 +581,7 @@ static int Cookfs_WriterInitPageMap(Cookfs_Writer *w, Tcl_Obj **err) {
 
             if (size != 0) {
 
-                CookfsLog2(printf("page %d: found a gap at the end, offset %d,"
+                CookfsLog(printf("page %d: found a gap at the end, offset %d,"
                     " size:%d", pme->pageNum, offset, size));
 
                 tmp = pme;
@@ -602,7 +597,7 @@ static int Cookfs_WriterInitPageMap(Cookfs_Writer *w, Tcl_Obj **err) {
 
     }
 
-    CookfsLog2(printf("return: ok"));
+    CookfsLog(printf("return: ok"));
     return TCL_OK;
 
 }
@@ -611,7 +606,7 @@ static void Cookfs_WriterPageMapInitializePage(Cookfs_Writer *w, int pageNum,
     unsigned char *pageDataBuffer)
 {
 
-    CookfsLog2(printf("initialize hashes on pageNum:%d", pageNum));
+    CookfsLog(printf("initialize hashes on pageNum:%d", pageNum));
 
     // cppcheck-suppress redundantInitialization
     Tcl_HashEntry *hashEntry = Tcl_FindHashEntry(w->pageMapByPage, INT2PTR(pageNum));
@@ -623,7 +618,7 @@ static void Cookfs_WriterPageMapInitializePage(Cookfs_Writer *w, int pageNum,
         Cookfs_MD5(&pageDataBuffer[pme->pageOffset], pme->pageSize, pme->md5);
         pme->is_md5_initialized = 1;
 
-        CookfsLog2(printf("pageOffset:%d pageSize:%d to md5:" PRINTF_MD5_FORMAT,
+        CookfsLog(printf("pageOffset:%d pageSize:%d to md5:" PRINTF_MD5_FORMAT,
             pme->pageOffset, pme->pageSize, PRINTF_MD5_VAR(pme->md5)));
 
     }
@@ -642,20 +637,20 @@ static int Cookfs_WriterCheckDuplicate(Cookfs_Writer *w, void *buffer,
         INT2PTR((int)bufferSize));
 
     if (hashEntry == NULL) {
-        CookfsLog2(printf("return: no files of suitable size"));
+        CookfsLog(printf("return: no files of suitable size"));
         return 0;
     }
 
     unsigned char md5[MD5_DIGEST_SIZE];
     Cookfs_MD5(buffer, (Tcl_Size)bufferSize, md5);
-    CookfsLog2(printf("source file size %" TCL_LL_MODIFIER "d md5:"
+    CookfsLog(printf("source file size %" TCL_LL_MODIFIER "d md5:"
         PRINTF_MD5_FORMAT, bufferSize, PRINTF_MD5_VAR(md5)));
 
     for (Cookfs_WriterPageMapEntry *pme = Tcl_GetHashValue(hashEntry);
         pme != NULL; pme = pme->nextBySize)
     {
 
-        CookfsLog2(printf("check file on pageNum:%d with pageOffset:%d",
+        CookfsLog(printf("check file on pageNum:%d with pageOffset:%d",
             pme->pageNum, pme->pageOffset));
 
         // Here we first try to compare the md5 of the current file with
@@ -676,14 +671,14 @@ static int Cookfs_WriterCheckDuplicate(Cookfs_Writer *w, void *buffer,
 
             // If we have md5 of duplicate candidate, then compare it first
             if (memcmp(md5, pme->md5, MD5_DIGEST_SIZE) != 0) {
-                CookfsLog2(printf("duplicate candidate has different md5 hash"));
+                CookfsLog(printf("duplicate candidate has different md5 hash"));
                 continue;
             }
 
-            CookfsLog2(printf("md5 matches, load the page"));
+            CookfsLog(printf("md5 matches, load the page"));
 
         } else {
-            CookfsLog2(printf("md5 is unknown, load the page"));
+            CookfsLog(printf("md5 is unknown, load the page"));
         }
 
 
@@ -702,12 +697,12 @@ static int Cookfs_WriterCheckDuplicate(Cookfs_Writer *w, void *buffer,
             -1000, NULL);
 
         if (page == NULL) {
-            CookfsLog2(printf("failed to load the page, skip it"));
+            CookfsLog(printf("failed to load the page, skip it"));
             continue;
         }
 
         if (!pme->is_md5_initialized) {
-            CookfsLog2(printf("need to update md5 for the chunks on the page"));
+            CookfsLog(printf("need to update md5 for the chunks on the page"));
             Cookfs_WriterPageMapInitializePage(w, pme->pageNum, page->buf);
         }
 
@@ -717,19 +712,19 @@ static int Cookfs_WriterCheckDuplicate(Cookfs_Writer *w, void *buffer,
         Cookfs_PageObjDecrRefCount(page);
 
         if (cmp == 0) {
-            CookfsLog2(printf("duplicate has been found"));
+            CookfsLog(printf("duplicate has been found"));
             Cookfs_FsindexEntrySetBlock(entry, 0, pme->pageNum, pme->pageOffset,
                 bufferSize);
             rc = 1;
             goto done;
         }
 
-        CookfsLog2(printf("the duplicate candidate doesn't match"
+        CookfsLog(printf("the duplicate candidate doesn't match"
             " the current file"));
 
     }
 
-    CookfsLog2(printf("return: no suitable files"));
+    CookfsLog(printf("return: no suitable files"));
 
 done:
     if (is_pages_locked) {
@@ -743,29 +738,25 @@ static int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w,
     Cookfs_PathObj *pathObj, Tcl_WideInt mtime, void *buffer,
     Tcl_WideInt bufferSize, Tcl_Obj **err)
 {
-    CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: add buf [%p],"
-        " size: %" TCL_LL_MODIFIER "d", buffer, bufferSize));
+    CookfsLog(printf("add buf [%p], size: %" TCL_LL_MODIFIER "d",
+        buffer, bufferSize));
 
-    CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: alloc"
-        " WriterBuffer"));
+    CookfsLog(printf("alloc WriterBuffer"));
     Cookfs_WriterBuffer *wb = Cookfs_WriterWriterBufferAlloc(pathObj, mtime);
     if (wb == NULL) {
-        CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: failed to"
-            " alloc"));
+        CookfsLog(printf("failed to alloc"));
         SET_ERROR_STR("failed to alloc WriterBuffer");
         return TCL_ERROR;
     }
 
-    CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: create an entry"
-        " in fsindex..."));
+    CookfsLog(printf("create an entry in fsindex..."));
     if (!Cookfs_FsindexLockWrite(w->index, err)) {
         Cookfs_WriterWriterBufferFree(wb);
         return TCL_ERROR;
     };
     wb->entry = Cookfs_FsindexSet(w->index, pathObj, 1);
     if (wb->entry == NULL) {
-        CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: failed to create"
-            " the entry"));
+        CookfsLog(printf("failed to create the entry"));
         SET_ERROR_STR("Unable to create entry");
         Cookfs_FsindexUnlock(w->index);
         Cookfs_WriterWriterBufferFree(wb);
@@ -773,8 +764,7 @@ static int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w,
     }
     Cookfs_FsindexEntryLock(wb->entry);
 
-    CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: set fsindex"
-        " entry values"));
+    CookfsLog(printf("set fsindex entry values"));
     Cookfs_FsindexEntrySetFileSize(wb->entry, bufferSize);
     Cookfs_FsindexEntrySetFileTime(wb->entry, mtime);
 
@@ -800,7 +790,7 @@ static int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w,
 #endif /* COOKFS_USECCRYPTO */
         Cookfs_WriterCheckDuplicate(w, buffer, bufferSize, wb->entry))
     {
-        CookfsLog2(printf("return: duplicate has been found"));
+        CookfsLog(printf("return: duplicate has been found"));
         // We must free the buffer, since the caller expects us to own it
         // in case of a successful return.
         ckfree(buffer);
@@ -814,8 +804,7 @@ static int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w,
 
     Cookfs_FsindexUnlock(w->index);
 
-    CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: set WritterBuffer"
-        " values and add to the chain"));
+    CookfsLog(printf("set WritterBuffer values and add to the chain"));
     wb->buffer = buffer;
     wb->bufferSize = bufferSize;
 
@@ -830,10 +819,9 @@ static int Cookfs_WriterAddBufferToSmallFiles(Cookfs_Writer *w,
     w->bufferCount++;
     w->bufferSize += bufferSize;
 
-    CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: currently have"
-        " %d buffers, total size: %" TCL_LL_MODIFIER "d", w->bufferCount,
-        w->bufferSize));
-    CookfsLog(printf("Cookfs_WriterAddBufferToSmallFiles: ok"));
+    CookfsLog(printf("currently have %d buffers, total size: %"
+        TCL_LL_MODIFIER "d", w->bufferCount, w->bufferSize));
+    CookfsLog(printf("ok"));
     return TCL_OK;
 }
 
@@ -841,25 +829,24 @@ static Tcl_WideInt Cookfs_WriterReadChannel(char *buffer,
     Tcl_WideInt bufferSize, Tcl_Channel channel)
 {
 
-    CookfsLog(printf("Cookfs_WriterReadChannel: want to read %" TCL_LL_MODIFIER
-        "d bytes from channel %p", bufferSize, (void *)channel));
+    CookfsLog(printf("want to read %" TCL_LL_MODIFIER "d bytes from"
+        " channel %p", bufferSize, (void *)channel));
 
     Tcl_WideInt readSize = 0;
 
     while (readSize < bufferSize) {
         if (Tcl_Eof(channel)) {
-            CookfsLog(printf("Cookfs_WriterReadChannel: EOF reached"));
+            CookfsLog(printf("EOF reached"));
             break;
         }
-        CookfsLog(printf("Cookfs_WriterReadChannel: read bytes from"
-            " the channel"));
+        CookfsLog(printf("read bytes from the channel"));
         readSize += Tcl_Read(channel, buffer + readSize,
             bufferSize - readSize);
-        CookfsLog(printf("Cookfs_WriterReadChannel: got %" TCL_LL_MODIFIER "d"
-            " bytes from the channel", readSize));
+        CookfsLog(printf("got %" TCL_LL_MODIFIER "d bytes from the channel",
+            readSize));
     }
-    CookfsLog(printf("Cookfs_WriterReadChannel: return %" TCL_LL_MODIFIER "d"
-        " bytes from the channel", readSize));
+    CookfsLog(printf("return %" TCL_LL_MODIFIER "d bytes from the channel",
+        readSize));
 
     return readSize;
 
@@ -867,14 +854,13 @@ static Tcl_WideInt Cookfs_WriterReadChannel(char *buffer,
 
 int Cookfs_WriterRemoveFile(Cookfs_Writer *w, Cookfs_FsindexEntry *entry) {
     Cookfs_WriterWantWrite(w);
-    CookfsLog(printf("Cookfs_WriterRemoveFile: enter"));
+    CookfsLog(printf("enter"));
     Cookfs_WriterBuffer *wbPrev = NULL;
     Cookfs_WriterBuffer *wb = w->bufferFirst;
     while (wb != NULL) {
         if (wb->entry == entry) {
 
-            CookfsLog(printf("Cookfs_WriterRemoveFile: found the buffer"
-                " to remove [%p]", (void *)wb));
+            CookfsLog(printf("found the buffer to remove [%p]", (void *)wb));
             Cookfs_WriterBuffer *next = wb->next;
             if (wbPrev == NULL) {
                 w->bufferFirst = next;
@@ -891,8 +877,8 @@ int Cookfs_WriterRemoveFile(Cookfs_Writer *w, Cookfs_FsindexEntry *entry) {
 
             // Shift block number for the following files and their entries
             while (next != NULL) {
-                CookfsLog(printf("Cookfs_WriterRemoveFile: shift buffer number"
-                    " for buffer [%p]", (void *)next));
+                CookfsLog(printf("shift buffer number for buffer [%p]",
+                    (void *)next));
                 Cookfs_FsindexEntryIncrBlockPageIndex(next->entry, 0, 1);
                 next = next->next;
             }
@@ -902,8 +888,7 @@ int Cookfs_WriterRemoveFile(Cookfs_Writer *w, Cookfs_FsindexEntry *entry) {
         wbPrev = wb;
         wb = wb->next;
     }
-    CookfsLog(printf("Cookfs_WriterRemoveFile: could not find the buffer"
-        " to remove"));
+    CookfsLog(printf("could not find the buffer to remove"));
     return 0;
 }
 
@@ -916,18 +901,16 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
     void *data, Tcl_WideInt dataSize, Tcl_Obj **err)
 {
     Cookfs_WriterWantWrite(w);
-    CookfsLog(printf("Cookfs_WriterAddFile: enter [%p] [%s] size: %"
-        TCL_LL_MODIFIER "d", data,
-        (dataType == COOKFS_WRITER_SOURCE_BUFFER ? "buffer" :
-        (dataType == COOKFS_WRITER_SOURCE_FILE ? "file" :
-        (dataType == COOKFS_WRITER_SOURCE_CHANNEL ? "channel" :
-        (dataType == COOKFS_WRITER_SOURCE_OBJECT ? "object" : "unknown")))),
+    CookfsLog(printf("enter [%p] [%s] size: %" TCL_LL_MODIFIER "d", data,
+        dataType == COOKFS_WRITER_SOURCE_BUFFER ? "buffer" :
+        dataType == COOKFS_WRITER_SOURCE_FILE ? "file" :
+        dataType == COOKFS_WRITER_SOURCE_CHANNEL ? "channel" :
+        dataType == COOKFS_WRITER_SOURCE_OBJECT ? "object" : "unknown",
         dataSize));
 
     // Check if a fatal error has occurred previously
     if (w->fatalError) {
-        CookfsLog(printf("Cookfs_WriterAddFile: ERROR: writer in a fatal"
-            " error state"));
+        CookfsLog(printf("ERROR: writer in a fatal error state"));
         return TCL_ERROR;
     }
 
@@ -947,8 +930,8 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
     // buffer if dataType is COOKFS_WRITER_SOURCE_BUFFER, because our caller
     // expects that buffer is owned by us now.
     if (oldEntry != NULL && Cookfs_FsindexEntryIsInactive(oldEntry)) {
-        CookfsLog(printf("Cookfs_WriterAddFile: dead entry is detected, return"
-            " ok without writing"));
+        CookfsLog(printf("dead entry is detected, return ok without"
+            " writing"));
         if (dataType == COOKFS_WRITER_SOURCE_BUFFER) {
             ckfree(data);
         }
@@ -957,15 +940,13 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
     }
     entry = Cookfs_FsindexGet(w->index, pathObj);
     if (entry != NULL) {
-        CookfsLog(printf("Cookfs_WriterAddFile: an existing entry for the file"
-            " was found"));
+        CookfsLog(printf("an existing entry for the file was found"));
         if (Cookfs_FsindexEntryIsPending(entry)) {
-            CookfsLog(printf("Cookfs_WriterAddFile: the entry is pending,"
-                " remove it from small file buffer"));
+            CookfsLog(printf("the entry is pending, remove it from small"
+                " file buffer"));
             Cookfs_WriterRemoveFile(w, entry);
         } else {
-            CookfsLog(printf("Cookfs_WriterAddFile: the entry is"
-                " not pending"));
+            CookfsLog(printf("the entry is not pending"));
         }
         entry = NULL;
     }
@@ -976,12 +957,12 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
     // i.e. we are going to write the file to pages.
     if (!w->isWriteToMemory) {
         if (w->pageMapByPage == NULL) {
-            CookfsLog2(printf("page map is not initialized"));
+            CookfsLog(printf("page map is not initialized"));
             if (Cookfs_WriterInitPageMap(w, err) != TCL_OK) {
                 return TCL_ERROR;
             }
         } else {
-            CookfsLog2(printf("page map has already been initialized"));
+            CookfsLog(printf("page map has already been initialized"));
         }
     }
 
@@ -997,7 +978,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
 
     case COOKFS_WRITER_SOURCE_FILE:
 
-        CookfsLog(printf("Cookfs_WriterAddFile: alloc statbuf"));
+        CookfsLog(printf("alloc statbuf"));
 
         Tcl_StatBuf *sb = Tcl_AllocStatBuf();
         if (sb == NULL) {
@@ -1005,10 +986,9 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
             return TCL_ERROR;
         }
 
-        CookfsLog(printf("Cookfs_WriterAddFile: get file stat for [%s]",
-            Tcl_GetString(DATA_FILE)));
+        CookfsLog(printf("get file stat for [%s]", Tcl_GetString(DATA_FILE)));
         if (Tcl_FSStat(DATA_FILE, sb) != TCL_OK) {
-            CookfsLog(printf("Cookfs_WriterAddFile: failed, return error"));
+            CookfsLog(printf("failed, return error"));
             ckfree(sb);
             SET_ERROR_STR("could get stat for the file");
             return TCL_ERROR;
@@ -1016,22 +996,22 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
 
         if (dataSize < 0) {
             dataSize = Tcl_GetSizeFromStat(sb);
-            CookfsLog(printf("Cookfs_WriterAddFile: got file size: %"
-                TCL_LL_MODIFIER "d", dataSize));
+            CookfsLog(printf("got file size: %" TCL_LL_MODIFIER "d",
+                dataSize));
         } else {
-            CookfsLog(printf("Cookfs_WriterAddFile: use specified size"));
+            CookfsLog(printf("use specified size"));
         }
 
         mtime = Tcl_GetModificationTimeFromStat(sb);
-        CookfsLog(printf("Cookfs_WriterAddFile: got mtime from the file: %"
-            TCL_LL_MODIFIER "d", mtime));
+        CookfsLog(printf("got mtime from the file: %" TCL_LL_MODIFIER "d",
+            mtime));
 
         ckfree(sb);
 
-        CookfsLog(printf("Cookfs_WriterAddFile: open the file"));
+        CookfsLog(printf("open the file"));
         data = (void *)Tcl_FSOpenFileChannel(NULL, DATA_FILE, "rb", 0);
         if (data == NULL) {
-            CookfsLog(printf("Cookfs_WriterAddFile: failed to open the file"));
+            CookfsLog(printf("failed to open the file"));
             SET_ERROR_STR("could not open the file");
             return TCL_ERROR;
         }
@@ -1044,15 +1024,14 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
     case COOKFS_WRITER_SOURCE_CHANNEL:
 
         if (dataSize < 0) {
-            CookfsLog(printf("Cookfs_WriterAddFile: get datasize from"
-                " the channel"));
+            CookfsLog(printf("get datasize from the channel"));
             Tcl_WideInt pos = Tcl_Tell(DATA_CHANNEL);
             dataSize = Tcl_Seek(DATA_CHANNEL, 0, SEEK_END);
             Tcl_Seek(DATA_CHANNEL, pos, SEEK_SET);
-            CookfsLog(printf("Cookfs_WriterAddFile: got data size: %"
-                TCL_LL_MODIFIER "d", dataSize));
+            CookfsLog(printf("got data size: %" TCL_LL_MODIFIER "d",
+                dataSize));
         } else {
-            CookfsLog(printf("Cookfs_WriterAddFile: use specified size"));
+            CookfsLog(printf("use specified size"));
         }
 
         Tcl_DStringInit(&chanTranslation);
@@ -1070,18 +1049,16 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
         data = (void *)Tcl_GetByteArrayFromObj(DATA_OBJECT, &length);
 
         if (dataSize < 0) {
-            CookfsLog(printf("Cookfs_WriterAddFile: get datasize from"
-                " the object"));
+            CookfsLog(printf("get datasize from the object"));
             dataSize = length;
-            CookfsLog(printf("Cookfs_WriterAddFile: got data size: %"
-                TCL_LL_MODIFIER "d", dataSize));
+            CookfsLog(printf("got data size: %" TCL_LL_MODIFIER "d",
+                dataSize));
         } else if (dataSize > length) {
             dataSize = length;
-            CookfsLog(printf("Cookfs_WriterAddFile: WARNING: data size was"
-                " corrected to %" TCL_LL_MODIFIER "d avoid overflow",
-                dataSize));
+            CookfsLog(printf("WARNING: data size was corrected to %"
+                TCL_LL_MODIFIER "d avoid overflow", dataSize));
         } else {
-            CookfsLog(printf("Cookfs_WriterAddFile: use specified size"));
+            CookfsLog(printf("use specified size"));
         }
 
         break;
@@ -1091,8 +1068,8 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
         Tcl_Time now;
         Tcl_GetTime(&now);
         mtime = now.sec;
-        CookfsLog(printf("Cookfs_WriterAddFile: use current time for"
-            " mtime: %" TCL_LL_MODIFIER "d", mtime));
+        CookfsLog(printf("use current time for mtime: %" TCL_LL_MODIFIER "d",
+            mtime));
     }
 
     // If the file is empty, then just add it to the index and skip
@@ -1105,12 +1082,11 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
             entry = NULL;
             goto error;
         };
-        CookfsLog(printf("Cookfs_WriterAddFile: create an entry"
-            " in fsindex for empty file with 1 block..."));
+        CookfsLog(printf("create an entry in fsindex for empty file with"
+            " 1 block..."));
         entry = Cookfs_FsindexSet(w->index, pathObj, 1);
         if (entry == NULL) {
-            CookfsLog(printf("Cookfs_WriterAddFile: failed to create"
-                " the entry"));
+            CookfsLog(printf("failed to create the entry"));
             SET_ERROR_STR("Unable to create entry");
             goto error;
         }
@@ -1127,34 +1103,29 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
         w->isWriteToMemory)
     {
 
-        CookfsLog(printf("Cookfs_WriterAddFile: write file to small file"
-            " buffer"));
+        CookfsLog(printf("write file to small file buffer"));
 
         if (dataType != COOKFS_WRITER_SOURCE_BUFFER) {
 
-            CookfsLog(printf("Cookfs_WriterAddFile: alloc buffer"));
+            CookfsLog(printf("alloc buffer"));
             readBuffer = ckalloc(dataSize);
             if (readBuffer == NULL) {
-                CookfsLog(printf("Cookfs_WriterAddFile: failed to alloc"
-                    " buffer"));
+                CookfsLog(printf("failed to alloc buffer"));
                 SET_ERROR_STR("failed to alloc buffer");
                 goto error;
             }
 
             if (dataType == COOKFS_WRITER_SOURCE_OBJECT) {
-                CookfsLog(printf("Cookfs_WriterAddFile: copy object's bytes"
-                    " to the buffer"));
+                CookfsLog(printf("copy object's bytes to the buffer"));
                 memcpy(readBuffer, data, dataSize);
             } else {
 
-                CookfsLog(printf("Cookfs_WriterAddFile: read bytes from"
-                    " the channel"));
+                CookfsLog(printf("read bytes from the channel"));
                 Tcl_WideInt readSize = Cookfs_WriterReadChannel(
                     (char *)readBuffer, dataSize, DATA_CHANNEL);
 
                 if (readSize < dataSize) {
-                    CookfsLog(printf("Cookfs_WriterAddFile: ERROR: got less"
-                        " bytes than required"));
+                    CookfsLog(printf("ERROR: got less bytes than required"));
                     SET_ERROR_STR("could not read specified amount of bytes"
                         " from the file");
                     goto error;
@@ -1164,7 +1135,7 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
 
         }
 
-        CookfsLog(printf("Cookfs_WriterAddFile: add to small file buf..."));
+        CookfsLog(printf("add to small file buf..."));
         int ret = Cookfs_WriterAddBufferToSmallFiles(w, pathObj, mtime,
             (dataType == COOKFS_WRITER_SOURCE_BUFFER ? data : readBuffer),
             dataSize, err);
@@ -1177,23 +1148,23 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
         readBuffer = NULL;
 
         if (!w->isWriteToMemory && (w->bufferSize >= w->maxBufferSize)) {
-            CookfsLog(printf("Cookfs_WriterAddFile: need to purge"));
+            CookfsLog(printf("need to purge"));
             result = Cookfs_WriterPurge(w, 1, err);
         } else {
-            CookfsLog(printf("Cookfs_WriterAddFile: no need to purge"));
+            CookfsLog(printf("no need to purge"));
         }
 
     } else {
 
-        CookfsLog(printf("Cookfs_WriterAddFile: write big file"));
+        CookfsLog(printf("write big file"));
 
         if (dataType == COOKFS_WRITER_SOURCE_CHANNEL ||
             dataType == COOKFS_WRITER_SOURCE_FILE)
         {
-            CookfsLog(printf("Cookfs_WriterAddFile: alloc page buffer"));
+            CookfsLog(printf("alloc page buffer"));
             readBuffer = ckalloc(w->pageSize);
             if (readBuffer == NULL) {
-                CookfsLog(printf("Cookfs_WriterAddFile: failed to alloc"));
+                CookfsLog(printf("failed to alloc"));
                 SET_ERROR_STR("failed to alloc buffer");
                 goto error;
             }
@@ -1212,12 +1183,11 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
             entry = NULL;
             goto error;
         };
-        CookfsLog(printf("Cookfs_WriterAddFile: create an entry"
-            " in fsindex with %d blocks...", numBlocks));
+        CookfsLog(printf("create an entry in fsindex with %d blocks...",
+            numBlocks));
         entry = Cookfs_FsindexSet(w->index, pathObj, numBlocks);
         if (entry == NULL) {
-            CookfsLog(printf("Cookfs_WriterAddFile: failed to create"
-                " the entry"));
+            CookfsLog(printf("failed to create the entry"));
             SET_ERROR_STR("Unable to create entry");
             goto error;
         }
@@ -1235,20 +1205,18 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
             Tcl_WideInt bytesToWrite = (bytesLeft > w->pageSize ?
                 w->pageSize : bytesLeft);
 
-            CookfsLog(printf("Cookfs_WriterAddFile: want to write %"
-                TCL_LL_MODIFIER "d bytes...", bytesToWrite));
+            CookfsLog(printf("want to write %" TCL_LL_MODIFIER "d bytes...",
+                bytesToWrite));
 
             if (dataType == COOKFS_WRITER_SOURCE_CHANNEL ||
                 dataType == COOKFS_WRITER_SOURCE_FILE)
             {
-                CookfsLog(printf("Cookfs_WriterAddFile: read bytes from"
-                    " the channel"));
+                CookfsLog(printf("read bytes from the channel"));
                 Tcl_WideInt readSize = Cookfs_WriterReadChannel(
                     (char *)readBuffer, bytesToWrite, DATA_CHANNEL);
 
                 if (readSize < bytesToWrite) {
-                    CookfsLog(printf("Cookfs_WriterAddFile: ERROR: got less"
-                        " bytes than required"));
+                    CookfsLog(printf("ERROR: got less bytes than required"));
                     SET_ERROR_STR("could not read specified amount of bytes"
                         " from the file");
                     goto error;
@@ -1259,12 +1227,12 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
             if (!Cookfs_PagesLockWrite(w->pages, err)) {
                 goto error;
             };
-            CookfsLog(printf("Cookfs_WriterAddFile: add page..."));
+            CookfsLog(printf("add page..."));
             Tcl_Obj *pgerr = NULL;
             int block = Cookfs_PageAddRaw(w->pages,
                 (readBuffer == NULL ?
                 (char *)data + currentOffset : readBuffer), bytesToWrite, &pgerr);
-            CookfsLog(printf("Cookfs_WriterAddFile: got block index: %d", block));
+            CookfsLog(printf("got block index: %d", block));
             Cookfs_PagesUnlock(w->pages);
 
             if (block < 0) {
@@ -1284,8 +1252,8 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
                 entry = NULL;
                 goto error;
             };
-            CookfsLog(printf("Cookfs_WriterAddFile: update block number %d"
-                " of fsindex entry...", currentBlockNumber));
+            CookfsLog(printf("update block number %d of fsindex entry...",
+                currentBlockNumber));
             Cookfs_FsindexEntrySetBlock(entry, currentBlockNumber, block, 0,
                 bytesToWrite);
             Cookfs_FsindexUnlock(w->index);
@@ -1318,13 +1286,13 @@ error:
 done:
 
     if (readBuffer != NULL) {
-        CookfsLog(printf("Cookfs_WriterAddFile: free readBuffer"));
+        CookfsLog(printf("free readBuffer"));
         ckfree(readBuffer);
     }
 
     // Unset entry for the file if an error occurred while adding it
     if (entry != NULL) {
-        CookfsLog(printf("Cookfs_WriterAddFile: unset fsindex entry"));
+        CookfsLog(printf("unset fsindex entry"));
         if (Cookfs_FsindexLockWrite(w->index, err)) {
             Cookfs_FsindexEntryUnlock(entry);
             Cookfs_FsindexUnset(w->index, pathObj);
@@ -1333,8 +1301,7 @@ done:
     }
 
     if (dataType == COOKFS_WRITER_SOURCE_CHANNEL) {
-        CookfsLog(printf("Cookfs_WriterAddFile: restore chan"
-            " translation/encoding"));
+        CookfsLog(printf("restore chan translation/encoding"));
         Tcl_SetChannelOption(NULL, DATA_CHANNEL, "-translation",
             Tcl_DStringValue(&chanTranslation));
         Tcl_DStringFree(&chanTranslation);
@@ -1342,14 +1309,14 @@ done:
             Tcl_DStringValue(&chanEncoding));
         Tcl_DStringFree(&chanEncoding);
     } else if (dataType == COOKFS_WRITER_SOURCE_FILE) {
-        CookfsLog(printf("Cookfs_WriterAddFile: close channel"));
+        CookfsLog(printf("close channel"));
         Tcl_Close(NULL, DATA_CHANNEL);
     }
 
     if (result == TCL_ERROR) {
-        CookfsLog(printf("Cookfs_WriterAddFile: return ERROR"));
+        CookfsLog(printf("return ERROR"));
     } else {
-        CookfsLog(printf("Cookfs_WriterAddFile: ok"));
+        CookfsLog(printf("ok"));
     }
 
     return result;
@@ -1374,9 +1341,9 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err) {
 
     Cookfs_WriterWantWrite(w);
 
-    CookfsLog(printf("Cookfs_WriterPurge: enter [%p]", (void *)w));
+    CookfsLog(printf("enter [%p]", (void *)w));
     if (w->bufferCount == 0) {
-        CookfsLog(printf("Cookfs_WriterPurge: nothing to purge"));
+        CookfsLog(printf("nothing to purge"));
         return TCL_OK;
     }
 
@@ -1413,12 +1380,11 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err) {
     // To solve this problem, we will check the buffers and if they are
     // identical, then we will use the same sort key for those buffers.
 
-    CookfsLog(printf("Cookfs_WriterPurge: have total %d entries",
-        w->bufferCount));
+    CookfsLog(printf("have total %d entries", w->bufferCount));
     // Create array for all our entries
     sortedWB = ckalloc(w->bufferCount * sizeof(Cookfs_WriterBuffer *));
     if (sortedWB == NULL) {
-        CookfsLog(printf("Cookfs_WriterPurge: unable to alloc sortedWB"));
+        CookfsLog(printf("unable to alloc sortedWB"));
         SET_ERROR_STR("failed to alloc sortedWB");
         goto fatalError;
     }
@@ -1426,9 +1392,8 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err) {
     // Fill the buffer
     for (i = 0, wb = w->bufferFirst; wb != NULL; i++, wb = wb->next) {
 
-        CookfsLog(printf("Cookfs_WriterPurge: add buffer [%p] size %"
-            TCL_LL_MODIFIER "d to sort buffer at #%d", (void *)wb->buffer,
-            wb->bufferSize, i));
+        CookfsLog(printf("add buffer [%p] size %" TCL_LL_MODIFIER "d to"
+            " sort buffer at #%d", (void *)wb->buffer, wb->bufferSize, i));
         sortedWB[i] = wb;
 
         // If we have less than 3 buffers, then we will not sort them
@@ -1455,15 +1420,13 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err) {
                 // activity related to finding duplicates.
                 // See: Cookfs_WriterCheckDuplicate()
                 //
-                // CookfsLog(printf("Cookfs_WriterPurge: check if [%p] equals"
-                //     " to [%p]", (void *)wb->buffer,
-                //     (void *)wbc->buffer));
+                // CookfsLog(printf("check if [%p] equals to [%p]",
+                //     (void *)wb->buffer, (void *)wbc->buffer));
                 if ((wb->bufferSize == wbc->bufferSize)
                     && memcmp(wb->buffer, wbc->buffer, wb->bufferSize) == 0)
                 {
                     // We found the same buffer
-                    CookfsLog(printf("Cookfs_WriterPurge: the same buffer"
-                        " has been found"));
+                    CookfsLog(printf("the same buffer has been found"));
                     // Let's use its sort key
                     wb->sortKey = wbc->sortKey;
                     Cookfs_PathObjIncrRefCount(wb->sortKey);
@@ -1502,9 +1465,8 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err) {
                 (dotPosition - wb->pathObj->tailName);
         }
 
-        CookfsLog(printf("Cookfs_WriterPurge: generated the sort key"
-            " [%s]+[%s]+[%s]", wb->sortKeyExt, wb->pathObj->tailName,
-            wb->pathObj->fullName));
+        CookfsLog(printf("generated the sort key [%s]+[%s]+[%s]",
+            wb->sortKeyExt, wb->pathObj->tailName, wb->pathObj->fullName));
 
     }
 
@@ -1515,7 +1477,7 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err) {
     // If we have more than 2 buffers, then sort them
     if (w->bufferCount > 2) {
         CookfsLog( \
-            printf("Cookfs_WriterPurge: == entries ===========> \n"); \
+            printf("== entries ===========> \n"); \
             for (i = 0; i < w->bufferCount; i++) { \
                 printf("Cookfs_WriterPurge: %p [%s]+[%s]+[%s]\n", \
                     (void *)sortedWB[i]->buffer, \
@@ -1525,11 +1487,11 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err) {
             }; \
             printf("Cookfs_WriterPurge: <======================")
         );
-        CookfsLog(printf("Cookfs_WriterPurge: sort buffers..."));
+        CookfsLog(printf("sort buffers..."));
         qsort(sortedWB, w->bufferCount, sizeof(Cookfs_WriterBuffer *),
             Cookfs_WriterPurgeSortFunc);
         CookfsLog( \
-            printf("Cookfs_WriterPurge: == entries ===========> \n"); \
+            printf("== entries ===========> \n"); \
             for (i = 0; i < w->bufferCount; i++) { \
                 printf("Cookfs_WriterPurge: %p [%s]+[%s]+[%s]\n", \
                     (void *)sortedWB[i]->buffer, \
@@ -1540,14 +1502,13 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err) {
             printf("Cookfs_WriterPurge: <======================")
         );
     } else {
-        CookfsLog(printf("Cookfs_WriterPurge: no need to sort buffers"));
+        CookfsLog(printf("no need to sort buffers"));
     }
 
     // If our small buffer has fewer bytes than the page size, we will
     // allocate in the page buffer only what is needed to store all
     // the small buffer files.
-    CookfsLog(printf("Cookfs_WriterPurge: alloc page buffer for %"
-        TCL_LL_MODIFIER "d bytes",
+    CookfsLog(printf("alloc page buffer for %" TCL_LL_MODIFIER "d bytes",
         w->bufferSize < w->pageSize ? w->bufferSize : w->pageSize));
 
     pageBuffer = ckalloc(w->bufferSize < w->pageSize ?
@@ -1562,9 +1523,8 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err) {
         wb = sortedWB[bufferIdx];
         while (1) {
 
-            CookfsLog(printf("Cookfs_WriterPurge: add buffer [%p] size %"
-                TCL_LL_MODIFIER "d to page buffer", (void *)wb->buffer,
-                wb->bufferSize));
+            CookfsLog(printf("add buffer [%p] size %" TCL_LL_MODIFIER "d to"
+                " page buffer", (void *)wb->buffer, wb->bufferSize));
 
             // Check to see if the exact same block has already been added
             // before
@@ -1574,9 +1534,8 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err) {
                 if ((wb->bufferSize == prevWB->bufferSize)
                     && memcmp(wb->buffer, prevWB->buffer, wb->bufferSize) == 0)
                 {
-                    CookfsLog(printf("Cookfs_WriterPurge: this buffer is equal"
-                        " to the previous buffer [%p]",
-                        (void *)prevWB->buffer));
+                    CookfsLog(printf("this buffer is equal to the previous"
+                        " buffer [%p]", (void *)prevWB->buffer));
                     // Copy block-offset from the equal buffer
                     wb->pageBlock = prevWB->pageBlock;
                     wb->pageOffset = prevWB->pageOffset;
@@ -1584,9 +1543,8 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err) {
                 }
                 // We don't need the previous buffer and free it now
                 // to optimize memory usage.
-                CookfsLog(printf("Cookfs_WriterPurge: free data from"
-                    " the previous buffer [%p] as it is no longer needed",
-                    (void *)prevWB->buffer));
+                CookfsLog(printf("free data from the previous buffer [%p]"
+                    " as it is no longer needed", (void *)prevWB->buffer));
                 ckfree(prevWB->buffer);
                 prevWB->buffer = NULL;
                 prevWB->bufferSize = 0;
@@ -1607,15 +1565,13 @@ int Cookfs_WriterPurge(Cookfs_Writer *w, int lockIndex, Tcl_Obj **err) {
 next:
 
             if (++bufferIdx >= w->bufferCount) {
-                CookfsLog(printf("Cookfs_WriterPurge: reached the end of"
-                    " buffers"));
+                CookfsLog(printf("reached the end of buffers"));
                 break;
             }
             wb = sortedWB[bufferIdx];
             if ((pageBufferSize + wb->bufferSize) > w->pageSize) {
-                CookfsLog(printf("Cookfs_WriterPurge: the next buffer will"
-                    " cause a page buffer overflow, the page buffer must"
-                    " be flushed"));
+                CookfsLog(printf("the next buffer will cause a page buffer"
+                    " overflow, the page buffer must be flushed"));
                 break;
             }
 
@@ -1625,15 +1581,14 @@ next:
 
         // Try to add page if we need to save something from pageBuffer
         if (pageBufferSize) {
-            CookfsLog(printf("Cookfs_WriterPurge: add page..."));
+            CookfsLog(printf("add page..."));
             if (!Cookfs_PagesLockWrite(w->pages, err)) {
                 goto fatalError;
             };
             Tcl_Obj *pgerr = NULL;
             pageBlock = Cookfs_PageAddRaw(w->pages, pageBuffer, pageBufferSize,
                 &pgerr);
-            CookfsLog(printf("Cookfs_WriterPurge: got block index: %d",
-                pageBlock));
+            CookfsLog(printf("got block index: %d", pageBlock));
             Cookfs_PagesUnlock(w->pages);
 
             if (pageBlock < 0) {
@@ -1655,8 +1610,7 @@ next:
         // The second state. Update entries in fsindex. The bufferIdx variable
         // corresponds to the last not saved buffer.
 
-        CookfsLog(printf("Cookfs_WriterPurge: modify %d files",
-            bufferIdx - firstBufferIdx));
+        CookfsLog(printf("modify %d files", bufferIdx - firstBufferIdx));
         if (lockIndex && !Cookfs_FsindexLockWrite(w->index, err)) {
             goto fatalError;
         };
@@ -1681,9 +1635,9 @@ next:
             }
 
             // Update entry
-            CookfsLog(printf("Cookfs_WriterPurge: update fsindex entry for"
-                " buffer %p: pageBlock:%d pageOffset:%d", (void *)wb,
-                wb->pageBlock, wb->pageOffset));
+            CookfsLog(printf("update fsindex entry for buffer:%p"
+                " pageBlock:%d pageOffset:%d", (void *)wb, wb->pageBlock,
+                wb->pageOffset));
 
             Cookfs_FsindexEntrySetBlock(wb->entry, 0, wb->pageBlock,
                 wb->pageOffset, -1);
@@ -1704,7 +1658,7 @@ next:
 skipAll:
 
     // Cleanup small file buffer
-    CookfsLog(printf("Cookfs_WriterPurge: cleanup small file buffer"));
+    CookfsLog(printf("cleanup small file buffer"));
     for (i = 0; i < w->bufferCount; i++) {
         Cookfs_WriterWriterBufferFree(sortedWB[i]);
     }
@@ -1718,26 +1672,26 @@ skipAll:
 
 fatalError:
 
-    CookfsLog(printf("Cookfs_WriterPurge: !!! SET FATAL ERROR STATE !!!"));
+    CookfsLog(printf("!!! SET FATAL ERROR STATE !!!"));
     w->fatalError = 1;
     result = TCL_ERROR;
 
 done:
 
     if (sortedWB != NULL) {
-        CookfsLog(printf("Cookfs_WriterPurge: free sortedWB"));
+        CookfsLog(printf("free sortedWB"));
         ckfree(sortedWB);
     }
 
     if (pageBuffer != NULL) {
-        CookfsLog(printf("Cookfs_WriterPurge: free pageBuffer"));
+        CookfsLog(printf("free pageBuffer"));
         ckfree(pageBuffer);
     }
 
     if (result == TCL_ERROR) {
-        CookfsLog(printf("Cookfs_WriterPurge: return ERROR"));
+        CookfsLog(printf("return ERROR"));
     } else {
-        CookfsLog(printf("Cookfs_WriterPurge: ok"));
+        CookfsLog(printf("ok"));
     }
 
     return result;
@@ -1748,14 +1702,13 @@ const void *Cookfs_WriterGetBuffer(Cookfs_Writer *w, int blockNumber,
 {
     Cookfs_WriterWantRead(w);
 
-    CookfsLog(printf("Cookfs_WriterGetBuffer: enter [%p] block: %d",
-        (void *)w, blockNumber));
+    CookfsLog(printf("enter [%p] block: %d", (void *)w, blockNumber));
 
     if (blockNumber < 0) {
         blockNumber = -blockNumber - 1;
     }
-    CookfsLog(printf("Cookfs_WriterGetBuffer: real block number: %d;"
-        " current number of blocks: %d", blockNumber, w->bufferCount));
+    CookfsLog(printf("real block number: %d; current number of blocks: %d",
+        blockNumber, w->bufferCount));
 
     Cookfs_WriterBuffer *wb = w->bufferFirst;
     while (blockNumber && wb != NULL) {
@@ -1764,14 +1717,12 @@ const void *Cookfs_WriterGetBuffer(Cookfs_Writer *w, int blockNumber,
     }
 
     if (wb == NULL) {
-        CookfsLog(printf("Cookfs_WriterGetBuffer: ERROR: block number"
-            " is incorrect"));
+        CookfsLog(printf("ERROR: block number is incorrect"));
         return NULL;
     }
 
-    CookfsLog(printf("Cookfs_WriterGetBuffer: the block has been found [%p]"
-        " data [%p] size [%" TCL_LL_MODIFIER "d]", (void *)wb,
-        (void *)wb->buffer, wb->bufferSize));
+    CookfsLog(printf("the block has been found [%p] data [%p] size [%"
+        TCL_LL_MODIFIER "d]", (void *)wb, (void *)wb->buffer, wb->bufferSize));
 
     *blockSize = wb->bufferSize;
     return wb->buffer;
@@ -1779,18 +1730,16 @@ const void *Cookfs_WriterGetBuffer(Cookfs_Writer *w, int blockNumber,
 
 Tcl_Obj *Cookfs_WriterGetBufferObj(Cookfs_Writer *w, int blockNumber)
 {
-    CookfsLog(printf("Cookfs_WriterGetBufferObj: enter [%p] block: %d",
-        (void *)w, blockNumber));
+    CookfsLog(printf("enter [%p] block: %d", (void *)w, blockNumber));
 
     Tcl_WideInt blockSize;
     const void *blockData = Cookfs_WriterGetBuffer(w, blockNumber, &blockSize);
     if (blockData == NULL) {
-        CookfsLog(printf("Cookfs_WriterGetBufferObj: ERROR: block number"
-            " is incorrect"));
+        CookfsLog(printf("ERROR: block number is incorrect"));
         return NULL;
     }
     Tcl_Obj *rc = Tcl_NewByteArrayObj(blockData, blockSize);
-    CookfsLog(printf("Cookfs_WriterGetBuffer: return obj [%p]", (void *)rc));
+    CookfsLog(printf("return obj [%p]", (void *)rc));
     return rc;
 }
 
@@ -1812,10 +1761,10 @@ Tcl_WideInt Cookfs_WriterGetSmallfilebuffersize(Cookfs_Writer *w) {
 
 Cookfs_Writer *Cookfs_WriterGetHandle(Tcl_Interp *interp, const char *cmdName) {
     Tcl_CmdInfo cmdInfo;
-    CookfsLog(printf("Cookfs_WriterGetHandle: get handle from cmd [%s]", cmdName));
+    CookfsLog(printf("get handle from cmd [%s]", cmdName));
     if (!Tcl_GetCommandInfo(interp, cmdName, &cmdInfo)) {
         return NULL;
     }
-    CookfsLog(printf("Cookfs_WriterGetHandle: return [%p]", cmdInfo.objClientData));
+    CookfsLog(printf("return [%p]", cmdInfo.objClientData));
     return (Cookfs_Writer *)(cmdInfo.objClientData);
 }

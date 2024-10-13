@@ -17,13 +17,13 @@ int CookfsReadPageCustom(Cookfs_Pages *p, unsigned char *dataCompressed,
     Tcl_Size sizeUncompressed, Tcl_Obj **err)
 {
 
-    CookfsLog2(printf("input buffer %p (%" TCL_SIZE_MODIFIER "d bytes) ->"
+    CookfsLog(printf("input buffer %p (%" TCL_SIZE_MODIFIER "d bytes) ->"
         " output buffer %p (%" TCL_SIZE_MODIFIER "d bytes)",
         (void *)dataCompressed, sizeCompressed,
         (void *)dataUncompressed, sizeUncompressed));
 
     if (p->decompressCommandPtr == NULL) {
-        CookfsLog2(printf("ERROR: No decompresscommand specified"));
+        CookfsLog(printf("ERROR: No decompresscommand specified"));
         SET_ERROR_STR("No decompresscommand specified");
         return TCL_ERROR;
     }
@@ -33,10 +33,10 @@ int CookfsReadPageCustom(Cookfs_Pages *p, unsigned char *dataCompressed,
     Tcl_Obj *sourceObj = Tcl_NewByteArrayObj(dataCompressed, sizeCompressed);
     Tcl_IncrRefCount(sourceObj);
 
-    CookfsLog2(printf("p = %p", (void *)p));
+    CookfsLog(printf("p = %p", (void *)p));
     p->decompressCommandPtr[p->decompressCommandLen - 1] = sourceObj;
 
-    CookfsLog2(printf("call custom decompression command ..."));
+    CookfsLog(printf("call custom decompression command ..."));
     res = Tcl_EvalObjv(p->interp, p->decompressCommandLen,
         p->decompressCommandPtr, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
 
@@ -44,7 +44,7 @@ int CookfsReadPageCustom(Cookfs_Pages *p, unsigned char *dataCompressed,
     Tcl_DecrRefCount(sourceObj);
 
     if (res != TCL_OK) {
-        CookfsLog2(printf("return: ERROR"));
+        CookfsLog(printf("return: ERROR"));
         return TCL_ERROR;
     }
 
@@ -56,17 +56,17 @@ int CookfsReadPageCustom(Cookfs_Pages *p, unsigned char *dataCompressed,
     unsigned char *destStr = Tcl_GetByteArrayFromObj(destObj, &destObjSize);
 
     if (destObjSize != sizeUncompressed) {
-        CookfsLog2(printf("ERROR: result size doesn't match original size"));
+        CookfsLog(printf("ERROR: result size doesn't match original size"));
         Tcl_DecrRefCount(destObj);
         return TCL_ERROR;
     }
 
-    CookfsLog2(printf("copy data to the output buffer"));
+    CookfsLog(printf("copy data to the output buffer"));
     memcpy(dataUncompressed, destStr, destObjSize);
 
     Tcl_DecrRefCount(destObj);
 
-    CookfsLog2(printf("return: ok"));
+    CookfsLog(printf("return: ok"));
     return TCL_OK;
 
 }
@@ -75,11 +75,11 @@ Cookfs_PageObj CookfsWritePageCustom(Cookfs_Pages *p, unsigned char *bytes,
     Tcl_Size origSize)
 {
 
-    CookfsLog2(printf("want to compress %" TCL_SIZE_MODIFIER "d bytes",
+    CookfsLog(printf("want to compress %" TCL_SIZE_MODIFIER "d bytes",
         origSize));
 
     if (p->compressCommandPtr == NULL) {
-        CookfsLog2(printf("ERROR: No compresscommand specified"));
+        CookfsLog(printf("ERROR: No compresscommand specified"));
         return NULL;
     }
 
@@ -89,7 +89,7 @@ Cookfs_PageObj CookfsWritePageCustom(Cookfs_Pages *p, unsigned char *bytes,
     Tcl_IncrRefCount(inputData);
 
     p->compressCommandPtr[p->compressCommandLen - 1] = inputData;
-    CookfsLog2(printf("call custom compression command ..."));
+    CookfsLog(printf("call custom compression command ..."));
     res = Tcl_EvalObjv(p->interp, p->compressCommandLen, p->compressCommandPtr,
         TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
 
@@ -97,7 +97,7 @@ Cookfs_PageObj CookfsWritePageCustom(Cookfs_Pages *p, unsigned char *bytes,
     Tcl_DecrRefCount(inputData);
 
     if (res != TCL_OK) {
-        CookfsLog2(printf("return: ERROR"));
+        CookfsLog(printf("return: ERROR"));
         return NULL;
     }
 
@@ -108,11 +108,11 @@ Cookfs_PageObj CookfsWritePageCustom(Cookfs_Pages *p, unsigned char *bytes,
     Cookfs_PageObj rc = Cookfs_PageObjNewFromByteArray(outputObj);
     Tcl_DecrRefCount(outputObj);
     if (rc == NULL) {
-        CookfsLog2(printf("return: ERROR (failed to alloc)"));
+        CookfsLog(printf("return: ERROR (failed to alloc)"));
         return NULL;
     }
 
-    CookfsLog2(printf("got encoded size: %" TCL_SIZE_MODIFIER "d",
+    CookfsLog(printf("got encoded size: %" TCL_SIZE_MODIFIER "d",
         Cookfs_PageObjSize(rc)));
 
     return rc;

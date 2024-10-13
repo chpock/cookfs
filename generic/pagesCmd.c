@@ -67,12 +67,12 @@ int Cookfs_InitPagesCmd(Tcl_Interp *interp) {
 
 Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, void *p) {
     if (p == NULL) {
-        CookfsLog(printf("CookfsGetPagesObjectCmd: return NULL"));
+        CookfsLog(printf("return NULL"));
         return NULL;
     }
     Cookfs_Pages *pages = (Cookfs_Pages *)p;
-    CookfsLog(printf("CookfsGetPagesObjectCmd: enter interp:%p my interp:%p",
-        (void *)interp, (void *)pages->interp));
+    CookfsLog(printf("enter interp:%p my interp:%p", (void *)interp,
+        (void *)pages->interp));
     CookfsRegisterExistingPagesObjectCmd(pages->interp, pages);
     Tcl_Obj *rc = Tcl_NewObj();
     Tcl_GetCommandFullName(pages->interp, pages->commandToken, rc);
@@ -81,14 +81,13 @@ Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, void *p) {
     }
     const char *cmd = Tcl_GetString(rc);
     if (Tcl_GetAliasObj(interp, cmd, NULL, NULL, NULL, NULL) == TCL_OK) {
-        CookfsLog(printf("CookfsGetPagesObjectCmd: alias already exists"));
+        CookfsLog(printf("alias already exists"));
         goto done;
     }
-    CookfsLog(printf("CookfsGetPagesObjectCmd: create interp alias"));
+    CookfsLog(printf("create interp alias"));
     Tcl_CreateAlias(interp, cmd, pages->interp, cmd, 0, NULL);
 done:
-    CookfsLog(printf("CookfsGetPagesObjectCmd: return [%s]",
-        Tcl_GetString(rc)));
+    CookfsLog(printf("return [%s]", Tcl_GetString(rc)));
     return rc;
 }
 

@@ -109,7 +109,7 @@ void Cookfs_PgIndexSetCompression(Cookfs_PgIndex *pgi, int num,
 {
     assert(num >= 0 && num < pgi->pagesCount);
     Cookfs_PgIndexEntry *pge = pgi->data + num;
-    CookfsLog2(printf("page#%d: set compression %d, compression level %d",
+    CookfsLog(printf("page#%d: set compression %d, compression level %d",
         num, compression, compressionLevel));
     pge->compression = compression;
     pge->compressionLevel = compressionLevel;
@@ -118,7 +118,7 @@ void Cookfs_PgIndexSetCompression(Cookfs_PgIndex *pgi, int num,
 void Cookfs_PgIndexSetEncryption(Cookfs_PgIndex *pgi, int num, int encryption) {
     assert(num >= 0 && num < pgi->pagesCount);
     Cookfs_PgIndexEntry *pge = pgi->data + num;
-    CookfsLog2(printf("page#%d: set encryption %d", num, encryption));
+    CookfsLog(printf("page#%d: set encryption %d", num, encryption));
     pge->encryption = encryption;
 }
 
@@ -126,7 +126,7 @@ void Cookfs_PgIndexSetSizeCompressed(Cookfs_PgIndex *pgi, int num,
     int sizeCompressed)
 {
     Cookfs_PgIndexEntry *pge = pgi->data + num;
-    CookfsLog2(printf("page#%d: set compressed size %d", num,
+    CookfsLog(printf("page#%d: set compressed size %d", num,
         sizeCompressed));
     pge->sizeCompressed = sizeCompressed;
 }
@@ -151,27 +151,27 @@ int Cookfs_PgIndexSearchByMD5(Cookfs_PgIndex *pgi, unsigned char *hashMD5,
 
 Cookfs_PgIndex *Cookfs_PgIndexInit(unsigned int initialPagesCount) {
 
-    CookfsLog2(printf("enter, want to allocate %u page entries",
+    CookfsLog(printf("enter, want to allocate %u page entries",
         initialPagesCount));
 
     unsigned int allocPagesCount = initialPagesCount;
 
     if (allocPagesCount < COOKFS_PGINDEX_ALLOC_SIZE) {
         allocPagesCount = COOKFS_PGINDEX_ALLOC_SIZE;
-        CookfsLog2(printf("extend the requested page entries count to %u",
+        CookfsLog(printf("extend the requested page entries count to %u",
             allocPagesCount));
     }
 
     Cookfs_PgIndex *pgi = (Cookfs_PgIndex *)ckalloc(sizeof(struct _Cookfs_PgIndex));
     if (pgi == NULL) {
-        CookfsLog2(printf("ERROR: failed to alloc Cookfs_PgIndex"));
+        CookfsLog(printf("ERROR: failed to alloc Cookfs_PgIndex"));
         return NULL;
     }
 
     pgi->data = (Cookfs_PgIndexEntry *)ckalloc(sizeof(Cookfs_PgIndexEntry)
         * allocPagesCount);
     if (pgi->data == NULL) {
-        CookfsLog2(printf("ERROR: failed to alloc Cookfs_PgIndex->data"));
+        CookfsLog(printf("ERROR: failed to alloc Cookfs_PgIndex->data"));
         ckfree(pgi);
         return NULL;
     }
@@ -179,13 +179,13 @@ Cookfs_PgIndex *Cookfs_PgIndexInit(unsigned int initialPagesCount) {
     pgi->pagesCount = initialPagesCount;
     pgi->pagesAllocated = allocPagesCount;
 
-    CookfsLog2(printf("return: ok [%p]", (void *)pgi));
+    CookfsLog(printf("return: ok [%p]", (void *)pgi));
     return pgi;
 
 }
 
 void Cookfs_PgIndexFini(Cookfs_PgIndex *pgi) {
-    CookfsLog2(printf("release [%p]", (void *)pgi));
+    CookfsLog(printf("release [%p]", (void *)pgi));
     ckfree(pgi->data);
     ckfree(pgi);
 }
@@ -195,14 +195,14 @@ int Cookfs_PgIndexAddPage(Cookfs_PgIndex *pgi,
     int sizeCompressed, int sizeUncompressed, unsigned char *hashMD5)
 {
 
-    CookfsLog2(printf("enter - compression: %d, level: %d, encryption: %d,"
+    CookfsLog(printf("enter - compression: %d, level: %d, encryption: %d,"
         " sizeCompressed: %d, sizeUncompressed: %d, MD5[" PRINTF_MD5_FORMAT
         "]", compression, compressionLevel, encryption, sizeCompressed,
         sizeUncompressed, PRINTF_MD5_VAR(hashMD5)));
 
     if (pgi->pagesCount >= pgi->pagesAllocated) {
 
-        CookfsLog2(printf("need to realloc from %d to %d", pgi->pagesAllocated,
+        CookfsLog(printf("need to realloc from %d to %d", pgi->pagesAllocated,
             pgi->pagesAllocated + COOKFS_PGINDEX_ALLOC_SIZE));
 
         pgi->pagesAllocated += COOKFS_PGINDEX_ALLOC_SIZE;
@@ -234,7 +234,7 @@ int Cookfs_PgIndexAddPage(Cookfs_PgIndex *pgi,
 
     memcpy(pge->hashMD5, hashMD5, 16);
 
-    CookfsLog2(printf("return: ok - page#%d", pgi->pagesCount));
+    CookfsLog(printf("return: ok - page#%d", pgi->pagesCount));
 
     // Return the current value of pagesCount as the page index, and then
     // increment the total number of pages.
@@ -255,25 +255,25 @@ Cookfs_PgIndex *Cookfs_PgIndexImport(unsigned char *bytes, int size,
     Tcl_Obj **err)
 {
 
-    CookfsLog2(printf("import from buffer %p size %d", (void *)bytes,
+    CookfsLog(printf("import from buffer %p size %d", (void *)bytes,
         size));
 
     // We need at least 4 bytes in the buffer for number of page entries.
     if (size < 4) {
-        CookfsLog2(printf("ERROR: the buffet size is less than 4 bytes"));
+        CookfsLog(printf("ERROR: the buffet size is less than 4 bytes"));
         goto malformed;
     }
 
     unsigned int pagesCount;
     Cookfs_Binary2Int(bytes, (int *)&pagesCount, 1);
     bytes += 4;
-    CookfsLog2(printf("total number of pages: %u", pagesCount));
+    CookfsLog(printf("total number of pages: %u", pagesCount));
 
     // The buffer must have exactly 4 (pagesCount) +
     // COOKFS_PGINDEX_RECORD_SIZE*pagesCount bytes. Otherwise, consider it
     // malformed.
     if ((unsigned int)size != (4 + pagesCount * COOKFS_PGINDEX_RECORD_SIZE)) {
-        CookfsLog2(printf("ERROR: not expected amount of bytes in buffer,"
+        CookfsLog(printf("ERROR: not expected amount of bytes in buffer,"
             " expected: 4 + number_of_pages * %d = %d",
             (int)COOKFS_PGINDEX_RECORD_SIZE,
             (int)(4 + pagesCount * COOKFS_PGINDEX_RECORD_SIZE)));
@@ -313,7 +313,7 @@ not_malformed: ; // empty statement
         pge->offset = offset;
         offset += pge->sizeCompressed;
 
-        CookfsLog2(printf("import entry #%u - compression: %d, level: %d,"
+        CookfsLog(printf("import entry #%u - compression: %d, level: %d,"
             " encryption: %d, sizeCompressed: %d, sizeUncompressed: %d,"
             " MD5[" PRINTF_MD5_FORMAT "]", i, (int)pge->compression,
             pge->compressionLevel, pge->encryption, pge->sizeCompressed,
@@ -321,7 +321,7 @@ not_malformed: ; // empty statement
 
     }
 
-    CookfsLog2(printf("return: ok"));
+    CookfsLog(printf("return: ok"));
 
     return pgi;
 
@@ -331,7 +331,7 @@ Cookfs_PageObj Cookfs_PgIndexExport(Cookfs_PgIndex *pgi) {
 
     unsigned int pagesCount = pgi->pagesCount;
 
-    CookfsLog2(printf("enter, export %u page entries", pagesCount));
+    CookfsLog(printf("enter, export %u page entries", pagesCount));
 
     Cookfs_PageObj pgo = Cookfs_PageObjAlloc(4 + pagesCount *
         COOKFS_PGINDEX_RECORD_SIZE);
@@ -364,14 +364,14 @@ Cookfs_PageObj Cookfs_PgIndexExport(Cookfs_PgIndex *pgi) {
         Cookfs_Int2Binary(&pge->sizeUncompressed, &buf[idxSizeUncompressed + (i * 4)], 1);
         memcpy(&buf[idxHash + (i * 16)], pge->hashMD5, 16);
 
-        CookfsLog2(printf("export entry #%u - compression: %d, level: %d,"
+        CookfsLog(printf("export entry #%u - compression: %d, level: %d,"
             " encryption: %d, sizeCompressed: %d, sizeUncompressed: %d,"
             " MD5[" PRINTF_MD5_FORMAT "]", i, (int)pge->compression,
             pge->compressionLevel, pge->encryption, pge->sizeCompressed,
             pge->sizeUncompressed, PRINTF_MD5_VAR(pge->hashMD5)));
     }
 
-    CookfsLog2(printf("return: ok"));
+    CookfsLog(printf("return: ok"));
 
     return pgo;
 

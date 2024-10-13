@@ -48,11 +48,10 @@ static void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e);
 int Cookfs_FsindexLockRW(int isWrite, Cookfs_Fsindex *i, Tcl_Obj **err) {
     int ret = 1;
 #ifdef TCL_THREADS
+    CookfsLog(printf("try to %s lock...", isWrite ? "WRITE" : "READ"));
     if (isWrite) {
-        CookfsLog(printf("Cookfs_FsindexLockWrite: try to lock..."));
         ret = Cookfs_RWMutexLockWrite(i->mx);
     } else {
-        CookfsLog(printf("Cookfs_FsindexLockRead: try to lock..."));
         ret = Cookfs_RWMutexLockRead(i->mx);
     }
     if (ret && i->isDead == 1) {
@@ -61,14 +60,13 @@ int Cookfs_FsindexLockRW(int isWrite, Cookfs_Fsindex *i, Tcl_Obj **err) {
         Cookfs_RWMutexUnlock(i->mx);
     }
     if (!ret) {
-        CookfsLog(printf("%s: FAILED", isWrite ? "Cookfs_FsindexLockWrite" :
-            "Cookfs_FsindexLockRead"));
+        CookfsLog(printf("FAILED to %s lock", isWrite ? "WRITE" : "READ"));
         if (err != NULL) {
             *err = Tcl_NewStringObj("stalled fsindex object detected", -1);
         }
     } else {
-        CookfsLog(printf("%s: ok (%d)", isWrite ? "Cookfs_FsindexLockWrite" :
-            "Cookfs_FsindexLockRead", Cookfs_RWMutexGetLocks(i->mx)));
+        CookfsLog(printf("ok - %s lock (%d)", isWrite ? "WRITE" : "READ",
+            Cookfs_RWMutexGetLocks(i->mx)));
     }
 #else
     UNUSED(isWrite);
@@ -81,8 +79,7 @@ int Cookfs_FsindexLockRW(int isWrite, Cookfs_Fsindex *i, Tcl_Obj **err) {
 int Cookfs_FsindexUnlock(Cookfs_Fsindex *i) {
 #ifdef TCL_THREADS
     Cookfs_RWMutexUnlock(i->mx);
-    CookfsLog(printf("Cookfs_FsindexUnlock: ok (%d)",
-        Cookfs_RWMutexGetLocks(i->mx)));
+    CookfsLog(printf("ok (%d)", Cookfs_RWMutexGetLocks(i->mx)));
 #else
     UNUSED(i);
 #endif /* TCL_THREADS */
@@ -133,9 +130,9 @@ int Cookfs_FsindexUnlockSoft(Cookfs_Fsindex *i) {
 
 void Cookfs_FsindexLockExclusive(Cookfs_Fsindex *i) {
 #ifdef TCL_THREADS
-    CookfsLog2(printf("try to lock exclusive..."));
+    CookfsLog(printf("try to lock exclusive..."));
     Cookfs_RWMutexLockExclusive(i->mx);
-    CookfsLog2(printf("ok"));
+    CookfsLog(printf("ok"));
 #else
     UNUSED(i);
 #endif /* TCL_THREADS */
@@ -180,7 +177,7 @@ Tcl_Obj *Cookfs_FsindexFilesetListObj(Cookfs_Fsindex *fsIndex) {
 
     Tcl_Obj *result = NULL;
 
-    CookfsLog2(printf("enter..."));
+    CookfsLog(printf("enter..."));
 
     if (!Cookfs_FsindexLockRead(fsIndex, NULL)) {
         result = Tcl_NewObj();
@@ -226,7 +223,7 @@ unlock:
 
 done:
 
-    CookfsLog2(printf("return: [%s]", Tcl_GetString(result)));
+    CookfsLog(printf("return: [%s]", Tcl_GetString(result)));
     return result;
 
 }
@@ -250,7 +247,7 @@ static Cookfs_FsindexFileSetType Cookfs_FsindexFileSetGetType(Cookfs_Fsindex *i)
     Tcl_Obj *typeObj = Cookfs_FsindexGetMetadata(i, filesetMetadataKey);
 
     if (typeObj == NULL) {
-        CookfsLog2(printf("return: [none]"));
+        CookfsLog(printf("return: [none]"));
         return COOKFS_FSINDEX_FILESET_NONE;
     }
 
@@ -276,7 +273,7 @@ static Cookfs_FsindexFileSetType Cookfs_FsindexFileSetGetType(Cookfs_Fsindex *i)
 
     Tcl_BounceRefCount(typeObj);
 
-    CookfsLog2(printf("return: [%s]",
+    CookfsLog(printf("return: [%s]",
         type == COOKFS_FSINDEX_FILESET_NONE ? "none" :
         type == COOKFS_FSINDEX_FILESET_AUTO ? "auto" :
         type == COOKFS_FSINDEX_FILESET_TCL_VERSION ? "tcl_version" :
@@ -291,7 +288,7 @@ static Cookfs_FsindexFileSetType Cookfs_FsindexFileSetLookupType(const char *typ
     const char **option_str_ptr)
 {
 
-    CookfsLog2(printf("type: [%s]", typeStr));
+    CookfsLog(printf("type: [%s]", typeStr));
 
     Cookfs_FsindexFileSetType type;
     const char *option_str = NULL;
@@ -301,7 +298,7 @@ static Cookfs_FsindexFileSetType Cookfs_FsindexFileSetLookupType(const char *typ
         sizeof(cookfs_fileset_options[0])),
             idx++)
     {
-        CookfsLog2(printf("check option: #%d [%s]", idx, *option));
+        CookfsLog(printf("check option: #%d [%s]", idx, *option));
         if (*option == NULL) {
             type = COOKFS_FSINDEX_FILESET_CUSTOM;
         } else {
@@ -315,7 +312,7 @@ static Cookfs_FsindexFileSetType Cookfs_FsindexFileSetLookupType(const char *typ
         break;
     }
 
-    CookfsLog2(printf("normalized type: [%s]",
+    CookfsLog(printf("normalized type: [%s]",
         type == COOKFS_FSINDEX_FILESET_AUTO ? "auto" :
         type == COOKFS_FSINDEX_FILESET_TCL_VERSION ? "tcl_version" :
         type == COOKFS_FSINDEX_FILESET_PLATFORM ? "platform" :
@@ -330,7 +327,7 @@ static int Cookfs_FsindexFileSetCreateAndSet(Cookfs_Fsindex *i,
     const char *fileset_node_name, Tcl_Obj **err)
 {
 
-    CookfsLog2(printf("create new entry: [%s]", fileset_node_name));
+    CookfsLog(printf("create new entry: [%s]", fileset_node_name));
 
     int length = strlen(fileset_node_name);
 
@@ -338,7 +335,7 @@ static int Cookfs_FsindexFileSetCreateAndSet(Cookfs_Fsindex *i,
         fileset_node_name, length, COOKFS_NUMBLOCKS_DIRECTORY);
 
     if (fileset_node == NULL) {
-        CookfsLog2(printf("return: ERROR (unable to create entry)"));
+        CookfsLog(printf("return: ERROR (unable to create entry)"));
         SET_ERROR(Tcl_ObjPrintf("unable to create fileset with"
             " the specified name '%s'", fileset_node_name));
         return TCL_ERROR;
@@ -357,9 +354,9 @@ static Cookfs_FsindexEntry *Cookfs_FsindexFileSetLookup(Cookfs_Fsindex *i,
     Cookfs_FsindexEntry *e = NULL;
 
     if (fileset_node_name == NULL) {
-        CookfsLog2(printf("lookup for fileset: <first available>"));
+        CookfsLog(printf("lookup for fileset: <first available>"));
     } else {
-        CookfsLog2(printf("lookup for fileset: [%s]", fileset_node_name));
+        CookfsLog(printf("lookup for fileset: [%s]", fileset_node_name));
     }
 
     int count;
@@ -377,12 +374,12 @@ static Cookfs_FsindexEntry *Cookfs_FsindexFileSetLookup(Cookfs_Fsindex *i,
 
     } else {
 
-        CookfsLog2(printf("have %d entries in the root", count));
+        CookfsLog(printf("have %d entries in the root", count));
 
         for (int idx = 0; idx < count; idx++) {
-            CookfsLog2(printf("check entry: [%s]", entry_list[idx]->fileName));
+            CookfsLog(printf("check entry: [%s]", entry_list[idx]->fileName));
             if (strcmp(entry_list[idx]->fileName, fileset_node_name) == 0) {
-                CookfsLog2(printf("required fileset has been found,"
+                CookfsLog(printf("required fileset has been found,"
                     " set it and return"));
                 e = entry_list[idx];
                 break;
@@ -392,7 +389,7 @@ static Cookfs_FsindexEntry *Cookfs_FsindexFileSetLookup(Cookfs_Fsindex *i,
     }
 
     Cookfs_FsindexListFree(entry_list);
-    CookfsLog2(printf("return fileset: [%s]", e == NULL ? "<NULL>" : e->fileName));
+    CookfsLog(printf("return fileset: [%s]", e == NULL ? "<NULL>" : e->fileName));
     return e;
 
 }
@@ -402,7 +399,7 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
 {
 
     Cookfs_FsindexWantWrite(i);
-    CookfsLog2(printf("type: [%s]", typeStr == NULL ? "<NULL>" : typeStr));
+    CookfsLog(printf("type: [%s]", typeStr == NULL ? "<NULL>" : typeStr));
 
     Cookfs_FsindexFileSetType type;
     const char *option_str = NULL;
@@ -413,7 +410,7 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
     if (i->rootItem->data.dirInfo.childCount == 0) {
 
         // If we are here, then we have a newly created index
-        CookfsLog2(printf("fsindex is a newly created"));
+        CookfsLog(printf("fsindex is a newly created"));
 
         // If we don't want to set any fileset type, then we have nothing
         // to do.
@@ -422,7 +419,7 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
         }
 
         if (readonly) {
-            CookfsLog2(printf("return: ERROR (readonly on empty fsindex)"));
+            CookfsLog(printf("return: ERROR (readonly on empty fsindex)"));
             SET_ERROR(Tcl_NewStringObj("unable to create fileset in readonly"
                 " fsindex", -1));
             return TCL_ERROR;
@@ -451,7 +448,7 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
             break;
         }
 
-        CookfsLog2(printf("create new entry: [%s]", fileset_node_name));
+        CookfsLog(printf("create new entry: [%s]", fileset_node_name));
 
         if (Cookfs_FsindexFileSetCreateAndSet(i, fileset_node_name, err)
             != TCL_OK)
@@ -459,13 +456,13 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
             return TCL_ERROR;
         }
 
-        CookfsLog2(printf("set metadata: [%s] = [%s]", filesetMetadataKey,
+        CookfsLog(printf("set metadata: [%s] = [%s]", filesetMetadataKey,
             option_str));
 
         Cookfs_FsindexSetMetadataRaw(i, filesetMetadataKey,
             (const unsigned char *)option_str, strlen(option_str));
 
-        CookfsLog2(printf("return: ok"));
+        CookfsLog(printf("return: ok"));
 
         return TCL_OK;
 
@@ -473,7 +470,7 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
 
     // If we are here, then we have not a newly created index. It already
     // contains something.
-    CookfsLog2(printf("fsindex is NOT a newly created"));
+    CookfsLog(printf("fsindex is NOT a newly created"));
 
     const char *fileset_node_name = NULL;
     // Check current fsindex fileset type
@@ -483,26 +480,26 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
     // automatically.
     if (typeStr == NULL) {
 
-        CookfsLog2(printf("typeStr is NULL, we have to select fileset"
+        CookfsLog(printf("typeStr is NULL, we have to select fileset"
             " automatically"));
 
         switch (type) {
 
         case COOKFS_FSINDEX_FILESET_NONE:
 
-            CookfsLog2(printf("fsindex has no fileset, there is nothing"
+            CookfsLog(printf("fsindex has no fileset, there is nothing"
                 " to do"));
 
             return TCL_OK;
 
         case COOKFS_FSINDEX_FILESET_CUSTOM:
 
-            CookfsLog2(printf("fsindex has custom fileset type, select"
+            CookfsLog(printf("fsindex has custom fileset type, select"
                 " the first available fileset"));
 
             i->rootItemVirtual = Cookfs_FsindexFileSetLookup(i, NULL);
 
-            CookfsLog2(printf("activate custom fileset: [%s]",
+            CookfsLog(printf("activate custom fileset: [%s]",
                 i->rootItemVirtual->fileName));
 
             return TCL_OK;
@@ -525,19 +522,19 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
         // conditions, and we don't have such fileset yet, then we will create
         // a new one.
 
-        CookfsLog2(printf("want to set auto-fileset: [%s]", fileset_node_name));
+        CookfsLog(printf("want to set auto-fileset: [%s]", fileset_node_name));
 
     } else {
 
         if (type == COOKFS_FSINDEX_FILESET_NONE) {
-            CookfsLog2(printf("return: ERROR (unable to set fileset on"
+            CookfsLog(printf("return: ERROR (unable to set fileset on"
                 " non-empty fsindex)"));
             SET_ERROR(Tcl_NewStringObj("cannot set a fileset to a non-empty"
                 " fsindex without an initialized fileset", -1));
             return TCL_ERROR;
         }
 
-        CookfsLog2(printf("typeStr is defined, we have to select fileset:"
+        CookfsLog(printf("typeStr is defined, we have to select fileset:"
             " [%s]", typeStr));
 
         fileset_node_name = typeStr;
@@ -547,7 +544,7 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
     Cookfs_FsindexEntry *e = Cookfs_FsindexFileSetLookup(i, fileset_node_name);
 
     if (e != NULL) {
-        CookfsLog2(printf("required fileset has been found, set it and"
+        CookfsLog(printf("required fileset has been found, set it and"
             " return"));
         i->rootItemVirtual = e;
         return TCL_OK;
@@ -556,7 +553,7 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
     // If we are here, then we don't have the required fileset in fsindex.
     // If we are in readonly mode, consider this as an error.
     if (readonly) {
-        CookfsLog2(printf("return: ERROR (unable to find the fileset and"
+        CookfsLog(printf("return: ERROR (unable to find the fileset and"
             " unable to create it in RO mode)"));
         SET_ERROR(Tcl_ObjPrintf("VFS does not have the required fileset"
             " \"%s\", it cannot be created due to read-only mode",
@@ -567,11 +564,11 @@ int Cookfs_FsindexFileSetSelect(Cookfs_Fsindex *i, const char *typeStr,
     if (Cookfs_FsindexFileSetCreateAndSet(i, fileset_node_name, err)
         != TCL_OK)
     {
-        CookfsLog2(printf("return: ERROR"));
+        CookfsLog(printf("return: ERROR"));
         return TCL_ERROR;
     }
 
-    CookfsLog2(printf("return: ok"));
+    CookfsLog(printf("return: ok"));
     return TCL_OK;
 
 }
@@ -812,7 +809,7 @@ void Cookfs_FsindexResetChangeCount(Cookfs_Fsindex *i) {
  */
 
 int Cookfs_FsindexGetBlockUsage(Cookfs_Fsindex *i, int idx) {
-    CookfsLog(printf("Cookfs_FsindexGetBlockUsage: from [%p] index [%d]", (void *)i, idx));
+    CookfsLog(printf("from [%p] index [%d]", (void *)i, idx));
     Cookfs_FsindexWantRead(i);
     if (idx < 0 || i->blockIndexSize <= idx) {
         return 0;
@@ -855,21 +852,19 @@ void Cookfs_FsindexModifyBlockUsage(Cookfs_Fsindex *i, int idx, int count) {
 
     // Ignore aside page numbers
     if (COOKFS_PAGES_ISASIDE(idx)) {
-        CookfsLog2(printf("WARNING: called with aside page number"));
+        CookfsLog(printf("WARNING: called with aside page number"));
         return;
     }
 
-    CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: increase block"
-        " index [%d] by [%d]", idx, count));
+    CookfsLog(printf("increase block index [%d] by [%d]", idx, count));
     // check if we have enough space in the block index
     if (i->blockIndexSize <= idx) {
         // Increase blockIndexSize by idx+100 to reduce memory reallocations
         // when filling the index and modifying block statistics
         // block by block.
         int maxBlockIndexSize = idx + 100;
-        CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: expand block index"
-            " buffer from [%d] to [%d]", i->blockIndexSize,
-            maxBlockIndexSize));
+        CookfsLog(printf("expand block index buffer from [%d] to [%d]",
+            i->blockIndexSize, maxBlockIndexSize));
         // expand our block index
         i->blockIndex = (int *)ckrealloc(i->blockIndex,
             sizeof(int) * maxBlockIndexSize);
@@ -878,11 +873,11 @@ void Cookfs_FsindexModifyBlockUsage(Cookfs_Fsindex *i, int idx, int count) {
             i->blockIndex[i->blockIndexSize] = 0;
         }
     } else {
-        CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: current value is [%d]", i->blockIndex[idx]));
+        CookfsLog(printf("current value is [%d]", i->blockIndex[idx]));
     }
 
     i->blockIndex[idx] += count;
-    CookfsLog(printf("Cookfs_FsindexModifyBlockUsage: new value is [%d]", i->blockIndex[idx]));
+    CookfsLog(printf("new value is [%d]", i->blockIndex[idx]));
 
 }
 
@@ -907,12 +902,12 @@ Cookfs_Fsindex *Cookfs_FsindexGetHandle(Tcl_Interp *interp, const char *cmdName)
 
     /* TODO: verify command suffix etc */
 
-    CookfsLog(printf("Cookfs_FsindexGetHandle: get handle from cmd [%s]", cmdName));
+    CookfsLog(printf("get handle from cmd [%s]", cmdName));
     if (!Tcl_GetCommandInfo(interp, cmdName, &cmdInfo)) {
 	return NULL;
     }
 
-    CookfsLog(printf("Cookfs_FsindexGetHandle: return [%p]", cmdInfo.objClientData));
+    CookfsLog(printf("return [%p]", cmdInfo.objClientData));
     /* if we found proper Tcl command, its objClientData is Cookfs_Fsindex */
     return (Cookfs_Fsindex *) (cmdInfo.objClientData);
 }
@@ -1025,7 +1020,7 @@ static void Cookfs_FsindexFree(Cookfs_Fsindex *i) {
     while (i->inactiveItems != NULL) {
         Cookfs_FsindexEntry *e = i->inactiveItems;
         i->inactiveItems = e->next;
-        CookfsLog(printf("Cookfs_FsindexFree: release inactive entry %p",
+        CookfsLog(printf("release inactive entry %p",
             (void *)e));
 #ifdef TCL_THREADS
         Tcl_MutexFinalize(&e->mxRefCount);
@@ -1048,14 +1043,13 @@ void Cookfs_FsindexFini(Cookfs_Fsindex *i) {
         return;
     }
     if (i->lockHard) {
-        CookfsLog(printf("Cookfs_FsindexFini: could not remove"
-            " locked object"));
+        CookfsLog(printf("could not remove locked object"));
         return;
     }
 
     Cookfs_FsindexLockExclusive(i);
 
-    CookfsLog(printf("Cookfs_FsindexFini: aquire mutex"));
+    CookfsLog(printf("aquire mutex"));
     // By acquisition the lockSoft mutex, we will be sure that no other
     // thread calls Cookfs_FsindexUnlockSoft() that can release this object
     // while this function is running.
@@ -1066,7 +1060,7 @@ void Cookfs_FsindexFini(Cookfs_Fsindex *i) {
 
     Cookfs_FsindexCleanup(i);
 
-    CookfsLog(printf("Cookfs_FsindexFini: release"));
+    CookfsLog(printf("release"));
     if (i->commandToken != NULL) {
         CookfsLog(printf("Cleaning tcl command"));
         Tcl_DeleteCommandFromToken(i->interp, i->commandToken);
@@ -1114,18 +1108,18 @@ Cookfs_FsindexEntry *Cookfs_FsindexGet(Cookfs_Fsindex *i, Cookfs_PathObj *pathOb
 
     Cookfs_FsindexEntry *fileNode;
 
-    CookfsLog(printf("Cookfs_FsindexGet - start"))
+    CookfsLog(printf("start"))
 
     /* run FIND command to get existing entry */
     fileNode = CookfsFsindexFind(i, NULL, pathObj, COOKFSFSINDEX_FIND_FIND, NULL);
 
     /* return NULL if not found */
     if (fileNode == NULL) {
-        CookfsLog(printf("Cookfs_FsindexGet - NULL"))
+        CookfsLog(printf("return: NULL"))
         return NULL;
     }
 
-    CookfsLog(printf("Cookfs_FsindexGet - success"))
+    CookfsLog(printf("return: success"))
 
     return fileNode;
 }
@@ -1164,9 +1158,7 @@ Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Cookfs_PathObj *pathOb
     Cookfs_FsindexEntry *fileNode;
     const Cookfs_FsindexEntry *foundFileNode;
 
-    CookfsLog(printf("Cookfs_FsindexSet - start"))
-
-    CookfsLog(printf("Cookfs_FsindexSet - listSize=%d", pathObj->elementCount));
+    CookfsLog(printf("start, listSize: %d", pathObj->elementCount));
 
     if (pathObj->elementCount == 0) {
         return NULL;
@@ -1176,10 +1168,10 @@ Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Cookfs_PathObj *pathOb
      * existing entry was not found */
     fileNode = Cookfs_FsindexEntryAlloc(i, pathObj->tailNameLength, numBlocks, COOKFS_USEHASH_DEFAULT);
     if (fileNode == NULL) {
-        CookfsLog(printf("Cookfs_FsindexSet - unable to create entry"))
+        CookfsLog(printf("unable to create entry"));
         return NULL;
     }
-    CookfsLog(printf("Cookfs_FsindexSet - copy name - %s", pathObj->tailName))
+    CookfsLog(printf("copy name - %s", pathObj->tailName));
     memcpy(fileNode->fileName, pathObj->tailName, pathObj->tailNameLength + 1);
 
     /* run CREATE command - if entry exists, currently passed fileNode will be freed */
@@ -1187,12 +1179,12 @@ Cookfs_FsindexEntry *Cookfs_FsindexSet(Cookfs_Fsindex *i, Cookfs_PathObj *pathOb
 
     /* if finding failed (i.e. parent did not exist), return NULL */
     if ((foundFileNode == NULL) || (dirNode == NULL)) {
-        CookfsLog(printf("Cookfs_FsindexSet - NULL"));
+        CookfsLog(printf("return: NULL"));
         /* the current node is already released by CookfsFsindexFind() */
         return NULL;
     }
 
-    CookfsLog(printf("Cookfs_FsindexSet - creating node for \"%s\"; new count=%d", pathObj->tailName, dirNode->data.dirInfo.childCount))
+    CookfsLog(printf("creating node for \"%s\"; new count=%d", pathObj->tailName, dirNode->data.dirInfo.childCount));
 
     return fileNode;
 }
@@ -1222,16 +1214,16 @@ Cookfs_FsindexEntry *Cookfs_FsindexSetInDirectory(Cookfs_FsindexEntry *currentNo
     Cookfs_FsindexEntryWantWrite(currentNode);
     Cookfs_FsindexEntry *fileNode;
     const Cookfs_FsindexEntry *foundFileNode;
-    CookfsLog(printf("Cookfs_FsindexSetInDirectory - begin (%s/%d)", pathTailStr, pathTailLen))
+    CookfsLog(printf("begin (%s/%d)", pathTailStr, pathTailLen))
     fileNode = Cookfs_FsindexEntryAlloc(currentNode->fsindex, pathTailLen, numBlocks, COOKFS_USEHASH_DEFAULT);
     memcpy(fileNode->fileName, pathTailStr, pathTailLen + 1);
 
-    CookfsLog(printf("Cookfs_FsindexSetInDirectory - fileNode=%p", (void *)fileNode))
+    CookfsLog(printf("fileNode=%p", (void *)fileNode))
     foundFileNode = CookfsFsindexFindInDirectory(currentNode, pathTailStr, COOKFSFSINDEX_FIND_CREATE, fileNode);
     if (foundFileNode == NULL) {
-        CookfsLog(printf("Cookfs_FsindexSetInDirectory - NULL"))
+        CookfsLog(printf("NULL"))
         Cookfs_FsindexEntryFree(fileNode);
-        CookfsLog(printf("Cookfs_FsindexSetInDirectory - cleanup done"))
+        CookfsLog(printf("cleanup done"))
 	return NULL;
     }
     return fileNode;
@@ -1260,16 +1252,16 @@ int Cookfs_FsindexUnset(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj) {
     Cookfs_FsindexWantWrite(i);
     const Cookfs_FsindexEntry *fileNode;
 
-    CookfsLog(printf("Cookfs_FsindexUnset - start"))
+    CookfsLog(printf("start"))
 
     /* invoke DELETE command */
     fileNode = CookfsFsindexFind(i, NULL, pathObj, COOKFSFSINDEX_FIND_DELETE, NULL);
     if (fileNode == NULL) {
-        CookfsLog(printf("Cookfs_FsindexUnset - NULL"))
+        CookfsLog(printf("return: NULL"))
         return 0;
     }
 
-    CookfsLog(printf("Cookfs_FsindexUnset - success"))
+    CookfsLog(printf("return: success"))
 
     return 1;
 }
@@ -1294,16 +1286,16 @@ int Cookfs_FsindexUnsetRecursive(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj) {
     Cookfs_FsindexWantWrite(i);
     const Cookfs_FsindexEntry *fileNode;
 
-    CookfsLog(printf("Cookfs_FsindexUnsetRecursive - start"))
+    CookfsLog(printf("start"))
 
     /* invoke DELETE command */
     fileNode = CookfsFsindexFind(i, NULL, pathObj, COOKFSFSINDEX_FIND_DELETE_RECURSIVE, NULL);
     if (fileNode == NULL) {
-        CookfsLog(printf("Cookfs_FsindexUnsetRecursive - NULL"))
+        CookfsLog(printf("return: NULL"))
         return 0;
     }
 
-    CookfsLog(printf("Cookfs_FsindexUnsetRecursive - success"))
+    CookfsLog(printf("return: success"))
 
     return 1;
 }
@@ -1334,24 +1326,24 @@ Cookfs_FsindexEntry **Cookfs_FsindexListEntry(Cookfs_FsindexEntry *dirNode, int 
     Cookfs_FsindexEntry **result;
     int idx = 0;
 
-    CookfsLog(printf("Cookfs_FsindexListEntry - start"))
+    CookfsLog(printf("start"))
 
     if (dirNode == NULL) {
-        CookfsLog(printf("Cookfs_FsindexListEntry - not found"))
+        CookfsLog(printf("return: not found"))
         return NULL;
     }
 
     Cookfs_FsindexEntryWantRead(dirNode);
 
     if (dirNode->fileBlocks != COOKFS_NUMBLOCKS_DIRECTORY) {
-        CookfsLog(printf("Cookfs_FsindexListEntry - not directory"))
+        CookfsLog(printf("return: not directory"))
         return NULL;
     }
 
-    CookfsLog(printf("Cookfs_FsindexListEntry - childCount = %d", dirNode->data.dirInfo.childCount))
+    CookfsLog(printf("childCount = %d", dirNode->data.dirInfo.childCount))
     result = (Cookfs_FsindexEntry **) ckalloc((dirNode->data.dirInfo.childCount + 1) * sizeof(Cookfs_FsindexEntry *));
 
-    CookfsLog(printf("Cookfs_FsindexListEntry - isHash=%d", dirNode->data.dirInfo.isHash))
+    CookfsLog(printf("isHash=%d", dirNode->data.dirInfo.isHash))
     if (dirNode->data.dirInfo.isHash) {
         Tcl_HashSearch hashSearch;
 	Tcl_HashEntry *hashEntry = Tcl_FirstHashEntry(&dirNode->data.dirInfo.dirData.children, &hashSearch);
@@ -1402,7 +1394,7 @@ Cookfs_FsindexEntry **Cookfs_FsindexListEntry(Cookfs_FsindexEntry *dirNode, int 
 Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Cookfs_PathObj *pathObj, int *itemCountPtr) {
     Cookfs_FsindexWantRead(i);
 
-    CookfsLog(printf("Cookfs_FsindexList - start"))
+    CookfsLog(printf("start"))
 
     Cookfs_FsindexEntry *dirNode = CookfsFsindexFind(i, NULL, pathObj,
         COOKFSFSINDEX_FIND_FIND, NULL);
@@ -1483,7 +1475,7 @@ static Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(Cookfs_Fsindex *fsindex, in
 #endif /* TCL_THREADS */
     if (numBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
 	/* create directory structure - either a hash table or static child array */
-        CookfsLog(printf("Cookfs_FsindexEntryAlloc - directory, useHash=%d", useHash))
+        CookfsLog(printf("directory, useHash=%d", useHash))
 	if (useHash) {
 	    Tcl_InitHashTable(&e->data.dirInfo.dirData.children, TCL_STRING_KEYS);
 	    e->data.dirInfo.isHash = 1;
@@ -1505,7 +1497,7 @@ static Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(Cookfs_Fsindex *fsindex, in
 	}
     }
 
-    //CookfsLog(printf("Cookfs_FsindexEntryAlloc: allocated entry %p", e));
+    //CookfsLog(printf("allocated entry %p", e));
     return e;
 }
 
@@ -1526,7 +1518,7 @@ static Cookfs_FsindexEntry *Cookfs_FsindexEntryAlloc(Cookfs_Fsindex *fsindex, in
  */
 
 static void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
-    //CookfsLog(printf("Cookfs_FsindexEntryFree: %p with fileBlocks [%d]", e, e->fileBlocks));
+    //CookfsLog(printf("%p with fileBlocks [%d]", e, e->fileBlocks));
     if (e->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) {
 	/* for directory, recursively free all children */
 	if (e->data.dirInfo.isHash) {
@@ -1553,21 +1545,19 @@ static void Cookfs_FsindexEntryFree(Cookfs_FsindexEntry *e) {
 	}
     } else if (e->isFileBlocksInitialized != NULL && e->fileBlocks > 0) {
 	for (e->fileBlocks--; e->fileBlocks >= 0; e->fileBlocks--) {
-	    //CookfsLog(printf("Cookfs_FsindexEntryFree: modify block#%d", e->fileBlocks));
+	    //CookfsLog(printf("modify block#%d", e->fileBlocks));
 	    Cookfs_FsindexModifyBlockUsage(e->isFileBlocksInitialized, e->data.fileInfo.fileBlockOffsetSize[e->fileBlocks * 3 + 0], -1);
 	}
     }
 
     /* free entry structure itself */
     if (e->refcount) {
-        CookfsLog(printf("Cookfs_FsindexEntryFree: move entry %p to"
-            " inactive list", (void *)e));
+        CookfsLog(printf("move entry %p to inactive list", (void *)e));
         e->isInactive = 1;
         e->next = e->fsindex->inactiveItems;
         e->fsindex->inactiveItems = e;
     } else {
-        // CookfsLog(printf("Cookfs_FsindexEntryFree: release entry %p",
-        //     (void *)e));
+        // CookfsLog(printf("release entry %p", (void *)e));
 #ifdef TCL_THREADS
         Tcl_MutexFinalize(&e->mxRefCount);
 #endif /* TCL_THREADS */
@@ -1674,9 +1664,8 @@ void Cookfs_FsindexSetMetadataRaw(Cookfs_Fsindex *i, const char *paramName,
     }
 
     unsigned char *value = ckalloc(sizeof(Tcl_Size) + dataSize);
-    CookfsLog(printf("Cookfs_FsindexSetMetadataRaw: key [%s] size %"
-        TCL_SIZE_MODIFIER "d value ptr %p", paramName, dataSize,
-        (void *)value));
+    CookfsLog(printf("key [%s] size %" TCL_SIZE_MODIFIER "d value ptr %p",
+        paramName, dataSize, (void *)value));
     if (value == NULL) {
         Tcl_Panic("failed to alloc metadata value");
         return;
@@ -1754,15 +1743,16 @@ Cookfs_FsindexEntry *CookfsFsindexFindElement(const Cookfs_Fsindex *i, Cookfs_Pa
     /* start off with root item */
     currentNode = i->rootItemVirtual;
 
-    CookfsLog(printf("Recursively finding %d path elemnets", listSize))
+    CookfsLog(printf("Recursively finding %d path elemnets", listSize));
 
     /* iterate over each element in the list */
     for (idx = 0; idx < listSize; idx++) {
-        CookfsLog(printf("Iterating at %s (%d); %d of %d", currentNode->fileName, currentNode->fileBlocks, idx, listSize))
+        CookfsLog(printf("Iterating at %s (%d); %d of %d", currentNode->fileName,
+            currentNode->fileBlocks, idx, listSize));
 
 	/* if current node is not a directory, return NULL */
         if (currentNode->fileBlocks != COOKFS_NUMBLOCKS_DIRECTORY) {
-            CookfsLog(printf("Parent is not a directory"))
+            CookfsLog(printf("Parent is not a directory"));
             return NULL;
         }
 
@@ -1772,18 +1762,18 @@ Cookfs_FsindexEntry *CookfsFsindexFindElement(const Cookfs_Fsindex *i, Cookfs_Pa
 	    /* if current entry is a hash table, locate child using Tcl_FindHashEntry () */
 	    hashEntry = Tcl_FindHashEntry(&currentNode->data.dirInfo.dirData.children, currentPathStr);
 	    if (hashEntry == NULL) {
-		CookfsLog(printf("Unable to find item"))
+		CookfsLog(printf("Unable to find item"));
 		return NULL;
 	    }
 	    currentNode = (Cookfs_FsindexEntry *) Tcl_GetHashValue(hashEntry);
 	}  else  {
 	    /* if it is an array of children, iterate and find matching child */
 	    nextNode = NULL;
-	    CookfsLog(printf("Iterating over childTable to find %s", currentPathStr))
+	    CookfsLog(printf("Iterating over childTable to find %s", currentPathStr));
 	    for (int j = 0 ; j < COOKFS_FSINDEX_TABLE_MAXENTRIES; j++) {
 		if ((currentNode->data.dirInfo.dirData.childTable[j] != NULL) && (strcmp(currentNode->data.dirInfo.dirData.childTable[j]->fileName, currentPathStr) == 0)) {
 		    nextNode = currentNode->data.dirInfo.dirData.childTable[j];
-		    CookfsLog(printf("Iterating over childTable to find %s - FOUND", currentPathStr))
+		    CookfsLog(printf("Iterating over childTable to find %s - FOUND", currentPathStr));
 		    break;
 		}
 	    }
@@ -1791,7 +1781,7 @@ Cookfs_FsindexEntry *CookfsFsindexFindElement(const Cookfs_Fsindex *i, Cookfs_Pa
 	    /* check if entry was found - if not, return NULL */
 	    currentNode = nextNode;
 	    if (currentNode == NULL) {
-		CookfsLog(printf("Unable to find item"))
+		CookfsLog(printf("Unable to find item"));
 		return NULL;
 	    }
 	}
@@ -1835,7 +1825,7 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
 	}
     }
 
-    CookfsLog2(printf("path elements: %d", pathObj->elementCount));
+    CookfsLog(printf("path elements: %d", pathObj->elementCount));
 
     /* find parent element */
     currentNode = CookfsFsindexFindElement(i, pathObj, pathObj->elementCount - 1);
@@ -1847,18 +1837,18 @@ static Cookfs_FsindexEntry *CookfsFsindexFind(Cookfs_Fsindex *i, Cookfs_FsindexE
 
     /* if parent was not found or is not a directory, return NULL */
     if (currentNode == NULL) {
-        CookfsLog2(printf("return NULL (node not found)"));
+        CookfsLog(printf("return NULL (node not found)"));
         goto error;
     }
 
     if (currentNode->fileBlocks != COOKFS_NUMBLOCKS_DIRECTORY) {
-        CookfsLog2(printf("return NULL (not a directory)"));
+        CookfsLog(printf("return NULL (not a directory)"));
         goto error;
     }
 
     /* get information about fail of the file name
      * and invoke CookfsFsindexFindInDirectory() */
-    CookfsLog2(printf("path tail: %s", pathObj->tailName));
+    CookfsLog(printf("path tail: %s", pathObj->tailName));
 
     Cookfs_FsindexEntry *rc = CookfsFsindexFindInDirectory(currentNode, pathObj->tailName, command, newFileNode);
     if (command != COOKFSFSINDEX_FIND_FIND && rc != NULL) {
@@ -1945,11 +1935,11 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *cu
 
 	    /* if entry has been found/created */
 	    if (hashEntry != NULL) {
-		CookfsLog(printf("CookfsFsindexFindInDirectory - found in hash table (isNew=%d; cmd=%d)", isNew, command))
+		CookfsLog(printf("found in hash table (isNew=%d; cmd=%d)", isNew, command))
 		/* if entry exists or has just been created */
 		fileNode = Tcl_GetHashValue(hashEntry);
 
-		CookfsLog(printf("CookfsFsindexFindInDirectory - fileNode=%p", (void *)fileNode))
+		CookfsLog(printf("fileNode=%p", (void *)fileNode))
 
 		/* if we are to create a new entry, set new value */
 		if (command == COOKFSFSINDEX_FIND_CREATE) {
@@ -1958,7 +1948,7 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *cu
 			if (((fileNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) && (newFileNode->fileBlocks != COOKFS_NUMBLOCKS_DIRECTORY))
 			    || ((fileNode->fileBlocks != COOKFS_NUMBLOCKS_DIRECTORY) && (newFileNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY))) {
 			    /* if entry type does not match, free newFileNode and return NULL */
-			    CookfsLog(printf("CookfsFsindexFindInDirectory - type mismatch"))
+			    CookfsLog(printf("type mismatch"))
 			    Cookfs_FsindexEntryFree(newFileNode);
 			    return NULL;
 			}
@@ -1971,9 +1961,9 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *cu
 		    }
 
 		    /* set new value for specified hash table entry */
-		    CookfsLog(printf("CookfsFsindexFindInDirectory - setting as newFileNode = %p", (void *)newFileNode))
+		    CookfsLog(printf("setting as newFileNode = %p", (void *)newFileNode))
 		    Tcl_SetHashValue(hashEntry, newFileNode);
-		    CookfsLog(printf("CookfsFsindexFindInDirectory - setting as newFileNode done"))
+		    CookfsLog(printf("setting as newFileNode done"))
 		    return newFileNode;
 		}  else if ((command == COOKFSFSINDEX_FIND_DELETE) || (command == COOKFSFSINDEX_FIND_DELETE_RECURSIVE)) {
 		    /* if deleting current node, check if it can be deleted */
@@ -2000,12 +1990,12 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *cu
 	    int i;
 
 	    /* iterate over children array and find matching node */
-	    CookfsLog(printf("CookfsFsindexFindInDirectory - looking in childTable"))
+	    CookfsLog(printf("looking in childTable"))
 	    for (i = 0 ; i < COOKFS_FSINDEX_TABLE_MAXENTRIES; i++) {
 		if ((currentNode->data.dirInfo.dirData.childTable[i] != NULL) && (strcmp(currentNode->data.dirInfo.dirData.childTable[i]->fileName, pathTailStr) == 0)) {
 		    fileNode = currentNode->data.dirInfo.dirData.childTable[i];
 		    fileNodePtr = &currentNode->data.dirInfo.dirData.childTable[i];
-		    CookfsLog(printf("CookfsFsindexFindInDirectory - found at %d", i))
+		    CookfsLog(printf("found at %d", i))
 		    break;
 		}
 
@@ -2013,7 +2003,7 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *cu
 
 	    /* if found, perform specified command */
 	    if (fileNode != NULL) {
-		CookfsLog(printf("CookfsFsindexFindInDirectory - found in table cmd=%d", command))
+		CookfsLog(printf("found in table cmd=%d", command))
 		if ((command == COOKFSFSINDEX_FIND_DELETE) || (command == COOKFSFSINDEX_FIND_DELETE_RECURSIVE)) {
 		    /* if deleting current node, check if it can be deleted */
 		    if ((command == COOKFSFSINDEX_FIND_DELETE)
@@ -2027,41 +2017,41 @@ static Cookfs_FsindexEntry *CookfsFsindexFindInDirectory(Cookfs_FsindexEntry *cu
 		    currentNode->data.dirInfo.childCount--;
 		    Cookfs_FsindexEntryFree(fileNode);
 		    *fileNodePtr = NULL;
-		    CookfsLog(printf("CookfsFsindexFindInDirectory - deleted"))
+		    CookfsLog(printf("deleted"))
 		}  else if (command == COOKFSFSINDEX_FIND_CREATE) {
 		    /* if entry exists already, check if both are of same type */
-		    CookfsLog(printf("CookfsFsindexFindInDirectory - updating..."))
+		    CookfsLog(printf("updating..."))
 		    if (((fileNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY) && (newFileNode->fileBlocks != COOKFS_NUMBLOCKS_DIRECTORY))
 			|| ((fileNode->fileBlocks != COOKFS_NUMBLOCKS_DIRECTORY) && (newFileNode->fileBlocks == COOKFS_NUMBLOCKS_DIRECTORY))) {
 			/* if entry type does not match, free newFileNode and return NULL */
-			CookfsLog(printf("CookfsFsindexFindInDirectory - update failed - type mismatch"))
+			CookfsLog(printf("update failed - type mismatch"))
 			Cookfs_FsindexEntryFree(newFileNode);
 			return NULL;
 		    }
 
 		    /* if types match, overwrite entry with new value */
-		    CookfsLog(printf("CookfsFsindexFindInDirectory - updated"))
+		    CookfsLog(printf("updated"))
 		    Cookfs_FsindexEntryFree(fileNode);
 		    *fileNodePtr = newFileNode;
 		    return newFileNode;
 		}
 		return fileNode;
 	    }  else  {
-	        CookfsLog(printf("CookfsFsindexFindInDirectory - not found"));
+	        CookfsLog(printf("not found"));
 		/* if entry was not found */
 		if (command == COOKFSFSINDEX_FIND_CREATE) {
 		    /* for create operation, add new child to static array */
-		    CookfsLog(printf("CookfsFsindexFindInDirectory - creating (%d)", currentNode->data.dirInfo.childCount))
+		    CookfsLog(printf("creating (%d)", currentNode->data.dirInfo.childCount))
 		    if (currentNode->data.dirInfo.childCount >= (COOKFS_FSINDEX_TABLE_MAXENTRIES - 1)) {
 			/* if we ran out of entries in the array, convert to hash table and try again */
-			CookfsLog(printf("CookfsFsindexFindInDirectory - converting to hash"))
+			CookfsLog(printf("converting to hash"))
 			CookfsFsindexChildtableToHash(currentNode);
 			continue;
 		    }  else  {
 			/* if we have any spots available, update first free one */
 			for (i = 0 ; i < COOKFS_FSINDEX_TABLE_MAXENTRIES; i++) {
 			    if (currentNode->data.dirInfo.dirData.childTable[i] == NULL) {
-				CookfsLog(printf("CookfsFsindexFindInDirectory - create - adding at %d", i))
+				CookfsLog(printf("create - adding at %d", i))
 				currentNode->data.dirInfo.dirData.childTable[i] = newFileNode;
 				break;
 			    }
@@ -2106,7 +2096,7 @@ static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e) {
     Tcl_HashEntry *hashEntry;
     int isNew;
 
-    CookfsLog(printf("CookfsFsindexChildtableToHash: STARTING"))
+    CookfsLog(printf("enter"))
 
     /* copy previous values to temporary table and initialize hash table for storage */
     memcpy(childTable, e->data.dirInfo.dirData.childTable, sizeof(childTable));
@@ -2117,14 +2107,14 @@ static void CookfsFsindexChildtableToHash(Cookfs_FsindexEntry *e) {
     /* copy old entries to hash table */
     for (i = 0 ; i < COOKFS_FSINDEX_TABLE_MAXENTRIES; i++) {
 	if (childTable[i] != NULL) {
-	    CookfsLog(printf("CookfsFsindexChildtableToHash - copying %s", childTable[i]->fileName))
+	    CookfsLog(printf("copying %s", childTable[i]->fileName))
 	    hashEntry = Tcl_CreateHashEntry(&e->data.dirInfo.dirData.children, childTable[i]->fileName, &isNew);
 
 	    Tcl_SetHashValue(hashEntry, childTable[i]);
 	}
     }
 
-    CookfsLog(printf("CookfsFsindexChildtableToHash: FINISHED"))
+    CookfsLog(printf("return: ok"))
 }
 
 

@@ -76,7 +76,7 @@ typedef struct {
 void Cookfs_AesEncryptRaw(unsigned char *buffer, Tcl_Size bufferSize,
     unsigned char *iv, unsigned char *key)
 {
-    CookfsLog2(printf("enter..."));
+    CookfsLog(printf("enter..."));
 
 #if HAVE_MBEDTLS
 
@@ -88,7 +88,7 @@ void Cookfs_AesEncryptRaw(unsigned char *buffer, Tcl_Size bufferSize,
     mbedtls_aes_init(&ctx);
     mbedtls_aes_setkey_enc(&ctx, key, COOKFS_ENCRYPT_KEY_SIZE * 8);
 
-    CookfsLog2(printf("run mbedtls_aes_crypt_cbc() ..."));
+    CookfsLog(printf("run mbedtls_aes_crypt_cbc() ..."));
     mbedtls_aes_crypt_cbc(&ctx, MBEDTLS_AES_ENCRYPT, bufferSize, _iv, buffer,
         buffer);
 
@@ -103,31 +103,31 @@ void Cookfs_AesEncryptRaw(unsigned char *buffer, Tcl_Size bufferSize,
     // AES_BLOCK_SIZE blocks. So here we use an offset of 4 (32 / 8).
     Aes_SetKey_Enc(ivAes + 4, key, COOKFS_ENCRYPT_KEY_SIZE);
 
-    CookfsLog2(printf("run AesCbc_Encode() ..."));
+    CookfsLog(printf("run AesCbc_Encode() ..."));
     AesCbc_Encode(ivAes, buffer, bufferSize / AES_BLOCK_SIZE);
 
 #endif /* HAVE_MBEDTLS */
 
-    CookfsLog2(printf("ok"));
+    CookfsLog(printf("ok"));
 
     return;
 }
 
 void Cookfs_AesEncrypt(Cookfs_PageObj pg, unsigned char *key) {
-    CookfsLog2(printf("enter..."));
+    CookfsLog(printf("enter..."));
 
     Cookfs_PageObjAddPadding(pg);
     Cookfs_AesEncryptRaw(pg->buf, Cookfs_PageObjSize(pg),
         Cookfs_PageObjGetIV(pg), key);
 
-    CookfsLog2(printf("ok"));
+    CookfsLog(printf("ok"));
     return;
 }
 
 void Cookfs_AesDecryptRaw(unsigned char *buffer, Tcl_Size bufferSize,
     unsigned char *iv, unsigned char *key)
 {
-    CookfsLog2(printf("enter..."));
+    CookfsLog(printf("enter..."));
 
 #if HAVE_MBEDTLS
 
@@ -139,7 +139,7 @@ void Cookfs_AesDecryptRaw(unsigned char *buffer, Tcl_Size bufferSize,
     mbedtls_aes_init(&ctx);
     mbedtls_aes_setkey_dec(&ctx, key, COOKFS_ENCRYPT_KEY_SIZE * 8);
 
-    CookfsLog2(printf("run mbedtls_aes_crypt_cbc() ..."));
+    CookfsLog(printf("run mbedtls_aes_crypt_cbc() ..."));
     mbedtls_aes_crypt_cbc(&ctx, MBEDTLS_AES_DECRYPT, bufferSize, _iv, buffer,
         buffer);
 
@@ -154,27 +154,27 @@ void Cookfs_AesDecryptRaw(unsigned char *buffer, Tcl_Size bufferSize,
     // AES_BLOCK_SIZE blocks. So here we use an offset of 4 (32 / 8).
     Aes_SetKey_Dec(ivAes + 4, key, COOKFS_ENCRYPT_KEY_SIZE);
 
-    CookfsLog2(printf("run AesCbc_Decode() ..."));
+    CookfsLog(printf("run AesCbc_Decode() ..."));
     AesCbc_Decode(ivAes, buffer, bufferSize / AES_BLOCK_SIZE);
 
 #endif /* HAVE_MBEDTLS */
 
-    CookfsLog2(printf("ok"));
+    CookfsLog(printf("ok"));
 
     return;
 }
 
 int Cookfs_AesDecrypt(Cookfs_PageObj pg, unsigned char *key) {
 
-    CookfsLog2(printf("enter..."));
+    CookfsLog(printf("enter..."));
 
     Cookfs_AesDecryptRaw(pg->buf, Cookfs_PageObjSize(pg),
         Cookfs_PageObjGetIV(pg), key);
 
-    CookfsLog2(printf("unpad data ..."));
+    CookfsLog(printf("unpad data ..."));
     int rc = Cookfs_PageObjRemovePadding(pg);
 
-    CookfsLog2(printf("return %s", (rc == TCL_OK ? "TCL_OK" : "TCL_ERROR")));
+    CookfsLog(printf("return %s", (rc == TCL_OK ? "TCL_OK" : "TCL_ERROR")));
     return rc;
 
 }
@@ -186,7 +186,7 @@ void Cookfs_Pbkdf2Hmac(unsigned char *secret, Tcl_Size secretSize,
     unsigned int dklen, unsigned char *output)
 {
 
-    CookfsLog2(printf("enter; secretSize: %" TCL_SIZE_MODIFIER "d, saltSize: %"
+    CookfsLog(printf("enter; secretSize: %" TCL_SIZE_MODIFIER "d, saltSize: %"
         TCL_SIZE_MODIFIER "d, iter: %u, dklen: %u", secretSize, saltSize,
         iterations, dklen));
 
@@ -250,7 +250,7 @@ void Cookfs_Pbkdf2Hmac(unsigned char *secret, Tcl_Size secretSize,
     unsigned char *salt, Tcl_Size saltSize, unsigned int iterations,
     unsigned int dklen, unsigned char *output)
 {
-    CookfsLog2(printf("enter; secretSize: %" TCL_SIZE_MODIFIER "d, saltSize: %"
+    CookfsLog(printf("enter; secretSize: %" TCL_SIZE_MODIFIER "d, saltSize: %"
         TCL_SIZE_MODIFIER "d, iter: %u, dklen: %u", secretSize, saltSize,
         iterations, dklen));
 
@@ -277,7 +277,7 @@ void Cookfs_Pbkdf2Hmac(unsigned char *secret, Tcl_Size secretSize,
             SHA256_DIGEST_SIZE : dklen);
 
         memcpy(output, md, want_copy);
-        CookfsLog2(printf("want_copy: %u", want_copy));
+        CookfsLog(printf("want_copy: %u", want_copy));
 
         for (unsigned int ic = 1; ic < iterations; ic++) {
             memcpy(&ctx, &ctx_init, sizeof(ctx));
@@ -299,7 +299,7 @@ void Cookfs_Pbkdf2Hmac(unsigned char *secret, Tcl_Size secretSize,
 
 void Cookfs_RandomGenerate(Tcl_Interp *interp, unsigned char *buf, Tcl_Size size) {
 
-    CookfsLog2(printf("enter, want to generate %" TCL_SIZE_MODIFIER "d"
+    CookfsLog(printf("enter, want to generate %" TCL_SIZE_MODIFIER "d"
         " bytes", size));
 
     // Cleanup random destination storage
@@ -310,11 +310,11 @@ void Cookfs_RandomGenerate(Tcl_Interp *interp, unsigned char *buf, Tcl_Size size
     DWORD status = BCryptGenRandom(NULL, buf, size,
         BCRYPT_USE_SYSTEM_PREFERRED_RNG);
     if(NT_SUCCESS(status)) {
-        CookfsLog2(printf("return result from windows-specific rng"
+        CookfsLog(printf("return result from windows-specific rng"
             " generator"));
         return;
     }
-    CookfsLog2(printf("WARNING: windows-specific rng generator failed"));
+    CookfsLog(printf("WARNING: windows-specific rng generator failed"));
     goto fallback_tcl;
 #else
     // Try using /dev/urandom if it exists
@@ -327,13 +327,13 @@ void Cookfs_RandomGenerate(Tcl_Interp *interp, unsigned char *buf, Tcl_Size size
         Tcl_Size read = Tcl_Read(chan, (char *)buf, size);
         Tcl_Close(NULL, chan);
         if (read == size) {
-            CookfsLog2(printf("return result from /dev/urandom"));
+            CookfsLog(printf("return result from /dev/urandom"));
             return;
         }
-        CookfsLog2(printf("WARNING: could not read enough bytes from /dev/urandom,"
+        CookfsLog(printf("WARNING: could not read enough bytes from /dev/urandom,"
             " got only %" TCL_SIZE_MODIFIER "d bytes", read));
     }
-    CookfsLog2(printf("WARNING: could not open /dev/urandom, error code: %d",
+    CookfsLog(printf("WARNING: could not open /dev/urandom, error code: %d",
         Tcl_GetErrno()));
     goto fallback_tcl;
 #endif /* _WIN32 */
@@ -344,38 +344,38 @@ fallback_tcl:
     // number generator did not work.
 
     if (interp != NULL) {
-        CookfsLog2(printf("try to use Tcl rng generator"));
+        CookfsLog(printf("try to use Tcl rng generator"));
         double r;
         for (Tcl_Size i = 0; i < size; i += sizeof(r)) {
             if (Tcl_EvalEx(interp, "::tcl::mathfunc::rand", -1, 0) != TCL_OK) {
-                CookfsLog2(printf("WARNING: got error from Tcl: %s",
+                CookfsLog(printf("WARNING: got error from Tcl: %s",
                     Tcl_GetString(Tcl_GetObjResult(interp))));
                 goto fallback_c;
             }
             if (Tcl_GetDoubleFromObj(NULL, Tcl_GetObjResult(interp), &r)
                 != TCL_OK)
             {
-                CookfsLog2(printf("WARNING: got something else than double"
+                CookfsLog(printf("WARNING: got something else than double"
                     " from Tcl: %s", Tcl_GetString(Tcl_GetObjResult(interp))));
                 goto fallback_c;
             }
             unsigned int want_copy = ((unsigned)i + sizeof(r) > (unsigned)size ?
                 (unsigned)size - (unsigned)i : sizeof(r));
-            CookfsLog2(printf("copy %u bytes from Tcl rng generator",
+            CookfsLog(printf("copy %u bytes from Tcl rng generator",
                 want_copy));
             memcpy(&buf[i], (void *)&r, want_copy);
         }
-        CookfsLog2(printf("return result from Tcl rng generator"));
+        CookfsLog(printf("return result from Tcl rng generator"));
         return;
     } else {
-        CookfsLog2(printf("WARNING: could not use Tcl rng generator, interp"
+        CookfsLog(printf("WARNING: could not use Tcl rng generator, interp"
             " is NULL"));
     }
 
 fallback_c:
 
     // Fallback to C random number generator if enything else did not work.
-    CookfsLog2(printf("try to use C rng generator"));
+    CookfsLog(printf("try to use C rng generator"));
 
     // Initializing the rng generator to the current time may not be secure
     // enough, since timestamps can be detected from the archive file or
@@ -389,12 +389,12 @@ fallback_c:
         r = rand();
         unsigned int want_copy = ((unsigned)i + sizeof(r) > (unsigned)size ?
             (unsigned)size - (unsigned)i : sizeof(r));
-        CookfsLog2(printf("copy %u bytes from C rng generator",
+        CookfsLog(printf("copy %u bytes from C rng generator",
             want_copy));
         memcpy(&buf[i], (void *)&r, want_copy);
     }
 
-    CookfsLog2(printf("return result from C rng generator"));
+    CookfsLog(printf("return result from C rng generator"));
     return;
 
 }

@@ -215,14 +215,14 @@ void Cookfs_AsyncCompressFinalize(Cookfs_Pages *p) {
 
 // TODO: document
 int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
-    CookfsLog(printf("Cookfs_AsyncPagePreload: index [%d]", idx))
+    CookfsLog(printf("index [%d]", idx))
     if ((p->asyncDecompressQueueSize > 0) && (p->asyncDecompressCommandPtr != NULL) && (p->asyncDecompressCommandLen > 3)) {
 	Tcl_Obj *dataObj;
 	int i;
 
 	for (i = 0 ; i < p->asyncDecompressQueue ; i++) {
 	    if (p->asyncDecompressIdx[i] == idx) {
-		CookfsLog(printf("Cookfs_AsyncPagePreload: return 1 - Page %d already in async decompress queue", i))
+		CookfsLog(printf("return 1 - Page %d already in async decompress queue", i))
 		return 1;
 	    }
 	}
@@ -230,17 +230,17 @@ int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
 	/* don't modify page weight in cache, as here we are just checking if it is already loaded */
 	if (Cookfs_PageCacheGet(p, idx, 0, 0) != NULL) {
 	    // page already in cache and we just moved it to top; do nothing
-	    CookfsLog(printf("Cookfs_AsyncPagePreload: return 1 - Page already in cache and we just moved it to top"))
+	    CookfsLog(printf("return 1 - Page already in cache and we just moved it to top"))
 	    return 1;
 	}
 
 	// if queue is full, do not preload
 	if (p->asyncDecompressQueue >= p->asyncDecompressQueueSize) {
-	    CookfsLog(printf("Cookfs_AsyncPagePreload: return 0 - Queue is full, do not preload"))
+	    CookfsLog(printf("return 0 - Queue is full, do not preload"))
 	    return 0;
 	}
 
-	CookfsLog(printf("Cookfs_AsyncPagePreload: Reading page %d for async decompress", idx))
+	CookfsLog(printf("Reading page %d for async decompress", idx))
 	// TODO: do something with possible error message
 	Cookfs_PageObj dataPageObj = Cookfs_ReadPage(p,
 	    Cookfs_PagesGetPageOffset(p, idx),
@@ -250,7 +250,7 @@ int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
 	    Cookfs_PgIndexGetHashMD5(p->pagesIndex, idx),
 	    0, 0, NULL);
 	if (dataPageObj == NULL) {
-	    CookfsLog(printf("Cookfs_AsyncPagePreload: ERROR: Cookfs_ReadPage returned NULL, return 1"));
+	    CookfsLog(printf("ERROR: Cookfs_ReadPage returned NULL, return 1"));
 	    return 1;
 	}
 
@@ -258,7 +258,7 @@ int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
 	Cookfs_PageObjDecrRefCount(dataPageObj);
 
 	if (dataObj == NULL) {
-	    CookfsLog(printf("Cookfs_AsyncPagePreload: ERROR: failed to convert Tcl_Obj->PageObj, return 1"));
+	    CookfsLog(printf("ERROR: failed to convert Tcl_Obj->PageObj, return 1"));
 	    return 1;
 	}
 
@@ -269,10 +269,10 @@ int Cookfs_AsyncPagePreload(Cookfs_Pages *p, int idx) {
 	CookfsRunAsyncDecompressCommand(p, p->asyncCommandProcess, idx, dataObj);
 	Tcl_DecrRefCount(dataObj);
 
-	CookfsLog(printf("Cookfs_AsyncPagePreload: return 1"))
+	CookfsLog(printf("return 1"))
 	return 1;
     }
-    CookfsLog(printf("Cookfs_AsyncPagePreload: return 0"))
+    CookfsLog(printf("return 0"))
     return 0;
 }
 
@@ -305,7 +305,7 @@ int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require) {
 	    }
 	}
 
-	CookfsLog(printf("Cookfs_AsyncDecompressWait: calling callback"))
+	CookfsLog(printf("calling callback"))
 
 	result = CookfsRunAsyncDecompressCommand(p, p->asyncCommandWait, idx, Tcl_NewIntObj(require));
 	if ((result == NULL) || (Tcl_ListObjLength(NULL, result, &resultLength) != TCL_OK)) {
@@ -326,7 +326,7 @@ int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require) {
 		return 0;
 	    }
 
-	    CookfsLog(printf("Cookfs_AsyncDecompressWait: callback returned data for %d", i))
+	    CookfsLog(printf("callback returned data for %d", i))
 	    Tcl_IncrRefCount(resObj);
 	    Cookfs_PageObj pageObj = Cookfs_PageObjNewFromByteArray(resObj);
 	    Tcl_DecrRefCount(resObj);
@@ -343,7 +343,7 @@ int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require) {
 
 	    Tcl_DecrRefCount(result);
 
-	    CookfsLog(printf("Cookfs_AsyncDecompressWait: cleaning up decompression queue"))
+	    CookfsLog(printf("cleaning up decompression queue"))
 	    for (j = 0 ; j < p->asyncDecompressQueue ; j++) {
 		if (p->asyncDecompressIdx[j] == i) {
 		    for (k = j ; k < (p->asyncDecompressQueue - 1) ; k++) {
@@ -356,7 +356,7 @@ int Cookfs_AsyncDecompressWait(Cookfs_Pages *p, int idx, int require) {
 		}
 	    }
 
-	    CookfsLog(printf("Cookfs_AsyncDecompressWait: cleaning up decompression queue done"))
+	    CookfsLog(printf("cleaning up decompression queue done"))
 
 	    return (p->asyncDecompressQueue > 0);
 	}  else  {

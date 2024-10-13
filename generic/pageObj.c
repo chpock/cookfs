@@ -10,19 +10,19 @@
 #include "pageObj.h"
 
 void Cookfs_PageObjIncrRefCount(Cookfs_PageObj pg) {
-    // CookfsLog2(printf("%p (buffer at %p)", (void *)pg, (void *)pg->buf));
+    // CookfsLog(printf("%p (buffer at %p)", (void *)pg, (void *)pg->buf));
 #ifdef TCL_THREADS
     Tcl_MutexLock(&pg->mx);
 #endif /* TCL_THREADS */
     pg->refCount++;
-    // CookfsLog2(printf("%p - count:%d", (void *)pg, pg->refCount));
+    // CookfsLog(printf("%p - count:%d", (void *)pg, pg->refCount));
 #ifdef TCL_THREADS
     Tcl_MutexUnlock(&pg->mx);
 #endif /* TCL_THREADS */
 }
 
 void Cookfs_PageObjDecrRefCount(Cookfs_PageObj pg) {
-    // CookfsLog2(printf("%p (buffer at %p)", (void *)pg, (void *)pg->buf));
+    // CookfsLog(printf("%p (buffer at %p)", (void *)pg, (void *)pg->buf));
 #ifdef TCL_THREADS
     Tcl_MutexLock(&pg->mx);
 #endif /* TCL_THREADS */
@@ -39,7 +39,7 @@ void Cookfs_PageObjDecrRefCount(Cookfs_PageObj pg) {
     // and these 2 threads will try to free the page. This will cause memory
     // to be double freed.
     int refCount = --pg->refCount;
-    // CookfsLog2(printf("%p - count:%d", (void *)pg, pg->refCount));
+    // CookfsLog(printf("%p - count:%d", (void *)pg, pg->refCount));
 #ifdef TCL_THREADS
     Tcl_MutexUnlock(&pg->mx);
 #endif /* TCL_THREADS */
@@ -47,7 +47,7 @@ void Cookfs_PageObjDecrRefCount(Cookfs_PageObj pg) {
 #ifdef TCL_THREADS
         Tcl_MutexFinalize(&pg->mx);
 #endif /* TCL_THREADS */
-        // CookfsLog2(printf("release %p", (void *)pg));
+        // CookfsLog(printf("release %p", (void *)pg));
         ckfree(pg);
     }
 }
@@ -58,14 +58,14 @@ static Tcl_Size Cookfs_PageObjCalculateSize(Tcl_Size size) {
     // 16 bytes.
     Tcl_Size bufferSize = size + COOKFS_PAGEOBJ_BLOCK_SIZE -
         (size % COOKFS_PAGEOBJ_BLOCK_SIZE);
-    CookfsLog2(printf("want bytes %" TCL_SIZE_MODIFIER "d; alloc %"
+    CookfsLog(printf("want bytes %" TCL_SIZE_MODIFIER "d; alloc %"
         TCL_SIZE_MODIFIER "d bytes + %u bytes", size, bufferSize,
         (unsigned int)sizeof(Cookfs_PageObjStruct)));
     return bufferSize;
 }
 
 Cookfs_PageObj Cookfs_PageObjAlloc(Tcl_Size size) {
-    // CookfsLog2(printf("enter..."));
+    // CookfsLog(printf("enter..."));
     Tcl_Size bufferSize = Cookfs_PageObjCalculateSize(size);
     Cookfs_PageObj pg = ckalloc(bufferSize + sizeof(Cookfs_PageObjStruct));
     if (pg != NULL) {
@@ -80,7 +80,7 @@ Cookfs_PageObj Cookfs_PageObjAlloc(Tcl_Size size) {
         memset(pg->IV, 0, COOKFS_PAGEOBJ_BLOCK_SIZE);
 #endif /* COOKFS_USECCRYPTO */
     }
-    CookfsLog2(printf("return: %p", (void *)pg));
+    CookfsLog(printf("return: %p", (void *)pg));
     return pg;
 }
 
@@ -100,7 +100,7 @@ Cookfs_PageObj Cookfs_PageObjNewWithoutAlloc(const unsigned char *bytes,
         memset(pg->IV, 0, COOKFS_PAGEOBJ_BLOCK_SIZE);
 #endif /* COOKFS_USECCRYPTO */
     }
-    CookfsLog2(printf("return: %p", (void *)pg));
+    CookfsLog(printf("return: %p", (void *)pg));
     return pg;
 }
 
@@ -152,7 +152,7 @@ int Cookfs_PageObjRealloc(Cookfs_PageObj *pgPtr, Tcl_Size size) {
 
     Cookfs_PageObj pg = *pgPtr;
 
-    CookfsLog2(printf("realloc to %" TCL_SIZE_MODIFIER "d bytes; current"
+    CookfsLog(printf("realloc to %" TCL_SIZE_MODIFIER "d bytes; current"
         " effectiveSize=%" TCL_SIZE_MODIFIER "d, bufferSize=%"
         TCL_SIZE_MODIFIER "d", size, pg->effectiveSize, pg->bufferSize));
 
@@ -160,19 +160,19 @@ int Cookfs_PageObjRealloc(Cookfs_PageObj *pgPtr, Tcl_Size size) {
 
     if (size < pg->bufferSize) {
         pg->effectiveSize = size;
-        CookfsLog2(printf("bufferSize is enough, set effectiveSize to %"
+        CookfsLog(printf("bufferSize is enough, set effectiveSize to %"
             TCL_SIZE_MODIFIER "d", size));
         return TCL_OK;
     }
 
-    CookfsLog2(printf("bufferSize is not enough, try to realloc..."));
+    CookfsLog(printf("bufferSize is not enough, try to realloc..."));
 
     Tcl_Size bufferSize = Cookfs_PageObjCalculateSize(size);
 
     pg = attemptckrealloc(pg, bufferSize + sizeof(Cookfs_PageObjStruct));
 
     if (pg == NULL) {
-        CookfsLog2(printf("ERROR: failed to realloc"));
+        CookfsLog(printf("ERROR: failed to realloc"));
         return TCL_ERROR;
     }
 
@@ -181,7 +181,7 @@ int Cookfs_PageObjRealloc(Cookfs_PageObj *pgPtr, Tcl_Size size) {
 
     *pgPtr = pg;
 
-    CookfsLog2(printf("return %p", (void *)pg));
+    CookfsLog(printf("return %p", (void *)pg));
 
     return TCL_OK;
 
@@ -189,12 +189,12 @@ int Cookfs_PageObjRealloc(Cookfs_PageObj *pgPtr, Tcl_Size size) {
 
 void Cookfs_PageObjAddPadding(Cookfs_PageObj pg) {
 
-    CookfsLog2(printf("enter..."));
+    CookfsLog(printf("enter..."));
 
     unsigned char pad_byte = COOKFS_PAGEOBJ_BLOCK_SIZE - (pg->effectiveSize %
         COOKFS_PAGEOBJ_BLOCK_SIZE);
 
-    CookfsLog2(printf("add pad_byte [0x%x] and set effectiveSize to %"
+    CookfsLog(printf("add pad_byte [0x%x] and set effectiveSize to %"
         TCL_SIZE_MODIFIER "d; current effectiveSize=%" TCL_SIZE_MODIFIER
         "d, bufferSize=%" TCL_SIZE_MODIFIER "d", pad_byte,
         pg->effectiveSize + pad_byte, pg->effectiveSize, pg->bufferSize));
@@ -218,13 +218,13 @@ void Cookfs_PageObjAddPadding(Cookfs_PageObj pg) {
 
 int Cookfs_PageObjRemovePadding(Cookfs_PageObj pg) {
 
-    CookfsLog2(printf("enter..."));
+    CookfsLog(printf("enter..."));
 
     Cookfs_PageObjEnsureNotShared(pg);
 
     unsigned char pad_byte = pg->buf[pg->effectiveSize - 1];
 
-    CookfsLog2(printf("pad_byte is [0x%x]; current effectiveSize=%"
+    CookfsLog(printf("pad_byte is [0x%x]; current effectiveSize=%"
         TCL_SIZE_MODIFIER "d, bufferSize=%" TCL_SIZE_MODIFIER "d", pad_byte,
         pg->effectiveSize, pg->bufferSize));
 
@@ -232,14 +232,14 @@ int Cookfs_PageObjRemovePadding(Cookfs_PageObj pg) {
     // go outside the buffer during padding check. Actually, it means that
     // the padding is wrong.
     if (pad_byte > pg->effectiveSize) {
-        CookfsLog2(printf("ERROR: ps->effectiveSize is too small"));
+        CookfsLog(printf("ERROR: ps->effectiveSize is too small"));
         return TCL_ERROR;
     }
 
     // Make sure pad_byte is not zero and is less than or equal to the block size.
     // We cannot have a valid pad_byte that violates this condition.
     if (pad_byte == 0 || pad_byte > COOKFS_PAGEOBJ_BLOCK_SIZE) {
-        CookfsLog2(printf("ERROR: pad_byte is incorrect"));
+        CookfsLog(printf("ERROR: pad_byte is incorrect"));
         return TCL_ERROR;
     }
 
@@ -249,7 +249,7 @@ int Cookfs_PageObjRemovePadding(Cookfs_PageObj pg) {
         unsigned char *end_pointer = &pg->buf[pg->effectiveSize - 1];
         for (unsigned char counter = pad_byte - 1; counter > 0; counter--) {
             if (*(--end_pointer) != pad_byte) {
-                CookfsLog2(printf("ERROR: wrong byte at %u position; actual"
+                CookfsLog(printf("ERROR: wrong byte at %u position; actual"
                     " [0x%x] expected [0x%x]", counter, *end_pointer, pad_byte));
                 return TCL_ERROR;
             }
@@ -258,7 +258,7 @@ int Cookfs_PageObjRemovePadding(Cookfs_PageObj pg) {
 
     pg->effectiveSize -= pad_byte;
 
-    CookfsLog2(printf("set effectiveSize to %" TCL_SIZE_MODIFIER "d",
+    CookfsLog(printf("set effectiveSize to %" TCL_SIZE_MODIFIER "d",
         pg->effectiveSize));
 
     return TCL_OK;

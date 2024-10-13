@@ -154,7 +154,7 @@ const Tcl_Filesystem *CookfsFilesystem(void) {
 
 void CookfsThreadExitProc(ClientData clientData) {
     UNUSED(clientData);
-    CookfsLog(printf("CookfsThreadExitProc (driver): ENTER"));
+    CookfsLog(printf("(driver): ENTER"));
     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
     if (tsdPtr->initialized_objects) {
         for (unsigned char i = 0; i < COOKFS_VFS_ATTRIBUTE_SET_COUNT; i++) {
@@ -169,7 +169,7 @@ void CookfsThreadExitProc(ClientData clientData) {
         }
         tsdPtr->initialized_objects = 0;
     }
-    CookfsLog(printf("CookfsThreadExitProc (driver): ok"));
+    CookfsLog(printf("(driver): ok"));
 }
 
 static ThreadSpecificData *CookfsGetThreadSpecificData(void) {
@@ -210,13 +210,11 @@ static ThreadSpecificData *CookfsGetThreadSpecificData(void) {
 static int CookfsPathInFilesystem(Tcl_Obj *pathPtr,
     ClientData *clientDataPtr)
 {
-    // CookfsLog(printf("CookfsPathInFilesystem: start; looking for [%s]",
-    //     Tcl_GetString(pathPtr)));
+    // CookfsLog(printf("start; looking for [%s]", Tcl_GetString(pathPtr)));
 
     Tcl_Obj *normPathObj = Tcl_FSGetNormalizedPath(NULL, pathPtr);
     if (normPathObj == NULL) {
-    //    CookfsLog(printf("CookfsPathInFilesystem: could not normalize"
-    //        " the path."));
+        // CookfsLog(printf("could not normalize the path."));
         return -1;
     }
 
@@ -224,7 +222,7 @@ static int CookfsPathInFilesystem(Tcl_Obj *pathPtr,
     Cookfs_Vfs *vfs = Cookfs_CookfsSplitWithVfs(normPathObj, &pathObj);
 
     if (vfs == NULL) {
-        //CookfsLog(printf("CookfsPathInFilesystem: return -1"));
+        // CookfsLog(printf("return -1"));
         return -1;
     }
 
@@ -233,8 +231,7 @@ static int CookfsPathInFilesystem(Tcl_Obj *pathPtr,
     cookfsInternalRep *internalRep =
         (cookfsInternalRep *)ckalloc(sizeof(cookfsInternalRep));
     if (internalRep == NULL) {
-        //CookfsLog(printf("CookfsPathInFilesystem: panic! could not create"
-        //    " internalRep."));
+        // CookfsLog(printf("panic! could not create internalRep."));
         return -1;
     }
 
@@ -243,9 +240,9 @@ static int CookfsPathInFilesystem(Tcl_Obj *pathPtr,
     Cookfs_PathObjIncrRefCount(internalRep->pathObj);
 
     *clientDataPtr = (ClientData)internalRep;
-    CookfsLog(printf("CookfsPathInFilesystem: return found entry [%s] as"
-         " an internalRep [%p] for Tcl object [%p]", Tcl_GetString(pathPtr),
-         (void *)internalRep, (void *)pathPtr));
+    CookfsLog(printf("return found entry [%s] as an internalRep [%p] for"
+        " Tcl object [%p]", Tcl_GetString(pathPtr), (void *)internalRep,
+        (void *)pathPtr));
     return TCL_OK;
 }
 
@@ -258,14 +255,13 @@ static ClientData CookfsDupInternalRep(ClientData clientData) {
         internalCopyRep->pathObj = internalRep->pathObj;
         Cookfs_PathObjIncrRefCount(internalRep->pathObj);
     }
-    CookfsLog(printf("CookfsDupInternalRep: copy from [%p] to [%p]",
-        (void *)internalRep, (void *)internalCopyRep));
+    CookfsLog(printf("copy from [%p] to [%p]", (void *)internalRep,
+        (void *)internalCopyRep));
     return (ClientData)internalCopyRep;
 }
 
 static void CookfsFreeInternalRep(ClientData clientData) {
-    CookfsLog(printf("CookfsFreeInternalRep: release [%p]",
-        (void *)clientData));
+    CookfsLog(printf("release [%p]", (void *)clientData));
     cookfsInternalRep *internalRep = (cookfsInternalRep *)clientData;
     if (internalRep != NULL) {
         Cookfs_PathObjDecrRefCount(internalRep->pathObj);
@@ -275,13 +271,13 @@ static void CookfsFreeInternalRep(ClientData clientData) {
 
 static Tcl_Obj *CookfsFilesystemPathType(Tcl_Obj *pathPtr) {
     UNUSED(pathPtr);
-    CookfsLog(printf("CookfsFilesystemPathType: return [cookfs]"));
+    CookfsLog(printf("return [cookfs]"));
     return Tcl_NewStringObj("cookfs", -1);
 }
 
 static Tcl_Obj *CookfsFilesystemSeparator(Tcl_Obj *pathPtr) {
     UNUSED(pathPtr);
-    CookfsLog(printf("CookfsFilesystemSeparator: return [/]"));
+    CookfsLog(printf("return [/]"));
     char sep = VFS_SEPARATOR;
     return Tcl_NewStringObj(&sep, 1);
 }
@@ -300,23 +296,20 @@ static int CookfsValidatePathAndLockFsindex(Tcl_Obj *pathPtr,
         (cookfsInternalRep *)Tcl_FSGetInternalRep(pathPtr, &cookfsFilesystem);
 
     if (internalRep == NULL) {
-        CookfsLog(printf("CookfsValidatePathAndLockFsindex: ERROR:"
-            " internalRep == NULL"));
+        CookfsLog(printf("ERROR: internalRep == NULL"));
         Tcl_SetErrno(EBADF); // Bad file descriptor
         goto error;
     }
 
     Cookfs_Vfs *vfs = internalRep->vfs;
     if (!Cookfs_CookfsVfsLock(vfs)) {
-        CookfsLog(printf("CookfsValidatePathAndLockFsindex: ERROR:"
-            " failed to lock VFS"));
+        CookfsLog(printf("ERROR: failed to lock VFS"));
         Tcl_SetErrno(ENOLCK); // No locks available
         goto error;
     }
 
     if (lockType == COOKFS_LOCK_WRITE && Cookfs_VfsIsReadonly(vfs)) {
-        CookfsLog(printf("CookfsValidatePathAndLockFsindex: filesystem is in"
-            " readonly mode, return an error"));
+        CookfsLog(printf("filesystem is in readonly mode, return an error"));
         Cookfs_CookfsVfsUnlock(vfs);
         Tcl_SetErrno(EROFS);
         return 0;
@@ -330,8 +323,7 @@ static int CookfsValidatePathAndLockFsindex(Tcl_Obj *pathPtr,
     Cookfs_CookfsVfsUnlock(vfs);
 
     if (!lockResult) {
-        CookfsLog(printf("CookfsValidatePathAndLockFsindex: ERROR:"
-            " failed to lock fsindex"));
+        CookfsLog(printf("ERROR: failed to lock fsindex"));
         Tcl_SetErrno(ENOLCK); // No locks available
         goto error;
     }
@@ -345,7 +337,7 @@ error:
 }
 
 static int CookfsStat(Tcl_Obj *pathPtr, Tcl_StatBuf *bufPtr) {
-    CookfsLog(printf("CookfsStat: path [%s]", Tcl_GetString(pathPtr)));
+    CookfsLog(printf("path [%s]", Tcl_GetString(pathPtr)));
 
     cookfsInternalRep *ir;
 
@@ -360,8 +352,7 @@ static int CookfsStat(Tcl_Obj *pathPtr, Tcl_StatBuf *bufPtr) {
     Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(index, ir->pathObj);
 
     if (entry == NULL) {
-        CookfsLog(printf("CookfsStat: could not find the entry,"
-            " return an error"));
+        CookfsLog(printf("could not find the entry, return an error"));
         Tcl_SetErrno(ENOENT);
         rc = -1;
         goto done;
@@ -373,12 +364,12 @@ static int CookfsStat(Tcl_Obj *pathPtr, Tcl_StatBuf *bufPtr) {
         // Fill the Tcl_StatBuf for a directory
         bufPtr->st_mode = 040777;
         bufPtr->st_size = 0;
-        CookfsLog(printf("CookfsStat: return stats for a directory"));
+        CookfsLog(printf("return stats for a directory"));
     } else {
         // Fill the Tcl_StatBuf for a file
         bufPtr->st_mode = 0100777;
         bufPtr->st_size = Cookfs_FsindexEntryGetFilesize(entry);
-        CookfsLog(printf("CookfsStat: return stats for a file"));
+        CookfsLog(printf("return stats for a file"));
     }
     // Tcl variant of Cookfs returns mtime as 0 for the root directory
     if (ir->pathObj->fullNameLength == 0) {
@@ -399,8 +390,7 @@ done:
 }
 
 static int CookfsAccess(Tcl_Obj *pathPtr, int mode) {
-    CookfsLog(printf("CookfsAccess: path [%s] mode [%d]",
-        Tcl_GetString(pathPtr), mode));
+    CookfsLog(printf("path [%s] mode [%d]", Tcl_GetString(pathPtr), mode));
 
     cookfsInternalRep *ir;
 
@@ -415,8 +405,7 @@ static int CookfsAccess(Tcl_Obj *pathPtr, int mode) {
     // If write mode is requested, but the mount is in readonly mode, return
     // an error
     if ((mode & W_OK) && Cookfs_VfsIsReadonly(vfs)) {
-        CookfsLog(printf("CookfsAccess: vfs is in a readonly mode,"
-            " return false"));
+        CookfsLog(printf("vfs is in a readonly mode, return false"));
         Tcl_SetErrno(EROFS);
         rc = -1;
         goto done;
@@ -429,18 +418,17 @@ static int CookfsAccess(Tcl_Obj *pathPtr, int mode) {
     if (entry != NULL) {
         // Directories are readonly
         if ((mode & W_OK) && Cookfs_FsindexEntryIsDirectory(entry)) {
-            CookfsLog(printf("CookfsAccess: the path is directory,"
-                " write access denied, return false"));
+            CookfsLog(printf("the path is directory, write access denied,"
+                " return false"));
             Tcl_SetErrno(EISDIR);
             rc = -1;
             goto done;
         }
         // Allow read/write access to files and read access to directories
-        CookfsLog(printf("CookfsAccess: return true"));
+        CookfsLog(printf("return true"));
     } else {
         // Could not find the entry, return an error
-        CookfsLog(printf("CookfsAccess: could not find the entry, return"
-            " false"));
+        CookfsLog(printf("could not find the entry, return false"));
         Tcl_SetErrno(ENOENT);
         rc = -1;
     }
@@ -456,9 +444,8 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
 
     UNUSED(permissions);
 
-    CookfsLog(printf("CookfsOpenFileChannel: interp [%p] path [%s] mode [%d]"
-        " permissions [%d]", (void *)interp, Tcl_GetString(pathPtr), mode,
-        permissions));
+    CookfsLog(printf("interp [%p] path [%s] mode [%d] permissions [%d]",
+        (void *)interp, Tcl_GetString(pathPtr), mode, permissions));
 
     cookfsInternalRep *ir;
     Cookfs_Fsindex *index = NULL;
@@ -483,8 +470,7 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
 
         // Check if entry is a directory
         if (Cookfs_FsindexEntryIsDirectory(entry)) {
-            CookfsLog(printf("CookfsOpenFileChannel: the path is"
-                " a directory"));
+            CookfsLog(printf("the path is a directory"));
             Tcl_SetErrno(EISDIR);
             goto posixerror;
         }
@@ -497,19 +483,19 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
             // If entry blocks are in small file buffer, then open the file
             // using writerchannel
             if (isEntryPending) {
-                CookfsLog(printf("CookfsOpenFileChannel: the file is in"
-                    " a pending state, open it using writerchannel"));
+                CookfsLog(printf("the file is in a pending state,"
+                    " open it using writerchannel"));
                 channel = Cookfs_CreateWriterchannel(pages, index,
                     vfs->writer, NULL, entry, interp);
             } else {
-                CookfsLog(printf("CookfsOpenFileChannel: the file is NOT in"
-                    " a pending state, open it using readerchannel"));
+                CookfsLog(printf("the file is NOT in a pending state,"
+                    " open it using readerchannel"));
                 channel = Cookfs_CreateReaderchannel(pages, index, entry,
                     interp, NULL);
             }
 
             if (channel == NULL) {
-                CookfsLog(printf("CookfsOpenFileChannel: got NULL channel"));
+                CookfsLog(printf("got NULL channel"));
                 // We expect an error message in the results of the create
                 // channel function.
                 goto interperror;
@@ -524,7 +510,7 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
 
         // The file must exists when mode is O_RDONLY
         if (mode == O_RDONLY) {
-            CookfsLog(printf("CookfsOpenFileChannel: file doesn't exist"));
+            CookfsLog(printf("file doesn't exist"));
             Tcl_SetErrno(ENOENT);
             goto posixerror;
         }
@@ -533,16 +519,14 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
         Cookfs_FsindexEntry *entryParent = CookfsFsindexFindElement(index,
             ir->pathObj, ir->pathObj->elementCount - 1);
         if (entryParent == NULL) {
-            CookfsLog(printf("CookfsOpenFileChannel: parent directory"
-                " doesn't exist"));
+            CookfsLog(printf("parent directory doesn't exist"));
             Tcl_SetErrno(ENOENT);
             goto posixerror;
         }
 
         // Throw an error if parent is not a directory
         if (!Cookfs_FsindexEntryIsDirectory(entryParent)) {
-            CookfsLog(printf("CookfsOpenFileChannel: parent is not"
-                " a directory"));
+            CookfsLog(printf("parent is not a directory"));
             Tcl_SetErrno(ENOTDIR);
             goto posixerror;
         }
@@ -554,8 +538,7 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
 
     // Make sure that VFS is not in RO mode
     if (isVFSReadonly) {
-        CookfsLog(printf("CookfsOpenFileChannel: filesystem is in"
-            " readonly mode, return an error"));
+        CookfsLog(printf("filesystem is in readonly mode, return an error"));
         Tcl_SetErrno(EROFS);
         goto posixerror;
     }
@@ -570,8 +553,7 @@ static Tcl_Channel CookfsOpenFileChannel(Tcl_Interp *interp, Tcl_Obj *pathPtr,
         ir->pathObj, entry, interp);
 
     if (channel == NULL) {
-        CookfsLog(printf("CookfsOpenFileChannel: got NULL from"
-            " Cookfs_CreateWriterchannel()"));
+        CookfsLog(printf("got NULL from Cookfs_CreateWriterchannel()"));
         // We expect an error message in the results of the create
         // channel function.
         goto interperror;
@@ -594,7 +576,7 @@ done:
     Tcl_SetChannelOption(NULL, channel, "-eofchar", "\032 {}");
 #endif
 #endif
-    CookfsLog(printf("CookfsOpenFileChannel: ok"));
+    CookfsLog(printf("ok"));
     goto ret;
 
 posixerror:
@@ -620,7 +602,7 @@ ret:
     if (index != NULL) {
         Cookfs_FsindexUnlock(index);
     }
-    CookfsLog2(printf("return: %p", (void *)channel));
+    CookfsLog(printf("return: %p", (void *)channel));
     return channel;
 }
 
@@ -633,28 +615,26 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
     UNUSED(interp);
 
     if (pattern == NULL) {
-        CookfsLog(printf("CookfsMatchInDirectory: check if path exists"
-            " [%s](tcl obj: %p)", Tcl_GetString(pathPtr), (void *)pathPtr));
+        CookfsLog(printf("check if path exists [%s](tcl obj: %p)",
+            Tcl_GetString(pathPtr), (void *)pathPtr));
     } else {
-        CookfsLog(printf("CookfsMatchInDirectory: check path [%s](tcl obj: %p)"
-            " for pattern [%s]", Tcl_GetString(pathPtr), (void *)pathPtr,
-            pattern));
+        CookfsLog(printf("check path [%s](tcl obj: %p) for pattern [%s]",
+            Tcl_GetString(pathPtr), (void *)pathPtr, pattern));
     }
 
     int wanted;
     if (types == NULL) {
         wanted = TCL_GLOB_TYPE_DIR | TCL_GLOB_TYPE_FILE;
-        CookfsLog(printf("CookfsMatchInDirectory: no types specified"));
+        CookfsLog(printf("no types specified"));
     } else {
         wanted = types->type;
-        CookfsLog(printf("CookfsMatchInDirectory: types [%d]", wanted));
+        CookfsLog(printf("types [%d]", wanted));
         // If we are not looking for files/dirs/mounts, then just return.
         // We have only those entries.
         if ((wanted & (TCL_GLOB_TYPE_DIR | TCL_GLOB_TYPE_FILE |
             TCL_GLOB_TYPE_MOUNT)) == 0)
         {
-            CookfsLog(printf("CookfsMatchInDirectory: there are no known"
-                " types, return empty list"));
+            CookfsLog(printf("there are no known types, return empty list"));
             return TCL_OK;
         }
     }
@@ -662,9 +642,9 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
     // This is a special case where type == TCL_GLOB_TYPE_MOUNT
     // Tcl is looking for a list of mount points that match the given pattern.
     if (wanted & TCL_GLOB_TYPE_MOUNT) {
-        CookfsLog(printf("CookfsMatchInDirectory: check mount points"));
+        CookfsLog(printf("check mount points"));
         Cookfs_CookfsSearchVfsToListObj(pathPtr, pattern, returnPtr);
-        CookfsLog(printf("CookfsMatchInDirectory: ok"));
+        CookfsLog(printf("ok"));
         return TCL_OK;
     }
 
@@ -681,8 +661,8 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
 
     // We could not find the file entry, just return empty result
     if (entry == NULL) {
-        CookfsLog(printf("CookfsMatchInDirectory: could not find the path"
-            " in cookfs, return empty result"));
+        CookfsLog(printf("could not find the path in cookfs, return empty"
+            " result"));
         goto done;
     }
 
@@ -697,12 +677,10 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
             ((wanted & TCL_GLOB_TYPE_DIR) && isDirectory) ||
             ((wanted & TCL_GLOB_TYPE_FILE) && !isDirectory))
         {
-            CookfsLog(printf("CookfsMatchInDirectory: return result"
-                " - exists"));
+            CookfsLog(printf("return result - exists"));
             Tcl_ListObjAppendElement(NULL, returnPtr, pathPtr);
         } else {
-            CookfsLog(printf("CookfsMatchInDirectory: return result"
-                " - doesn't exist"));
+            CookfsLog(printf("return result - doesn't exist"));
         }
         goto done;
     }
@@ -711,8 +689,7 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
     // directory. But first, let's make sure the path is a directory.
     // If it is not, return an empty result.
     if (!isDirectory) {
-        CookfsLog(printf("CookfsMatchInDirectory: the path is not a directory,"
-            " return empty result"));
+        CookfsLog(printf("the path is not a directory, return empty result"));
         goto done;
     }
 
@@ -734,20 +711,18 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
             !(((wanted & TCL_GLOB_TYPE_DIR) && isChildDirectory) ||
             ((wanted & TCL_GLOB_TYPE_FILE) && !isChildDirectory)))
         {
-            CookfsLog(printf("CookfsMatchInDirectory: child entry [%s]"
-                " has wrong type", fileName));
+            CookfsLog(printf("child entry [%s] has wrong type", fileName));
             continue;
         }
 
         // Now check if child entry matches the pattern
         if (!Tcl_StringCaseMatch(fileName, pattern, 0)) {
-            CookfsLog(printf("CookfsMatchInDirectory: child entry [%s]"
-                " doesn't match pattern", fileName));
+            CookfsLog(printf("child entry [%s] doesn't match pattern",
+                fileName));
             continue;
         }
 
-        CookfsLog(printf("CookfsMatchInDirectory: child entry [%s]"
-            " is OK", fileName));
+        CookfsLog(printf("child entry [%s] is OK", fileName));
 
         // Prepare an object to be used as a prefix for the retrieved records.
         // It should be pathPtr + filesystem separator '/'. However, we
@@ -765,7 +740,7 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
             } else {
                 prefix = pathPtr;
             }
-            CookfsLog2(printf("use common prefix for all matches: [%s]",
+            CookfsLog(printf("use common prefix for all matches: [%s]",
                 Tcl_GetString(prefix)));
         }
 
@@ -773,7 +748,7 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
         Tcl_Obj *obj = Tcl_DuplicateObj(prefix);
         Tcl_AppendToObj(obj, fileName, fileNameLen);
         Tcl_ListObjAppendElement(NULL, returnPtr, obj);
-        CookfsLog2(printf("add file to results: [%s]",
+        CookfsLog(printf("add file to results: [%s]",
             Tcl_GetString(obj)));
 
     }
@@ -787,14 +762,14 @@ static int CookfsMatchInDirectory(Tcl_Interp *interp, Tcl_Obj *returnPtr,
 
 done:
     Cookfs_FsindexUnlock(index);
-    CookfsLog(printf("CookfsMatchInDirectory: ok"));
+    CookfsLog(printf("ok"));
     return TCL_OK;
 }
 
 // cppcheck-suppress constParameterCallback
 static int CookfsUtime(Tcl_Obj *pathPtr, struct utimbuf *tval) {
-    CookfsLog(printf("CookfsUtime: path [%s] time [%lld]",
-        Tcl_GetString(pathPtr), (long long int)tval->modtime));
+    CookfsLog(printf("path [%s] time [%lld]", Tcl_GetString(pathPtr),
+        (long long int)tval->modtime));
 
     cookfsInternalRep *ir;
 
@@ -810,8 +785,7 @@ static int CookfsUtime(Tcl_Obj *pathPtr, struct utimbuf *tval) {
     Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(index, ir->pathObj);
 
     if (entry == NULL) {
-        CookfsLog(printf("CookfsUtime: could not find the entry,"
-            " return an error"));
+        CookfsLog(printf("could not find the entry, return an error"));
         Tcl_SetErrno(ENOENT);
         rc = -1;
         goto done;
@@ -831,15 +805,13 @@ static Tcl_Obj *CookfsListVolumes(void) {
     if (ret != NULL) {
         Tcl_IncrRefCount(ret);
     }
-    // CookfsLog(printf("CookfsListVolumes: return [%s]",
-    //    (ret == NULL ? "NULL" : "SET")));
+    // CookfsLog(printf("return [%s]", (ret == NULL ? "NULL" : "SET")));
     return ret;
 }
 
 static int CookfsCreateDirectory(Tcl_Obj *pathPtr) {
 
-    CookfsLog(printf("CookfsCreateDirectory: path [%s]",
-        Tcl_GetString(pathPtr)));
+    CookfsLog(printf("path [%s]", Tcl_GetString(pathPtr)));
 
     cookfsInternalRep *ir;
 
@@ -856,8 +828,8 @@ static int CookfsCreateDirectory(Tcl_Obj *pathPtr) {
     Cookfs_FsindexEntry *entry = Cookfs_FsindexSetDirectory(index, ir->pathObj);
 
     if (entry == NULL) {
-        CookfsLog(printf("CookfsCreateDirectory: could not create"
-            " the directory entry, return an error"));
+        CookfsLog(printf("could not create the directory entry, return"
+            " an error"));
         Tcl_SetErrno(EINTR); // Interrupted system call
         rc = TCL_ERROR;
         goto done;
@@ -880,8 +852,8 @@ static int CookfsRemoveDirectory(Tcl_Obj *pathPtr, int recursive,
     Tcl_Obj **errorPtr)
 {
 
-    CookfsLog(printf("CookfsRemoveDirectory: path [%s] recursive?%d",
-        Tcl_GetString(pathPtr), recursive));
+    CookfsLog(printf("path [%s] recursive?%d", Tcl_GetString(pathPtr),
+        recursive));
 
     cookfsInternalRep *ir;
 
@@ -897,24 +869,21 @@ static int CookfsRemoveDirectory(Tcl_Obj *pathPtr, int recursive,
     Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(index, ir->pathObj);
 
     if (entry == NULL) {
-        CookfsLog(printf("CookfsRemoveDirectory: could not find the entry,"
-            " return an error"));
+        CookfsLog(printf("could not find the entry, return an error"));
         Tcl_SetErrno(ENOENT);
         goto returnError;
     }
 
     // Throw an error if the entry is not a directory
     if (!Cookfs_FsindexEntryIsDirectory(entry)) {
-        CookfsLog(printf("CookfsRemoveDirectory: is not a directory,"
-            " return an error"));
+        CookfsLog(printf("is not a directory, return an error"));
         Tcl_SetErrno(ENOTDIR);
         goto returnError;
     }
 
     // Check if the directory is not empty
     if (!recursive && !Cookfs_FsindexEntryIsEmptyDirectory(entry)) {
-        CookfsLog(printf("CookfsRemoveDirectory: the directory is not empty,"
-            " return an error"));
+        CookfsLog(printf("the directory is not empty, return an error"));
         Tcl_SetErrno(EEXIST);
         goto returnError;
     }
@@ -923,13 +892,12 @@ static int CookfsRemoveDirectory(Tcl_Obj *pathPtr, int recursive,
 
     // Check to see if anything's wrong
     if (!result) {
-        CookfsLog(printf("CookfsRemoveDirectory: internal error,"
-            " return an error"));
+        CookfsLog(printf("internal error, return an error"));
         Tcl_SetErrno(EINTR); // Interrupted system call
         goto returnError;
     }
 
-    CookfsLog(printf("CookfsRemoveDirectory: OK"));
+    CookfsLog(printf("OK"));
 
     goto done;
 
@@ -946,7 +914,7 @@ done:
 
 static int CookfsDeleteFile(Tcl_Obj *pathPtr) {
 
-    CookfsLog(printf("CookfsDeleteFile: path [%s]", Tcl_GetString(pathPtr)));
+    CookfsLog(printf("path [%s]", Tcl_GetString(pathPtr)));
 
     cookfsInternalRep *ir;
 
@@ -963,23 +931,21 @@ static int CookfsDeleteFile(Tcl_Obj *pathPtr) {
     Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(index, ir->pathObj);
 
     if (entry == NULL) {
-        CookfsLog(printf("CookfsDeleteFile: could not find the entry,"
-            " return an error"));
+        CookfsLog(printf("could not find the entry, return an error"));
         Tcl_SetErrno(ENOENT);
         goto returnError;
     }
 
     // Throw an error if the entry is a directory
     if (Cookfs_FsindexEntryIsDirectory(entry)) {
-        CookfsLog(printf("CookfsDeleteFile: is not a file,"
-            " return an error"));
+        CookfsLog(printf("is not a file, return an error"));
         Tcl_SetErrno(EISDIR);
         goto returnError;
     }
 
     if (Cookfs_FsindexEntryIsPending(entry)) {
-        CookfsLog(printf("CookfsDeleteFile: the entry is pending,"
-            " remove it from small file buffer"));
+        CookfsLog(printf("the entry is pending, remove it from small file"
+            " buffer"));
         Cookfs_WriterLockWrite(vfs->writer, NULL);
         Cookfs_WriterRemoveFile(vfs->writer, entry);
         Cookfs_WriterUnlock(vfs->writer);
@@ -989,13 +955,12 @@ static int CookfsDeleteFile(Tcl_Obj *pathPtr) {
 
     // Check to see if anything's wrong
     if (!result) {
-        CookfsLog(printf("CookfsDeleteFile: internal error,"
-            " return an error"));
+        CookfsLog(printf("internal error, return an error"));
         Tcl_SetErrno(EINTR); // Interrupted system call
         goto returnError;
     }
 
-    CookfsLog(printf("CookfsDeleteFile: OK"));
+    CookfsLog(printf("OK"));
 
     goto done;
 
@@ -1015,8 +980,7 @@ static const char *const *CookfsFileAttrStrings(Tcl_Obj *pathPtr,
     Tcl_Obj **objPtrRef)
 {
 
-    CookfsLog(printf("CookfsFileAttrStrings: path [%s]",
-        Tcl_GetString(pathPtr)));
+    CookfsLog(printf("path [%s]", Tcl_GetString(pathPtr)));
 
     cookfsInternalRep *ir;
     if (!CookfsValidatePathAndLockFsindex(pathPtr, COOKFS_LOCK_READ, &ir)) {
@@ -1038,8 +1002,7 @@ static int CookfsFileAttrsGet(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
 
     UNUSED(interp);
 
-    CookfsLog(printf("CookfsFileAttrsGet: path [%s] index:%d",
-        Tcl_GetString(pathPtr), index));
+    CookfsLog(printf("path [%s] index:%d", Tcl_GetString(pathPtr), index));
 
     cookfsInternalRep *ir;
     if (!CookfsValidatePathAndLockFsindex(pathPtr, COOKFS_LOCK_READ, &ir)) {
@@ -1060,24 +1023,23 @@ static int CookfsFileAttrsGet(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
     switch (attr) {
     case COOKFS_VFS_ATTRIBUTE_VFS:
         *objPtrRef = tsdPtr->attr_vfs_value;
-        CookfsLog(printf("CookfsFileAttrsGet: return value for -vfs"));
+        CookfsLog(printf("return value for -vfs"));
         break;
     case COOKFS_VFS_ATTRIBUTE_HANDLE:
 #ifdef TCL_THREADS
         if (vfs->threadId != Tcl_GetCurrentThread()) {
-            CookfsLog(printf("CookfsFileAttrsGet: return empty value due"
-                " to wrong threadId"));
+            CookfsLog(printf("return empty value due to wrong threadId"));
             *objPtrRef = Tcl_NewObj();
         } else {
 #endif /* TCL_THREADS */
             *objPtrRef = CookfsGetVfsObjectCmd(interp, vfs);
-            CookfsLog(printf("CookfsFileAttrsGet: return value for -handle"));
+            CookfsLog(printf("return value for -handle"));
 #ifdef TCL_THREADS
         }
 #endif /* TCL_THREADS */
         break;
     case COOKFS_VFS_ATTRIBUTE_FILESET:
-        CookfsLog(printf("CookfsFileAttrsGet: return value for -fileset"));
+        CookfsLog(printf("return value for -fileset"));
         *objPtrRef = Cookfs_VfsFilesetGet(vfs);
         break;
     }
@@ -1090,8 +1052,8 @@ static int CookfsFileAttrsSet(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
     Tcl_Obj *objPtr)
 {
 
-    CookfsLog(printf("CookfsFileAttrsSet: path [%s] index:%d = [%s]",
-        Tcl_GetString(pathPtr), index, Tcl_GetString(objPtr)));
+    CookfsLog(printf("path [%s] index:%d = [%s]", Tcl_GetString(pathPtr),
+        index, Tcl_GetString(objPtr)));
 
     // Note: we request LOCK_WRITE mode for CookfsValidatePathAndLockFsindex()
     // and it should return an error for read-only VFS. However, here we allow

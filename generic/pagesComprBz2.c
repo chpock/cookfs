@@ -21,14 +21,14 @@ int CookfsReadPageBz2(Cookfs_Pages *p, unsigned char *dataCompressed,
     UNUSED(err);
     UNUSED(p);
 
-    CookfsLog2(printf("input buffer %p (%" TCL_SIZE_MODIFIER "d bytes) ->"
+    CookfsLog(printf("input buffer %p (%" TCL_SIZE_MODIFIER "d bytes) ->"
         " output buffer %p (%" TCL_SIZE_MODIFIER "d bytes)",
         (void *)dataCompressed, sizeCompressed,
         (void *)dataUncompressed, sizeUncompressed));
 
     unsigned int resultSize = (unsigned int)sizeUncompressed;
 
-    CookfsLog2(printf("call BZ2_bzBuffToBuffDecompress() ..."));
+    CookfsLog(printf("call BZ2_bzBuffToBuffDecompress() ..."));
     int res = BZ2_bzBuffToBuffDecompress((char *)dataUncompressed, &resultSize,
         (char *)dataCompressed, (unsigned int)sizeCompressed, 0, 0);
 
@@ -37,14 +37,14 @@ int CookfsReadPageBz2(Cookfs_Pages *p, unsigned char *dataCompressed,
         return TCL_ERROR;
     }
 
-    CookfsLog2(printf("got %u bytes", resultSize));
+    CookfsLog(printf("got %u bytes", resultSize));
 
     if (resultSize != (unsigned int)sizeUncompressed) {
-        CookfsLog2(printf("ERROR: result size doesn't match original size"));
+        CookfsLog(printf("ERROR: result size doesn't match original size"));
         return TCL_ERROR;
     }
 
-    CookfsLog2(printf("return: ok"));
+    CookfsLog(printf("return: ok"));
     return TCL_OK;
 
 }
@@ -53,13 +53,13 @@ Cookfs_PageObj CookfsWritePageBz2(Cookfs_Pages *p, unsigned char *bytes,
     Tcl_Size origSize)
 {
 
-    CookfsLog2(printf("want to compress %" TCL_SIZE_MODIFIER "d bytes",
+    CookfsLog(printf("want to compress %" TCL_SIZE_MODIFIER "d bytes",
         origSize));
 
     unsigned int resultSize = (unsigned int)origSize * 2 + 1024;
     Cookfs_PageObj rc = Cookfs_PageObjAlloc(resultSize);
     if (rc == NULL) {
-        CookfsLog2(printf("ERROR: could not alloc output buffer"));
+        CookfsLog(printf("ERROR: could not alloc output buffer"));
         return NULL;
     }
 
@@ -70,17 +70,17 @@ Cookfs_PageObj CookfsWritePageBz2(Cookfs_Pages *p, unsigned char *bytes,
         level = 9;
     }
 
-    CookfsLog2(printf("call BZ2_bzBuffToBuffCompress() level %d ...", level));
+    CookfsLog(printf("call BZ2_bzBuffToBuffCompress() level %d ...", level));
     int res = BZ2_bzBuffToBuffCompress((char *)rc->buf, &resultSize,
         (char *)bytes, (unsigned int)origSize, level, 0, 0);
 
     if (res != BZ_OK) {
-        CookfsLog2(printf("call got ERROR"));
+        CookfsLog(printf("call got ERROR"));
         Cookfs_PageObjBounceRefCount(rc);
         return NULL;
     }
 
-    CookfsLog2(printf("got encoded size: %u", resultSize));
+    CookfsLog(printf("got encoded size: %u", resultSize));
     Cookfs_PageObjSetSize(rc, resultSize);
 
     return rc;

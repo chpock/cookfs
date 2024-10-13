@@ -172,7 +172,7 @@ Cookfs_VfsProps *Cookfs_VfsPropsInit(void) {
 #endif /* COOKFS_USECCRYPTO */
 //#endif /* COOKFS_USECCRYPTO */
 
-    CookfsLog2(printf("return: %p", (void *)p));
+    CookfsLog(printf("return: %p", (void *)p));
     return p;
 }
 
@@ -306,7 +306,7 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
 
     int rc;
 
-    CookfsLog(printf("CookfsMountCmd: ENTER"));
+    CookfsLog(printf("ENTER"));
 
     static const char *const options[] = {
 #ifdef COOKFS_USETCLCMDS
@@ -369,19 +369,19 @@ static int CookfsMountCmd(ClientData clientData, Tcl_Interp *interp,
             // If the current argument is not an option, assume it is
             // archive or local argument.
             if (archive == NULL) {
-                CookfsLog(printf("CookfsMountCmd: arg #%d is <archive>", idx));
+                CookfsLog(printf("arg #%d is <archive>", idx));
                 archive = objv[idx];
             } else if (local == NULL) {
-                CookfsLog(printf("CookfsMountCmd: arg #%d is <local>", idx));
+                CookfsLog(printf("arg #%d is <local>", idx));
                 local = objv[idx];
             } else {
-                CookfsLog(printf("CookfsMountCmd: arg #%d is unknown", idx));
+                CookfsLog(printf("arg #%d is unknown", idx));
                 goto wrongArgNum;
             }
             continue;
         }
 
-        CookfsLog(printf("CookfsMountCmd: arg #%d is a known option", idx));
+        CookfsLog(printf("arg #%d is a known option", idx));
 #ifdef COOKFS_USETCLCMDS
         PROCESS_OPT_SWITCH(OPT_NOREGISTER, props->noregister);
 #endif
@@ -542,7 +542,7 @@ int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
     Cookfs_VfsProps *props)
 {
 
-    CookfsLog(printf("Cookfs_Mount: ENTER"));
+    CookfsLog(printf("ENTER"));
 
     int freeProps = 0;
     if (props == NULL) {
@@ -595,9 +595,9 @@ int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
 #endif /* COOKFS_USECCRYPTO */
 
     if (props->smallfilesize > props->pagesize) {
-        CookfsLog(printf("Cookfs_Mount: ERROR: smallfilesize [%"
-            TCL_LL_MODIFIER "d] > pagesize [%" TCL_LL_MODIFIER "d]",
-            props->smallfilesize, props->pagesize));
+        CookfsLog(printf("ERROR: smallfilesize [%" TCL_LL_MODIFIER "d]"
+            " > pagesize [%" TCL_LL_MODIFIER "d]", props->smallfilesize,
+            props->pagesize));
         Tcl_SetObjResult(interp, Tcl_NewStringObj("smallfilesize cannot be"
             " larger than pagesize", -1));
         goto error;
@@ -626,23 +626,23 @@ int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
     }
 
     if (Tcl_GetCharLength(archive)) {
-        CookfsLog(printf("Cookfs_Mount: normalize archive path [%s]",
+        CookfsLog(printf("normalize archive path [%s]",
             Tcl_GetString(archive)));
         // If the path is not empty, then normalize it
         normalized = Tcl_FSGetNormalizedPath(interp, archive);
         if (normalized == NULL) {
-            CookfsLog(printf("Cookfs_Mount: got NULL"));
+            CookfsLog(printf("got NULL"));
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("could not normalize"
                 " archive path \"%s\"", Tcl_GetString(archive)));
             goto error;
         }
-        CookfsLog(printf("Cookfs_Mount: got normalized path [%s]",
+        CookfsLog(printf("got normalized path [%s]",
             Tcl_GetString(normalized)));
         archiveActual = normalized;
         Tcl_IncrRefCount(archiveActual);
     } else {
-        CookfsLog(printf("Cookfs_Mount: use PWD as archive, since archive"
-            " is an empty string"));
+        CookfsLog(printf("use PWD as archive, since archive is an empty"
+            " string"));
         // If the path is empty, then use PWD. Tcl_FSGetCwd() returns PWD
         // with already incremented refcount
         archiveActual = Tcl_FSGetCwd(interp);
@@ -658,22 +658,22 @@ skipArchive:
     if (!props->volume) {
         if (Tcl_GetCharLength(local)) {
             // If the path is not empty, then normalize it
-            CookfsLog(printf("Cookfs_Mount: normalize local path [%s]",
+            CookfsLog(printf("normalize local path [%s]",
                 Tcl_GetString(local)));
             normalized = Tcl_FSGetNormalizedPath(interp, local);
             if (normalized == NULL) {
-                CookfsLog(printf("Cookfs_Mount: got NULL"));
+                CookfsLog(printf("got NULL"));
                 Tcl_SetObjResult(interp, Tcl_ObjPrintf("could not normalize"
                     " local path \"%s\"", Tcl_GetString(local)));
                 goto error;
             }
-            CookfsLog(printf("Cookfs_Mount: got normalized path [%s]",
+            CookfsLog(printf("got normalized path [%s]",
                 Tcl_GetString(normalized)));
             localActual = normalized;
             Tcl_IncrRefCount(localActual);
         } else {
-            CookfsLog(printf("Cookfs_Mount: use PWD as archive, since"
-                " archive is an empty string"));
+            CookfsLog(printf("use PWD as archive, since archive is an empty"
+                " string"));
             // If the path is empty, then use PWD. Tcl_FSGetCwd() returns PWD
             // with already incremented refcount
             localActual = Tcl_FSGetCwd(interp);
@@ -684,8 +684,7 @@ skipArchive:
             }
         }
     } else {
-        CookfsLog(printf("Cookfs_Mount: use local as is, since it is"
-            " a volume"));
+        CookfsLog(printf("use local as is, since it is a volume"));
         // Just use specified "local", but increase refcount
         localActual = local;
         Tcl_IncrRefCount(localActual);
@@ -698,7 +697,7 @@ skipArchive:
 #ifdef COOKFS_USETCLCMDS
     if (props->pagesobject == NULL) {
 #endif
-        CookfsLog(printf("Cookfs_Mount: creating the pages object"));
+        CookfsLog(printf("creating the pages object"));
         // TODO: pass a pointer to err variable instead of NULL and
         // handle the corresponding error message
         pages = Cookfs_PagesInit(interp, archiveActual, props->readonly,
@@ -741,12 +740,10 @@ skipArchive:
     Cookfs_PagesLockWrite(pages, NULL);
 
     // set whether compression should always be enabled
-    CookfsLog(printf("Cookfs_Mount: set pages always compress: %d",
-        props->alwayscompress));
+    CookfsLog(printf("set pages always compress: %d", props->alwayscompress));
     Cookfs_PagesSetAlwaysCompress(pages, props->alwayscompress);
     // set up cache size
-    CookfsLog(printf("Cookfs_Mount: set pages cache size: %d",
-        props->pagecachesize));
+    CookfsLog(printf("set pages cache size: %d", props->pagecachesize));
     Cookfs_PagesSetCacheSize(pages, props->pagecachesize);
 
 skipPagesConfiguration:
@@ -760,18 +757,16 @@ skipPages:
 #ifdef COOKFS_USETCLCMDS
     if (props->fsindexobject == NULL) {
 #endif
-        CookfsLog(printf("Cookfs_Mount: creating the index object"));
+        CookfsLog(printf("creating the index object"));
         Cookfs_PageObj indexDataObj = NULL;
         if (pages != NULL) {
             indexDataObj = Cookfs_PagesGetIndex(pages);
             if (indexDataObj == NULL) {
-                CookfsLog(printf("Cookfs_FsindexFromPages: got NULL as"
-                    " index data"));
+                CookfsLog(printf("got NULL as index data"));
             } else {
                 Cookfs_PageObjIncrRefCount(indexDataObj);
-                CookfsLog(printf("Cookfs_FsindexFromPages: got index data %"
-                    TCL_SIZE_MODIFIER "d bytes",
-                    Cookfs_PageObjSize(indexDataObj)));
+                CookfsLog(printf("got index data %" TCL_SIZE_MODIFIER "d"
+                    " bytes", Cookfs_PageObjSize(indexDataObj)));
                 if (!Cookfs_PageObjSize(indexDataObj)) {
                     Cookfs_PageObjDecrRefCount(indexDataObj);
                     indexDataObj = NULL;
@@ -827,17 +822,17 @@ skipPages:
     }
 
     if (Cookfs_PagesGetLength(pages)) {
-        CookfsLog(printf("Cookfs_Mount: pages contain data"));
+        CookfsLog(printf("pages contain data"));
         Tcl_Obj *pagehashActual = Cookfs_FsindexGetMetadata(index,
             pagehashMetadataKey);
         if (pagehashActual == NULL) {
-            CookfsLog(printf("Cookfs_Mount: metadata doesn't contain"
-                " pagehash, the default algo will be used"));
+            CookfsLog(printf("metadata doesn't contain pagehash, the default"
+                " algo will be used"));
         } else {
             Tcl_IncrRefCount(pagehashActual);
-            CookfsLog(printf("Cookfs_Mount: got pagehash from metadata [%s]",
+            CookfsLog(printf("got pagehash from metadata [%s]",
                 Tcl_GetString(pagehashActual)));
-            CookfsLog(printf("Cookfs_Mount: set pagehash for pages"));
+            CookfsLog(printf("set pagehash for pages"));
             // Don't set an error message in interp, we will set our own
             // to avoid confusion as this pagehash comes not from
             // specified parameters, but from metadata. This case is possible
@@ -855,17 +850,17 @@ skipPages:
         }
     } else {
 
-        CookfsLog(printf("Cookfs_Mount: pages don't contain data"));
+        CookfsLog(printf("pages don't contain data"));
 
 #ifdef COOKFS_USETCLCMDS
         if (props->bootstrap != NULL) {
-            CookfsLog(printf("Cookfs_Mount: bootstrap is specified"));
+            CookfsLog(printf("bootstrap is specified"));
             Tcl_Size bootstrapLength;
             Tcl_GetByteArrayFromObj(props->bootstrap, &bootstrapLength);
             if (!bootstrapLength) {
-                CookfsLog(printf("Cookfs_Mount: bootstrap is empty"));
+                CookfsLog(printf("bootstrap is empty"));
             } else {
-                CookfsLog(printf("Cookfs_Mount: add bootstrap"));
+                CookfsLog(printf("add bootstrap"));
                 int idx = Cookfs_PageAddTclObj(pages, props->bootstrap, &err);
                 if (idx < 0) {
                     Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unable to add"
@@ -879,16 +874,16 @@ skipPages:
                 }
             }
         } else {
-            CookfsLog(printf("Cookfs_Mount: bootstrap is not specified"));
+            CookfsLog(printf("bootstrap is not specified"));
         }
 #endif
 
         if (props->pagehash != COOKFS_HASH_DEFAULT) {
-            CookfsLog(printf("Cookfs_Mount: set pagehash for pages"));
+            CookfsLog(printf("set pagehash for pages"));
             Cookfs_PagesSetHash(pages, props->pagehash);
         }
         Tcl_Obj *pagehashActual = Cookfs_PagesGetHashAsObj(pages);
-        CookfsLog(printf("Cookfs_Mount: set pagehash in metadata"));
+        CookfsLog(printf("set pagehash in metadata"));
         Cookfs_FsindexSetMetadata(index, pagehashMetadataKey, pagehashActual);
         Tcl_BounceRefCount(pagehashActual);
 
@@ -897,24 +892,22 @@ skipPages:
 skipPagesBootstrap:
 
     if (props->setmetadata != NULL) {
-        CookfsLog(printf("Cookfs_Mount: setmetadata is specified"));
+        CookfsLog(printf("setmetadata is specified"));
         Tcl_Obj **metadataKeyVal;
         Tcl_Size metadataCount;
         if (Tcl_ListObjGetElements(interp, props->setmetadata, &metadataCount,
             &metadataKeyVal) != TCL_OK)
         {
-            CookfsLog(printf("Cookfs_Mount: could not convert setmetadata"
-                " to a list"));
+            CookfsLog(printf("could not convert setmetadata to a list"));
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("could not convert"
                 " setmetadata option \"%s\" to list",
                 Tcl_GetString(props->setmetadata)));
             goto error;
         }
-        CookfsLog(printf("Cookfs_Mount: setmetadata was converted to list"
-            " with %" TCL_SIZE_MODIFIER "d length", metadataCount));
+        CookfsLog(printf("setmetadata was converted to list with %"
+            TCL_SIZE_MODIFIER "d length", metadataCount));
         if ((metadataCount % 2) != 0) {
-            CookfsLog(printf("Cookfs_Mount: setmetadata list size is"
-                " not even"));
+            CookfsLog(printf("setmetadata list size is not even"));
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("setmetadata requires"
                 " a list with an even number of elements, but got \"%s\"",
                 Tcl_GetString(props->setmetadata)));
@@ -923,13 +916,13 @@ skipPagesBootstrap:
         for (Tcl_Size i = 0; i < metadataCount; i++) {
             Tcl_Obj *key = metadataKeyVal[i++];
             Tcl_Obj *val = metadataKeyVal[i];
-            CookfsLog(printf("Cookfs_Mount: setmetadata [%s] = [%s]",
-                Tcl_GetString(key), Tcl_GetString(val)));
+            CookfsLog(printf("setmetadata [%s] = [%s]", Tcl_GetString(key),
+                Tcl_GetString(val)));
             Cookfs_FsindexSetMetadata(index, Tcl_GetString(key), val);
         }
     }
 
-    CookfsLog(printf("Cookfs_Mount: creating the writer object"));
+    CookfsLog(printf("creating the writer object"));
     writer = Cookfs_WriterInit(interp, pages, index, props->smallfilebuffer,
          props->smallfilesize, props->pagesize, props->writetomemory);
     if (writer == NULL) {
@@ -938,14 +931,14 @@ skipPagesBootstrap:
         goto error;
     }
 
-    CookfsLog(printf("Cookfs_Mount: creating the vfs object"));
+    CookfsLog(printf("creating the vfs object"));
     // If writetomemory is specified, create writable VFS
     vfs = Cookfs_VfsInit(interp, localActual, props->volume,
         (props->nodirectorymtime ? 0 : 1),
         ((!props->writetomemory && props->readonly) ? 1 : 0), props->shared,
         pages, index, writer);
     if (vfs == NULL) {
-        CookfsLog(printf("Cookfs_Mount: failed to create the vfs object"));
+        CookfsLog(printf("failed to create the vfs object"));
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to create"
             " vfs object", -1));
         goto error;
@@ -955,7 +948,7 @@ skipPagesBootstrap:
     Tcl_DecrRefCount(localActual);
     localActual = NULL;
 
-    CookfsLog(printf("Cookfs_Mount: add mount point..."));
+    CookfsLog(printf("add mount point..."));
     if (!Cookfs_CookfsAddVfs(interp, vfs)) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Unable to add"
             " the mount point", -1));
@@ -964,17 +957,15 @@ skipPagesBootstrap:
 
 #ifdef COOKFS_USETCLCMDS
     if (!props->noregister) {
-        CookfsLog(printf("Cookfs_Mount: registering the vfs in tclvfs..."));
+        CookfsLog(printf("registering the vfs in tclvfs..."));
         if (Cookfs_VfsRegisterInTclvfs(vfs) != TCL_OK) {
             Cookfs_CookfsRemoveVfs(interp, vfs);
             // We have an error message from Tclvfs in interp result
-            CookfsLog(printf("Cookfs_Mount: failed to register vfs"
-                " in tclvfs"));
+            CookfsLog(printf("failed to register vfs in tclvfs"));
             goto error;
         }
     } else {
-        CookfsLog(printf("Cookfs_Mount: no need to register the vfs"
-            " in tclvfs"));
+        CookfsLog(printf("no need to register the vfs in tclvfs"));
     }
 #endif
 
@@ -985,16 +976,16 @@ skipPagesBootstrap:
         char cmd[128];
         sprintf(cmd, "::cookfs::c::vfs::mount%p", (void *)vfs);
 
-        CookfsLog(printf("Cookfs_Mount: creating vfs command handler..."));
+        CookfsLog(printf("creating vfs command handler..."));
         vfs->commandToken = Tcl_CreateObjCommand(interp, cmd,
             CookfsMountHandleCmd, vfs, CookfsMountHandleCmdDeleteProc);
 
         Tcl_SetObjResult(interp, Tcl_NewStringObj(cmd, -1));
 
-        CookfsLog(printf("Cookfs_Mount: ok [%s]", cmd));
+        CookfsLog(printf("ok [%s]", cmd));
 
     } else {
-        CookfsLog(printf("Cookfs_Mount: ok (no cmd)"));
+        CookfsLog(printf("ok (no cmd)"));
     }
 
     if (freeProps) {
@@ -1067,14 +1058,14 @@ static int CookfsUnmountCmd(ClientData clientData, Tcl_Interp *interp,
 {
     UNUSED(clientData);
 
-    CookfsLog(printf("CookfsUnmountCmd: ENTER args count:%d", objc));
+    CookfsLog(printf("ENTER args count:%d", objc));
 
     Tcl_Obj *arg;
 #ifdef COOKFS_USETCLCMDS
     if (objc < 2 || objc > 3 ||
         (objc == 3 && strcmp(Tcl_GetString(objv[1]), "-unregister") != 0))
     {
-        CookfsLog(printf("CookfsUnmountCmd: wrong # args"));
+        CookfsLog(printf("wrong # args"));
         Tcl_WrongNumArgs(interp, 1, objv, "?-unregister? fsid|local");
         return TCL_ERROR;
     }
@@ -1090,15 +1081,14 @@ static int CookfsUnmountCmd(ClientData clientData, Tcl_Interp *interp,
     }
 #else
     if (objc != 2) {
-        CookfsLog(printf("CookfsUnmountCmd: wrong # args"));
+        CookfsLog(printf("wrong # args"));
         Tcl_WrongNumArgs(interp, 1, objv, "fsid|local");
         return TCL_ERROR;
     }
     arg = objv[1];
 #endif
 
-    CookfsLog(printf("CookfsUnmountCmd: unmount [%s]",
-        Tcl_GetString(arg)));
+    CookfsLog(printf("unmount [%s]", Tcl_GetString(arg)));
 
     Cookfs_Vfs *vfs = NULL;
 
@@ -1107,29 +1097,25 @@ static int CookfsUnmountCmd(ClientData clientData, Tcl_Interp *interp,
         (void **)&vfs) == 1)
     {
         if (!Cookfs_CookfsIsVfsExist(vfs)) {
-            CookfsLog(printf("CookfsUnmountCmd: given argument is"
-                " invalid fsid"));
+            CookfsLog(printf("given argument is invalid fsid"));
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("given argument \"%s\""
                 " is invalid fsid", Tcl_GetString(arg)));
             return TCL_ERROR;
         } else {
-            CookfsLog(printf("CookfsUnmountCmd: given argument is"
-                " a fsid"));
+            CookfsLog(printf("given argument is a fsid"));
         }
     } else {
-        CookfsLog(printf("CookfsUnmountCmd: given argument is not"
-            " a fsid"));
+        CookfsLog(printf("given argument is not a fsid"));
     }
 
     // If it was not found above, then check if argument is a mount point
     if (vfs == NULL) {
         vfs = Cookfs_CookfsFindVfs(arg, -1);
         if (vfs == NULL) {
-            CookfsLog(printf("CookfsUnmountCmd: given argument is not"
-                " a mount path"));
+            CookfsLog(printf("given argument is not a mount path"));
         } else {
-            CookfsLog(printf("CookfsUnmountCmd: given argument is"
-                " a mount path, mount struct [%p]", (void *)vfs));
+            CookfsLog(printf("given argument is a mount path, mount"
+                " struct [%p]", (void *)vfs));
         }
     }
 
@@ -1137,18 +1123,18 @@ static int CookfsUnmountCmd(ClientData clientData, Tcl_Interp *interp,
     if (vfs == NULL) {
         Tcl_Obj *normalized = Tcl_FSGetNormalizedPath(interp, arg);
         if (normalized == NULL) {
-            CookfsLog(printf("CookfsUnmountCmd: could not convert given argument"
-                " to normalized path"));
+            CookfsLog(printf("could not convert given argument to"
+                " normalized path"));
         } else {
-            CookfsLog(printf("CookfsUnmountCmd: check for normalized"
-                " path [%s]", Tcl_GetString(normalized)));
+            CookfsLog(printf("check for normalized path [%s]",
+                Tcl_GetString(normalized)));
             vfs = Cookfs_CookfsFindVfs(normalized, -1);
             if (vfs == NULL) {
-                CookfsLog(printf("CookfsUnmountCmd: given argument is not"
-                    " a normalized mount path"));
+                CookfsLog(printf("given argument is not a normalized"
+                    " mount path"));
             } else {
-                CookfsLog(printf("CookfsUnmountCmd: given argument is"
-                    " a mount path, mount struct [%p]", (void *)vfs));
+                CookfsLog(printf("given argument is a mount path, mount"
+                    " struct [%p]", (void *)vfs));
             }
         }
     }
@@ -1161,8 +1147,8 @@ static int CookfsUnmountCmd(ClientData clientData, Tcl_Interp *interp,
     }
 
     if (vfs->isDead) {
-        CookfsLog(printf("CookfsUnmountCmd: the mount point is already"
-            " in a terminating state"));
+        CookfsLog(printf("the mount point is already in a terminating"
+            " state"));
         return TCL_OK;
     }
 
@@ -1171,33 +1157,33 @@ static int CookfsUnmountCmd(ClientData clientData, Tcl_Interp *interp,
     // callback from tclvfs. Cancel vfs registration status to avoid
     // double unregistration.
     if (objc == 3) {
-        CookfsLog(printf("CookfsUnmountCmd: -unregister switch present,"
-            " cancel tclvfs registration status"));
+        CookfsLog(printf("-unregister switch present, cancel tclvfs"
+            " registration status"));
         vfs->isRegistered = 0;
     }
 #endif
 
     // Try to remove the mount point from mount list
-    CookfsLog(printf("CookfsUnmountCmd: remove the mount point"));
+    CookfsLog(printf("remove the mount point"));
     vfs = Cookfs_CookfsRemoveVfs(interp, vfs);
     // If vfs is NULL, then Cookfs_CookfsRemoveVfs() could not find
     // the vfs in the vfs list. Return error.
     if (vfs == NULL) {
-        CookfsLog(printf("CookfsUnmountCmd: got NULL"));
+        CookfsLog(printf("got NULL"));
         return TCL_ERROR;
     }
 
     // Terminate the mount point
-    CookfsLog(printf("CookfsUnmountCmd: terminate the mount point"));
+    CookfsLog(printf("terminate the mount point"));
     Tcl_WideInt pagesCloseOffset;
     if (Cookfs_VfsFini(interp, vfs, &pagesCloseOffset) != TCL_OK) {
-        CookfsLog(printf("CookfsUnmountCmd: termination failed"));
+        CookfsLog(printf("termination failed"));
         return TCL_OK;
     }
 
     Tcl_SetObjResult(interp, Tcl_NewWideIntObj(pagesCloseOffset));
 
-    CookfsLog(printf("CookfsUnmountCmd: return ok and [%" TCL_LL_MODIFIER "d]",
+    CookfsLog(printf("return ok and [%" TCL_LL_MODIFIER "d]",
         pagesCloseOffset));
     return TCL_OK;
 }
@@ -1361,10 +1347,10 @@ static int CookfsMountHandleCommandAside(Cookfs_Vfs *vfs, Tcl_Interp *interp,
     int objc, Tcl_Obj *const objv[])
 {
 
-    CookfsLog(printf("CookfsMountHandleCommandAside: enter"));
+    CookfsLog(printf("enter"));
 
     if (objc != 3) {
-        CookfsLog(printf("CookfsMountHandleCommandAside: ERR: wrong # args"));
+        CookfsLog(printf("ERR: wrong # args"));
         Tcl_WrongNumArgs(interp, 2, objv, "filename");
         return TCL_ERROR;
     }
@@ -1394,22 +1380,20 @@ failedToLock:
     }
 
     if (Cookfs_WriterGetWritetomemory(vfs->writer)) {
-        CookfsLog(printf("CookfsMountHandleCommandAside: ERROR: write to memory"
-            " option enabled"));
+        CookfsLog(printf("ERROR: write to memory option enabled"));
         Tcl_SetObjResult(interp, Tcl_NewStringObj("Write to memory option"
             " enabled; not creating add-aside archive", -1));
         goto error;
     } else {
-        CookfsLog(printf("CookfsMountHandleCommandAside: writer"
-            " writetomemory: false"));
+        CookfsLog(printf("writer writetomemory: false"));
     }
 
     if (Cookfs_VfsIsReadonly(vfs)) {
-        CookfsLog2(printf("vfs is in readonly mode, no need to purge writer"
+        CookfsLog(printf("vfs is in readonly mode, no need to purge writer"
             " or update index"));
     } else {
 
-        CookfsLog2(printf("purge writer..."));
+        CookfsLog(printf("purge writer..."));
         // TODO: pass a pointer to err instead of NULL and handle
         // the corresponding error message
         if (Cookfs_WriterPurge(vfs->writer, 0, NULL) != TCL_OK) {
@@ -1418,22 +1402,22 @@ failedToLock:
 
         // Update fsindex to copy the actual index to the pages aside
         if (Cookfs_FsindexIncrChangeCount(vfs->index, 0) == 0) {
-            CookfsLog2(printf("index was not changed, not need to update it"));
+            CookfsLog(printf("index was not changed, not need to update it"));
         } else {
-            CookfsLog2(printf("dump index..."));
+            CookfsLog(printf("dump index..."));
             Tcl_Obj *exportObjTcl = Cookfs_FsindexToObject(vfs->index);
             if (exportObjTcl == NULL) {
-                CookfsLog2(printf("failed to get index dump"));
+                CookfsLog(printf("failed to get index dump"));
             } else {
                 Tcl_IncrRefCount(exportObjTcl);
                 Cookfs_PageObj exportObj =
                     Cookfs_PageObjNewFromByteArray(exportObjTcl);
                 Tcl_DecrRefCount(exportObjTcl);
                 if (exportObj == NULL) {
-                    CookfsLog2(printf("failed to convert index dump"));
+                    CookfsLog(printf("failed to convert index dump"));
                 } else {
                     Cookfs_PageObjIncrRefCount(exportObj);
-                    CookfsLog2(printf("store index..."));
+                    CookfsLog(printf("store index..."));
                     if (!Cookfs_PagesLockWrite(vfs->pages, &err)) {
                         Cookfs_PageObjDecrRefCount(exportObj);
                         goto failedToLock;
@@ -1449,37 +1433,35 @@ failedToLock:
 
     const char *fileset_activeStr = Cookfs_FsindexFileSetGetActive(vfs->index);
     if (fileset_activeStr == NULL) {
-        CookfsLog2(printf("current index doesn't have an active fileset"));
+        CookfsLog(printf("current index doesn't have an active fileset"));
         fileset_activeObj = NULL;
     } else {
         // Let's create a copy of the active fileset in Tcl object.
         // We may destroy the old index below, thus fileset_activeStr pointer
         // will be not actual.
-        CookfsLog2(printf("save the active fileset: [%s]", fileset_activeStr));
+        CookfsLog(printf("save the active fileset: [%s]", fileset_activeStr));
         fileset_activeObj = Tcl_NewStringObj(fileset_activeStr, -1);
         Tcl_IncrRefCount(fileset_activeObj);
     }
 
-    CookfsLog(printf("CookfsMountHandleCommandAside: run pages aside..."));
+    CookfsLog(printf("run pages aside..."));
     if (Cookfs_PagesCmdForward(COOKFS_PAGES_FORWARD_COMMAND_ASIDE,
         vfs->pages, interp, objc, objv) != TCL_OK)
     {
         goto error;
     }
 
-    CookfsLog(printf("CookfsMountHandleCommandAside: refresh index..."));
+    CookfsLog(printf("refresh index..."));
     Cookfs_PageObj indexDataObj = NULL;
     if (Cookfs_PagesLockRead(vfs->pages, NULL)) {
         indexDataObj = Cookfs_PagesGetIndex(vfs->pages);
         Cookfs_PagesUnlock(vfs->pages);
     }
     if (indexDataObj == NULL) {
-        CookfsLog(printf("CookfsMountHandleCommandAside: got NULL as"
-            " index data"));
+        CookfsLog(printf("got NULL as index data"));
     } else {
         Cookfs_PageObjIncrRefCount(indexDataObj);
-        CookfsLog(printf("CookfsMountHandleCommandAside: got index data %"
-            TCL_SIZE_MODIFIER "d bytes",
+        CookfsLog(printf("got index data %" TCL_SIZE_MODIFIER "d bytes",
             Cookfs_PageObjSize(indexDataObj)));
         if (!Cookfs_PageObjSize(indexDataObj)) {
             Cookfs_PageObjDecrRefCount(indexDataObj);
@@ -1502,10 +1484,10 @@ failedToLock:
         }
     }
 
-    CookfsLog(printf("CookfsMountHandleCommandAside: set writable mode"));
+    CookfsLog(printf("set writable mode"));
     Cookfs_VfsSetReadonly(vfs, 0);
 
-    CookfsLog(printf("CookfsMountHandleCommandAside: ok"));
+    CookfsLog(printf("ok"));
 
     goto done;
 
@@ -1646,8 +1628,7 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
 
-    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: enter;"
-        " objc: %d", objc));
+    CookfsLog(printf("enter; objc: %d", objc));
 
     if (objc != 4) {
         Tcl_WrongNumArgs(interp, 2, objv, "base filelist");
@@ -1679,13 +1660,12 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
     int pagesLen = Cookfs_PagesGetLength(pages);
 
     if (!pagesLen) {
-        CookfsLog(printf("CookfsMountHandleCommandOptimizelist: there is"
-            " no pages, return the list as is"));
+        CookfsLog(printf("there is no pages, return the list as is"));
         Tcl_SetObjResult(interp, objv[2]);
         goto done;
     }
 
-    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: alloc pageFiles"));
+    CookfsLog(printf("alloc pageFiles"));
     Tcl_Obj **pageFiles = ckalloc(sizeof(Tcl_Obj *) * pagesLen);
     if (pageFiles == NULL) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj("failed to alloc"
@@ -1704,13 +1684,11 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
     Tcl_Obj *baseTemplate = Tcl_NewListObj(1, &objv[2]);
     Tcl_IncrRefCount(baseTemplate);
 
-    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: checking %"
-        TCL_SIZE_MODIFIER "d files", fileCount));
+    CookfsLog(printf("checking %" TCL_SIZE_MODIFIER "d files", fileCount));
     for (i = 0; i < fileCount; i++) {
 
         Tcl_Obj *fileTail = fileTails[i];
-        CookfsLog(printf("CookfsMountHandleCommandOptimizelist: checking"
-            " file [%s]", Tcl_GetString(fileTail)));
+        CookfsLog(printf("checking file [%s]", Tcl_GetString(fileTail)));
 
         // Construct full path
         Tcl_Obj *fullName = Tcl_DuplicateObj(baseTemplate);
@@ -1721,8 +1699,7 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
         Tcl_Obj *fullNameJoined = Tcl_FSJoinPath(fullName, -1);
         Tcl_IncrRefCount(fullNameJoined);
 
-        CookfsLog(printf("CookfsMountHandleCommandOptimizelist: full path:"
-            " [%s]", Tcl_GetString(fullNameJoined)));
+        CookfsLog(printf("full path: [%s]", Tcl_GetString(fullNameJoined)));
 
         Cookfs_PathObj *fullNameSplit = Cookfs_PathObjNewFromTclObj(fullNameJoined);
         Cookfs_PathObjIncrRefCount(fullNameSplit);
@@ -1734,19 +1711,17 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
         int pageNum = -1;
 
         if (entry == NULL) {
-            CookfsLog(printf("CookfsMountHandleCommandOptimizelist: got NULL"
-                " entry"));
+            CookfsLog(printf("got NULL entry"));
             listToAdd = largeFiles;
         } else if (Cookfs_FsindexEntryGetBlockCount(entry) != 1) {
-            CookfsLog(printf("CookfsMountHandleCommandOptimizelist: fileBlocks"
-                " [%d] is not 1", Cookfs_FsindexEntryGetBlockCount(entry)));
+            CookfsLog(printf("fileBlocks [%d] is not 1",
+                Cookfs_FsindexEntryGetBlockCount(entry)));
             listToAdd = largeFiles;
         } else {
             // Check if the file has correct page number
             Cookfs_FsindexEntryGetBlock(entry, 0, &pageNum, NULL, NULL);
             if (pageNum < 0 || pageNum >= pagesLen) {
-                CookfsLog(printf("CookfsMountHandleCommandOptimizelist:"
-                    " incorrect page number: %d", pageNum));
+                CookfsLog(printf("incorrect page number: %d", pageNum));
                 listToAdd = largeFiles;
             }
         }
@@ -1757,11 +1732,9 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
                 Tcl_IncrRefCount(pageFiles[pageNum]);
             }
             listToAdd = pageFiles[pageNum];
-            CookfsLog(printf("CookfsMountHandleCommandOptimizelist: add to"
-                " small file list, page: %d", pageNum));
+            CookfsLog(printf("add to small file list, page: %d", pageNum));
         } else {
-            CookfsLog(printf("CookfsMountHandleCommandOptimizelist: add to"
-                " large file list"));
+            CookfsLog(printf("add to large file list"));
         }
 
         Tcl_ListObjAppendElement(NULL, listToAdd, fileTail);
@@ -1774,15 +1747,14 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
 
     Tcl_DecrRefCount(baseTemplate);
 
-    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: create a small"
-        " file list"));
+    CookfsLog(printf("create a small file list"));
     Tcl_Obj *smallFiles = Tcl_NewListObj(0, NULL);
     Tcl_IncrRefCount(smallFiles);
 
     for (i = 0; i < pagesLen; i++) {
         if (pageFiles[i] != NULL) {
-            CookfsLog(printf("CookfsMountHandleCommandOptimizelist: add files"
-                " from page %" TCL_SIZE_MODIFIER "d to small file list", i));
+            CookfsLog(printf("add files from page %" TCL_SIZE_MODIFIER
+                "d to small file list", i));
             Tcl_ListObjAppendList(interp, smallFiles, pageFiles[i]);
             Tcl_DecrRefCount(pageFiles[i]);
         }
@@ -1790,14 +1762,12 @@ static int CookfsMountHandleCommandOptimizelist(Cookfs_Vfs *vfs,
 
     ckfree(pageFiles);
 
-    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: add the large"
-        " files to the small files"));
+    CookfsLog(printf("add the large files to the small files"));
     Tcl_ListObjAppendList(interp, smallFiles, largeFiles);
     Tcl_DecrRefCount(largeFiles);
 
     Tcl_SetObjResult(interp, smallFiles);
-    CookfsLog(printf("CookfsMountHandleCommandOptimizelist: ok [%s]",
-        Tcl_GetString(smallFiles)));
+    CookfsLog(printf("ok [%s]", Tcl_GetString(smallFiles)));
     Tcl_DecrRefCount(smallFiles);
 
 done:
