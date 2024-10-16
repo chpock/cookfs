@@ -3345,10 +3345,12 @@ skipFsindex:
         fsindexSizeCompressed - COOKFS_SUFFIX_BYTES;
 
     // If we have page data, subtract the size of all pages.
-    int pgindexLength = Cookfs_PgIndexGetLength(p->pagesIndex);
-    if (pgindexLength > 0) {
-        p->dataInitialOffset -= Cookfs_PgIndexGetStartOffset(p->pagesIndex,
-            pgindexLength);
+    if (p->pagesIndex != NULL) {
+        int pgindexLength = Cookfs_PgIndexGetLength(p->pagesIndex);
+        if (pgindexLength > 0) {
+            p->dataInitialOffset -= Cookfs_PgIndexGetStartOffset(p->pagesIndex,
+                pgindexLength);
+        }
     }
 
     if (p->dataInitialOffset < 0) {
