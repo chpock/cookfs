@@ -2034,7 +2034,7 @@ test cookfsVfs-25.3.2 "Test pages attrib, previously created VFS, 2 pages" -cons
     catch { ::cookfs::c::reset_cache }
 } -ok
 
-test cookfsVfs-25.4 "Test pages attrib, compression and encryption" -constraints { enabledCVfs enabledTclCmds } -setup {
+test cookfsVfs-25.4 "Test pages attrib, compression and encryption" -constraints { enabledCVfs enabledTclCmds cookfsCrypto } -setup {
     set cfs [makeBinFile {} pages.cfs]
     set fsid [cookfs::Mount $cfs $cfs -compression none -pagesize 10 -alwayscompress -smallfilebuffer 0]
     # page0 no compression, no encryption
