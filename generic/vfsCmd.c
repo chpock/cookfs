@@ -813,6 +813,9 @@ skipPages:
         CookfsLog(printf("prop pagesize is defined"));
     }
 
+    if (tmpObj != NULL) {
+        Tcl_BounceRefCount(tmpObj);
+    }
     tmpObj = Tcl_NewWideIntObj(props->pagesize);
     Cookfs_FsindexSetMetadata(index, pagesizeMetadataKey, tmpObj);
 
@@ -843,6 +846,9 @@ skipSetPagesizeMetadata:
         CookfsLog(printf("prop smallfilesize is defined"));
     }
 
+    if (tmpObj != NULL) {
+        Tcl_BounceRefCount(tmpObj);
+    }
     tmpObj = Tcl_NewWideIntObj(props->smallfilesize);
     Cookfs_FsindexSetMetadata(index, smallfilesizeMetadataKey, tmpObj);
 
@@ -873,6 +879,9 @@ skipSetSmallfilesizeMetadata:
         CookfsLog(printf("prop smallfilebuffer is defined"));
     }
 
+    if (tmpObj != NULL) {
+        Tcl_BounceRefCount(tmpObj);
+    }
     tmpObj = Tcl_NewWideIntObj(props->smallfilebuffer);
     Cookfs_FsindexSetMetadata(index, smallfilebufferMetadataKey, tmpObj);
 

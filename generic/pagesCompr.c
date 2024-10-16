@@ -135,6 +135,7 @@ Tcl_Obj *Cookfs_CompressionToObj(Cookfs_CompressionType compression,
     if (compressionLevel == -1 || compressionLevel ==
         Cookfs_CompressionGetDefaultLevel(compression))
     {
+        // cppcheck-suppress knownArgument
         return Tcl_NewStringObj(Cookfs_CompressionGetName(compression), -1);
     } else {
         return Tcl_ObjPrintf("%s:%d", Cookfs_CompressionGetName(compression),

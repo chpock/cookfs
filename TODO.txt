@@ -1,9 +1,3 @@
-* Store initial -smallfilesize / -smallfilebuffer / -pagesize values that were
-  specified when first mounted, and use them by default when reopening
-  an archive for writing. If these parameters were defined when reopening
-  an archive for writing, then store these new values. This will allow to
-  use the same parameters each time when an archive is opened for writing.
-
 * add sha256 command if crypto is enabled
 
 * Investigate an issue with -directory parameter for glob.
@@ -22,13 +16,6 @@
 
 * Add ability/subcommand to copy files from/to cookfs more efficiently than using 'file copy'.
   It can be something like 'cookfs copy <from disk> <cookfs endpoint>"
-
-* Add ability to get a list of pages with their properties (compression, compression level,
-  encryption, compressed size, uncompressed size)
-
-* Add ability to get information about pagesindex and fsindex (compression, compression level,
-  encryption, compressed size, uncompressed size). This will be useful for analyzing the contents
-  of a cookfs archive.
 
 * Add ability to get information about whole archive (file size, head size, cookfs size).
   It should be available from attributes to a mount point.

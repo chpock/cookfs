@@ -204,7 +204,7 @@ static int Cookfs_AttrSet_Pages(Tcl_Interp *interp, Cookfs_Vfs *vfs,
         break;
     case infList:
         result = Tcl_NewListObj(0, NULL);
-        for (int i = 0; i < length; i++) {
+        for (i = 0; i < length; i++) {
             Tcl_ListObjAppendElement(NULL, result,
                 Cookfs_PagesGetInfo(pages, i));
         }
@@ -242,6 +242,8 @@ static int Cookfs_AttrSet_Fileset(Tcl_Interp *interp, Cookfs_Vfs *vfs,
     Tcl_Obj **result_ptr = (interp == NULL ? NULL : &result);
     int rc = Cookfs_VfsFilesetSelect(vfs, value, result_ptr, result_ptr);
     CookfsLog(printf("return: %s", (rc == TCL_OK ? "OK" : "ERROR")));
+    // We Cookfs_VfsFilesetSelect() will set result via result_ptr
+    // cppcheck-suppress knownConditionTrueFalse
     if (rc != TCL_OK && interp != NULL && result == NULL) {
         result = Tcl_NewStringObj("unknown error", -1);
     }

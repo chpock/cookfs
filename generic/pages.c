@@ -3212,6 +3212,7 @@ skipSeekToIndexData:
 
     if (pgindexSizeCompressed == 0) {
         CookfsLog(printf("pgindex is empty and skipped"));
+        p->pagesIndex = Cookfs_PgIndexInit(0);
         goto skipPgindex;
     }
 
@@ -3249,6 +3250,11 @@ skipSeekToIndexData:
         local_error = Tcl_NewStringObj("error while parsing pages index", -1);
         goto pgindexReadError;
     }
+
+    Cookfs_PgIndexAddPageSpecial(p->pagesIndex,
+        (Cookfs_CompressionType)pgindexCompression, pgindexCompressionLevel,
+        isIndexEncrypted, pgindexSizeCompressed, pgindexSizeUncompressed,
+        pgindexOffset, COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_PGINDEX);
 
     // We have successfully read pgindex. Let's continue with fsindex.
 
@@ -3303,6 +3309,11 @@ skipPgindex:
         goto fsindexReadError;
     }
 
+    Cookfs_PgIndexAddPageSpecial(p->pagesIndex,
+        (Cookfs_CompressionType)fsindexCompression, fsindexCompressionLevel,
+        isIndexEncrypted, fsindexSizeCompressed, fsindexSizeUncompressed,
+        fsindexOffset, COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_FSINDEX);
+
     // We have successfully read fsindex. Let's continue.
 
     goto skipFsindex;
@@ -3334,25 +3345,10 @@ skipFsindex:
         fsindexSizeCompressed - COOKFS_SUFFIX_BYTES;
 
     // If we have page data, subtract the size of all pages.
-    if (p->pagesIndex != NULL) {
+    int pgindexLength = Cookfs_PgIndexGetLength(p->pagesIndex);
+    if (pgindexLength > 0) {
         p->dataInitialOffset -= Cookfs_PgIndexGetStartOffset(p->pagesIndex,
-            Cookfs_PgIndexGetLength(p->pagesIndex));
-    } else {
-        p->pagesIndex = Cookfs_PgIndexInit(0);
-    }
-
-    if (fsindexSizeCompressed != 0) {
-        Cookfs_PgIndexAddPageSpecial(p->pagesIndex,
-            (Cookfs_CompressionType)fsindexCompression, fsindexCompressionLevel,
-            isIndexEncrypted, fsindexSizeCompressed, fsindexSizeUncompressed,
-            fsindexOffset, COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_FSINDEX);
-    }
-
-    if (pgindexSizeCompressed != 0) {
-        Cookfs_PgIndexAddPageSpecial(p->pagesIndex,
-            (Cookfs_CompressionType)pgindexCompression, pgindexCompressionLevel,
-            isIndexEncrypted, pgindexSizeCompressed, pgindexSizeUncompressed,
-            pgindexOffset, COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_PGINDEX);
+            pgindexLength);
     }
 
     if (p->dataInitialOffset < 0) {

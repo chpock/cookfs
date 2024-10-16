@@ -91,7 +91,7 @@ Tcl_Obj *Cookfs_PgIndexGetInfo(Cookfs_PgIndex *pgi, int num) {
         CookfsLog(printf("info about special page %s (#%d)",
             specialIndex == COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_PGINDEX ?
                 "PGINDEX" :
-            specialIndex == COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_PGINDEX ?
+            specialIndex == COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_FSINDEX ?
                 "FSINDEX" :
             "UNKNOWN", specialIndex));
 
@@ -144,6 +144,7 @@ Tcl_Obj *Cookfs_PgIndexGetInfo(Cookfs_PgIndex *pgi, int num) {
             break;
         case COOKFS_PGINDEX_INFO_KEY_INDEX:
             if (num < 0) {
+                // cppcheck-suppress knownArgument
                 val = Tcl_NewStringObj(specialIndexName[specialIndex], -1);
             } else {
                 val = Tcl_NewIntObj(num);

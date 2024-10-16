@@ -1621,15 +1621,20 @@ void Cookfs_FsindexForeach(Cookfs_Fsindex *i, Cookfs_FsindexForeachProc *proc, C
  */
 
 Tcl_Obj *Cookfs_FsindexGetMetadata(Cookfs_Fsindex *i, const char *paramName) {
+    CookfsLog(printf("name [%s]", paramName));
     Cookfs_FsindexWantRead(i);
     Tcl_HashEntry *hashEntry;
     hashEntry = Tcl_FindHashEntry(&i->metadataHash, paramName);
-    if (hashEntry != NULL) {
-        unsigned char *value = Tcl_GetHashValue(hashEntry);
-        return Tcl_NewByteArrayObj(value + sizeof(Tcl_Size), *((Tcl_Size *)value));
-    }  else  {
+    if (hashEntry == NULL) {
+        CookfsLog(printf("return: NULL"));
         return NULL;
     }
+    unsigned char *value = Tcl_GetHashValue(hashEntry);
+    Tcl_Obj *result = Tcl_NewByteArrayObj(value + sizeof(Tcl_Size),
+        *((Tcl_Size *)value));
+    CookfsLog(printf("return: [%s] (obj: %p)", Tcl_GetString(result),
+        (void *)result));
+    return result;
 }
 
 /*
@@ -1672,7 +1677,7 @@ Tcl_Obj *Cookfs_FsindexGetMetadataAllKeys(Cookfs_Fsindex *i) {
     {
 
         Tcl_Obj *keyObj = Tcl_NewStringObj((const char *)Tcl_GetHashKey(
-            &i->metadataHash, hPtr), -1);
+            &i->metadataHash, hPtr), -1); // cppcheck-suppress knownArgument
 
         Tcl_ListObjAppendElement(NULL, result, keyObj);
 
