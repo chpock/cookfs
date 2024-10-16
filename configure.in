@@ -366,7 +366,7 @@ then
 
     AC_DEFINE(COOKFS_USECVFS)
     COOKFS_PKGCONFIG_USECVFS=1
-    TEA_ADD_SOURCES([vfsDriver.c vfsVfs.c vfs.c vfsCmd.c])
+    TEA_ADD_SOURCES([vfsDriver.c vfsVfs.c vfs.c vfsCmd.c vfsAttributes.c])
 
 else
     COOKFS_PKGCONFIG_USECWRITER=0

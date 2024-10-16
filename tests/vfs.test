@@ -1025,7 +1025,7 @@ test cookfsVfs-16.1.2 "Test list attributes for root" -constraints {enabledCVfs}
 } -cleanup {
     cookfs::Unmount $file
     catch { ::cookfs::c::reset_cache }
-} -result {-fileset -handle -vfs}
+} -result {-fileset -handle -metadata -pages -vfs}
 
 test cookfsVfs-16.1.3 "Test get attributes for root" -setup {
     set file [makeFile {} cookfs.cfs]
@@ -1046,7 +1046,7 @@ test cookfsVfs-16.1.4 "Test get unknown attribute for root" -constraints {enable
 } -cleanup {
     cookfs::Unmount $file
     catch { ::cookfs::c::reset_cache }
-} -error {bad option "-foo": must be -vfs, -handle, or -fileset}
+} -error {bad option "-foo": must be -vfs, -handle, -pages, -metadata, or -fileset}
 
 test cookfsVfs-16.1.5 "Test -handle attribute for root when vfs created with -nocommand" -setup {
     set file [makeFile {} cookfs.cfs]
@@ -1821,4 +1821,604 @@ test cookfsVfs-23.6.1 "Test fileset, open VFS with auto-fileset when platform is
     catch { cookfs::Unmount $cfs }
 } -error [format {error when selecting a fileset: VFS does not have the required fileset "%s", it cannot be created due to read-only mode} "[::cookfs::pkgconfig get platform].tcl[join [split [info tclver] .] {}]"]
 
+test cookfsVfs-24.1 "Test metadata attrib, default metadata keys" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    lsort [file attributes $cfs -metadata]
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result {cookfs.pagehash cookfs.pagesize cookfs.smallfilebuffer cookfs.smallfilesize}
+
+test cookfsVfs-24.2 "Test metadata attrib, get single key" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    file attributes $cfs -metadata cookfs.pagehash
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result {md5}
+
+test cookfsVfs-24.3.1 "Test metadata attrib, get single key, empty key" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    file attributes $cfs -metadata {}
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {a list of 1 or 2 elements is expected as an argument to the -metadata attribute}
+
+test cookfsVfs-24.3.2 "Test metadata attrib, get single key, too many list elements" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    file attributes $cfs -metadata {1 2 3}
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {a list of 1 or 2 elements is expected as an argument to the -metadata attribute}
+
+test cookfsVfs-24.3.3 "Test metadata attrib, get single key, unknown key" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    file attributes $cfs -metadata foo
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {could not find metadata key "foo"}
+
+test cookfsVfs-24.3.1 "Test metadata attrib, set single key" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    file attributes $cfs -metadata [list cookfs.pagehash crc32]
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result {crc32}
+
+test cookfsVfs-24.3.2 "Test metadata attrib, set single key, custom key" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    file attributes $cfs -metadata [list foo bar]
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result {bar}
+
+test cookfsVfs-24.4.1 "Test metadata attrib, set single key, test after reopening" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    file attributes $cfs -metadata [list cookfs.pagesize 123]
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -readonly
+    file attributes $cfs -metadata cookfs.pagesize
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result {123}
+
+test cookfsVfs-24.4.2 "Test metadata attrib, set single key, custom key, test after reopening" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    file attributes $cfs -metadata [list foo bar]
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -readonly
+    file attributes $cfs -metadata foo
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result {bar}
+
+test cookfsVfs-24.5 "Test metadata attrib, set single key, readonly VFS" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -readonly
+} -body {
+    file attributes $cfs -metadata [list cookfs.pagehash crc32]
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {failed to set the metadata key: VFS is in readonly mode}
+
+test cookfsVfs-25.1.1 "Test pages attrib, unknown argument" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    file attributes $cfs -pages foo
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {bad pages information type "foo": must be pgindex, fsindex, length, or list}
+
+test cookfsVfs-25.1.2 "Test pages attrib, negative argument" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    file attributes $cfs -pages -1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {bad page index "-1" was specified, there are 0 pages in total}
+
+test cookfsVfs-25.2.1 "Test pages attrib, newly created VFS" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    assertEq [dict get [file attributes $cfs] -pages] 0
+    assertEq [file attributes $cfs -pages] 0
+    assertEq [file attributes $cfs -pages length] 0
+    assertEq [file attributes $cfs -pages list] {}
+    assertEq [file attributes $cfs -pages fsindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index fsindex}
+    assertEq [file attributes $cfs -pages pgindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index pgindex}
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-25.2.2 "Test pages attrib, newly created VFS, some data exists, but not saved yet" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -pagesize 100
+    makeBinFile {X} "file" $cfs
+} -body {
+    assertEq [dict get [file attributes $cfs] -pages] 0
+    assertEq [file attributes $cfs -pages] 0
+    assertEq [file attributes $cfs -pages length] 0
+    assertEq [file attributes $cfs -pages list] {}
+    assertEq [file attributes $cfs -pages fsindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index fsindex}
+    assertEq [file attributes $cfs -pages pgindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index pgindex}
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-25.2.3 "Test pages attrib, newly created VFS, some data exists, 10 pages saved" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -pagesize 10 -smallfilebuffer 0 -compression none
+    makeBinFile [randomData 100] "file" $cfs
+} -body {
+    assertEq [dict get [file attributes $cfs] -pages] 10
+    assertEq [file attributes $cfs -pages] 10
+    assertEq [file attributes $cfs -pages length] 10
+    assertEq [llength [file attributes $cfs -pages list]] 10
+    assertEq [file attributes $cfs -pages fsindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index fsindex}
+    assertEq [file attributes $cfs -pages pgindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index pgindex}
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-25.3.1 "Test pages attrib, previously created VFS, no pages" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -readonly
+} -body {
+    assertEq [dict get [file attributes $cfs] -pages] 0
+    assertEq [file attributes $cfs -pages] 0
+    assertEq [file attributes $cfs -pages length] 0
+    assertEq [llength [file attributes $cfs -pages list]] 0
+    # offset 15 is a stamp
+    assertEq [file attributes $cfs -pages fsindex] {offset 15 sizeUncompressed 129 sizeCompressed 129 encrypted 0 compression none index fsindex}
+    assertEq [file attributes $cfs -pages pgindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index pgindex}
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-25.3.2 "Test pages attrib, previously created VFS, 2 pages" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 10
+    makeBinFile [randomData 20] "file" $cfs
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -readonly
+} -body {
+    assertEq [dict get [file attributes $cfs] -pages] 2
+    assertEq [file attributes $cfs -pages] 2
+    assertEq [file attributes $cfs -pages length] 2
+    assertEq [file attributes $cfs -pages 0] {offset 0 sizeUncompressed 10 sizeCompressed 10 encrypted 0 compression none index 0}
+    assertEq [file attributes $cfs -pages 1] {offset 10 sizeUncompressed 10 sizeCompressed 10 encrypted 0 compression none index 1}
+    assertEq [file attributes $cfs -pages list] {{offset 0 sizeUncompressed 10 sizeCompressed 10 encrypted 0 compression none index 0} {offset 10 sizeUncompressed 10 sizeCompressed 10 encrypted 0 compression none index 1}}
+    assertMatch [file attributes $cfs -pages pgindex] {offset 35 sizeUncompressed * sizeCompressed * encrypted 0 compression none index pgindex}
+    assertMatch [file attributes $cfs -pages fsindex] {offset * sizeUncompressed * sizeCompressed * encrypted 0 compression none index fsindex}
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-25.4 "Test pages attrib, compression and encryption" -constraints { enabledCVfs enabledTclCmds cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    set fsid [cookfs::Mount $cfs $cfs -compression none -pagesize 10 -alwayscompress -smallfilebuffer 0]
+    # page0 no compression, no encryption
+    makeBinFile [randomData 10] "page1" $cfs
+    $fsid password "foo"
+    # page1 no compression, encryption
+    makeBinFile [randomData 10] "page1" $cfs
+    # page2 zlib default compression, encryption
+    $fsid compression zlib
+    makeBinFile [randomData 10] "page1" $cfs
+    $fsid compression zlib:2
+    $fsid password ""
+    # page3 zlib level 2 compression, no encryption
+    makeBinFile [randomData 10] "page1" $cfs
+} -body {
+    assertEq [file attributes $cfs -pages 0] {offset 0 sizeUncompressed 10 sizeCompressed 10 encrypted 0 compression none index 0}
+    assertMatch [file attributes $cfs -pages 1] {offset 10 sizeUncompressed 10 sizeCompressed * encrypted 1 compression none index 1}
+    assertMatch [file attributes $cfs -pages 2] {offset * sizeUncompressed 10 sizeCompressed * encrypted 1 compression zlib index 2}
+    assertMatch [file attributes $cfs -pages 3] {offset * sizeUncompressed 10 sizeCompressed * encrypted 0 compression zlib:2 index 3}
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-26.1 "Test attribute -metadata, cookfs.pagesize, exists by default" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertGe [file attributes $cfs -metadata cookfs.pagesize] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-26.2 "Test attribute -metadata, cookfs.pagesize, has expected value" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 123
+} -body {
+    assertEq [file attributes $cfs -metadata cookfs.pagesize] 123
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-26.3 "Test attribute -metadata, cookfs.pagesize, has expected value after remount" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 123
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+} -body {
+    assertEq [file attributes $cfs -metadata cookfs.pagesize] 123
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-26.4 "Test attribute -metadata, cookfs.pagesize, has expected value after remount with a value" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 123
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -pagesize 321
+} -body {
+    assertEq [file attributes $cfs -metadata cookfs.pagesize] 321
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-26.5.1 "Test attribute -metadata, cookfs.pagesize, set wrong value" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertEq [file attributes $cfs -metadata [list cookfs.pagesize foo]] foo
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    makeBinFile [randomData 50] "test1" $cfs
+    #assertGe [file attributes $cfs -metadata cookfs.pagesize] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-26.5.2 "Test attribute -metadata, cookfs.pagesize, set zero" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertEq [file attributes $cfs -metadata [list cookfs.pagesize 0]] 0
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    makeBinFile [randomData 50] "test1" $cfs
+    assertGe [file attributes $cfs -metadata cookfs.pagesize] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-26.5.3 "Test attribute -metadata, cookfs.pagesize, set negative" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertEq [file attributes $cfs -metadata [list cookfs.pagesize -2]] -2
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    makeBinFile [randomData 50] "test1" $cfs
+    assertGe [file attributes $cfs -metadata cookfs.pagesize] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-26.6 "Test attribute -metadata, cookfs.pagesize, the value is actual" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 10
+} -body {
+    assertEq [file attributes $cfs -metadata cookfs.pagesize] 10
+    assertEq [file attributes $cfs -pages] 0 "make sure we have no pages"
+    makeBinFile [randomData 50] "test1" $cfs
+    assertEq [file attributes $cfs -pages] 5 "make sure we have 5 pages"
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -pagesize 20
+    assertEq [file attributes $cfs -metadata cookfs.pagesize] 20
+    makeBinFile [randomData 40] "test2" $cfs
+    assertEq [file attributes $cfs -pages] 7 "make sure we have 7 pages"
+    # set a value by -metadata
+    assertEq [file attributes $cfs -metadata [list cookfs.pagesize 30]] 30
+    assertEq [file attributes $cfs -metadata cookfs.pagesize] 30
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    assertEq [file attributes $cfs -metadata cookfs.pagesize] 30
+    makeBinFile [randomData 90] "test3" $cfs
+    assertEq [file attributes $cfs -pages] 10 "make sure we have 10 pages"
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-27.1 "Test attribute -metadata, cookfs.smallfilesize, exists by default" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertGe [file attributes $cfs -metadata cookfs.smallfilesize] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-27.2 "Test attribute -metadata, cookfs.smallfilesize, has expected value" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -smallfilesize 123
+} -body {
+    assertEq [file attributes $cfs -metadata cookfs.smallfilesize] 123
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-27.3 "Test attribute -metadata, cookfs.smallfilesize, has expected value after remount" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -smallfilesize 123
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+} -body {
+    assertEq [file attributes $cfs -metadata cookfs.smallfilesize] 123
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-27.4 "Test attribute -metadata, cookfs.smallfilesize, has expected value after remount with a value" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -smallfilesize 123
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -smallfilesize 321
+} -body {
+    assertEq [file attributes $cfs -metadata cookfs.smallfilesize] 321
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-27.5.1 "Test attribute -metadata, cookfs.smallfilesize, set wrong value" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertEq [file attributes $cfs -metadata [list cookfs.smallfilesize foo]] foo
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    makeBinFile [randomData 50] "test1" $cfs
+    assertGe [file attributes $cfs -metadata cookfs.smallfilesize] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-27.5.2 "Test attribute -metadata, cookfs.smallfilesize, set zero" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertEq [file attributes $cfs -metadata [list cookfs.smallfilesize 0]] 0
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    makeBinFile [randomData 50] "test1" $cfs
+    assertEq [file attributes $cfs -metadata cookfs.smallfilesize] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-27.5.3 "Test attribute -metadata, cookfs.smallfilesize, set negative" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertEq [file attributes $cfs -metadata [list cookfs.smallfilesize -2]] -2
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    makeBinFile [randomData 50] "test1" $cfs
+    assertGe [file attributes $cfs -metadata cookfs.smallfilesize] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-27.6 "Test attribute -metadata, cookfs.smallfilesize, the value is actual" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -smallfilesize 10 -smallfilebuffer 1000
+} -body {
+    assertEq [file attributes $cfs -metadata cookfs.smallfilesize] 10
+    assertEq [file attributes $cfs -pages] 0 "make sure we have no pages"
+    makeBinFile [randomData 5] "test1" $cfs
+    makeBinFile [randomData 11] "test2" $cfs
+    makeBinFile [randomData 5] "test3" $cfs
+    makeBinFile [randomData 11] "test4" $cfs
+    assertEq [file attributes $cfs -pages] 2 "make sure we have 2 pages"
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -smallfilesize 20
+    assertEq [file attributes $cfs -pages] 3 "make sure we have 3 pages"
+    assertEq [file attributes $cfs -metadata cookfs.smallfilesize] 20
+    makeBinFile [randomData 11] "test5" $cfs
+    makeBinFile [randomData 21] "test6" $cfs
+    assertEq [file attributes $cfs -pages] 4 "make sure we have 4 pages"
+    # set a value by -metadata
+    assertEq [file attributes $cfs -metadata [list cookfs.smallfilesize 30]] 30
+    assertEq [file attributes $cfs -metadata cookfs.smallfilesize] 30
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    assertEq [file attributes $cfs -pages] 5 "make sure we have 5 pages"
+    assertEq [file attributes $cfs -metadata cookfs.smallfilesize] 30
+    makeBinFile [randomData 11] "test7" $cfs
+    makeBinFile [randomData 31] "test8" $cfs
+    makeBinFile [randomData 31] "test9" $cfs
+    assertEq [file attributes $cfs -pages] 7 "make sure we have 7 pages"
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    assertEq [file attributes $cfs -pages] 8 "make sure we have 8 pages"
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-28.1 "Test attribute -metadata, cookfs.smallfilebuffer, exists by default" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertGe [file attributes $cfs -metadata cookfs.smallfilebuffer] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-28.2 "Test attribute -metadata, cookfs.smallfilebuffer, has expected value" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -smallfilebuffer 123
+} -body {
+    assertEq [file attributes $cfs -metadata cookfs.smallfilebuffer] 123
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-28.3 "Test attribute -metadata, cookfs.smallfilebuffer, has expected value after remount" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -smallfilebuffer 123
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+} -body {
+    assertEq [file attributes $cfs -metadata cookfs.smallfilebuffer] 123
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-28.4 "Test attribute -metadata, cookfs.smallfilebuffer, has expected value after remount with a value" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -smallfilebuffer 123
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -smallfilebuffer 321
+} -body {
+    assertEq [file attributes $cfs -metadata cookfs.smallfilebuffer] 321
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-28.5.1 "Test attribute -metadata, cookfs.smallfilebuffer, set wrong value" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertEq [file attributes $cfs -metadata [list cookfs.smallfilebuffer foo]] foo
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    makeBinFile [randomData 50] "test1" $cfs
+    assertGe [file attributes $cfs -metadata cookfs.smallfilebuffer] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-28.5.2 "Test attribute -metadata, cookfs.smallfilebuffer, set zero" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertEq [file attributes $cfs -metadata [list cookfs.smallfilebuffer 0]] 0
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    makeBinFile [randomData 50] "test1" $cfs
+    assertEq [file attributes $cfs -metadata cookfs.smallfilebuffer] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-28.5.3 "Test attribute -metadata, cookfs.smallfilebuffer, set negative" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertEq [file attributes $cfs -metadata [list cookfs.smallfilebuffer -2]] -2
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    makeBinFile [randomData 50] "test1" $cfs
+    assertGe [file attributes $cfs -metadata cookfs.smallfilebuffer] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-28.6 "Test attribute -metadata, cookfs.smallfilebuffer, the value is actual" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -smallfilesize 9 -smallfilebuffer 10 -pagesize 1000
+} -body {
+    assertEq [file attributes $cfs -metadata cookfs.smallfilebuffer] 10
+    assertEq [file attributes $cfs -pages] 0 "make sure we have no pages"
+    makeBinFile [randomData 5] "test1" $cfs
+    makeBinFile [randomData 5] "test2" $cfs
+    makeBinFile [randomData 4] "test3" $cfs
+    makeBinFile [randomData 5] "test4" $cfs
+    assertEq [file attributes $cfs -pages] 1 "make sure we have 1 page"
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -smallfilebuffer 20
+    assertEq [file attributes $cfs -pages] 2 "make sure we have 2 pages"
+    assertEq [file attributes $cfs -metadata cookfs.smallfilebuffer] 20
+    makeBinFile [randomData 8] "test5.1" $cfs
+    makeBinFile [randomData 8] "test5.2" $cfs
+    makeBinFile [randomData 8] "test5.3" $cfs
+    assertEq [file attributes $cfs -pages] 3 "make sure we have 3 pages"
+    # set a value by -metadata
+    assertEq [file attributes $cfs -metadata [list cookfs.smallfilebuffer 30]] 30
+    assertEq [file attributes $cfs -metadata cookfs.smallfilebuffer] 30
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    assertEq [file attributes $cfs -pages] 4 "make sure we have 4 pages"
+    assertEq [file attributes $cfs -metadata cookfs.smallfilebuffer] 30
+    makeBinFile [randomData 8] "test7" $cfs
+    makeBinFile [randomData 8] "test8" $cfs
+    makeBinFile [randomData 8] "test9" $cfs
+    makeBinFile [randomData 8] "test9.1" $cfs
+    makeBinFile [randomData 8] "test9.2" $cfs
+    assertEq [file attributes $cfs -pages] 5 "make sure we have 5 pages"
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    assertEq [file attributes $cfs -pages] 6 "make sure we have 6 pages"
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
 cleanupTests
+

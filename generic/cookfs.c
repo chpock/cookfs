@@ -38,6 +38,34 @@
 #include "cryptoCmd.h"
 #endif /* COOKFS_USECCRYPTO */
 
+#if defined(TCL_MEM_DEBUG)
+
+#ifdef COOKFS_USECVFS
+#include "vfsAttributes.h"
+#endif /* COOKFS_USECVFS */
+#ifdef COOKFS_USECPAGES
+#include "pgindex.h"
+#endif /* COOKFS_USECPAGES */
+
+static int CookfsResetCacheCmd(ClientData clientData, Tcl_Interp *interp,
+    int objc, Tcl_Obj * const objv[])
+{
+
+    UNUSED(clientData);
+    UNUSED(interp);
+    UNUSED(objc);
+    UNUSED(objv);
+#ifdef COOKFS_USECVFS
+    CookfsVfsAttributesThreadExit(NULL);
+#endif /* COOKFS_USECVFS */
+#ifdef COOKFS_USECPAGES
+    CookfsPgIndexThreadExit(NULL);
+#endif /* COOKFS_USECPAGES */
+    return TCL_OK;
+}
+
+#endif /* defined(TCL_MEM_DEBUG) */
+
 /*
  *----------------------------------------------------------------------
  *
@@ -145,6 +173,11 @@ Cookfs_Init(Tcl_Interp *interp) // cppcheck-suppress unusedFunction
         return TCL_ERROR;
     }
 #endif
+
+#if defined(TCL_MEM_DEBUG)
+    Tcl_CreateObjCommand(interp, "::cookfs::c::reset_cache",
+        CookfsResetCacheCmd, (ClientData) NULL, NULL);
+#endif /* defined(TCL_MEM_DEBUG) */
 
     if (Tcl_PkgProvide(interp, PACKAGE_NAME "::c", PACKAGE_VERSION) != TCL_OK) {
         return TCL_ERROR;

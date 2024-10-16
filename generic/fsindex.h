@@ -28,6 +28,8 @@ Cookfs_FsindexEntry **Cookfs_FsindexList(Cookfs_Fsindex *i, Cookfs_PathObj *path
 Cookfs_FsindexEntry **Cookfs_FsindexListEntry(Cookfs_FsindexEntry *dirNode, int *itemCountPtr);
 void Cookfs_FsindexListFree(Cookfs_FsindexEntry **items);
 
+// Tcl_Obj *Cookfs_FsindexGetMetadataAll(Cookfs_Fsindex *i);
+Tcl_Obj *Cookfs_FsindexGetMetadataAllKeys(Cookfs_Fsindex *i);
 Tcl_Obj *Cookfs_FsindexGetMetadata(Cookfs_Fsindex *i, const char *paramName);
 void Cookfs_FsindexSetMetadata(Cookfs_Fsindex *i, const char *paramName, Tcl_Obj *data);
 void Cookfs_FsindexSetMetadataRaw(Cookfs_Fsindex *i, const char *paramName,

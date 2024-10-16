@@ -8,12 +8,13 @@
 
 #include "cookfs.h"
 #include "pgindex.h"
+#include "pagesCompr.h"
 
 // How many entries are allocated at one time to reduce re-allocation
 // of memory.
 #define COOKFS_PGINDEX_ALLOC_SIZE 256
 
-typedef struct Cookfs_PgIndexEntry {
+struct Cookfs_PgIndexEntry {
     Cookfs_CompressionType compression;
     int compressionLevel;
     int encryption;
@@ -21,13 +22,143 @@ typedef struct Cookfs_PgIndexEntry {
     int sizeCompressed;
     int sizeUncompressed;
     Tcl_WideInt offset;
-} Cookfs_PgIndexEntry;
+};
 
 struct _Cookfs_PgIndex {
     int pagesCount;
     int pagesAllocated;
     Cookfs_PgIndexEntry *data;
+    Cookfs_PgIndexEntry special[COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_COUNT];
 };
+
+TYPEDEF_ENUM_COUNT(Cookfs_PgIndexPageInfoKeys, COOKFS_PGINDEX_INFO_KEY_COUNT,
+    COOKFS_PGINDEX_INFO_KEY_OFFSET,
+    COOKFS_PGINDEX_INFO_KEY_SIZEUNCOMPRESSED,
+    COOKFS_PGINDEX_INFO_KEY_SIZECOMPRESSED,
+    COOKFS_PGINDEX_INFO_KEY_ENCRYPTED,
+    COOKFS_PGINDEX_INFO_KEY_COMPRESSION,
+    COOKFS_PGINDEX_INFO_KEY_INDEX
+);
+
+static const char *info_key_string[COOKFS_PGINDEX_INFO_KEY_COUNT] = {
+    "offset", "sizeUncompressed", "sizeCompressed", "encrypted",
+    "compression", "index"
+};
+
+typedef struct ThreadSpecificData {
+    Tcl_Obj *info_key[COOKFS_PGINDEX_INFO_KEY_COUNT];
+    int initialized;
+} ThreadSpecificData;
+
+static Tcl_ThreadDataKey dataKeyCookfs;
+
+#define TCL_TSD_INIT(keyPtr) \
+    (ThreadSpecificData *)Tcl_GetThreadData((keyPtr), sizeof(ThreadSpecificData))
+
+void CookfsPgIndexThreadExit(ClientData clientData) {
+
+    UNUSED(clientData);
+
+    ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
+
+    for (int i = 0; i < COOKFS_PGINDEX_INFO_KEY_COUNT; i++) {
+        if (tsdPtr->info_key[i] != NULL) {
+            Tcl_DecrRefCount(tsdPtr->info_key[i]);
+            tsdPtr->info_key[i] = NULL;
+        }
+    }
+
+}
+
+Tcl_Obj *Cookfs_PgIndexGetInfo(Cookfs_PgIndex *pgi, int num) {
+
+    Cookfs_PgIndexEntry *pge;
+    int specialIndex;
+
+    const char *specialIndexName[COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_COUNT] = {
+        [COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_PGINDEX] = "pgindex",
+        [COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_FSINDEX] = "fsindex"
+    };
+
+    if (num >= 0) {
+        CookfsLog(printf("info about page #%d", num));
+        assert(num < pgi->pagesCount);
+        pge = pgi->data + num;
+    } else {
+
+        specialIndex = -1 - num;
+
+        CookfsLog(printf("info about special page %s (#%d)",
+            specialIndex == COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_PGINDEX ?
+                "PGINDEX" :
+            specialIndex == COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_FSINDEX ?
+                "FSINDEX" :
+            "UNKNOWN", specialIndex));
+
+        assert(specialIndex >= 0 &&
+            specialIndex < COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_COUNT);
+
+        pge = &pgi->special[specialIndex];
+
+    }
+
+    ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKeyCookfs);
+
+    if (!tsdPtr->initialized) {
+        Tcl_CreateThreadExitHandler(CookfsPgIndexThreadExit, NULL);
+        tsdPtr->initialized = 1;
+    }
+
+    int i;
+
+    if (tsdPtr->info_key[0] == NULL) {
+        for (i = 0; i < COOKFS_PGINDEX_INFO_KEY_COUNT; i++) {
+            tsdPtr->info_key[i] = Tcl_NewStringObj(info_key_string[i], -1);
+            Tcl_IncrRefCount(tsdPtr->info_key[i]);
+        }
+    }
+
+    Tcl_Obj *result = Tcl_NewDictObj();
+
+    for (i = 0; i < COOKFS_PGINDEX_INFO_KEY_COUNT; i++) {
+
+        Tcl_Obj *val;
+
+        switch ((Cookfs_PgIndexPageInfoKeys)i) {
+        case COOKFS_PGINDEX_INFO_KEY_OFFSET:
+            val = Tcl_NewWideIntObj(num < 0 ? pge->offset :
+                Cookfs_PgIndexGetStartOffset(pgi, num));
+            break;
+        case COOKFS_PGINDEX_INFO_KEY_SIZEUNCOMPRESSED:
+            val = Tcl_NewIntObj(pge->sizeUncompressed);
+            break;
+        case COOKFS_PGINDEX_INFO_KEY_SIZECOMPRESSED:
+            val = Tcl_NewIntObj(pge->sizeCompressed);
+            break;
+        case COOKFS_PGINDEX_INFO_KEY_ENCRYPTED:
+            val = Tcl_NewBooleanObj(pge->encryption);
+            break;
+        case COOKFS_PGINDEX_INFO_KEY_COMPRESSION:
+            val = Cookfs_CompressionToObj(pge->compression,
+                pge->compressionLevel);
+            break;
+        case COOKFS_PGINDEX_INFO_KEY_INDEX:
+            if (num < 0) {
+                // cppcheck-suppress knownArgument
+                val = Tcl_NewStringObj(specialIndexName[specialIndex], -1);
+            } else {
+                val = Tcl_NewIntObj(num);
+            }
+            break;
+        }
+
+        Tcl_DictObjPut(NULL, result, tsdPtr->info_key[i], val);
+
+    }
+
+    return result;
+
+}
 
 unsigned char *Cookfs_PgIndexGetHashMD5(Cookfs_PgIndex *pgi, int num) {
     assert(num >= 0 && num < pgi->pagesCount);
@@ -179,6 +310,15 @@ Cookfs_PgIndex *Cookfs_PgIndexInit(unsigned int initialPagesCount) {
     pgi->pagesCount = initialPagesCount;
     pgi->pagesAllocated = allocPagesCount;
 
+    for (int i = 0; i < COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_COUNT; i++) {
+        pgi->special[i].compression = COOKFS_COMPRESSION_NONE;
+        pgi->special[i].compressionLevel = 0;
+        pgi->special[i].encryption = 0;
+        pgi->special[i].sizeCompressed = -1;
+        pgi->special[i].sizeUncompressed = -1;
+        pgi->special[i].offset = -1;
+    }
+
     CookfsLog(printf("return: ok [%p]", (void *)pgi));
     return pgi;
 
@@ -188,6 +328,29 @@ void Cookfs_PgIndexFini(Cookfs_PgIndex *pgi) {
     CookfsLog(printf("release [%p]", (void *)pgi));
     ckfree(pgi->data);
     ckfree(pgi);
+}
+
+void Cookfs_PgIndexAddPageSpecial(Cookfs_PgIndex *pgi,
+    Cookfs_CompressionType compression, int compressionLevel, int encryption,
+    int sizeCompressed, int sizeUncompressed, Tcl_WideInt offset,
+    Cookfs_PgIndexSpecialPageType type)
+{
+
+    CookfsLog(printf("compression: %d, level: %d, encryption: %d,"
+        " sizeCompressed: %d, sizeUncompressed: %d, offset: %" TCL_LL_MODIFIER
+        "d, type: %s", compression, compressionLevel, encryption,
+        sizeCompressed, sizeUncompressed, offset,
+        type == COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_PGINDEX ? "PGINDEX" :
+        type == COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_FSINDEX ? "FSINDEX" :
+        "UNKNOWN"));
+
+    pgi->special[type].compression = compression;
+    pgi->special[type].compressionLevel = compressionLevel;
+    pgi->special[type].encryption = encryption;
+    pgi->special[type].sizeCompressed = sizeCompressed;
+    pgi->special[type].sizeUncompressed = sizeUncompressed;
+    pgi->special[type].offset = offset;
+
 }
 
 int Cookfs_PgIndexAddPage(Cookfs_PgIndex *pgi,

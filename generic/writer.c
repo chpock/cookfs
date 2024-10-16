@@ -158,29 +158,24 @@ Cookfs_Writer *Cookfs_WriterInit(Tcl_Interp* interp,
         return NULL;
     }
 
-    // Double check that smallfilesize is less than pagesize
-    if (smallfilesize > pagesize) {
-        CookfsLog(printf("failed, smallfilesize > pagesize"));
-        return NULL;
-    }
-
     Cookfs_Writer *w = (Cookfs_Writer *)ckalloc(sizeof(Cookfs_Writer));
-    if (w == NULL) {
-        CookfsLog(printf("failed, OOM"));
-        return NULL;
-    }
+    memset(w, 0, sizeof(Cookfs_Writer));
 
-    w->commandToken = NULL;
+    // Since we have cleared w, we don't need to set NULL / null values.
+    // However, let's leave these values here as comments so that we have
+    // a clear idea of the default values.
+
+    // w->commandToken = NULL;
     w->interp = interp;
-    w->fatalError = 0;
-    w->isDead = 0;
-    w->lockSoft = 0;
+    // w->fatalError = 0;
+    // w->isDead = 0;
+    // w->lockSoft = 0;
 
 #ifdef TCL_THREADS
     /* initialize thread locks */
     w->mx = Cookfs_RWMutexInit();
     w->threadId = Tcl_GetCurrentThread();
-    w->mxLockSoft = NULL;
+    // w->mxLockSoft = NULL;
 #endif /* TCL_THREADS */
 
     w->pages = pages;
@@ -195,13 +190,13 @@ Cookfs_Writer *Cookfs_WriterInit(Tcl_Interp* interp,
     w->maxBufferSize = smallfilebuffer;
     w->pageSize = pagesize;
 
-    w->bufferFirst = NULL;
-    w->bufferLast = NULL;
-    w->bufferSize = 0;
-    w->bufferCount = 0;
+    // w->bufferFirst = NULL;
+    // w->bufferLast = NULL;
+    // w->bufferSize = 0;
+    // w->bufferCount = 0;
 
-    w->pageMapByPage = NULL;
-    w->pageMapBySize = NULL;
+    // w->pageMapByPage = NULL;
+    // w->pageMapBySize = NULL;
 
     CookfsLog(printf("ok [%p]", (void *)w));
     return w;
@@ -1105,6 +1100,19 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
 
         CookfsLog(printf("write file to small file buffer"));
 
+        if (!w->isWriteToMemory &&
+            (w->bufferSize + dataSize > w->maxBufferSize))
+        {
+            CookfsLog(printf("need to purge"));
+            result = Cookfs_WriterPurge(w, 1, err);
+            if (result != TCL_OK) {
+                CookfsLog(printf("ERROR: failed to purge"));
+                goto error;
+            }
+        } else {
+            CookfsLog(printf("no need to purge"));
+        }
+
         if (dataType != COOKFS_WRITER_SOURCE_BUFFER) {
 
             CookfsLog(printf("alloc buffer"));
@@ -1136,10 +1144,10 @@ int Cookfs_WriterAddFile(Cookfs_Writer *w, Cookfs_PathObj *pathObj,
         }
 
         CookfsLog(printf("add to small file buf..."));
-        int ret = Cookfs_WriterAddBufferToSmallFiles(w, pathObj, mtime,
+        result = Cookfs_WriterAddBufferToSmallFiles(w, pathObj, mtime,
             (dataType == COOKFS_WRITER_SOURCE_BUFFER ? data : readBuffer),
             dataSize, err);
-        if (ret != TCL_OK) {
+        if (result != TCL_OK) {
             goto error;
         }
 

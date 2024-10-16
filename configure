@@ -9822,7 +9822,7 @@ then
 
     COOKFS_PKGCONFIG_USECVFS=1
 
-    vars="vfsDriver.c vfsVfs.c vfs.c vfsCmd.c"
+    vars="vfsDriver.c vfsVfs.c vfs.c vfsCmd.c vfsAttributes.c"
     for i in $vars; do
 	case $i in
 	    \$*)

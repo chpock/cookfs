@@ -1,3 +1,9 @@
+2024-10-16 Konstantin Kushnir <chpock@gmail.com>
+	* Add support for -metadata for VFS root attributes
+	* Add support for -pages for VFS root attributes
+	* Store pagesize/smallfilesize/smallfilebuffer properties as fsindex
+	  metadata and use these values after reopening
+
 2024-10-13 Konstantin Kushnir <chpock@gmail.com>
 	* Cleanup sources
 

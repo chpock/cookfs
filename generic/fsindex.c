@@ -1621,15 +1621,70 @@ void Cookfs_FsindexForeach(Cookfs_Fsindex *i, Cookfs_FsindexForeachProc *proc, C
  */
 
 Tcl_Obj *Cookfs_FsindexGetMetadata(Cookfs_Fsindex *i, const char *paramName) {
+    CookfsLog(printf("name [%s]", paramName));
     Cookfs_FsindexWantRead(i);
     Tcl_HashEntry *hashEntry;
     hashEntry = Tcl_FindHashEntry(&i->metadataHash, paramName);
-    if (hashEntry != NULL) {
-        unsigned char *value = Tcl_GetHashValue(hashEntry);
-        return Tcl_NewByteArrayObj(value + sizeof(Tcl_Size), *((Tcl_Size *)value));
-    }  else  {
+    if (hashEntry == NULL) {
+        CookfsLog(printf("return: NULL"));
         return NULL;
     }
+    unsigned char *value = Tcl_GetHashValue(hashEntry);
+    Tcl_Obj *result = Tcl_NewByteArrayObj(value + sizeof(Tcl_Size),
+        *((Tcl_Size *)value));
+    CookfsLog(printf("return: [%s] (obj: %p)", Tcl_GetString(result),
+        (void *)result));
+    return result;
+}
+
+/*
+Tcl_Obj *Cookfs_FsindexGetMetadataAll(Cookfs_Fsindex *i) {
+
+    Cookfs_FsindexWantRead(i);
+
+    Tcl_Obj *result = Tcl_NewDictObj();
+    Tcl_HashSearch hSearch;
+
+    for (Tcl_HashEntry *hPtr = Tcl_FirstHashEntry(&i->metadataHash, &hSearch);
+        hPtr != NULL; hPtr = Tcl_NextHashEntry(&hSearch))
+    {
+
+        Tcl_Obj *keyObj = Tcl_NewStringObj((const char *)Tcl_GetHashKey(
+            &i->metadataHash, hPtr), -1);
+
+        unsigned char *valueStr = Tcl_GetHashValue(hPtr);
+        Tcl_Obj *valueObj = Tcl_NewByteArrayObj(valueStr + sizeof(Tcl_Size),
+            *((Tcl_Size *)valueStr));
+
+        Tcl_DictObjPut(NULL, result, keyObj, valueObj);
+
+    }
+
+    return result;
+
+}
+*/
+
+Tcl_Obj *Cookfs_FsindexGetMetadataAllKeys(Cookfs_Fsindex *i) {
+
+    Cookfs_FsindexWantRead(i);
+
+    Tcl_Obj *result = Tcl_NewListObj(0, NULL);
+    Tcl_HashSearch hSearch;
+
+    for (Tcl_HashEntry *hPtr = Tcl_FirstHashEntry(&i->metadataHash, &hSearch);
+        hPtr != NULL; hPtr = Tcl_NextHashEntry(&hSearch))
+    {
+
+        Tcl_Obj *keyObj = Tcl_NewStringObj((const char *)Tcl_GetHashKey(
+            &i->metadataHash, hPtr), -1); // cppcheck-suppress knownArgument
+
+        Tcl_ListObjAppendElement(NULL, result, keyObj);
+
+    }
+
+    return result;
+
 }
 
 
