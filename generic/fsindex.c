@@ -1632,6 +1632,56 @@ Tcl_Obj *Cookfs_FsindexGetMetadata(Cookfs_Fsindex *i, const char *paramName) {
     }
 }
 
+/*
+Tcl_Obj *Cookfs_FsindexGetMetadataAll(Cookfs_Fsindex *i) {
+
+    Cookfs_FsindexWantRead(i);
+
+    Tcl_Obj *result = Tcl_NewDictObj();
+    Tcl_HashSearch hSearch;
+
+    for (Tcl_HashEntry *hPtr = Tcl_FirstHashEntry(&i->metadataHash, &hSearch);
+        hPtr != NULL; hPtr = Tcl_NextHashEntry(&hSearch))
+    {
+
+        Tcl_Obj *keyObj = Tcl_NewStringObj((const char *)Tcl_GetHashKey(
+            &i->metadataHash, hPtr), -1);
+
+        unsigned char *valueStr = Tcl_GetHashValue(hPtr);
+        Tcl_Obj *valueObj = Tcl_NewByteArrayObj(valueStr + sizeof(Tcl_Size),
+            *((Tcl_Size *)valueStr));
+
+        Tcl_DictObjPut(NULL, result, keyObj, valueObj);
+
+    }
+
+    return result;
+
+}
+*/
+
+Tcl_Obj *Cookfs_FsindexGetMetadataAllKeys(Cookfs_Fsindex *i) {
+
+    Cookfs_FsindexWantRead(i);
+
+    Tcl_Obj *result = Tcl_NewListObj(0, NULL);
+    Tcl_HashSearch hSearch;
+
+    for (Tcl_HashEntry *hPtr = Tcl_FirstHashEntry(&i->metadataHash, &hSearch);
+        hPtr != NULL; hPtr = Tcl_NextHashEntry(&hSearch))
+    {
+
+        Tcl_Obj *keyObj = Tcl_NewStringObj((const char *)Tcl_GetHashKey(
+            &i->metadataHash, hPtr), -1);
+
+        Tcl_ListObjAppendElement(NULL, result, keyObj);
+
+    }
+
+    return result;
+
+}
+
 
 /*
  *----------------------------------------------------------------------

@@ -2,7 +2,7 @@ source [file join [file dirname [info script]] common.tcl]
 
 test cookfsVfsCache-1 "Test cache eviction based on weight and age" -constraints {enabledTclCmds} -setup {
     set file [makeFile {} cookfs.cfs]
-    set fsid [cookfs::Mount $file $file -smallfilesize 50 -smallfilebuffer 5 -pagesize 150]
+    set fsid [cookfs::Mount $file $file -smallfilesize 50 -smallfilebuffer 8 -pagesize 150]
     makeFile [string repeat 1 100] test1 $file
     makeFile 2.1 test2.1 $file
     makeFile 2.2 test2.2 $file

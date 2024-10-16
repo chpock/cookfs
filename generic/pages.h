@@ -6,6 +6,7 @@
 #define COOKFS_PAGES_H 1
 
 #include "pageObj.h"
+#include "pgindex.h"
 
 typedef struct _Cookfs_Pages Cookfs_Pages;
 
@@ -78,6 +79,10 @@ void Cookfs_PagesCalculateHash(Cookfs_Pages *p, unsigned char *bytes,
     Tcl_Size size, unsigned char *output);
 
 int Cookfs_PageAddStamp(Cookfs_Pages *p, Tcl_WideInt size);
+
+Tcl_Obj *Cookfs_PagesGetInfo(Cookfs_Pages *p, int num);
+Tcl_Obj *Cookfs_PagesGetInfoSpecial(Cookfs_Pages *p,
+    Cookfs_PgIndexSpecialPageType type);
 
 #ifdef COOKFS_USECCRYPTO
 int Cookfs_PagesIsEncryptionActive(Cookfs_Pages *p);

@@ -177,6 +177,18 @@ int Cookfs_PagesIsEncryptionActive(Cookfs_Pages *p) {
 
 #endif /* COOKFS_USECCRYPTO */
 
+Tcl_Obj *Cookfs_PagesGetInfo(Cookfs_Pages *p, int num) {
+    Cookfs_PagesWantRead(p);
+    return Cookfs_PgIndexGetInfo(p->pagesIndex, num);
+}
+
+Tcl_Obj *Cookfs_PagesGetInfoSpecial(Cookfs_Pages *p,
+    Cookfs_PgIndexSpecialPageType type)
+{
+    Cookfs_PagesWantRead(p);
+    return Cookfs_PgIndexGetInfoSpecial(p->pagesIndex, type);
+}
+
 /*
  *----------------------------------------------------------------------
  *
@@ -3210,21 +3222,18 @@ skipSeekToIndexData:
         &pgindexSizeUncompressed, 1);
     int pgindexCompression = buf[COOKFS_SUFFIX_OFFSET_PGINDEX_COMPRESSION]
         & 0xff;
+    int pgindexCompressionLevel = buf[COOKFS_SUFFIX_OFFSET_PGINDEX_LEVEL]
+        & 0xff;
     unsigned char *pgindexHashMD5 = &buf[COOKFS_SUFFIX_OFFSET_PGINDEX_HASH];
 
-    Tcl_Size pgindexOffset;
+    Tcl_Size pgindexOffset = p->foffset - COOKFS_SUFFIX_BYTES -
+        pgindexSizeCompressed - fsindexSizeCompressed;
     // If we are using a memory-mapped file, calculate the pgindex offset.
     // Otherwise, we use -1 as an offset to read subsequent data from the file.
-    if (p->fileChannel == NULL) {
-        pgindexOffset = p->foffset - COOKFS_SUFFIX_BYTES -
-            pgindexSizeCompressed - fsindexSizeCompressed;
-    } else {
-        pgindexOffset = -1;
-    }
-
-    Cookfs_PageObj pgindexDataObj = Cookfs_ReadPage(p, pgindexOffset,
-        pgindexCompression, pgindexSizeCompressed, pgindexSizeUncompressed,
-        pgindexHashMD5, 1, isIndexEncrypted, &local_error);
+    Cookfs_PageObj pgindexDataObj = Cookfs_ReadPage(p,
+        (p->fileChannel == NULL ? pgindexOffset : -1), pgindexCompression,
+        pgindexSizeCompressed, pgindexSizeUncompressed, pgindexHashMD5, 1,
+        isIndexEncrypted, &local_error);
 
     if (pgindexDataObj == NULL) {
         CookfsLog(printf("unable to read or decompress pgindex"));
@@ -3276,19 +3285,16 @@ skipPgindex:
         &fsindexSizeUncompressed, 1);
     int fsindexCompression = buf[COOKFS_SUFFIX_OFFSET_FSINDEX_COMPRESSION]
         & 0xff;
+    int fsindexCompressionLevel = buf[COOKFS_SUFFIX_OFFSET_FSINDEX_LEVEL]
+        & 0xff;
     unsigned char *fsindexHashMD5 = &buf[COOKFS_SUFFIX_OFFSET_FSINDEX_HASH];
 
-    Tcl_Size fsindexOffset;
+    Tcl_Size fsindexOffset = p->foffset - COOKFS_SUFFIX_BYTES -
+        fsindexSizeCompressed;
     // If we are using a memory-mapped file, calculate the pgindex offset.
     // Otherwise, we use -1 as an offset to read subsequent data from the file.
-    if (p->fileChannel == NULL) {
-        fsindexOffset = p->foffset - COOKFS_SUFFIX_BYTES -
-            fsindexSizeCompressed;
-    } else {
-        fsindexOffset = -1;
-    }
-
-    p->dataIndex = Cookfs_ReadPage(p, fsindexOffset, fsindexCompression,
+    p->dataIndex = Cookfs_ReadPage(p,
+        (p->fileChannel == NULL ? fsindexOffset : -1), fsindexCompression,
         fsindexSizeCompressed, fsindexSizeUncompressed, fsindexHashMD5, 1,
         isIndexEncrypted, &local_error);
 
@@ -3331,6 +3337,22 @@ skipFsindex:
     if (p->pagesIndex != NULL) {
         p->dataInitialOffset -= Cookfs_PgIndexGetStartOffset(p->pagesIndex,
             Cookfs_PgIndexGetLength(p->pagesIndex));
+    } else {
+        p->pagesIndex = Cookfs_PgIndexInit(0);
+    }
+
+    if (fsindexSizeCompressed != 0) {
+        Cookfs_PgIndexAddPageSpecial(p->pagesIndex,
+            (Cookfs_CompressionType)fsindexCompression, fsindexCompressionLevel,
+            isIndexEncrypted, fsindexSizeCompressed, fsindexSizeUncompressed,
+            fsindexOffset, COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_FSINDEX);
+    }
+
+    if (pgindexSizeCompressed != 0) {
+        Cookfs_PgIndexAddPageSpecial(p->pagesIndex,
+            (Cookfs_CompressionType)pgindexCompression, pgindexCompressionLevel,
+            isIndexEncrypted, pgindexSizeCompressed, pgindexSizeUncompressed,
+            pgindexOffset, COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_PGINDEX);
     }
 
     if (p->dataInitialOffset < 0) {

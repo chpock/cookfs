@@ -9,9 +9,8 @@
  */
 
 #include "cookfs.h"
-#include "pages.h"
-#include "pagesInt.h"
 #include "pagesCompr.h"
+#include "pagesInt.h"
 #include "pagesComprZlib.h"
 #if defined(COOKFS_USECALLBACKS)
 #include "pagesComprCustom.h"
@@ -127,6 +126,19 @@ static int Cookfs_CompressionGetDefaultLevel(Cookfs_CompressionType compression)
 #endif
     default:
         return 255;
+    }
+}
+
+Tcl_Obj *Cookfs_CompressionToObj(Cookfs_CompressionType compression,
+    int compressionLevel)
+{
+    if (compressionLevel == -1 || compressionLevel ==
+        Cookfs_CompressionGetDefaultLevel(compression))
+    {
+        return Tcl_NewStringObj(Cookfs_CompressionGetName(compression), -1);
+    } else {
+        return Tcl_ObjPrintf("%s:%d", Cookfs_CompressionGetName(compression),
+            compressionLevel);
     }
 }
 

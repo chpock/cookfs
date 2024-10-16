@@ -6,11 +6,15 @@
 #ifndef COOKFS_PAGESCOMPR_H
 #define COOKFS_PAGESCOMPR_H 1
 
+#include "pages.h"
+
 /* let's gain at least 16 bytes and/or 5% to compress it */
 #define SHOULD_COMPRESS(p, origSize, size) ((p->alwaysCompress) || ((size < (origSize - 16)) && ((size) <= (origSize - (origSize / 20)))))
 
 const char *Cookfs_CompressionGetName(Cookfs_CompressionType compression);
 
+Tcl_Obj *Cookfs_CompressionToObj(Cookfs_CompressionType compression,
+    int compressionLevel);
 int Cookfs_CompressionFromObj(Tcl_Interp *interp, Tcl_Obj *obj,
     Cookfs_CompressionType *compressionPtr, int *compressionLevelPtr);
 

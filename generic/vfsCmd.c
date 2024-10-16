@@ -17,6 +17,10 @@
 #include "fsindexCmd.h"
 #include "writerCmd.h"
 
+#define COOKFS_PROP_DEFAULT_PAGESIZE        262144
+#define COOKFS_PROP_DEFAULT_SMALLFILESIZE   32768
+#define COOKFS_PROP_DEFAULT_SMALLFILEBUFFER 4194304
+
 struct _Cookfs_VfsProps {
 
 //#ifdef COOKFS_USETCLCMDS
@@ -69,9 +73,6 @@ typedef int (Cookfs_MountHandleCommandProc)(Cookfs_Vfs *vfs,
 static Tcl_ObjCmdProc CookfsMountCmd;
 static Tcl_ObjCmdProc CookfsUnmountCmd;
 static Tcl_ObjCmdProc CookfsMountHandleCmd;
-#if defined(TCL_MEM_DEBUG)
-static Tcl_ObjCmdProc CookfsResetCacheCmd;
-#endif /* defined(TCL_MEM_DEBUG) */
 static Tcl_CmdDeleteProc CookfsMountHandleCmdDeleteProc;
 
 int Cookfs_InitVfsMountCmd(Tcl_Interp *interp) {
@@ -94,28 +95,9 @@ int Cookfs_InitVfsMountCmd(Tcl_Interp *interp) {
     Tcl_CreateAlias(interp, "::cookfs::Unmount", interp,
         "::cookfs::c::Unmount", 0, NULL);
 
-#if defined(TCL_MEM_DEBUG)
-    Tcl_CreateObjCommand(interp, "::cookfs::c::reset_cache",
-        CookfsResetCacheCmd, (ClientData) NULL, NULL);
-#endif /* defined(TCL_MEM_DEBUG) */
-
     return TCL_OK;
 
 }
-
-#if defined(TCL_MEM_DEBUG)
-static int CookfsResetCacheCmd(ClientData clientData, Tcl_Interp *interp,
-    int objc, Tcl_Obj * const objv[])
-{
-
-    UNUSED(clientData);
-    UNUSED(interp);
-    UNUSED(objc);
-    UNUSED(objv);
-    CookfsThreadExitProc(NULL);
-    return TCL_OK;
-}
-#endif /* defined(TCL_MEM_DEBUG) */
 
 Cookfs_VfsProps *Cookfs_VfsPropsInit(void) {
     Cookfs_VfsProps *p = ckalloc(sizeof(Cookfs_VfsProps));
@@ -124,53 +106,54 @@ Cookfs_VfsProps *Cookfs_VfsPropsInit(void) {
         // Just to avoid complaints from cppcheck
         return NULL;
     }
+    memset(p, 0, sizeof(Cookfs_VfsProps));
 
-//#ifdef COOKFS_USETCLCMDS
-    p->pagesobject = NULL;
-    p->fsindexobject = NULL;
-    p->bootstrap = NULL;
+    // Since we have cleared p, we don't need to set NULL / null values.
+    // However, let's leave these values here as comments so that we have
+    // a clear idea of the default values.
+
+    // p->pagesobject = NULL;
+    // p->fsindexobject = NULL;
+    // p->bootstrap = NULL;
 
 #ifdef COOKFS_USETCLCMDS
-    p->noregister = 0;
+    // p->noregister = 0;
 #else
     p->noregister = -1;
 #endif /* COOKFS_USETCLCMDS */
-//#endif
 
-    p->nocommand = 0;
+    // p->nocommand = 0;
     p->compression = COOKFS_COMPRESSION_DEFAULT;
-    p->compressionlevel = 0;
-    p->alwayscompress = 0;
-    p->compresscommand = NULL;
-    p->asynccompresscommand = NULL;
-    p->asyncdecompresscommand = NULL;
+    // p->compressionlevel = 0;
+    // p->alwayscompress = 0;
+    // p->compresscommand = NULL;
+    // p->asynccompresscommand = NULL;
+    // p->asyncdecompresscommand = NULL;
     p->asyncdecompressqueuesize = 2;
-    p->decompresscommand = NULL;
+    // p->decompresscommand = NULL;
     p->endoffset = -1;
-    p->setmetadata = NULL;
-    p->readonly = 0;
-    p->writetomemory = 0;
+    // p->setmetadata = NULL;
+    // p->readonly = 0;
+    // p->writetomemory = 0;
     p->pagecachesize = 8;
-    p->volume = 0;
-    p->pagesize = 262144;
-    p->smallfilesize = 32768;
-    p->smallfilebuffer = 4194304;
-    p->nodirectorymtime = 0;
+    // p->volume = 0;
+    p->pagesize = -1;
+    p->smallfilesize = -1;
+    p->smallfilebuffer = -1;
+    // p->nodirectorymtime = 0;
     p->pagehash = COOKFS_HASH_DEFAULT;
-    p->shared = 0;
-    p->fileset = NULL;
+    // p->shared = 0;
+    // p->fileset = NULL;
 
-//#ifdef COOKFS_USECCRYPTO
-    p->password = NULL;
-    p->encryptkey = 0;
+    // p->password = NULL;
+    // p->encryptkey = 0;
     p->encryptlevel = -1;
 
 #ifdef COOKFS_USECCRYPTO
-    p->encryptkey = 0;
+    // p->encryptkey = 0;
 #else
     p->encryptkey = -1;
 #endif /* COOKFS_USECCRYPTO */
-//#endif /* COOKFS_USECCRYPTO */
 
     CookfsLog(printf("return: %p", (void *)p));
     return p;
@@ -594,15 +577,6 @@ int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
     }
 #endif /* COOKFS_USECCRYPTO */
 
-    if (props->smallfilesize > props->pagesize) {
-        CookfsLog(printf("ERROR: smallfilesize [%" TCL_LL_MODIFIER "d]"
-            " > pagesize [%" TCL_LL_MODIFIER "d]", props->smallfilesize,
-            props->pagesize));
-        Tcl_SetObjResult(interp, Tcl_NewStringObj("smallfilesize cannot be"
-            " larger than pagesize", -1));
-        goto error;
-    }
-
 #if defined(COOKFS_USECALLBACKS)
     if (props->shared && (
         props->compresscommand != NULL ||
@@ -815,6 +789,102 @@ skipPages:
         goto error;
     }
 
+    const char *pagesizeMetadataKey = "cookfs.pagesize";
+    const char *smallfilesizeMetadataKey = "cookfs.smallfilesize";
+    const char *smallfilebufferMetadataKey = "cookfs.smallfilebuffer";
+
+    Tcl_Obj *tmpObj = NULL;
+
+    if (props->pagesize == -1) {
+        CookfsLog(printf("prop pagesize is not defined, try to check"
+            " fsindex metadata"));
+        tmpObj = Cookfs_FsindexGetMetadata(index, pagesizeMetadataKey);
+        if (tmpObj == NULL || Tcl_GetWideIntFromObj(NULL, tmpObj,
+            &props->pagesize) != TCL_OK || props->pagesize <= 0)
+        {
+            CookfsLog(printf("pagesize metadata doesn't exists"
+                " or malformed, set to default"));
+            props->pagesize = COOKFS_PROP_DEFAULT_PAGESIZE;
+        } else {
+            CookfsLog(printf("got pagesize from metadata"));
+            goto skipSetPagesizeMetadata;
+        }
+    } else {
+        CookfsLog(printf("prop pagesize is defined"));
+    }
+
+    tmpObj = Tcl_NewWideIntObj(props->pagesize);
+    Cookfs_FsindexSetMetadata(index, pagesizeMetadataKey, tmpObj);
+
+skipSetPagesizeMetadata:
+
+    CookfsLog(printf("prop pagesize: %" TCL_LL_MODIFIER "d",
+        props->pagesize));
+    if (tmpObj != NULL) {
+        Tcl_BounceRefCount(tmpObj);
+        tmpObj = NULL;
+    }
+
+    if (props->smallfilesize == -1) {
+        CookfsLog(printf("prop smallfilesize is not defined, try to check"
+            " fsindex metadata"));
+        tmpObj = Cookfs_FsindexGetMetadata(index, smallfilesizeMetadataKey);
+        if (tmpObj == NULL || Tcl_GetWideIntFromObj(NULL, tmpObj,
+            &props->smallfilesize) != TCL_OK || props->smallfilesize < 0)
+        {
+            CookfsLog(printf("smallfilesize metadata doesn't exists"
+                " or malformed, set to default"));
+            props->smallfilesize = COOKFS_PROP_DEFAULT_SMALLFILESIZE;
+        } else {
+            CookfsLog(printf("got smallfilesize from metadata"));
+            goto skipSetSmallfilesizeMetadata;
+        }
+    } else {
+        CookfsLog(printf("prop smallfilesize is defined"));
+    }
+
+    tmpObj = Tcl_NewWideIntObj(props->smallfilesize);
+    Cookfs_FsindexSetMetadata(index, smallfilesizeMetadataKey, tmpObj);
+
+skipSetSmallfilesizeMetadata:
+
+    CookfsLog(printf("prop smallfilesize: %" TCL_LL_MODIFIER "d",
+        props->smallfilesize));
+    if (tmpObj != NULL) {
+        Tcl_BounceRefCount(tmpObj);
+        tmpObj = NULL;
+    }
+
+    if (props->smallfilebuffer == -1) {
+        CookfsLog(printf("prop smallfilebuffer is not defined, try to check"
+            " fsindex metadata"));
+        tmpObj = Cookfs_FsindexGetMetadata(index, smallfilebufferMetadataKey);
+        if (tmpObj == NULL || Tcl_GetWideIntFromObj(NULL, tmpObj,
+            &props->smallfilebuffer) != TCL_OK || props->smallfilebuffer < 0)
+        {
+            CookfsLog(printf("smallfilebuffer metadata doesn't exists"
+                " or malformed, set to default"));
+            props->smallfilebuffer = COOKFS_PROP_DEFAULT_SMALLFILEBUFFER;
+        } else {
+            CookfsLog(printf("got smallfilebuffer from metadata"));
+            goto skipSetSmallfilebufferMetadata;
+        }
+    } else {
+        CookfsLog(printf("prop smallfilebuffer is defined"));
+    }
+
+    tmpObj = Tcl_NewWideIntObj(props->smallfilebuffer);
+    Cookfs_FsindexSetMetadata(index, smallfilebufferMetadataKey, tmpObj);
+
+skipSetSmallfilebufferMetadata:
+
+    CookfsLog(printf("prop smallfilebuffer: %" TCL_LL_MODIFIER "d",
+        props->smallfilebuffer));
+    if (tmpObj != NULL) {
+        Tcl_BounceRefCount(tmpObj);
+        tmpObj = NULL;
+    }
+
     const char *pagehashMetadataKey = "cookfs.pagehash";
 
     if (pages == NULL) {
@@ -867,8 +937,7 @@ skipPages:
                         " bootstrap: %s", (err == NULL ? "unknown error" :
                         Tcl_GetString(err))));
                     if (err != NULL) {
-                        Tcl_IncrRefCount(err);
-                        Tcl_DecrRefCount(err);
+                        Tcl_BounceRefCount(err);
                     }
                     goto error;
                 }
