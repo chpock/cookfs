@@ -8,6 +8,7 @@
 
 #include "cookfs.h"
 #include "vfsAttributes.h"
+#include <errno.h>
 
 typedef struct ThreadSpecificData {
     int initialized;
