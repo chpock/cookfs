@@ -1957,8 +1957,8 @@ test cookfsVfs-25.2.1 "Test pages attrib, newly created VFS" -constraints enable
     assertEq [file attributes $cfs -pages] 0
     assertEq [file attributes $cfs -pages length] 0
     assertEq [file attributes $cfs -pages list] {}
-    assertEq [file attributes $cfs -pages fsindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index fsindex}
-    assertEq [file attributes $cfs -pages pgindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index pgindex}
+    assertEq [file attributes $cfs -pages fsindex] {offset -1 uncompsize -1 compsize -1 encrypted 0 compression none index fsindex}
+    assertEq [file attributes $cfs -pages pgindex] {offset -1 uncompsize -1 compsize -1 encrypted 0 compression none index pgindex}
 } -cleanup {
     cookfs::Unmount $cfs
     catch { ::cookfs::c::reset_cache }
@@ -1973,8 +1973,8 @@ test cookfsVfs-25.2.2 "Test pages attrib, newly created VFS, some data exists, b
     assertEq [file attributes $cfs -pages] 0
     assertEq [file attributes $cfs -pages length] 0
     assertEq [file attributes $cfs -pages list] {}
-    assertEq [file attributes $cfs -pages fsindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index fsindex}
-    assertEq [file attributes $cfs -pages pgindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index pgindex}
+    assertEq [file attributes $cfs -pages fsindex] {offset -1 uncompsize -1 compsize -1 encrypted 0 compression none index fsindex}
+    assertEq [file attributes $cfs -pages pgindex] {offset -1 uncompsize -1 compsize -1 encrypted 0 compression none index pgindex}
 } -cleanup {
     cookfs::Unmount $cfs
     catch { ::cookfs::c::reset_cache }
@@ -1989,8 +1989,8 @@ test cookfsVfs-25.2.3 "Test pages attrib, newly created VFS, some data exists, 1
     assertEq [file attributes $cfs -pages] 10
     assertEq [file attributes $cfs -pages length] 10
     assertEq [llength [file attributes $cfs -pages list]] 10
-    assertEq [file attributes $cfs -pages fsindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index fsindex}
-    assertEq [file attributes $cfs -pages pgindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index pgindex}
+    assertEq [file attributes $cfs -pages fsindex] {offset -1 uncompsize -1 compsize -1 encrypted 0 compression none index fsindex}
+    assertEq [file attributes $cfs -pages pgindex] {offset -1 uncompsize -1 compsize -1 encrypted 0 compression none index pgindex}
 } -cleanup {
     cookfs::Unmount $cfs
     catch { ::cookfs::c::reset_cache }
@@ -2007,8 +2007,8 @@ test cookfsVfs-25.3.1 "Test pages attrib, previously created VFS, no pages" -con
     assertEq [file attributes $cfs -pages length] 0
     assertEq [llength [file attributes $cfs -pages list]] 0
     # offset 15 is a stamp
-    assertEq [file attributes $cfs -pages fsindex] {offset 15 sizeUncompressed 129 sizeCompressed 129 encrypted 0 compression none index fsindex}
-    assertEq [file attributes $cfs -pages pgindex] {offset -1 sizeUncompressed -1 sizeCompressed -1 encrypted 0 compression none index pgindex}
+    assertEq [file attributes $cfs -pages fsindex] {offset 15 uncompsize 129 compsize 129 encrypted 0 compression none index fsindex}
+    assertEq [file attributes $cfs -pages pgindex] {offset -1 uncompsize -1 compsize -1 encrypted 0 compression none index pgindex}
 } -cleanup {
     cookfs::Unmount $cfs
     catch { ::cookfs::c::reset_cache }
@@ -2024,11 +2024,11 @@ test cookfsVfs-25.3.2 "Test pages attrib, previously created VFS, 2 pages" -cons
     assertEq [dict get [file attributes $cfs] -pages] 2
     assertEq [file attributes $cfs -pages] 2
     assertEq [file attributes $cfs -pages length] 2
-    assertEq [file attributes $cfs -pages 0] {offset 0 sizeUncompressed 10 sizeCompressed 10 encrypted 0 compression none index 0}
-    assertEq [file attributes $cfs -pages 1] {offset 10 sizeUncompressed 10 sizeCompressed 10 encrypted 0 compression none index 1}
-    assertEq [file attributes $cfs -pages list] {{offset 0 sizeUncompressed 10 sizeCompressed 10 encrypted 0 compression none index 0} {offset 10 sizeUncompressed 10 sizeCompressed 10 encrypted 0 compression none index 1}}
-    assertMatch [file attributes $cfs -pages pgindex] {offset 35 sizeUncompressed * sizeCompressed * encrypted 0 compression none index pgindex}
-    assertMatch [file attributes $cfs -pages fsindex] {offset * sizeUncompressed * sizeCompressed * encrypted 0 compression none index fsindex}
+    assertEq [file attributes $cfs -pages 0] {offset 0 uncompsize 10 compsize 10 encrypted 0 compression none index 0}
+    assertEq [file attributes $cfs -pages 1] {offset 10 uncompsize 10 compsize 10 encrypted 0 compression none index 1}
+    assertEq [file attributes $cfs -pages list] {{offset 0 uncompsize 10 compsize 10 encrypted 0 compression none index 0} {offset 10 uncompsize 10 compsize 10 encrypted 0 compression none index 1}}
+    assertMatch [file attributes $cfs -pages pgindex] {offset 35 uncompsize * compsize * encrypted 0 compression none index pgindex}
+    assertMatch [file attributes $cfs -pages fsindex] {offset * uncompsize * compsize * encrypted 0 compression none index fsindex}
 } -cleanup {
     cookfs::Unmount $cfs
     catch { ::cookfs::c::reset_cache }
@@ -2050,10 +2050,10 @@ test cookfsVfs-25.4 "Test pages attrib, compression and encryption" -constraints
     # page3 zlib level 2 compression, no encryption
     makeBinFile [randomData 10] "page1" $cfs
 } -body {
-    assertEq [file attributes $cfs -pages 0] {offset 0 sizeUncompressed 10 sizeCompressed 10 encrypted 0 compression none index 0}
-    assertMatch [file attributes $cfs -pages 1] {offset 10 sizeUncompressed 10 sizeCompressed * encrypted 1 compression none index 1}
-    assertMatch [file attributes $cfs -pages 2] {offset * sizeUncompressed 10 sizeCompressed * encrypted 1 compression zlib index 2}
-    assertMatch [file attributes $cfs -pages 3] {offset * sizeUncompressed 10 sizeCompressed * encrypted 0 compression zlib:2 index 3}
+    assertEq [file attributes $cfs -pages 0] {offset 0 uncompsize 10 compsize 10 encrypted 0 compression none index 0}
+    assertMatch [file attributes $cfs -pages 1] {offset 10 uncompsize 10 compsize * encrypted 1 compression none index 1}
+    assertMatch [file attributes $cfs -pages 2] {offset * uncompsize 10 compsize * encrypted 1 compression zlib index 2}
+    assertMatch [file attributes $cfs -pages 3] {offset * uncompsize 10 compsize * encrypted 0 compression zlib:2 index 3}
 } -cleanup {
     cookfs::Unmount $cfs
     catch { ::cookfs::c::reset_cache }
