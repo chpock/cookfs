@@ -41,7 +41,7 @@ TYPEDEF_ENUM_COUNT(Cookfs_PgIndexPageInfoKeys, COOKFS_PGINDEX_INFO_KEY_COUNT,
 );
 
 static const char *info_key_string[COOKFS_PGINDEX_INFO_KEY_COUNT] = {
-    "offset", "sizeUncompressed", "sizeCompressed", "encrypted",
+    "offset", "uncompsize", "compsize", "encrypted",
     "compression", "index"
 };
 
