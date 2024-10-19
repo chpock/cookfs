@@ -1,5 +1,6 @@
 2024-10-19 Konstantin Kushnir <chpock@gmail.com>
 	* Add attributes for files / dirs / VFS root
+	* Add ::cookfs::sha256 command if c-crypto is enabled
 
 2024-10-17 Konstantin Kushnir <chpock@gmail.com>
 	* Use the compsize / uncompsize keys in pages info

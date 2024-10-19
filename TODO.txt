@@ -1,5 +1,3 @@
-* add sha256 command if crypto is enabled
-
 * Investigate an issue with -directory parameter for glob.
   See tests cookfsVfs-1.8.4.1.1 and cookfsVfs-1.8.4.1.2.
   Then some variable (object) is passed to -directory argument

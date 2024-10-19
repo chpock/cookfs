@@ -42,4 +42,42 @@ test cookfsHashesMD5-6.2 {wrong args} -body {
     ::cookfs::c::md5 1 2
 } -error {bad option "1": must be -bin}
 
+# SHA256 tests
+
+test cookfsHashesSHA256-1.1 {empty data} -constraints cookfsCrypto -body {
+    ::cookfs::sha256 ""
+} -result E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855
+
+test cookfsHashesSHA256-1.2 {-bin, empty data} -constraints cookfsCrypto -body {
+    binary encode hex [::cookfs::sha256 -bin ""]
+} -result e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+test cookfsHashesSHA256-2 {1 byte data} -constraints cookfsCrypto -body {
+    ::cookfs::sha256 "a"
+} -result CA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB
+
+test cookfsHashesSHA256-3 {1kb byte data} -constraints cookfsCrypto -body {
+    ::cookfs::sha256 [string repeat "a" 1024]
+} -result 2EDC986847E209B4016E141A6DC8716D3207350F416969382D431539BF292E4A
+
+test cookfsHashesSHA256-4 {1kb+1 byte data} -constraints cookfsCrypto -body {
+    ::cookfs::sha256 [string repeat "a" 1025]
+} -result 4A82297889EB505CF6B5CBDF69977AFAB4632D6557539782F657BD7DC78091A5
+
+test cookfsHashesSHA256-5.1 {no args} -constraints cookfsCrypto -body {
+    ::cookfs::sha256
+} -error {wrong # args: should be "::cookfs::sha256 ?-bin? data"}
+
+test cookfsHashesSHA256-5.2 {no args} -constraints cookfsCrypto -body {
+    ::cookfs::c::sha256
+} -error {wrong # args: should be "::cookfs::c::sha256 ?-bin? data"}
+
+test cookfsHashesSHA256-6.1 {wrong # args} -constraints cookfsCrypto -body {
+    ::cookfs::sha256 1 2
+} -error {bad option "1": must be -bin}
+
+test cookfsHashesSHA256-6.2 {wrong # args} -constraints cookfsCrypto -body {
+    ::cookfs::c::sha256 1 2
+} -error {bad option "1": must be -bin}
+
 cleanupTests
