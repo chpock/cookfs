@@ -536,6 +536,7 @@ test cookfsVfsThread-7.3 "VFS terminated while other thread opens a file for rea
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
     assertMatchAny [thread::send $tid [list set result]] {
+        {1 {couldn't open "*": stalled writer object detected}}
         {1 {couldn't open "*": bad file number}}
         {1 {couldn't open "*": no locks available}}
         {1 {couldn't open "*": not a directory}}
