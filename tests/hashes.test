@@ -48,7 +48,7 @@ test cookfsHashesSHA256-1.1 {empty data} -constraints cookfsCrypto -body {
     ::cookfs::sha256 ""
 } -result E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855
 
-test cookfsHashesSHA256-1.2 {-bin, empty data} -body {
+test cookfsHashesSHA256-1.2 {-bin, empty data} -constraints cookfsCrypto -body {
     binary encode hex [::cookfs::sha256 -bin ""]
 } -result e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 
