@@ -26,4 +26,7 @@ void Cookfs_AesDecryptRaw(unsigned char *buffer, Tcl_Size bufferSize,
 void Cookfs_AesEncrypt(Cookfs_PageObj pg, unsigned char *key);
 int Cookfs_AesDecrypt(Cookfs_PageObj pg, unsigned char *key);
 
+int Cookfs_Sha256Cmd(ClientData clientData, Tcl_Interp *interp, int objc,
+    Tcl_Obj *const objv[]);
+
 #endif /* COOKFS_CRYPTO_H */

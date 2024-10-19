@@ -7,6 +7,9 @@
  */
 
 #include "cookfs.h"
+#ifdef COOKFS_USECCRYPTO
+#include "crypto.h"
+#endif /* COOKFS_USECCRYPTO */
 
 static int CookfsMd5Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
     UNUSED(clientData);
@@ -58,7 +61,18 @@ int Cookfs_InitHashesCmd(Tcl_Interp *interp) {
     Tcl_CreateObjCommand(interp, "::cookfs::c::md5", (Tcl_ObjCmdProc *)CookfsMd5Cmd,
         (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
 
-    Tcl_CreateAlias(interp, "::cookfs::md5", interp, "::cookfs::c::md5", 0, NULL);
+#ifdef COOKFS_USECCRYPTO
+    Tcl_CreateObjCommand(interp, "::cookfs::c::sha256",
+        (Tcl_ObjCmdProc *)Cookfs_Sha256Cmd, (ClientData)NULL,
+        (Tcl_CmdDeleteProc *)NULL);
+#endif /* COOKFS_USECCRYPTO */
+
+    Tcl_CreateAlias(interp, "::cookfs::md5", interp, "::cookfs::c::md5",
+        0, NULL);
+#ifdef COOKFS_USECCRYPTO
+    Tcl_CreateAlias(interp, "::cookfs::sha256", interp, "::cookfs::c::sha256",
+        0, NULL);
+#endif /* COOKFS_USECCRYPTO */
 
     return TCL_OK;
 }

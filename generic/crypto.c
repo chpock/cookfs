@@ -399,3 +399,54 @@ fallback_c:
 
 }
 
+int Cookfs_Sha256Cmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]) {
+
+    UNUSED(clientData);
+
+    Tcl_Obj *obj;
+    CSha256 ctx;
+
+    unsigned char *bytes;
+    unsigned char sha256[SHA256_DIGEST_SIZE];
+    Tcl_Size size;
+
+    if (objc < 2 || objc > 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "?-bin? data");
+        return TCL_ERROR;
+    }
+
+    if (objc == 3) {
+        const char *opt = Tcl_GetStringFromObj(objv[1], &size);
+        if (size < 1 || strncmp(opt, "-bin", size) != 0) {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+                "bad option \"%s\": must be -bin", opt));
+            Tcl_SetErrorCode(interp, "TCL", "LOOKUP", "INDEX", "option",
+                opt, (const char *)NULL);
+            return TCL_ERROR;
+        }
+        obj = objv[2];
+    } else {
+        obj = objv[1];
+    }
+
+    bytes = Tcl_GetByteArrayFromObj(obj, &size);
+
+    Sha256_Init(&ctx);
+    Sha256_Update(&ctx, bytes, size);
+    Sha256_Final(&ctx, sha256);
+
+    if (objc == 3) {
+        obj = Tcl_NewByteArrayObj(sha256, SHA256_DIGEST_SIZE);
+    } else {
+        char hex[SHA256_DIGEST_SIZE*2+1];
+        for (int i = 0; i < SHA256_DIGEST_SIZE; i++) {
+            sprintf(hex + i*2, "%02X", ((int) sha256[i]));
+        }
+        hex[SHA256_DIGEST_SIZE*2] = 0;
+        obj = Tcl_NewStringObj(hex, SHA256_DIGEST_SIZE*2);
+    }
+
+    Tcl_SetObjResult(interp, obj);
+
+    return TCL_OK;
+}
