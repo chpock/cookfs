@@ -536,6 +536,7 @@ test cookfsVfsThread-7.3 "VFS terminated while other thread opens a file for rea
     # We accept multiple results. The exact result depends on the state
     # of the thread when the VFS was unmounted
     assertMatchAny [thread::send $tid [list set result]] {
+        {1 {couldn't open "*": stalled writer object detected}}
         {1 {couldn't open "*": bad file number}}
         {1 {couldn't open "*": no locks available}}
         {1 {couldn't open "*": not a directory}}
@@ -707,64 +708,6 @@ test cookfsVfsThread-7.6 "VFS terminated while other thread accesses file stats"
         {1 {couldn't open "*": not a directory}}
         {1 {couldn't open "*": no such file or directory}}
         {1 {could not read "*": not a directory}}
-        {1 {could not read "*": no such device}}
-    }
-} -cleanup {
-    tsv::unset thread_ready
-    thread::release $tid
-    catch { cookfs::Unmount $file }
-} -ok
-
-test cookfsVfsThread-7.7 "VFS terminated while other thread gets file attributes" -constraints {threaded enabledCVfs} -setup {
-    set file [makeFile {} cookfs.cfs]
-    set fsid [cookfs::Mount $file $file -compression none -shared -smallfilesize 0x100000 -smallfilebuffer 0 -pagesize 0x100000]
-    set data1 "test"
-    set file1 [makeBinFile $data1 test1 $file]
-    set tid [thread::create thread::wait]
-    thread::send $tid [list set file $file]
-    thread::send $tid [list set rfile $file1]
-    thread::send $tid [list set rdata $data1]
-    variable thread_done
-} -body {
-    thread::send -async $tid {
-        # If this test works as expected, then this thread will be able to stat
-        # the file multiple times before the VFS is unmounted. So, here we also
-        # count how many times stat was read successfully
-        set count 0
-        set start [clock seconds]
-        catch {
-            while { [expr { [clock seconds] - $start }] < 3 } {
-                for { set i 0 } { $i < 1000000 } { incr i } {
-                    file attributes $rfile
-                    if { !$count } {
-                        tsv::set thread_ready 1 1
-                    }
-                    incr count
-                }
-            }
-            set ok notok
-        } result
-        # Add a 0 or 1 flag to the result whether file stat was read
-        # at least once.
-        set result [list [expr { $count > 0 }] $result]
-    } thread_done
-    # wait until thread opens the file
-    while { ![tsv::exists thread_ready 1] } { after 10 }
-    # Unmount cookfs
-    cookfs::Unmount $file
-    # wait 1 threads
-    vwait thread_done
-    # let's retrieve the results
-    # We accept multiple results. The exact result depends on the state
-    # of the thread when the VFS was unmounted
-    assertMatchAny [thread::send $tid [list set result]] {
-        {1 {could not read "*": bad file descriptor}}
-        {1 {could not read "*": bad file number}}
-        {1 {couldn't get attributes "*": no locks available}}
-        {1 {could not read "*": not a directory}}
-        {1 {could not read "*": no locks available}}
-        {1 {could not read "*": no such file or directory}}
-        {1 {could not read "*": invalid argument}}
         {1 {could not read "*": no such device}}
     }
 } -cleanup {

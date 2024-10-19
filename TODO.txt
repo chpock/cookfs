@@ -9,6 +9,7 @@
   the end of the evaluation of the Tcl source file. It is need
   to be investogated why internal representation is not released
   when corresponding object is deleted.
+  Similar issue is in cookfsVfs-29.1.3 in vfs.test
 
 * Add documentation as HTML to github pages
 
@@ -17,19 +18,18 @@
 * Add ability/subcommand to copy files from/to cookfs more efficiently than using 'file copy'.
   It can be something like 'cookfs copy <from disk> <cookfs endpoint>"
 
-* Add ability to get information about whole archive (file size, head size, cookfs size).
-  It should be available from attributes to a mount point.
-
 * Add support for storing file permissions and attributes (for Windows platform)
 
-* Add support for 'file attribute' commands to return general attributes and attributes like zipfs in Tcl9
+* Add support for storing any metadata assotiated with particular file/directory
+
+* Cookfs_AttrGet_Mount() creates new object as mount point for each request.
+  Mount point object should be cached somehow for specific thread and cached
+  object should be returned each time.
+
 * Add support for 'zipfs mkimg'-like command
 
 * Allow to get/set parameters and manage cookfs via global command ::cookfs
-cookfs password $mount_point "password"
-cookfs compression $mount_point "zlib"
 cookfs copy /foo/bar $mount_point
-cookfs gethead (and gettail?) - to get file part before cookfs
 
 * Combine readerchannel and writerchannel to one channel reader/writer
 
@@ -57,3 +57,5 @@ compression/decompression. This example will cover cookfs usage from Tcl side.
 
 * Remove support for CRC32 hash type. It is here only to provide compatibility with Tcl layer.
 
+* Remove all Tcl commands for pages, fsindex, mount handle by default. Allow them only for testing.
+  Everything should be controlled via attributes.

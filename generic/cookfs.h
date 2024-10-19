@@ -20,7 +20,7 @@
 #include <assert.h>
 #include <stdint.h>
 
-// #define COOKFS_THREAD_DEBUG
+#define COOKFS_THREAD_DEBUG
 
 /*
  * Backwards compatibility for size type change

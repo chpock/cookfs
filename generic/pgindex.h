@@ -45,6 +45,8 @@ void Cookfs_PgIndexSetSizeCompressed(Cookfs_PgIndex *pgi, int num,
 int Cookfs_PgIndexGetSizeUncompressed(Cookfs_PgIndex *pgi, int num);
 int Cookfs_PgIndexGetSizeCompressed(Cookfs_PgIndex *pgi, int num);
 int Cookfs_PgIndexGetCompressionLevel(Cookfs_PgIndex *pgi, int num);
+Tcl_Obj *Cookfs_PgIndexGetCompressionObj(Cookfs_PgIndex *pgi,
+    int num);
 Cookfs_CompressionType Cookfs_PgIndexGetCompression(Cookfs_PgIndex *pgi,
     int num);
 int Cookfs_PgIndexGetEncryption(Cookfs_PgIndex *pgi, int num);

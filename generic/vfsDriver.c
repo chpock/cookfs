@@ -865,7 +865,8 @@ done:
     return rc;
 }
 
-static Cookfs_VfsAttributeSetType CookfsAttrGetType(cookfsInternalRep *ir);
+static Cookfs_VfsAttributeSetType CookfsAttrGetType(cookfsInternalRep *ir,
+    Cookfs_FsindexEntry **entry_ptr);
 
 static const char *const *CookfsFileAttrStrings(Tcl_Obj *pathPtr,
     Tcl_Obj **objPtrRef)
@@ -878,7 +879,7 @@ static const char *const *CookfsFileAttrStrings(Tcl_Obj *pathPtr,
         return NULL;
     }
 
-    *objPtrRef = Cookfs_VfsAttributeList(CookfsAttrGetType(ir));
+    *objPtrRef = Cookfs_VfsAttributeList(CookfsAttrGetType(ir, NULL));
 
     Cookfs_FsindexUnlock(ir->vfs->index);
     return NULL;
@@ -905,10 +906,24 @@ static int CookfsFileAttrsGet(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
 
     Cookfs_Vfs *vfs = ir->vfs;
 
+    Cookfs_FsindexEntry *entry = NULL;
+    Cookfs_VfsAttributeSetType entry_type = CookfsAttrGetType(ir, &entry);
     Cookfs_VfsAttribute attr = Cookfs_VfsAttributeGetFromSet(
-        CookfsAttrGetType(ir), index);
+        entry_type, index);
 
-    int rc = Cookfs_VfsAttributeGet(interp, vfs, attr, objPtrRef);
+    int rc = TCL_OK;
+
+    // Special case for -relative attribute. We already have everything for
+    // that in the internal representation. And we don't pass the internal
+    // representation to Cookfs_VfsAttributeGet(). To avoid the complicated
+    // logic of re-calculating the relative filename from the entry, we will
+    // return it from the internal representation here.
+    if (attr == COOKFS_VFS_ATTRIBUTE_RELATIVE) {
+        *objPtrRef = Cookfs_PathObjGetFullnameObj(ir->pathObj);
+    } else {
+        rc = Cookfs_VfsAttributeGet(interp, vfs, attr, entry_type, entry,
+            objPtrRef);
+    }
 
     Cookfs_FsindexUnlock(vfs->index);
     return rc;
@@ -943,10 +958,13 @@ static int CookfsFileAttrsSet(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
 
     Cookfs_Vfs *vfs = ir->vfs;
 
+    Cookfs_FsindexEntry *entry = NULL;
+    Cookfs_VfsAttributeSetType entry_type = CookfsAttrGetType(ir, &entry);
     Cookfs_VfsAttribute attr = Cookfs_VfsAttributeGetFromSet(
-        CookfsAttrGetType(ir), index);
+        entry_type, index);
 
-    int rc = Cookfs_VfsAttributeSet(interp, vfs, attr, objPtr);
+    int rc = Cookfs_VfsAttributeSet(interp, vfs, attr, entry_type, entry,
+        objPtr);
 
     Cookfs_FsindexUnlock(vfs->index);
     CookfsLog(printf("return: %s", (rc == TCL_OK ? "OK" : "ERROR")));
@@ -954,7 +972,9 @@ static int CookfsFileAttrsSet(Tcl_Interp *interp, int index, Tcl_Obj *pathPtr,
 
 }
 
-static Cookfs_VfsAttributeSetType CookfsAttrGetType(cookfsInternalRep *ir) {
+static Cookfs_VfsAttributeSetType CookfsAttrGetType(cookfsInternalRep *ir,
+    Cookfs_FsindexEntry **entry_ptr)
+{
     // Check the length of the split path. If the length is zero, then
     // we want to get attributes for cookfs.
     if (ir->pathObj->fullNameLength == 0) {
@@ -966,6 +986,9 @@ static Cookfs_VfsAttributeSetType CookfsAttrGetType(cookfsInternalRep *ir) {
     Cookfs_FsindexEntry *entry = Cookfs_FsindexGet(ir->vfs->index,
         ir->pathObj);
     if (entry != NULL && !Cookfs_FsindexEntryIsDirectory(entry)) {
+        if (entry_ptr != NULL) {
+            *entry_ptr = entry;
+        }
         return COOKFS_VFS_ATTRIBUTE_SET_FILE;
     }
 

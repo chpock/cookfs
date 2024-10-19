@@ -146,14 +146,8 @@ Cookfs_VfsProps *Cookfs_VfsPropsInit(void) {
     // p->fileset = NULL;
 
     // p->password = NULL;
-    // p->encryptkey = 0;
     p->encryptlevel = -1;
-
-#ifdef COOKFS_USECCRYPTO
-    // p->encryptkey = 0;
-#else
     p->encryptkey = -1;
-#endif /* COOKFS_USECCRYPTO */
 
     CookfsLog(printf("return: %p", (void *)p));
     return p;
@@ -566,16 +560,22 @@ int Cookfs_Mount(Tcl_Interp *interp, Tcl_Obj *archive, Tcl_Obj *local,
     }
 #endif /* COOKFS_USETCLCMDS */
 
-#ifndef COOKFS_USECCRYPTO
     if (props->password != NULL || props->encryptkey != -1 ||
         props->encryptlevel != -1)
     {
+#ifndef COOKFS_USECCRYPTO
         Tcl_SetObjResult(interp, Tcl_NewStringObj("this package was built"
             " without encryption support. Options password, encryptkey,"
             " encryptlevel are not available", -1));
         goto error;
-    }
+#else
+        if (props->writetomemory) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("encryption options"
+                " have no effent in writetomemory VFS", -1));
+            goto error;
+        }
 #endif /* COOKFS_USECCRYPTO */
+    }
 
 #if defined(COOKFS_USECALLBACKS)
     if (props->shared && (
@@ -1660,11 +1660,15 @@ static int CookfsMountHandleCommandCompression(Cookfs_Vfs *vfs,
 }
 
 #ifdef COOKFS_USECCRYPTO
-static int CookfsMountHandleCommandPassword(Cookfs_Vfs *vfs,
-    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+int CookfsMountHandleCommandPasswordImpl(Cookfs_Vfs *vfs, Tcl_Interp *interp,
+    Tcl_Obj *password)
 {
-    if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 2, objv, "password");
+
+    if (vfs->pages == NULL) {
+        if (interp != NULL) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("unable to set"
+                " a password on a writetomemory VFS", -1));
+        }
         return TCL_ERROR;
     }
 
@@ -1683,16 +1687,38 @@ static int CookfsMountHandleCommandPassword(Cookfs_Vfs *vfs,
     if (!Cookfs_WriterLockWrite(vfs->writer, NULL)) {
         return TCL_ERROR;
     }
-    int ret = Cookfs_WriterPurge(vfs->writer, 1, NULL);
+    int ret = Cookfs_WriterPurge(vfs->writer, 0, NULL);
     // Make sure the writer is locked while we change the password
     if (ret == TCL_OK) {
-        ret = Cookfs_PagesCmdForward(COOKFS_PAGES_FORWARD_COMMAND_PASSWORD,
-            vfs->pages, interp, objc, objv);
+        ret = CookfsPagesCmdPasswordImpl(vfs->pages, interp, password);
     }
     Cookfs_WriterUnlock(vfs->writer);
 
     return ret;
+
 }
+
+static int CookfsMountHandleCommandPassword(Cookfs_Vfs *vfs,
+    Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
+{
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 2, objv, "password");
+        return TCL_ERROR;
+    }
+
+    Cookfs_Fsindex *index = vfs->index;
+
+    if (!Cookfs_FsindexLockWrite(index, NULL)) {
+        return TCL_ERROR;
+    }
+
+    int rc = CookfsMountHandleCommandPasswordImpl(vfs, interp, objv[2]);
+
+    Cookfs_FsindexUnlock(index);
+
+    return rc;
+}
+
 #endif /* COOKFS_USECCRYPTO */
 
 static int CookfsMountHandleCommandWritefiles(Cookfs_Vfs *vfs,

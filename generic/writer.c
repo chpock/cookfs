@@ -1752,7 +1752,6 @@ Tcl_Obj *Cookfs_WriterGetBufferObj(Cookfs_Writer *w, int blockNumber)
 }
 
 int Cookfs_WriterGetWritetomemory(Cookfs_Writer *w) {
-    Cookfs_WriterWantRead(w);
     return w->isWriteToMemory;
 }
 

@@ -53,4 +53,6 @@ Cookfs_PathObj *Cookfs_PathObjNewFromTclObj(Tcl_Obj *path);
 Cookfs_PathObj *Cookfs_PathObjNewFromStr(const char* pathStr,
     Tcl_Size pathLength);
 
+Tcl_Obj *Cookfs_PathObjGetFullnameObj(Cookfs_PathObj *p);
+
 #endif /* COOKFS_PATHOBJ_H */

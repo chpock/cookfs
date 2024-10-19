@@ -976,35 +976,43 @@ static int CookfsPagesCmdHash(Cookfs_Pages *pages, Tcl_Interp *interp, int objc,
 
 #ifdef COOKFS_USECCRYPTO
 
-static int CookfsPagesCmdPassword(Cookfs_Pages *pages, Tcl_Interp *interp,
-    int objc, Tcl_Obj *const objv[])
+int CookfsPagesCmdPasswordImpl(Cookfs_Pages *pages, Tcl_Interp *interp,
+    Tcl_Obj *password)
 {
-
-    if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 2, objv, "password");
-        return TCL_ERROR;
-    }
 
     if (!Cookfs_PagesLockWrite(pages, NULL)) {
         return TCL_ERROR;
     }
 
-    int rc = Cookfs_PagesSetPassword(pages, objv[2]);
+    int rc = Cookfs_PagesSetPassword(pages, password);
 
     Cookfs_PagesUnlock(pages);
 
     // There is only one possible failure - we have key-based encryption,
     // we read the encrypted key from the archive, we try to decrypt
     // the encrypted key and this decryption fails.
-    if (rc != TCL_OK) {
-        Tcl_SetObjResult(interp, Tcl_NewStringObj("could not decrypt"
-            " the encryption key with the specified password", -1));
-    } else {
-        Tcl_ResetResult(interp);
+    if (interp != NULL) {
+        if (rc != TCL_OK) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj("could not decrypt"
+                " the encryption key with the specified password", -1));
+        } else {
+            Tcl_ResetResult(interp);
+        }
     }
 
     return rc;
 
+}
+
+static int CookfsPagesCmdPassword(Cookfs_Pages *pages, Tcl_Interp *interp,
+    int objc, Tcl_Obj *const objv[])
+{
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 2, objv, "password");
+        return TCL_ERROR;
+    }
+
+    return CookfsPagesCmdPasswordImpl(pages, interp, objv[2]);
 }
 
 #endif /* COOKFS_USECCRYPTO */

@@ -344,6 +344,16 @@ int Cookfs_VfsHasFileset(Cookfs_Vfs *vfs) {
     return Cookfs_FsindexHasFileset(vfs->index);
 }
 
+int Cookfs_VfsIsVolume(Cookfs_Vfs *vfs) {
+    return vfs->isVolume;
+}
+
+#ifdef TCL_THREADS
+int Cookfs_VfsIsShared(Cookfs_Vfs *vfs) {
+    return vfs->isShared;
+}
+#endif /* TCL_THREADS */
+
 int Cookfs_VfsIsReadonly(Cookfs_Vfs *vfs) {
     return vfs->isReadonly;
 }

@@ -166,6 +166,14 @@ unsigned char *Cookfs_PgIndexGetHashMD5(Cookfs_PgIndex *pgi, int num) {
     return pge->hashMD5;
 }
 
+Tcl_Obj *Cookfs_PgIndexGetCompressionObj(Cookfs_PgIndex *pgi,
+    int num)
+{
+    assert(num >= 0 && num < pgi->pagesCount);
+    Cookfs_PgIndexEntry *pge = pgi->data + num;
+    return Cookfs_CompressionToObj(pge->compression, pge->compressionLevel);
+}
+
 Cookfs_CompressionType Cookfs_PgIndexGetCompression(Cookfs_PgIndex *pgi,
     int num)
 {

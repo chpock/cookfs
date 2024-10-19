@@ -173,11 +173,13 @@ proc cookfs::createArchive {archivefile filelist {bootstrap ""}} {
     }
 
     if {[file exists $archivefile]} {
-        set fh [open $archivefile a]
+        set fh [open $archivefile ab]
     }  else  {
-        set fh [open $archivefile w]
+        set fh [open $archivefile wb]
     }
-    fconfigure $fh -translation binary
+
+    puts -nonewline $fh "CFSS003[binary format w 0]"
+
     foreach page $pagelist {
         puts -nonewline $fh $page
     }
