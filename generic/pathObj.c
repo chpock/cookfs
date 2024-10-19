@@ -44,6 +44,10 @@ void Cookfs_PathObjDecrRefCount(Cookfs_PathObj *p) {
     }
 }
 
+Tcl_Obj *Cookfs_PathObjGetFullnameObj(Cookfs_PathObj *p) {
+    return Tcl_NewStringObj(p->fullName, p->fullNameLength);
+}
+
 Cookfs_PathObj *Cookfs_PathObjNewFromTclObj(Tcl_Obj *path) {
     Tcl_Size pathLength;
     const char *pathStr = Tcl_GetStringFromObj(path, &pathLength);

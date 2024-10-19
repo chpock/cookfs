@@ -3,6 +3,8 @@
 #ifndef COOKFS_PAGESCMD_H
 #define COOKFS_PAGESCMD_H 1
 
+#include "pages.h"
+
 /* Tcl public API */
 
 typedef enum {
@@ -19,5 +21,8 @@ Tcl_Obj *CookfsGetPagesObjectCmd(Tcl_Interp *interp, void *p);
 
 int Cookfs_PagesCmdForward(Cookfs_PagesForwardCmd cmd, void *p,
     Tcl_Interp *interp, int objc, Tcl_Obj *const objv[]);
+
+int CookfsPagesCmdPasswordImpl(Cookfs_Pages *pages, Tcl_Interp *interp,
+    Tcl_Obj *password);
 
 #endif /* COOKFS_PAGESCMD_H */

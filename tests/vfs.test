@@ -1020,12 +1020,25 @@ test cookfsVfs-16.1.1 "Test set attributes for root" -constraints {enabledCVfs} 
 test cookfsVfs-16.1.2 "Test list attributes for root" -constraints {enabledCVfs} -setup {
     set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
+    set expected {
+        -archive -cachesize -compression -fileset -handle -metadata -pages
+        -parts -readonly -relative -smallfilebuffersize -vfs -volume
+        -writetomemory
+    }
+    if { [testConstraint cookfsCrypto] } {
+        lappend expected {*}{
+            -encryptkey -encryptlevel -password
+        }
+    }
+    if { [testConstraint threaded] } {
+        lappend expected -shared
+    }
 } -body {
-    lsort [dict keys [file attributes $file]]
+    assertEq [lsort [dict keys [file attributes $file]]] [lsort $expected]
 } -cleanup {
     cookfs::Unmount $file
     catch { ::cookfs::c::reset_cache }
-} -result {-fileset -handle -metadata -pages -vfs}
+} -ok
 
 test cookfsVfs-16.1.3 "Test get attributes for root" -setup {
     set file [makeFile {} cookfs.cfs]
@@ -1046,7 +1059,7 @@ test cookfsVfs-16.1.4 "Test get unknown attribute for root" -constraints {enable
 } -cleanup {
     cookfs::Unmount $file
     catch { ::cookfs::c::reset_cache }
-} -error {bad option "-foo": must be -vfs, -handle, -pages, -metadata, or -fileset}
+} -match glob -error {bad option "-foo": must be *}
 
 test cookfsVfs-16.1.5 "Test -handle attribute for root when vfs created with -nocommand" -setup {
     set file [makeFile {} cookfs.cfs]
@@ -1069,7 +1082,7 @@ test cookfsVfs-16.2.1 "Test set attributes for file" -constraints {enabledCVfs} 
     catch { ::cookfs::c::reset_cache }
 } -error {attribute "-vfs" is read-only}
 
-test cookfsVfs-16.2.2 "Test list attributes for file" -setup {
+test cookfsVfs-16.2.2 "Test list attributes for file" -constraints {enabledCVfs} -setup {
     set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
     set file2 [makeBinFile "" test $file]
@@ -1078,21 +1091,21 @@ test cookfsVfs-16.2.2 "Test list attributes for file" -setup {
 } -cleanup {
     cookfs::Unmount $file
     catch { ::cookfs::c::reset_cache }
-} -result {-vfs}
+} -result {-blocks -compression -compsize -mount -pending -relative -uncompsize -vfs}
 
-test cookfsVfs-16.2.3 "Test get attributes for file" -setup {
+test cookfsVfs-16.2.3 "Test get attributes for file" -constraints {enabledCVfs} -setup {
     set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
     set file2 [makeBinFile "" test $file]
 } -body {
     assertEq [file attributes $file2 -vfs] 1
-    assertErrMsg { file attributes $file2 -handle } {bad option "-handle": must be -vfs}
+    assertErrMsg { file attributes $file2 -handle } {bad option "-handle": must be -vfs, -uncompsize, -compsize, -compression, -mount, -pending, -blocks, or -relative}
 } -cleanup {
     cookfs::Unmount $file
     catch { ::cookfs::c::reset_cache }
 } -ok
 
-test cookfsVfs-16.2.4 "Test get unknown attribute for file" -setup {
+test cookfsVfs-16.2.4 "Test get unknown attribute for file" -constraints {enabledCVfs} -setup {
     set file [makeFile {} cookfs.cfs]
     set fsid [cookfs::Mount $file $file -compression none]
     set file2 [makeBinFile "" test $file]
@@ -1101,7 +1114,52 @@ test cookfsVfs-16.2.4 "Test get unknown attribute for file" -setup {
 } -cleanup {
     cookfs::Unmount $file
     catch { ::cookfs::c::reset_cache }
-} -error {bad option "-foo": must be -vfs}
+} -error {bad option "-foo": must be -vfs, -uncompsize, -compsize, -compression, -mount, -pending, -blocks, or -relative}
+
+test cookfsVfs-16.3.1 "Test set attributes for directory" -constraints {enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none]
+    set dir [makeDirectory test $file]
+} -body {
+    file attributes $dir -vfs 2
+} -cleanup {
+    cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-vfs" is read-only}
+
+test cookfsVfs-16.3.2 "Test list attributes for directory" -constraints {enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none]
+    set dir [makeDirectory test $file]
+} -body {
+    lsort [dict keys [file attributes $dir]]
+} -cleanup {
+    cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
+} -result {-mount -relative -vfs}
+
+test cookfsVfs-16.3.3 "Test get attributes for directory" -constraints {enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none]
+    set dir [makeDirectory test $file]
+} -body {
+    assertEq [file attributes $dir -vfs] 1
+    assertErrMsg { file attributes $dir -handle } {bad option "-handle": must be -vfs, -mount, or -relative}
+} -cleanup {
+    cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-16.3.4 "Test get unknown attribute for directory" -constraints {enabledCVfs} -setup {
+    set file [makeFile {} cookfs.cfs]
+    set fsid [cookfs::Mount $file $file -compression none]
+    set dir [makeDirectory test $file]
+} -body {
+    file attributes $dir -foo
+} -cleanup {
+    cookfs::Unmount $file
+    catch { ::cookfs::c::reset_cache }
+} -error {bad option "-foo": must be -vfs, -mount, or -relative}
 
 test cookfsVfs-17.1 "Test in-memory vfs, open with a file" -setup {
     set dir [makeDirectory cookfs.vfs]
@@ -1323,8 +1381,8 @@ test cookfsVfs-20.1.1 "Don't crash when stamp is not present" -setup {
 } -body {
     cookfs::Mount $file $file -readonly
 } -cleanup {
-    cookfs::Unmount $file
-} -ok
+    catch { cookfs::Unmount $file }
+} -error {Unable to create Cookfs object: file does not contain enough bytes for all pages}
 
 # This test differs from the previous one in that there is no byte representing
 # the compression level in the tail of the archive
@@ -2419,6 +2477,1491 @@ test cookfsVfs-28.6 "Test attribute -metadata, cookfs.smallfilebuffer, the value
     cookfs::Unmount $cfs
     catch { ::cookfs::c::reset_cache }
 } -ok
+
+test cookfsVfs-29.1.1 "Test attribute -archive, get, existing file" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertEq [file attributes $cfs -archive] $cfs
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-29.1.2 "Test attribute -archive, get, writetomemory VFS" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -writetomemory
+} -body {
+    assertEq [file attributes $cfs -archive] ""
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-29.1.3 "Test attribute -archive, get, mounted as volume" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    set vol "test://"
+    cookfs::Mount $cfs $vol -compression none -volume
+} -body {
+    assertEq [file attributes [string range $vol 0 end] -archive] $cfs
+} -cleanup {
+    cookfs::Unmount $vol
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-29.2 "Test attribute -archive, set" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attributes $cfs -archive foo
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-archive" is read-only}
+
+test cookfsVfs-30.1.1 "Test attribute -password, get, default unencrypted VFS" -constraints {
+    enabledCVfs cookfsCrypto
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attributes $cfs -password
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 0
+
+test cookfsVfs-30.1.2 "Test attribute -password, get, default encrypted VFS" -constraints {
+    enabledCVfs cookfsCrypto
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptlevel 0
+} -body {
+    file attributes $cfs -password
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 1
+
+test cookfsVfs-30.1.3 "Test attribute -password, get, default writetomemory VFS" -constraints {
+    enabledCVfs cookfsCrypto
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -writetomemory
+} -body {
+    file attributes $cfs -password
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 0
+
+test cookfsVfs-30.2.1 "Test attribute -password, set, default unencrypted VFS" -constraints {
+    enabledCVfs cookfsCrypto
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -encryptlevel 0
+} -body {
+    file attributes $cfs -password foo
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 1
+
+test cookfsVfs-30.2.2 "Test attribute -password, set, default encrypted VFS" -constraints {
+    enabledCVfs cookfsCrypto
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -encryptlevel 0 -password foo
+} -body {
+    file attributes $cfs -password ""
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 0
+
+test cookfsVfs-30.2.3 "Test attribute -password, set, default unencrypted VFS, verify" -constraints {
+    enabledCVfs cookfsCrypto
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -encryptlevel 0
+    variable data
+} -body {
+    makeBinFile {THIS_IS_1_UNENCRYPTED} "file1" $cfs
+    assertEq [file attributes $cfs -password] 0
+    assertEq [file attributes $cfs -password foo] 1
+    assertEq [file attributes $cfs -password] 1
+    makeBinFile {THIS_IS_ENCRYPTED} "file2" $cfs
+    assertEq [file attributes $cfs -password ""] 0
+    assertEq [file attributes $cfs -password] 0
+    makeBinFile {THIS_IS_2_UNENCRYPTED} "file3" $cfs
+    cookfs::Unmount $cfs
+    set data [viewBinFile $cfs]
+    assertContain $data "THIS_IS_1_UNENCRYPTED" "file1 should be unencrypted"
+    assertNotContain $data "THIS_IS_ENCRYPTED" "test2 should be encrypted"
+    assertContain $data "THIS_IS_2_UNENCRYPTED" "file3 should be unencrypted"
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-30.2.4 "Test attribute -password, set, default encrypted VFS, verify" -constraints {
+    enabledCVfs cookfsCrypto
+} -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -encryptlevel 0 -password foo
+    variable data
+} -body {
+    makeBinFile {THIS_IS_1_UNENCRYPTED} "file1" $cfs
+    assertEq [file attributes $cfs -password] 1
+    assertEq [file attributes $cfs -password ""] 0
+    assertEq [file attributes $cfs -password] 0
+    makeBinFile {THIS_IS_ENCRYPTED} "file2" $cfs
+    assertEq [file attributes $cfs -password "foo"] 1
+    assertEq [file attributes $cfs -password] 1
+    makeBinFile {THIS_IS_2_UNENCRYPTED} "file3" $cfs
+    cookfs::Unmount $cfs
+    set data [viewBinFile $cfs]
+    assertNotContain $data "THIS_IS_1_UNENCRYPTED" "file1 should be unencrypted"
+    assertContain $data "THIS_IS_ENCRYPTED" "test2 should be encrypted"
+    assertNotContain $data "THIS_IS_2_UNENCRYPTED" "file3 should be unencrypted"
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-31.1.1 "Test attribute -readonly, get, RW VFS" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -readonly
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 0
+
+test cookfsVfs-31.1.2 "Test attribute -readonly, get, RO VFS" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -readonly
+} -body {
+    file attribute $cfs -readonly
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 1
+
+test cookfsVfs-31.2.1 "Test attribute -readonly, set" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -readonly 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-readonly" is read-only}
+
+test cookfsVfs-32.1.1 "Test attribute -readonly, get, writetomemory disabled" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -writetomemory
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 0
+
+test cookfsVfs-32.1.2 "Test attribute -readonly, get, writetomemory enabled" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -writetomemory
+} -body {
+    file attribute $cfs -writetomemory
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 1
+
+test cookfsVfs-32.2.1.1 "Test attribute -readonly, set true, writetomemory disabled" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -readonly
+} -body {
+    assertEq [file attribute $cfs -writetomemory] 0
+    assertEq [file attribute $cfs -readonly] 1
+    assertEq [file attribute $cfs -writetomemory 1] 1
+    assertEq [file attribute $cfs -writetomemory] 1
+    assertEq [file attribute $cfs -readonly] 0
+    makeBinFile "TEST" "test" $cfs
+    assertEq [viewBinFile "test" $cfs] "TEST"
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-32.2.1.2 "Test attribute -readonly, set false, writetomemory disabled" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -readonly
+} -body {
+    assertEq [file attribute $cfs -writetomemory] 0
+    assertEq [file attribute $cfs -writetomemory 0] 0
+    assertEq [file attribute $cfs -writetomemory] 0
+    makeBinFile {TEST} "test" $cfs
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -match glob -error {couldn't open "*": read-only file system}
+
+test cookfsVfs-32.2.2.1 "Test attribute -readonly, set true, writetomemory enabled" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -writetomemory
+} -body {
+    assertEq [file attribute $cfs -writetomemory] 1
+    assertEq [file attribute $cfs -readonly] 0
+    assertEq [file attribute $cfs -writetomemory 1] 1
+    assertEq [file attribute $cfs -writetomemory] 1
+    assertEq [file attribute $cfs -readonly] 0
+    makeBinFile {TEST} "test" $cfs
+    assertEq [viewBinFile "test" $cfs] "TEST"
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-32.2.2.2 "Test attribute -readonly, set false, writetomemory enabled" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -writetomemory
+} -body {
+    file attribute $cfs -writetomemory 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {unable to disable writetomemory mode when it is already enabled}
+
+test cookfsVfs-32.2.3 "Test attribute -readonly, set true and false" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -readonly
+} -body {
+    assertEq [file attribute $cfs -writetomemory] 0
+    assertEq [file attribute $cfs -readonly] 1
+    assertEq [file attribute $cfs -writetomemory 1] 1
+    assertEq [file attribute $cfs -writetomemory] 1
+    assertEq [file attribute $cfs -readonly] 0
+    makeBinFile {TEST} "test" $cfs
+    assertEq [viewBinFile "test" $cfs] "TEST"
+    file attribute $cfs -writetomemory 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {unable to disable writetomemory mode when it is already enabled}
+
+test cookfsVfs-33.1.1 "Test attribute -smallfilebuffersize, get, newly created VFS" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -smallfilebuffersize
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 0
+
+test cookfsVfs-33.1.2 "Test attribute -smallfilebuffersize, get, some data exists" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -smallfilesize 64 -smallfilebuffer 1024 -pagesize 1024
+} -body {
+    makeBinFile {TEST1} "test1" $cfs
+    makeBinFile {TESTA2} "test2" $cfs
+    file attribute $cfs -smallfilebuffersize
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 11
+
+test cookfsVfs-33.2.1 "Test attribute -smallfilebuffersize, set" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -smallfilebuffersize 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-smallfilebuffersize" is read-only}
+
+test cookfsVfs-34.1.1 "Test attribute -cachesize, get, check default" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertGt [file attribute $cfs -cachesize] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-34.1.2 "Test attribute -cachesize, get, check expected value 11" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagecachesize 11
+} -body {
+    file attribute $cfs -cachesize
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 11
+
+test cookfsVfs-34.2.1 "Test attribute -cachesize, set, wrong value" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -cachesize a
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {expected integer but got "a"}
+
+test cookfsVfs-34.2.2 "Test attribute -cachesize, set, good value" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagecachesize 123
+} -body {
+    assertEq [file attribute $cfs -cachesize] 123
+    assertEq [file attribute $cfs -cachesize 12] 12
+    assertEq [file attribute $cfs -cachesize] 12
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-35.1.1 "Test attribute -volume, get, value false" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -volume
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 0
+
+test cookfsVfs-35.1.2 "Test attribute -volume, get, value true" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -volume
+} -body {
+    file attribute $cfs -volume
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 1
+
+test cookfsVfs-35.2.1 "Test attribute -volume, set" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -volume 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-volume" is read-only}
+
+test cookfsVfs-36.1.1 "Test attribute -shared, get, value false" -constraints { enabledCVfs threaded } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -shared
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 0
+
+test cookfsVfs-36.1.2 "Test attribute -shared, get, value true" -constraints { enabledCVfs threaded } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -shared
+} -body {
+    file attribute $cfs -shared
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 1
+
+test cookfsVfs-36.2.1 "Test attribute -shared, set" -constraints { enabledCVfs threaded } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -shared 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-shared" is read-only}
+
+test cookfsVfs-37.1.1 "Test attribute -compression, get, none value" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -compression
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result none
+
+test cookfsVfs-37.1.2 "Test attribute -compression, get, zlib value" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression zlib
+} -body {
+    file attribute $cfs -compression
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result zlib
+
+test cookfsVfs-37.1.3 "Test attribute -compression, get, writetomemory VFS" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -writetomemory
+} -body {
+    file attribute $cfs -compression
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result none
+
+test cookfsVfs-37.2.1.1 "Test attribute -compression, set, writetomemory VFS" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -writetomemory
+} -body {
+    file attribute $cfs -compression none
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {unable to set compression on a writetomemory VFS}
+
+test cookfsVfs-37.2.1.2 "Test attribute -compression, set, wrong value" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -compression 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {bad compression "1": must be none, zlib, lzma, or custom}
+
+test cookfsVfs-37.2.1.3 "Test attribute -compression, set, wrong level" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -compression none:none
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {expected integer but got "none"}
+
+test cookfsVfs-37.2.1.4 "Test attribute -compression, set, RO VFS" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -readonly
+} -body {
+    file attribute $cfs -compression none
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {unable to set compression on a readonly VFS}
+
+test cookfsVfs-37.2.2 "Test attribute -compression, set, verify values" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -smallfilebuffer 0 -alwayscompress
+} -body {
+    assertEq [file attributes $cfs -pages] 0 "make sure there are no pages"
+    assertEq [file attribute $cfs -compression "zlib:2"] "zlib:2"
+    assertEq [file attribute $cfs -compression] "zlib:2"
+    makeBinFile "TEST1" "test1" $cfs
+    assertEq [file attribute $cfs -compression "none"] "none"
+    assertEq [file attribute $cfs -compression] "none"
+    makeBinFile "TEST2" "test2" $cfs
+    assertEq [file attribute $cfs -compression "zlib"] "zlib"
+    assertEq [file attribute $cfs -compression] "zlib"
+    makeBinFile "TEST3" "test3" $cfs
+    assertEq [file attributes $cfs -pages] 3 "make sure there are 3 pages"
+    # verify
+    assertEq [dict get [file attributes $cfs -pages 0] compression] "zlib:2"
+    assertEq [dict get [file attributes $cfs -pages 1] compression] "none"
+    assertEq [dict get [file attributes $cfs -pages 2] compression] "zlib"
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-38.1.1 "Test attribute -encryptkey, get, value false (default)" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -encryptkey
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 0
+
+test cookfsVfs-38.1.2 "Test attribute -encryptkey, get, value true" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -encryptkey
+} -body {
+    file attribute $cfs -encryptkey
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 1
+
+test cookfsVfs-38.1.3 "Test attribute -encryptkey, get, writetomemory VFS" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -writetomemory
+} -body {
+    file attribute $cfs -encryptkey
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 0
+
+test cookfsVfs-38.2.1 "Test attribute -encryptkey, set" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -encryptkey 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-encryptkey" is read-only}
+
+test cookfsVfs-39.1.1 "Test attribute -encryptlevel, get, default value" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    assertGt [file attribute $cfs -encryptlevel] 0
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-39.1.2 "Test attribute -encryptlevel, get, known value" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -encryptlevel 2
+} -body {
+    file attribute $cfs -encryptlevel
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 2
+
+test cookfsVfs-39.1.3 "Test attribute -encryptlevel, get, writetomemory VFS" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -writetomemory
+} -body {
+    file attribute $cfs -encryptlevel
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result 0
+
+test cookfsVfs-39.2.1 "Test attribute -encryptlevel, set" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -encryptlevel 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-encryptlevel" is read-only}
+
+test cookfsVfs-40.1.1 "Test attribute -parts, get, newly created VFS" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -parts
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result {headsize -1 datasize -1 tailsize -1}
+
+test cookfsVfs-40.1.2 "Test attribute -parts, get, newly created VFS in writetomemory mode" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -writetomemory
+} -body {
+    file attribute $cfs -parts
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -result {headsize -1 datasize -1 tailsize -1}
+
+test cookfsVfs-40.2.1.1 "Test attribute -parts, get, empty VFS, RW mode" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+    variable val
+} -body {
+    set val [file attribute $cfs -parts]
+    cookfs::Unmount $cfs
+    assertEq $val [dict create \
+        headsize 0 \
+        datasize [file size $cfs] \
+        tailsize 0]
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.2.1.2 "Test attribute -parts, get, empty VFS, RO mode" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -readonly
+    variable val
+} -body {
+    set val [file attribute $cfs -parts]
+    cookfs::Unmount $cfs
+    assertEq $val [dict create \
+        headsize 0 \
+        datasize [file size $cfs] \
+        tailsize 0]
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.2.2.1 "Test attribute -parts, get, empty VFS, file encryption" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptlevel 0
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -password foo
+    variable val
+} -body {
+    set val [file attribute $cfs -parts]
+    cookfs::Unmount $cfs
+    assertEq $val [dict create \
+        headsize 0 \
+        datasize [file size $cfs] \
+        tailsize 0]
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.2.2.2 "Test attribute -parts, get, empty VFS, key encryption" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptlevel 0 -encryptkey
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs -password foo
+    variable val
+} -body {
+    set val [file attribute $cfs -parts]
+    cookfs::Unmount $cfs
+    assertEq $val [dict create \
+        headsize 0 \
+        datasize [file size $cfs] \
+        tailsize 0]
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.3.1.1 "Test attribute -parts, get, head+tail, RW mode" -constraints { enabledCVfs } -setup {
+    set head {HEADAA}
+    set tail [string repeat X 34]
+    set cfs [makeBinFile $head pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    set filesize [file size $cfs]
+    cookfs::Mount $cfs $cfs
+    variable val
+} -body {
+    set val [file attribute $cfs -parts]
+    cookfs::Unmount $cfs
+    assertEq $val [dict create \
+        headsize [string length $head] \
+        datasize [expr { $filesize - [string length $head] - [string length $tail] }] \
+        tailsize [string length $tail]]
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.3.1.2 "Test attribute -parts, get, head+tail, RO mode" -constraints { enabledCVfs } -setup {
+    set head {HEADAA}
+    set tail [string repeat X 34]
+    set cfs [makeBinFile $head pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    makeBinFile {DATAFILE} "test" $cfs
+    cookfs::Unmount $cfs
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    cookfs::Mount $cfs $cfs -readonly
+    variable val
+} -body {
+    set val [file attribute $cfs -parts]
+    cookfs::Unmount $cfs
+    assertEq $val [dict create \
+        headsize [string length $head] \
+        datasize [expr { [file size $cfs] - [string length $head] - [string length $tail] }] \
+        tailsize [string length $tail]]
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.3.2.1 "Test attribute -parts, get, head+tail, file encryption" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set head {HEADAA}
+    set tail [string repeat X 34]
+    set cfs [makeBinFile $head pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptlevel 0
+    makeBinFile {DATAFILE} "test" $cfs
+    cookfs::Unmount $cfs
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    set filesize [file size $cfs]
+    cookfs::Mount $cfs $cfs -password foo
+    variable val
+} -body {
+    set val [file attribute $cfs -parts]
+    cookfs::Unmount $cfs
+    assertEq $val [dict create \
+        headsize [string length $head] \
+        datasize [expr { $filesize - [string length $head] - [string length $tail] }] \
+        tailsize [string length $tail]]
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.3.2.2 "Test attribute -parts, get, head+tail, key encryption" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set head {HEADAA}
+    set tail [string repeat X 34]
+    set cfs [makeBinFile $head pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptlevel 0 -encryptkey
+    makeBinFile {DATAFILE} "test" $cfs
+    cookfs::Unmount $cfs
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    set filesize [file size $cfs]
+    cookfs::Mount $cfs $cfs -password foo
+    variable val
+} -body {
+    set val [file attribute $cfs -parts]
+    cookfs::Unmount $cfs
+    assertEq $val [dict create \
+        headsize [string length $head] \
+        datasize [expr { $filesize - [string length $head] - [string length $tail] }] \
+        tailsize [string length $tail]]
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.4.1.1 "Test attribute -parts, set, writetomemory VFS" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -writetomemory
+} -body {
+    file attribute $cfs -parts head
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {unable to get archive parts from a writetomemory VFS}
+
+test cookfsVfs-40.4.1.2 "Test attribute -parts, set, not on disk" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+} -body {
+    file attribute $cfs -parts head
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {the archive has not yet been saved to disk}
+
+test cookfsVfs-40.4.1.4 "Test attribute -parts, set, empty argument" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+} -body {
+    file attribute $cfs -parts ""
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {a list of 1 or 2 elements is expected as an argument to the -parts attribute}
+
+test cookfsVfs-40.4.1.5 "Test attribute -parts, set, too many list elements" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+} -body {
+    file attribute $cfs -parts {1 2 3}
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {a list of 1 or 2 elements is expected as an argument to the -parts attribute}
+
+test cookfsVfs-40.4.1.6 "Test attribute -parts, set, wrong argument" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs $cfs
+} -body {
+    file attribute $cfs -parts "foo"
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {bad archive part type "foo": must be head, data, or tail}
+
+test cookfsVfs-40.5.1.1 "Test attribute -parts, set, empty VFS, RW mode" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    set data [viewBinFile $cfs]
+    cookfs::Mount $cfs $cfs
+} -body {
+    assertEq [file attribute $cfs -parts head] ""
+    assertEq [file attribute $cfs -parts data] $data
+    assertEq [file attribute $cfs -parts tail] ""
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.5.1.2 "Test attribute -parts, set, empty VFS, RO mode" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    set data [viewBinFile $cfs]
+    cookfs::Mount $cfs $cfs -readonly
+} -body {
+    assertEq [file attribute $cfs -parts head] ""
+    assertEq [file attribute $cfs -parts data] $data
+    assertEq [file attribute $cfs -parts tail] ""
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.5.2.1 "Test attribute -parts, set, empty VFS, file encryption" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptlevel 0
+    cookfs::Unmount $cfs
+    set data [viewBinFile $cfs]
+    cookfs::Mount $cfs $cfs -password foo
+} -body {
+    assertEq [file attribute $cfs -parts head] ""
+    assertEq [file attribute $cfs -parts data] $data
+    assertEq [file attribute $cfs -parts tail] ""
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.5.2.2 "Test attribute -parts, set, empty VFS, key encryption" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptkey -encryptlevel 0
+    cookfs::Unmount $cfs
+    set data [viewBinFile $cfs]
+    cookfs::Mount $cfs $cfs -password foo
+} -body {
+    assertEq [file attribute $cfs -parts head] ""
+    assertEq [file attribute $cfs -parts data] $data
+    assertEq [file attribute $cfs -parts tail] ""
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.6.1.1 "Test attribute -parts, set, head+tail, RW mode" -constraints { enabledCVfs } -setup {
+    set head {HEADAA}
+    set tail [string repeat X 34]
+    set cfs [makeBinFile $head pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    makeBinFile {DATAFILE} "test" $cfs
+    cookfs::Unmount $cfs
+    set data [string range [viewBinFile $cfs] [string length $head] end]
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    cookfs::Mount $cfs $cfs
+} -body {
+    assertEq [file attribute $cfs -parts head] $head
+    assertEq [file attribute $cfs -parts data] $data
+    assertEq [file attribute $cfs -parts tail] $tail
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.6.1.2 "Test attribute -parts, set, head+tail, RO mode" -constraints { enabledCVfs } -setup {
+    set head {HEADAA}
+    set tail [string repeat X 34]
+    set cfs [makeBinFile $head pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    makeBinFile {DATAFILE} "test" $cfs
+    cookfs::Unmount $cfs
+    set data [string range [viewBinFile $cfs] [string length $head] end]
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    cookfs::Mount $cfs $cfs -readonly
+} -body {
+    assertEq [file attribute $cfs -parts head] $head
+    assertEq [file attribute $cfs -parts data] $data
+    assertEq [file attribute $cfs -parts tail] $tail
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.6.2.1 "Test attribute -parts, set, head+tail, file encryption" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set head {HEADAA}
+    set tail [string repeat X 34]
+    set cfs [makeBinFile $head pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptlevel 0
+    makeBinFile {DATAFILE} "test" $cfs
+    cookfs::Unmount $cfs
+    set data [string range [viewBinFile $cfs] [string length $head] end]
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    cookfs::Mount $cfs $cfs -password foo
+} -body {
+    assertEq [file attribute $cfs -parts head] $head
+    assertEq [file attribute $cfs -parts data] $data
+    assertEq [file attribute $cfs -parts tail] $tail
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.6.2.2 "Test attribute -parts, set, head+tail, key encryption" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set head {HEADAA}
+    set tail [string repeat X 34]
+    set cfs [makeBinFile $head pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptlevel 0 -encryptkey
+    makeBinFile {DATAFILE} "test" $cfs
+    cookfs::Unmount $cfs
+    set data [string range [viewBinFile $cfs] [string length $head] end]
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    cookfs::Mount $cfs $cfs -password foo
+} -body {
+    assertEq [file attribute $cfs -parts head] $head
+    assertEq [file attribute $cfs -parts data] $data
+    assertEq [file attribute $cfs -parts tail] $tail
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.7.1.1 "Test attribute -parts, set to chan, empty VFS, RW mode" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    set data [viewBinFile $cfs]
+    cookfs::Mount $cfs $cfs
+    variable fd
+} -body {
+    assertEq [file attribute $cfs -parts [list head [set fd [open [makeBinFile {} head] "wb"]]]] 0
+    close $fd
+    assertEq [file attribute $cfs -parts [list data [set fd [open [makeBinFile {} data] "wb"]]]] [string length $data]
+    close $fd
+    assertEq [file attribute $cfs -parts [list tail [set fd [open [makeBinFile {} tail] "wb"]]]] 0
+    close $fd
+    assertEq [viewBinFile head] ""
+    assertEq [viewBinFile data] $data
+    assertEq [viewBinFile tail] ""
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.7.1.2 "Test attribute -parts, set to chan, empty VFS, RO mode" -constraints { enabledCVfs } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    cookfs::Unmount $cfs
+    set data [viewBinFile $cfs]
+    cookfs::Mount $cfs $cfs -readonly
+    variable fd
+} -body {
+    assertEq [file attribute $cfs -parts [list head [set fd [open [makeBinFile {} head] "wb"]]]] 0
+    close $fd
+    assertEq [file attribute $cfs -parts [list data [set fd [open [makeBinFile {} data] "wb"]]]] [string length $data]
+    close $fd
+    assertEq [file attribute $cfs -parts [list tail [set fd [open [makeBinFile {} tail] "wb"]]]] 0
+    close $fd
+    assertEq [viewBinFile head] ""
+    assertEq [viewBinFile data] $data
+    assertEq [viewBinFile tail] ""
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.7.2.1 "Test attribute -parts, set to chan, empty VFS, file encryption" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptlevel 0
+    cookfs::Unmount $cfs
+    set data [viewBinFile $cfs]
+    cookfs::Mount $cfs $cfs -password foo
+    variable fd
+} -body {
+    assertEq [file attribute $cfs -parts [list head [set fd [open [makeBinFile {} head] "wb"]]]] 0
+    close $fd
+    assertEq [file attribute $cfs -parts [list data [set fd [open [makeBinFile {} data] "wb"]]]] [string length $data]
+    close $fd
+    assertEq [file attribute $cfs -parts [list tail [set fd [open [makeBinFile {} tail] "wb"]]]] 0
+    close $fd
+    assertEq [viewBinFile head] ""
+    assertEq [viewBinFile data] $data
+    assertEq [viewBinFile tail] ""
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.7.2.2 "Test attribute -parts, set to chan, empty VFS, key encryption" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptkey -encryptlevel 0
+    cookfs::Unmount $cfs
+    set data [viewBinFile $cfs]
+    cookfs::Mount $cfs $cfs -password foo
+    variable fd
+} -body {
+    assertEq [file attribute $cfs -parts [list head [set fd [open [makeBinFile {} head] "wb"]]]] 0
+    close $fd
+    assertEq [file attribute $cfs -parts [list data [set fd [open [makeBinFile {} data] "wb"]]]] [string length $data]
+    close $fd
+    assertEq [file attribute $cfs -parts [list tail [set fd [open [makeBinFile {} tail] "wb"]]]] 0
+    close $fd
+    assertEq [viewBinFile head] ""
+    assertEq [viewBinFile data] $data
+    assertEq [viewBinFile tail] ""
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.8.1.1 "Test attribute -parts, set to chan, head+tail, RW mode" -constraints { enabledCVfs } -setup {
+    set head [string repeat "ABC" 123456]
+    set tail [string repeat X 3456]
+    set cfs [makeBinFile $head pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    makeBinFile [string repeat {DATAFILE} 10000] "test" $cfs
+    cookfs::Unmount $cfs
+    set data [string range [viewBinFile $cfs] [string length $head] end]
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    cookfs::Mount $cfs $cfs
+} -body {
+    assertEq [file attribute $cfs -parts [list head [set fp [open [makeBinFile {} head] "wb"]]]] [string length $head]
+    close $fp
+    assertEq [file attribute $cfs -parts [list data [set fp [open [makeBinFile {} data] "wb"]]]] [string length $data]
+    close $fp
+    assertEq [file attribute $cfs -parts [list tail [set fp [open [makeBinFile {} tail] "wb"]]]] [string length $tail]
+    close $fp
+    assertEq [viewBinFile head] $head
+    assertEq [viewBinFile data] $data
+    assertEq [viewBinFile tail] $tail
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.8.1.2 "Test attribute -parts, set to chan, head+tail, RO mode" -constraints { enabledCVfs } -setup {
+    set head [string repeat "ABC" 123456]
+    set tail [string repeat X 3456]
+    set cfs [makeBinFile $head pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    makeBinFile [string repeat {DATAFILE} 10000] "test" $cfs
+    cookfs::Unmount $cfs
+    set data [string range [viewBinFile $cfs] [string length $head] end]
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    cookfs::Mount $cfs $cfs -readonly
+} -body {
+    assertEq [file attribute $cfs -parts [list head [set fp [open [makeBinFile {} head] "wb"]]]] [string length $head]
+    close $fp
+    assertEq [file attribute $cfs -parts [list data [set fp [open [makeBinFile {} data] "wb"]]]] [string length $data]
+    close $fp
+    assertEq [file attribute $cfs -parts [list tail [set fp [open [makeBinFile {} tail] "wb"]]]] [string length $tail]
+    close $fp
+    assertEq [viewBinFile head] $head
+    assertEq [viewBinFile data] $data
+    assertEq [viewBinFile tail] $tail
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.8.2.1 "Test attribute -parts, set to chan, head+tail, file encryption" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set head [string repeat "ABC" 123456]
+    set tail [string repeat X 3456]
+    set cfs [makeBinFile $head pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptlevel 0
+    makeBinFile [string repeat {DATAFILE} 10000] "test" $cfs
+    cookfs::Unmount $cfs
+    set data [string range [viewBinFile $cfs] [string length $head] end]
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    cookfs::Mount $cfs $cfs -password foo
+} -body {
+    assertEq [file attribute $cfs -parts [list head [set fp [open [makeBinFile {} head] "wb"]]]] [string length $head]
+    close $fp
+    assertEq [file attribute $cfs -parts [list data [set fp [open [makeBinFile {} data] "wb"]]]] [string length $data]
+    close $fp
+    assertEq [file attribute $cfs -parts [list tail [set fp [open [makeBinFile {} tail] "wb"]]]] [string length $tail]
+    close $fp
+    assertEq [viewBinFile head] $head
+    assertEq [viewBinFile data] $data
+    assertEq [viewBinFile tail] $tail
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.8.2.2 "Test attribute -parts, set to chan, head+tail, key encryption" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set head [string repeat "ABC" 123456]
+    set tail [string repeat X 3456]
+    set cfs [makeBinFile $head pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptlevel 0 -encryptkey
+    makeBinFile [string repeat {DATAFILE} 10000] "test" $cfs
+    cookfs::Unmount $cfs
+    set data [string range [viewBinFile $cfs] [string length $head] end]
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    cookfs::Mount $cfs $cfs -password foo
+} -body {
+    assertEq [file attribute $cfs -parts [list head [set fp [open [makeBinFile {} head] "wb"]]]] [string length $head]
+    close $fp
+    assertEq [file attribute $cfs -parts [list data [set fp [open [makeBinFile {} data] "wb"]]]] [string length $data]
+    close $fp
+    assertEq [file attribute $cfs -parts [list tail [set fp [open [makeBinFile {} tail] "wb"]]]] [string length $tail]
+    close $fp
+    assertEq [viewBinFile head] $head
+    assertEq [viewBinFile data] $data
+    assertEq [viewBinFile tail] $tail
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.8.3.1 "Test attribute -parts, set to chan, rebuild archive" -constraints { enabledCVfs } -setup {
+    set head [string repeat "ABC" 123456]
+    set tail [string repeat X 3456]
+    set cfs [makeBinFile $head pages.cfs]
+    set cfs2 [makeBinFile {} pages2.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    makeBinFile [string repeat {DATAFILE} 10000] "test" $cfs
+    cookfs::Unmount $cfs
+    set data [string range [viewBinFile $cfs] [string length $head] end]
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    cookfs::Mount $cfs $cfs -readonly
+} -body {
+    set fp [open $cfs2 ab]
+    file attribute $cfs -parts [list head $fp]
+    file attribute $cfs -parts [list data $fp]
+    file attribute $cfs -parts [list tail $fp]
+    close $fp
+    cookfs::Unmount $cfs
+    assertEq [viewBinFile $cfs] [viewBinFile $cfs2]
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-40.8.3.2 "Test attribute -parts, set to chan, extract only data part" -constraints { enabledCVfs cookfsCrypto } -setup {
+    set head [string repeat "ABC" 123456]
+    set tail [string repeat X 3456]
+    set data [string repeat {DATAFILE} 10000]
+    set cfs [makeBinFile $head pages.cfs]
+    set cfs2 [makeBinFile {} pages2.cfs]
+    cookfs::Mount $cfs $cfs -compression none -password foo -encryptlevel 0 -encryptkey
+    makeBinFile $data "test" $cfs
+    cookfs::Unmount $cfs
+    puts -nonewline [set fp [open $cfs "ab"]] $tail; close $fp
+    cookfs::Mount $cfs $cfs -readonly -password foo
+} -body {
+    set fp [open $cfs2 ab]
+    file attribute $cfs -parts [list data $fp]
+    close $fp
+    cookfs::Unmount $cfs
+    cookfs::Mount $cfs2 $cfs2 -readonly -password foo
+    assertEq [viewBinFile test $cfs2] $data
+} -cleanup {
+    catch { cookfs::Unmount $cfs }
+    cookfs::Unmount $cfs2
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-41.1.1 "Test attribute -mount, get, normal mount" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    set dir [makeDirectory dir $cfs]
+    set file [makeFile {TEST} "testfile" $dir]
+} -body {
+    assertEq [file attributes $file -mount] $cfs
+    assertEq [file attributes $dir -mount] $cfs
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-41.1.2 "Test attribute -mount, get, volume mount" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    set volume "test://"
+    cookfs::Mount $cfs $volume -compression none -volume
+    set dir [makeDirectory dir $volume]
+    set file [makeFile {TEST} "testfile" $dir]
+} -body {
+    assertEq [file attributes $file -mount] $volume
+    assertEq [file attributes $dir -mount] $volume
+} -cleanup {
+    cookfs::Unmount $volume
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-41.2.1 "Test attribute -mount, set" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none
+    set dir [makeDirectory dir $cfs]
+    set file [makeFile {TEST} "testfile" $dir]
+} -body {
+    file attributes $file -mount 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-mount" is read-only}
+
+test cookfsVfs-42.1 "Test attribute -pending, get" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 1024 -smallfilesize 100 -smallfilebuffer 1024
+    # big file, will be stored to pages
+    set file1 [makeBinFile [string repeat {TEST} 500] "testfile1" $cfs]
+    # small file, will be in smallfilebuffer
+    set file2 [makeBinFile {TEST} "testfile2" $cfs]
+} -body {
+    assertEq [file attributes $file1 -pending] 0
+    assertEq [file attributes $file2 -pending] 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-42.2 "Test attribute -pending, set" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 1024 -smallfilesize 100 -smallfilebuffer 1024
+    # big file, will be stored to pages
+    set file1 [makeBinFile [string repeat {TEST} 500] "testfile1" $cfs]
+} -body {
+    file attributes $file1 -pending 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-pending" is read-only}
+
+test cookfsVfs-43.1 "Test attribute -uncompsize, get" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 1024 -smallfilesize 100 -smallfilebuffer 1024
+    # big file, will be stored to pages
+    set data1 [string repeat {TEST} 500]
+    set file1 [makeBinFile $data1 "testfile1" $cfs]
+    # small file, will be in smallfilebuffer
+    set data2 {TEST}
+    set file2 [makeBinFile $data2 "testfile2" $cfs]
+} -body {
+    assertEq [file attributes $file1 -uncompsize] [string length $data1]
+    assertEq [file attributes $file2 -uncompsize] [string length $data2]
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-43.2 "Test attribute -uncompsize, set" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 1024 -smallfilesize 100 -smallfilebuffer 1024
+    # big file, will be stored to pages
+    set file1 [makeBinFile [string repeat {TEST} 500] "testfile1" $cfs]
+} -body {
+    file attributes $file1 -uncompsize 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-uncompsize" is read-only}
+
+test cookfsVfs-44.1.1 "Test attribute -compsize, get, compression none" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 2048 -smallfilesize 1024 -smallfilebuffer 2048
+    # one file for 1 page
+    set file1 [makeBinFile [string repeat X 2048] file1 $cfs]
+    # many files in 1 page
+    set file21 [makeBinFile [string repeat X 512] file21 $cfs]
+    set file22 [makeBinFile [string repeat X 1] file22 $cfs]
+    set file23 [makeBinFile [string repeat X 131] file23 $cfs]
+    # flush pages by changing compression
+    file attribute $cfs -compression none
+    # one big file for many pages, some pages are duplicated
+    set file3 [makeBinFile [string repeat X 7001] file3 $cfs]
+    # one big file for many different pages
+    set file4 [makeBinFile [string repeat {ABC} 1368] file4 $cfs]
+} -body {
+    assertEq [file attributes $file1 -compsize] 2048
+    assertEq [file attributes $file21 -compsize] 512
+    assertEq [file attributes $file22 -compsize] 1
+    assertEq [file attributes $file23 -compsize] 131
+    assertEq [file attributes $file3 -compsize] 7001
+    assertEq [file attributes $file4 -compsize] 4104
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-44.1.2 "Test attribute -compsize, get, compression zlib" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression zlib -pagesize 2048 -smallfilesize 1024 -smallfilebuffer 2048 -alwayscompress
+    # one file for 1 page
+    set file1 [makeBinFile [string repeat X 2048] file1 $cfs]
+    # many files in 1 page
+    set file21 [makeBinFile [string repeat X 512] file21 $cfs]
+    set file22 [makeBinFile [string repeat X 1] file22 $cfs]
+    set file23 [makeBinFile [string repeat X 131] file23 $cfs]
+    # flush pages by changing compression
+    file attribute $cfs -compression zlib
+    # one big file for many pages
+    set file3 [makeBinFile [string repeat {ABC} 1368] file3 $cfs]
+} -body {
+    # file1 should be equal to compressed size of page#0
+    assertLt [file attributes $file1 -compsize] 2048
+    assertEq [file attributes $file1 -compsize] [dict get [file attributes $cfs -pages 0] compsize]
+    # sum of files 21/22/23 should be equal to compressed size (+/- 1) of page#1
+    assertLt [file attributes $file21 -compsize] 512
+    assertLt [file attributes $file23 -compsize] 131
+    assertLe [expr {
+        abs ([dict get [file attributes $cfs -pages 1] compsize]
+            - [file attributes $file21 -compsize]
+            - [file attributes $file22 -compsize]
+            - [file attributes $file23 -compsize])
+    }] 1
+    assertLt [file attributes $file3 -compsize] 7001
+    # file3 should be equal to sum of pages #2 / #3 / #4
+    assertEq [file attributes $file3 -compsize] [expr {
+        [dict get [file attributes $cfs -pages 2] compsize] +
+        [dict get [file attributes $cfs -pages 3] compsize] +
+        [dict get [file attributes $cfs -pages 4] compsize]
+    }]
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-44.2 "Test attribute -compsize, set" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 1024 -smallfilesize 100 -smallfilebuffer 1024
+    # big file, will be stored to pages
+    set file1 [makeBinFile [string repeat {TEST} 500] "testfile1" $cfs]
+} -body {
+    file attributes $file1 -compsize 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-compsize" is read-only}
+
+test cookfsVfs-45.1.1 "Test attribute -blocks, get" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 2048 -smallfilesize 1024 -smallfilebuffer 2048
+    # one file for 1 page
+    set file1 [makeBinFile [string repeat X 2048] file1 $cfs]
+    # many files in 1 page
+    set file21 [makeBinFile [string repeat X 512] file21 $cfs]
+    set file22 [makeBinFile [string repeat X 1] file22 $cfs]
+    set file23 [makeBinFile [string repeat X 131] file23 $cfs]
+    # flush pages by changing compression
+    file attribute $cfs -compression none
+    # one big file for many pages, some pages are duplicated
+    set file3 [makeBinFile [string repeat X 7001] file3 $cfs]
+    # one big file for many different pages
+    set file4 [makeBinFile [string repeat {ABC} 1368] file4 $cfs]
+} -body {
+    assertEq [file attributes $file1 -blocks] {{page 0 offset 0 size 2048}}
+    assertEq [file attributes $file21 -blocks] {{page 1 offset 0 size 512}}
+    assertEq [file attributes $file22 -blocks] {{page 1 offset 512 size 1}}
+    assertEq [file attributes $file23 -blocks] {{page 1 offset 513 size 131}}
+    assertEq [file attributes $file3 -blocks] {{page 0 offset 0 size 2048} {page 0 offset 0 size 2048} {page 0 offset 0 size 2048} {page 2 offset 0 size 857}}
+    assertEq [file attributes $file4 -blocks] {{page 3 offset 0 size 2048} {page 4 offset 0 size 2048} {page 5 offset 0 size 8}}
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-45.2 "Test attribute -blocks, set" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 1024 -smallfilesize 100 -smallfilebuffer 1024
+    # big file, will be stored to pages
+    set file1 [makeBinFile [string repeat {TEST} 500] "testfile1" $cfs]
+} -body {
+    file attributes $file1 -blocks 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-blocks" is read-only}
+
+test cookfsVfs-46.1.1 "Test attribute -compression (file), get" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 2048 -smallfilesize 1024 -smallfilebuffer 2048
+    # file1 compression is 'none'
+    set file1 [makeBinFile [string repeat 1 128] file1 $cfs]
+    file attributes $cfs -compression zlib
+    # file2 compression is 'zlib'
+    set file2 [makeBinFile [string repeat 2 128] file2 $cfs]
+    # file3 compression is 'none'
+    file attributes $cfs -compression none
+    set file3 [makeBinFile [string repeat 3 128] file3 $cfs]
+    # file4 compression is 'zlib:2'
+    file attributes $cfs -compression zlib:2
+    set file4 [makeBinFile [string repeat 4 2048] file4 $cfs]
+    # file5 compression is 'zlib:2', but it is in smallfilebuffer, thus its compression
+    # will be 'none'
+    set file5 [makeBinFile [string repeat 5 128] file5 $cfs]
+} -body {
+    assertEq [file attributes $file1 -compression] {none}
+    assertEq [file attributes $file2 -compression] {zlib}
+    assertEq [file attributes $file3 -compression] {none}
+    assertEq [file attributes $file4 -compression] {zlib:2}
+    assertEq [file attributes $file5 -compression] {none}
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-46.2 "Test attribute -compression (file), set" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 1024 -smallfilesize 100 -smallfilebuffer 1024
+    # big file, will be stored to pages
+    set file1 [makeBinFile [string repeat {TEST} 500] "testfile1" $cfs]
+} -body {
+    file attributes $file1 -compression 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-compression" is read-only}
+
+test cookfsVfs-47.1.1 "Test attribute -relative, get" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 2048 -smallfilesize 1024 -smallfilebuffer 2048
+    # file1 compression is 'none'
+    set file1 [makeBinFile [string repeat 1 128] file1 $cfs]
+    set dir1 [makeDirectory "foo" $cfs]
+    set file2 [makeBinFile {} file2 $dir1]
+    set dir2 [makeDirectory "bar" $dir1]
+    set file3 [makeBinFile {} file3 $dir2]
+} -body {
+    assertEq [file attributes $cfs -relative] ""
+    assertEq [file attributes $file1 -relative] "file1"
+    assertEq [file attributes $file2 -relative] "foo/file2"
+    assertEq [file attributes $file3 -relative] "foo/bar/file3"
+    assertEq [file attributes $dir1 -relative] "foo"
+    assertEq [file attributes $dir2 -relative] "foo/bar"
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -ok
+
+test cookfsVfs-47.2 "Test attribute -relative, set" -constraints enabledCVfs -setup {
+    set cfs [makeBinFile {} pages.cfs]
+    cookfs::Mount $cfs $cfs -compression none -pagesize 1024 -smallfilesize 100 -smallfilebuffer 1024
+    # big file, will be stored to pages
+    set file1 [makeBinFile [string repeat {TEST} 500] "testfile1" $cfs]
+} -body {
+    file attributes $file1 -relative 1
+} -cleanup {
+    cookfs::Unmount $cfs
+    catch { ::cookfs::c::reset_cache }
+} -error {attribute "-relative" is read-only}
 
 cleanupTests
 

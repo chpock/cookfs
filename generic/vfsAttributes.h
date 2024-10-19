@@ -11,12 +11,45 @@ TYPEDEF_ENUM_COUNT(Cookfs_VfsAttributeSetType, COOKFS_VFS_ATTRIBUTE_SET_COUNT,
     COOKFS_VFS_ATTRIBUTE_SET_DIRECTORY
 );
 
+#ifdef TCL_THREADS
+#define COOKFS_CFS_ATTRIBUTE_THREADS \
+    COOKFS_VFS_ATTRIBUTE_SHARED,
+#else
+#define COOKFS_CFS_ATTRIBUTE_THREADS
+#endif /* TCL_THREADS */
+
+#ifdef COOKFS_USECCRYPTO
+#define COOKFS_CFS_ATTRIBUTE_CRYPTO \
+    COOKFS_VFS_ATTRIBUTE_PASSWORD, \
+    COOKFS_VFS_ATTRIBUTE_ENCRYPTKEY, \
+    COOKFS_VFS_ATTRIBUTE_ENCRYPTLEVEL,
+#else
+#define COOKFS_CFS_ATTRIBUTE_CRYPTO
+#endif /* COOKFS_USECCRYPTO */
+
+
 TYPEDEF_ENUM_COUNT(Cookfs_VfsAttribute, COOKFS_VFS_ATTRIBUTE_COUNT,
     COOKFS_VFS_ATTRIBUTE_VFS,
     COOKFS_VFS_ATTRIBUTE_HANDLE,
     COOKFS_VFS_ATTRIBUTE_FILESET,
     COOKFS_VFS_ATTRIBUTE_METADATA,
-    COOKFS_VFS_ATTRIBUTE_PAGES
+    COOKFS_VFS_ATTRIBUTE_PAGES,
+    COOKFS_VFS_ATTRIBUTE_ARCHIVE,
+    COOKFS_VFS_ATTRIBUTE_WRITETOMEMORY,
+    COOKFS_VFS_ATTRIBUTE_READONLY,
+    COOKFS_VFS_ATTRIBUTE_SMALLFILEBUFFERSIZE,
+    COOKFS_VFS_ATTRIBUTE_CACHESIZE,
+    COOKFS_VFS_ATTRIBUTE_VOLUME,
+    COOKFS_VFS_ATTRIBUTE_COMPRESSION,
+    COOKFS_VFS_ATTRIBUTE_MOUNT,
+    COOKFS_VFS_ATTRIBUTE_PENDING,
+    COOKFS_VFS_ATTRIBUTE_UNCOMPSIZE,
+    COOKFS_VFS_ATTRIBUTE_COMPSIZE,
+    COOKFS_VFS_ATTRIBUTE_BLOCKS,
+    COOKFS_VFS_ATTRIBUTE_RELATIVE,
+    COOKFS_CFS_ATTRIBUTE_THREADS
+    COOKFS_CFS_ATTRIBUTE_CRYPTO
+    COOKFS_VFS_ATTRIBUTE_PARTS
 );
 
 Cookfs_VfsAttribute Cookfs_VfsAttributeGetFromSet(
@@ -25,10 +58,12 @@ Cookfs_VfsAttribute Cookfs_VfsAttributeGetFromSet(
 Tcl_Obj *Cookfs_VfsAttributeList(Cookfs_VfsAttributeSetType attr_set);
 
 int Cookfs_VfsAttributeSet(Tcl_Interp *interp, Cookfs_Vfs *vfs,
-    Cookfs_VfsAttribute attr, Tcl_Obj *value);
+    Cookfs_VfsAttribute attr, Cookfs_VfsAttributeSetType entry_type,
+    Cookfs_FsindexEntry *entry, Tcl_Obj *value);
 
 int Cookfs_VfsAttributeGet(Tcl_Interp *interp, Cookfs_Vfs *vfs,
-    Cookfs_VfsAttribute attr, Tcl_Obj **result_ptr);
+    Cookfs_VfsAttribute attr, Cookfs_VfsAttributeSetType entry_type,
+    Cookfs_FsindexEntry *entry, Tcl_Obj **result_ptr);
 
 void CookfsVfsAttributesThreadExit(ClientData clientData);
 

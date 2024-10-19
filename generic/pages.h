@@ -10,6 +10,12 @@
 
 typedef struct _Cookfs_Pages Cookfs_Pages;
 
+typedef enum {
+    COOKFS_PAGES_PART_HEAD,
+    COOKFS_PAGES_PART_DATA,
+    COOKFS_PAGES_PART_TAIL
+} Cookfs_PagesPartsType;
+
 Cookfs_Pages *Cookfs_PagesGetHandle(Tcl_Interp *interp, const char *cmdName);
 
 Cookfs_Pages *Cookfs_PagesInit(Tcl_Interp *interp, Tcl_Obj *fileName,
@@ -33,17 +39,19 @@ int Cookfs_PageAddTclObj(Cookfs_Pages *p, Tcl_Obj *dataObj, Tcl_Obj **err);
 Cookfs_PageObj Cookfs_PageGet(Cookfs_Pages *p, int index, int weight, Tcl_Obj **err);
 Cookfs_PageObj Cookfs_PageCacheGet(Cookfs_Pages *p, int index, int update, int weight);
 void Cookfs_PageCacheSet(Cookfs_Pages *p, int idx, Cookfs_PageObj obj, int weight);
-Tcl_Obj *Cookfs_PageGetHead(Cookfs_Pages *p);
+#define Cookfs_PageGetHead(p) Cookfs_PagesGetPartObj((p), COOKFS_PAGES_PART_HEAD)
 Tcl_Obj *Cookfs_PageGetHeadMD5(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetTail(Cookfs_Pages *p);
 Tcl_Obj *Cookfs_PageGetTailMD5(Cookfs_Pages *p);
 void Cookfs_PagesSetCacheSize(Cookfs_Pages *p, int size);
+int Cookfs_PagesGetCacheSize(Cookfs_Pages *p);
 /* Not used as for now
 int Cookfs_PagesGetAlwaysCompress(Cookfs_Pages *p);
 */
 void Cookfs_PagesSetAlwaysCompress(Cookfs_Pages *p, int alwaysCompress);
 Cookfs_CompressionType Cookfs_PagesGetCompression(Cookfs_Pages *p,
     int *fileCompressionLevel);
+Tcl_Obj *Cookfs_PagesGetCompressionObj(Cookfs_Pages *p);
 void Cookfs_PagesSetCompression(Cookfs_Pages *p,
     Cookfs_CompressionType fileCompression, int fileCompressionLevel);
 
@@ -74,9 +82,21 @@ int Cookfs_PagesSetHashByObj(Cookfs_Pages *p, Tcl_Obj *pagehash,
     Tcl_Interp *interp);
 
 int Cookfs_PagesGetPageSize(Cookfs_Pages *p, int index);
+int Cookfs_PagesGetPageSizeCompressed(Cookfs_Pages *p, int index);
+Tcl_Obj *Cookfs_PagesGetPageCompressionObj(Cookfs_Pages *p, int index);
 
 void Cookfs_PagesCalculateHash(Cookfs_Pages *p, unsigned char *bytes,
     Tcl_Size size, unsigned char *output);
+
+int Cookfs_PagesPartsExist(Cookfs_Pages *p);
+Tcl_WideInt Cookfs_PagesGetPartOffset(Cookfs_Pages *p,
+    Cookfs_PagesPartsType part);
+Tcl_WideInt Cookfs_PagesGetPartSize(Cookfs_Pages *p,
+    Cookfs_PagesPartsType part);
+Tcl_Obj *Cookfs_PagesGetPartObj(Cookfs_Pages *p,
+    Cookfs_PagesPartsType part);
+Tcl_WideInt Cookfs_PagesPutPartToChannel(Cookfs_Pages *p,
+    Cookfs_PagesPartsType part, Tcl_Channel chan);
 
 int Cookfs_PageAddStamp(Cookfs_Pages *p, Tcl_WideInt size);
 
@@ -84,8 +104,12 @@ Tcl_Obj *Cookfs_PagesGetInfo(Cookfs_Pages *p, int num);
 Tcl_Obj *Cookfs_PagesGetInfoSpecial(Cookfs_Pages *p,
     Cookfs_PgIndexSpecialPageType type);
 
+Tcl_Obj *Cookfs_PagesGetFilenameObj(Cookfs_Pages *p);
+
 #ifdef COOKFS_USECCRYPTO
 int Cookfs_PagesIsEncryptionActive(Cookfs_Pages *p);
+int Cookfs_PagesIsEncryptkey(Cookfs_Pages *p);
+int Cookfs_PagesGetEncryptlevel(Cookfs_Pages *p);
 #endif /* COOKFS_USECCRYPTO */
 
 int Cookfs_PagesUnlock(Cookfs_Pages *p);
