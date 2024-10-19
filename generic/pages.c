@@ -1441,7 +1441,7 @@ void Cookfs_PagesFini(Cookfs_Pages *p) {
         CookfsLog(printf("No tcl command"));
     }
 
-    ckfree(p->fileName);
+    ckfree((char *)p->fileName);
 
     // Unlock pages now. It is possible that some threads are waiting for
     // read/write events. Let them go on and fail because of a dead object.

@@ -653,6 +653,7 @@ static int Cookfs_AttrSet_Parts(Tcl_Interp *interp, Cookfs_Vfs *vfs,
     }
 
     static const struct {
+        // cppcheck-suppress unusedStructMember
         const char *name;
         Cookfs_PagesPartsType part;
     } parts[] = {
@@ -1031,6 +1032,7 @@ done:
 
 }
 
+// cppcheck-suppress constParameterCallback
 static int Cookfs_AttrGet_Mount(Tcl_Interp *interp, Cookfs_Vfs *vfs,
     Cookfs_VfsAttributeSetType entry_type, Cookfs_FsindexEntry *entry,
     Tcl_Obj **result_ptr)
@@ -1100,8 +1102,9 @@ static int Cookfs_AttrGet_Compsize(Tcl_Interp *interp, Cookfs_Vfs *vfs,
     Tcl_WideInt compsize = 0;
 
     int block_count = Cookfs_FsindexEntryGetBlockCount(entry);
-    int page_num, entry_page_size, page_size_comp, page_size_uncomp;
     for (int block = 0; block < block_count; block++) {
+
+        int page_num, entry_page_size, page_size_comp, page_size_uncomp;
 
         Cookfs_FsindexEntryGetBlock(entry, block, &page_num, NULL,
             &entry_page_size);
