@@ -660,7 +660,7 @@ static int Cookfs_AttrSet_Parts(Tcl_Interp *interp, Cookfs_Vfs *vfs,
         { "head", COOKFS_PAGES_PART_HEAD },
         { "data", COOKFS_PAGES_PART_DATA },
         { "tail", COOKFS_PAGES_PART_TAIL },
-        { NULL }
+        { NULL,   0 }
     };
 
     int idx;

@@ -1363,7 +1363,7 @@ test cookfsVfs-19.6.2 "Check unmount in child interp after interp died" -setup {
 
 # This test is related to cookfsVfs-20.1.2. If something needs to be changed here,
 # the appropriate changes should be added to cookfsVfs-20.1.2.
-test cookfsVfs-20.1.1 "Don't crash when stamp is not present" -setup {
+test cookfsVfs-20.1.1 "Don't crash when stamp is not present" -constraints enabledCVfs -setup {
     # base compression + base compression level + encryption
     set data [binary format ccc 0 0 0]
     # pgindex
