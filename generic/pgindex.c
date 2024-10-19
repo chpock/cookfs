@@ -73,7 +73,8 @@ void CookfsPgIndexThreadExit(ClientData clientData) {
 Tcl_Obj *Cookfs_PgIndexGetInfo(Cookfs_PgIndex *pgi, int num) {
 
     Cookfs_PgIndexEntry *pge;
-    int specialIndex;
+    // initialize specialIndex to avoid compiler warning
+    int specialIndex = 0;
 
     const char *specialIndexName[COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_COUNT] = {
         [COOKFS_PGINDEX_SPECIAL_PAGE_TYPE_PGINDEX] = "pgindex",
