@@ -1,4 +1,55 @@
 ===============================================================================
+Release version 1.9.0
+
+Notable changes:
+
+1. Improved deduplication. When adding a new file that is exactly the same
+as an already added file, the new file will not take up space in the archive,
+but will use the bytes of the previous file.
+
+2. Added a fileset feature. File sets are the ability to have different sets
+of files in the same archive and to switch between them. File sets can have
+either arbitrary names or automatic names that correspond to the current
+platform and/or current version of Tcl. In the latter case, when the archive
+is mounted, the file set that corresponds to the current platform
+and/or version of Tcl will be selected.
+
+This makes it possible to create archives that, for example, when mounted
+on Windows platform with the Tcl8.6 interpreter, will have one set of files,
+and when mounted on Linux platform with the Tcl9.0 interpreter, will have
+a different set.
+
+This feature will be used in the future to provide universal and
+cross-platform packages (archives) that will contain files (including
+loadable modules) suitable for multiple platforms and/or versions of Tcl.
+
+3. Added the ability to link the package directly to zlib (without zlib
+functions in the Tcl C API), and to link the package to the mbedTLS library
+for cryptographic functions. This will allow zlib and mbedTLS to be used
+directly if cookfs is not used as a separate package, but as part of
+an application that is already linked to these libraries.
+
+In the case of zlib, this allows for faster and more memory-efficient
+zlib compression, because with the Tcl C API it is necessary to convert
+compressed/uncompressed memory areas into a Tcl object. In the case of mbedTLS,
+this allows to use the same code for SHA256 and AES encryption cryptographic
+functions, rather than duplicating it with yet another implementation.
+
+4. Added support for attributes for VFS root, files and directories.
+Using attributes, it is possible to manage the file system, or to get
+information and explore it. For example, using attributes, it is possible
+to change the current compression method, set a password, enable
+write-to-memory mode, get information about compression of existing
+files (compression method, size before and after compression), and much more.
+
+5. The values for the pagesize/smallfilesize/smallfilebuffer mount parameters
+are now retained and the previous values will be used for subsequent mounts.
+
+6. Added ::cookfs::sha256 command to get SHA256 hash for certain data.
+This command is only available if the package is built with cryptographic
+features enabled (they are enabled by default).
+
+===============================================================================
 Release version 1.8.0
 
 Notable changes:

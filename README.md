@@ -12,7 +12,7 @@ It is designed only for use as Tcl VFS and provides multiple optimizations espec
 
 ## Compatibility
 
-This package requires Tcl 8.5 or later, however it has only been tested with Tcl 8.6.14 and Tcl 9.0b2
+This package requires Tcl 8.5 or later, however it has only been tested with Tcl 8.6.14, 8.6.15 and Tcl 9.0.0.
 
 Tcl variant of Cookfs also requires the [tclvfs](https://core.tcl-lang.org/tclvfs/index) package.
 
@@ -41,7 +41,7 @@ There are packages for the following platforms:
 
 - **Windows x86** and **x86\_64**: Windows XP or higher is required. However, they are only tested on Windows 10.
 - **Linux x86** and **x86\_64**: built and tested on Cenos6.10. Require glibc v2.12 or higher.
-- **MacOS x86** and **x86\_64**: built and tested on MacOS 10.12. However, these packages should be compatible with MacOS as of version 10.6.
+- **MacOS x86** and **x86\_64**: built and tested on MacOS 10.13. However, these packages should be compatible with MacOS as of version 10.10.
 
 ## Copyrights
 
