@@ -424,19 +424,22 @@ test cookfsVfsThread-7.1 "VFS terminated while other thread reads a big file" -c
 } -body {
     thread::send -async $tid {
         set fp [open $rfile rb]
+        set count 0
         tsv::set thread_ready 1 1
         catch {
-            for { set i 0 } { $i < 10000 } { incr i } {
+            while { ![tsv::exists thread_ready 2] || [incr count_ready] < 10 } {
                 set data [read $fp]
                 seek $fp 0
+                incr count
             }
-            set ok notok
+            set ok "notok: $count cycles"
         } result
     } thread_done
     # wait until thread opens the file
     while { ![tsv::exists thread_ready 1] } { after 10 }
     # Unmount cookfs
     cookfs::Unmount $file
+    tsv::set thread_ready 2 1
     # wait 1 threads
     vwait thread_done
     # let's retrieve the results
@@ -465,20 +468,22 @@ test cookfsVfsThread-7.2 "VFS terminated while other thread writes a big file" -
 } -body {
     thread::send -async $tid {
         set fp [open $rfile wb]
+        set count 0
         tsv::set thread_ready 1 1
         catch {
-            for { set i 0 } { $i < 10000 } { incr i } {
+            while { ![tsv::exists thread_ready 2] || [incr count_ready] < 10 } {
                 puts -nonewline $fp $rdata
                 close $fp
                 set fp [open $rfile wb]
             }
-            set ok notok
+            set ok "notok: $count cycles"
         } result
     } thread_done
     # wait until thread opens the file
     while { ![tsv::exists thread_ready 1] } { after 10 }
     # Unmount cookfs
     cookfs::Unmount $file
+    tsv::set thread_ready 2 1
     # wait 1 threads
     vwait thread_done
     # let's retrieve the results
@@ -512,7 +517,7 @@ test cookfsVfsThread-7.3 "VFS terminated while other thread opens a file for rea
         # count hoy many times the file was successfully opened.
         set count 0
         catch {
-            for { set i 0 } { $i < 10000 } { incr i } {
+            while { ![tsv::exists thread_ready 2] || [incr count_ready] < 10 } {
                 set fp [open $rfile rb]
                 if { !$count } {
                     tsv::set thread_ready 1 1
@@ -520,7 +525,7 @@ test cookfsVfsThread-7.3 "VFS terminated while other thread opens a file for rea
                 incr count
                 close $fp
             }
-            set ok notok
+            set ok "notok: $count cycles"
         } result
         # Add a 0 or 1 flag to the result whether the file has been opened
         # at least once.
@@ -530,6 +535,7 @@ test cookfsVfsThread-7.3 "VFS terminated while other thread opens a file for rea
     while { ![tsv::exists thread_ready 1] } { after 10 }
     # Unmount cookfs
     cookfs::Unmount $file
+    tsv::set thread_ready 2 1
     # wait 1 threads
     vwait thread_done
     # let's retrieve the results
@@ -567,7 +573,7 @@ test cookfsVfsThread-7.4 "VFS terminated while other thread opens a file for rea
         # count hoy many times the file was successfully opened.
         set count 0
         catch {
-            for { set i 0 } { $i < 10000 } { incr i } {
+            while { ![tsv::exists thread_ready 2] || [incr count_ready] < 10 } {
                 set fp [open $rfile rb]
                 if { !$count } {
                     tsv::set thread_ready 1 1
@@ -575,7 +581,7 @@ test cookfsVfsThread-7.4 "VFS terminated while other thread opens a file for rea
                 incr count
                 close $fp
             }
-            set ok notok
+            set ok "notok: $count cycles"
         } result
         # Add a 0 or 1 flag to the result whether the file has been opened
         # at least once.
@@ -585,6 +591,7 @@ test cookfsVfsThread-7.4 "VFS terminated while other thread opens a file for rea
     while { ![tsv::exists thread_ready 1] } { after 10 }
     # Unmount cookfs
     cookfs::Unmount $file
+    tsv::set thread_ready 2 1
     # wait 1 threads
     vwait thread_done
     # let's retrieve the results
@@ -620,15 +627,15 @@ test cookfsVfsThread-7.5 "VFS terminated while other thread opens a file for wri
         # count hoy many times the file was successfully opened.
         set count 0
         catch {
-            for { set i 0 } { $i < 10000 } { incr i } {
-                set fp [open "$rfile.$i" wb]
+            while { ![tsv::exists thread_ready 2] || [incr count_ready] < 10 } {
+                set fp [open "$rfile.$count" wb]
                 if { !$count } {
                     tsv::set thread_ready 1 1
                 }
                 incr count
                 close $fp
             }
-            set ok notok
+            set ok "notok: $count cycles"
         } result
         # Add a 0 or 1 flag to the result whether the file has been opened
         # at least once.
@@ -638,6 +645,7 @@ test cookfsVfsThread-7.5 "VFS terminated while other thread opens a file for wri
     while { ![tsv::exists thread_ready 1] } { after 10 }
     # Unmount cookfs
     cookfs::Unmount $file
+    tsv::set thread_ready 2 1
     # wait 1 threads
     vwait thread_done
     # let's retrieve the results
@@ -674,18 +682,15 @@ test cookfsVfsThread-7.6 "VFS terminated while other thread accesses file stats"
         # the file multiple times before the VFS is unmounted. So, here we also
         # count how many times stat was read successfully
         set count 0
-        set start [clock seconds]
         catch {
-            while { [expr { [clock seconds] - $start }] < 3 } {
-                for { set i 0 } { $i < 10000000 } { incr i } {
-                    file stat $rfile x
-                    if { !$count } {
-                        tsv::set thread_ready 1 1
-                    }
-                    incr count
+            while { ![tsv::exists thread_ready 2] || [incr count_ready] < 10 } {
+                file stat $rfile x
+                if { !$count } {
+                    tsv::set thread_ready 1 1
                 }
+                incr count
             }
-            set ok notok
+            set ok "notok: $count cycles"
         } result
         # Add a 0 or 1 flag to the result whether file stat was read
         # at least once.
@@ -695,6 +700,7 @@ test cookfsVfsThread-7.6 "VFS terminated while other thread accesses file stats"
     while { ![tsv::exists thread_ready 1] } { after 10 }
     # Unmount cookfs
     cookfs::Unmount $file
+    tsv::set thread_ready 2 1
     # wait 1 threads
     vwait thread_done
     # let's retrieve the results
@@ -734,25 +740,22 @@ test cookfsVfsThread-7.8 "VFS terminated while other thread gets directory listi
         # directory multiple times before the VFS is unmounted. So, here we also
         # count how many times the directory was checked successfully
         set count 0
-        set start [clock seconds]
         catch {
-            while { [expr { [clock seconds] - $start }] < 3 } {
-                for { set i 0 } { $i < 10000000 } { incr i } {
-                    # We can not use just "glob -directory $dir *" here and expect
-                    # that this command will fail when $dir is not a directory.
-                    # Tcl9 doesn't throw an error and returns empty list for this
-                    # case. So, in order to be compatible with Tcl9, we need to
-                    # check whether glob's result is an empty list.
-                    if { ![llength [glob -nocomplain -directory $dir *]] } {
-                        error "empty glob"
-                    }
-                    if { !$count } {
-                        tsv::set thread_ready 1 1
-                    }
-                    incr count
+            while { ![tsv::exists thread_ready 2] || [incr count_ready] < 10 } {
+                # We can not use just "glob -directory $dir *" here and expect
+                # that this command will fail when $dir is not a directory.
+                # Tcl9 doesn't throw an error and returns empty list for this
+                # case. So, in order to be compatible with Tcl9, we need to
+                # check whether glob's result is an empty list.
+                if { ![llength [glob -nocomplain -directory $dir *]] } {
+                    error "empty glob"
                 }
+                if { !$count } {
+                    tsv::set thread_ready 1 1
+                }
+                incr count
             }
-            set ok notok
+            set ok "notok: $count cycles"
         } result
         # Add a 0 or 1 flag to the result whether the directory was successfully
         # checked at least once.
@@ -762,6 +765,7 @@ test cookfsVfsThread-7.8 "VFS terminated while other thread gets directory listi
     while { ![tsv::exists thread_ready 1] } { after 10 }
     # Unmount cookfs
     cookfs::Unmount $file
+    tsv::set thread_ready 2 1
     # wait 1 threads
     vwait thread_done
     # let's retrieve the results

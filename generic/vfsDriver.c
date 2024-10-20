@@ -103,7 +103,7 @@ const Tcl_Filesystem *CookfsFilesystem(void) {
 static int CookfsPathInFilesystem(Tcl_Obj *pathPtr,
     ClientData *clientDataPtr)
 {
-    // CookfsLog(printf("start; looking for [%s]", Tcl_GetString(pathPtr)));
+    CookfsLog(printf("start; looking for [%s]", Tcl_GetString(pathPtr)));
 
     Tcl_Obj *normPathObj = Tcl_FSGetNormalizedPath(NULL, pathPtr);
     if (normPathObj == NULL) {
