@@ -414,4 +414,137 @@ test cookfsVfsEncrypt-6.2 "Test key encryption, without password and with wrong 
     cookfs::Unmount $file
 } -ok
 
+test cookfsVfsEncrypt-7.1 "Test encryption with aside vfs, vfs unencrypted, aside encrypted" -constraints {cookfsCrypto cookfsAside} -setup {
+    set file [makeFile {} pages.cfs]
+    set file_aside [makeFile {} aside.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0]
+    variable data
+} -body {
+    # this file should be unencrypted
+    makeFile {TEST00TEST} test0 $file
+
+    # mount aside vfs
+    $fsid aside $file_aside
+    # this file should be unencrypted
+    makeFile {TEST00ASIDE} aside0 $file
+    # set password
+    $fsid password "foo"
+    # this file should be encrypted
+    makeFile {TEST01ASIDE} aside1 $file
+
+    # unmount aside vfs
+    $fsid aside ""
+
+    # this file should be not encrypted
+    makeFile {TEST01TEST} test1 $file
+
+    # unmount vfs
+    cookfs::Unmount $file
+
+    # check how files were stored to archive
+    set data [viewBinFile $file]
+    assertContain $data "TEST00TEST" "test0 contains encrypted data"
+    assertContain $data "TEST01TEST" "test1 contains encrypted data"
+
+    # check how aside pages were stored to archive
+    set data [viewBinFile $file_aside]
+    assertContain    $data "TEST00ASIDE" "aside0 contains encrypted data"
+    assertNotContain $data "TEST01ASIDE" "aside1 contains unencrypted data"
+
+    # Try to read files
+    set fsid [cookfs::Mount $file $file -readonly]
+    assertEq [viewFile test0 $file] "TEST00TEST" "file0 contains incorrect data"
+    assertEq [viewFile test1 $file] "TEST01TEST" "file1 contains incorrect data"
+
+    # Try to read aside files
+    $fsid aside $file_aside
+    assertEq [viewFile aside0 $file] "TEST00ASIDE" "aside0 contains incorrect data"
+    # Check error as we didn't set password for this aside vfs
+    assertErrMsgMatch { viewFile aside1 $file } {couldn't open "*": no password specified for decrypting}
+    # Set password and ensure we can read the file
+    $fsid password "foo"
+    assertEq [viewFile aside1 $file] "TEST01ASIDE" "aside1 contains incorrect data"
+} -cleanup {
+    cookfs::Unmount $file
+} -ok
+
+test cookfsVfsEncrypt-7.2 "Test encryption with aside vfs, vfs encrypted, aside unencrypted/encrypted with another password" -constraints {cookfsCrypto cookfsAside} -setup {
+    set file [makeFile {} pages.cfs]
+    set file_aside [makeFile {} aside.cfs]
+    set fsid [cookfs::Mount $file $file -compression none -encryptlevel 0]
+    variable data
+} -body {
+    # set password
+    $fsid password "foo"
+    # this file should be encrypted
+    makeFile {TEST00TEST} test0 $file
+
+    # mount aside vfs and reset password
+    $fsid aside $file_aside
+    $fsid password ""
+    # this file should be not encrypted
+    makeFile {TEST00ASIDE} aside0 $file
+    $fsid password "bar"
+    # this page should be encrypted
+    makeFile {TEST01ASIDE} aside1 $file
+
+    # unmount aside vfs
+    $fsid aside ""
+
+    # this file should be encrypted
+    makeFile {TEST01TEST} test1 $file
+
+    # unmount vfs
+    cookfs::Unmount $file
+
+    # check how pages were stored to archive
+    set data [viewBinFile $file]
+    assertNotContain $data "TEST00TEST" "test0 contains unencrypted data"
+    assertNotContain $data "TEST01TEST" "test1 contains unencrypted data"
+
+    # check how aside pages were stored to archive
+    set data [viewBinFile $file_aside]
+    assertContain    $data "TEST00ASIDE" "aside0 contains encrypted data"
+    assertNotContain $data "TEST01ASIDE" "aside1 contains unencrypted data"
+
+    # Try to access vfs without password
+    set fsid [cookfs::Mount $file $file -readonly]
+    assertErrMsgMatch { viewFile test0 $file } {couldn't open "*": no password specified for decrypting}
+    assertErrMsgMatch { viewFile test1 $file } {couldn't open "*": no password specified for decrypting}
+    # Try to access/read aside vfs without password
+    $fsid aside $file_aside
+    assertEq [viewFile aside0 $file] "TEST00ASIDE" "aside0 contains incorrect data"
+    assertErrMsgMatch { viewFile aside1 $file } {couldn't open "*": no password specified for decrypting}
+
+    # unmount aside vfs and set password
+    $fsid aside ""
+    $fsid password "foo"
+
+    # now we should be able to read files
+    assertEq [viewFile test0 $file] "TEST00TEST" "file0 contains incorrect data"
+    assertEq [viewFile test1 $file] "TEST01TEST" "file1 contains incorrect data"
+
+    # Try to read aside vfs
+    $fsid aside $file_aside
+
+    # aside page#0 is unencrypted and should be available
+    assertEq [viewFile aside0 $file] "TEST00ASIDE" "aside0 contains incorrect data"
+    # however, aside1 is encrypted with other password and should be unavailable
+    assertErrMsgMatch { viewFile aside1 $file } {couldn't open "*": failed to verify read data, the decryption password is incorrect or the archive is corrupted}
+
+    # Let's set correct aside password now
+    $fsid password "bar"
+
+    # We should be able to read all pages now
+    assertEq [viewFile aside0 $file] "TEST00ASIDE" "aside0 contains incorrect data"
+    assertEq [viewFile aside1 $file] "TEST01ASIDE" "aside1 contains incorrect data"
+    assertEq [viewFile test0 $file] "TEST00TEST" "file0 contains incorrect data"
+    # file1 was added when aside vfs was unmounted, thus it is not available while aside vfs is active.
+    # We have to unmount aside vfs to be able to read file1.
+    $fsid aside ""
+    assertEq [viewFile test1 $file] "TEST01TEST" "file1 contains incorrect data"
+} -cleanup {
+    cookfs::Unmount $file
+} -ok
+
 cleanupTests

@@ -991,6 +991,11 @@ int CookfsPagesCmdPasswordImpl(Cookfs_Pages *pages, Tcl_Interp *interp,
     // There is only one possible failure - we have key-based encryption,
     // we read the encrypted key from the archive, we try to decrypt
     // the encrypted key and this decryption fails.
+    //
+    // TODO: it is also possible to get TCL_ERROR here if an error occurred
+    // while write-locking aside pages. In this case, the message will be
+    // incorrect and confusing. This case should be handled somehow in
+    // the future.
     if (interp != NULL) {
         if (rc != TCL_OK) {
             Tcl_SetObjResult(interp, Tcl_NewStringObj("could not decrypt"

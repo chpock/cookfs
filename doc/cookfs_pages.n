@@ -420,6 +420,9 @@ This is meant for internal development and should not be used outside cookfs\&.
 Specifies the password to be used for encryption\&. Empty \fIsecret\fR disables
 encryption for the following added files\&.
 .sp
+If aside changes feature is active for the current pages, this command will only affect
+the corresponding mounted aside archive\&.
+.sp
 See \fBcookfs\fR for more details on encryption in cookfs\&.
 .PP
 .SH "PAGES OPTIONS"

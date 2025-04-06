@@ -124,6 +124,10 @@ Specifies the password to be used for encryption. Empty [arg secret] disables
 encryption for the following added files.
 
 [para]
+If aside changes feature is active for the current pages, this command will only affect
+the corresponding mounted aside archive.
+
+[para]
 See [sectref-external cookfs] for more details on encryption in cookfs.
 
 [list_end]

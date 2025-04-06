@@ -433,6 +433,9 @@ Returns size of all files that are queued up to be written\&.
 Specifies the password to be used for encryption\&. Empty \fIsecret\fR disables
 encryption for the following added files\&.
 .sp
+If aside changes feature is active for the current VFS, this command will only affect
+the corresponding mounted aside archive\&.
+.sp
 See \fBENCRYPTION\fR for more details on encryption in cookfs\&.
 .PP
 .SH "MOUNT OPTIONS"

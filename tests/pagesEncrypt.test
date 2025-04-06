@@ -776,4 +776,136 @@ test cookfsPagesEncrypt-8.1 "Test encryption with async compression" -constraint
     unset -nocomplain testasynccompresscount testasynccompressqueue testasynccompressfinalized
 } -ok
 
+test cookfsPagesEncrypt-9.1 "Test encryption with aside pages, pages unencrypted, aside encrypted" -constraints {enabledTclCmds cookfsCrypto cookfsAside} -setup {
+    set file [makeFile {} pages.cfs]
+    set file_aside [makeFile {} aside.cfs]
+    set pg [cookfs::pages -compression none -encryptlevel 0 $file]
+    variable data
+    variable i0
+    variable i1
+} -body {
+    # this page should be not encrypted
+    $pg add "TEST00TEST"
+
+    # mount aside pages
+    $pg aside $file_aside
+    # this page should be not encrypted
+    set i0 [$pg add "TEST00ASIDE"]
+    # set password
+    $pg password "foo"
+    # this page should be encrypted
+    set i1 [$pg add "TEST01ASIDE"]
+
+    # unmount aside pages
+    $pg aside ""
+    # this page should be not encrypted
+    $pg add "TEST01TEST"
+
+    # close pages
+    $pg delete
+
+    # check how pages were stored to archive
+    set data [viewBinFile $file]
+    assertContain $data "TEST00TEST" "page #0 contains encrypted data"
+    assertContain $data "TEST01TEST" "page #1 contains encrypted data"
+
+    # check how aside pages were stored to archive
+    set data [viewBinFile $file_aside]
+    assertContain    $data "TEST00ASIDE" "aside page #0 contains encrypted data"
+    assertNotContain $data "TEST01ASIDE" "aside page #1 contains unencrypted data"
+
+    # Try to read pages
+    set pg [cookfs::pages -readonly $file]
+    assertEq [$pg get 0] "TEST00TEST" "page #0 contains incorrect data"
+    assertEq [$pg get 1] "TEST01TEST" "page #1 contains incorrect data"
+
+    # Try to read aside pages
+    $pg aside $file_aside
+    assertEq [$pg get $i0] "TEST00ASIDE" "aside page #0 contains incorrect data"
+    # Check error as we didn't set password for this aside page
+    assertErrMsg { $pg get $i1 } {Unable to retrieve chunk: no password specified for decrypting}
+    # Set password and ensure we can read the page
+    $pg password "foo"
+    assertEq [$pg get $i1] "TEST01ASIDE" "aside page #1 contains incorrect data"
+} -cleanup {
+    $pg delete
+} -ok
+
+test cookfsPagesEncrypt-9.2 "Test encryption with aside pages, pages encrypted, aside unencrypted/encrypted with another password" -constraints {enabledTclCmds cookfsCrypto cookfsAside} -setup {
+    set file [makeFile {} pages.cfs]
+    set file_aside [makeFile {} aside.cfs]
+    set pg [cookfs::pages -compression none -encryptlevel 0 $file]
+    variable data
+    variable i0
+    variable i1
+} -body {
+    # set password
+    $pg password "foo"
+    # this page should be encrypted
+    $pg add "TEST00TEST"
+
+    # mount aside pages and reset password
+    $pg aside $file_aside
+    $pg password ""
+    # this page should be not encrypted
+    set i0 [$pg add "TEST00ASIDE"]
+    $pg password "bar"
+    # this page should be encrypted
+    set i1 [$pg add "TEST01ASIDE"]
+
+    # unmount aside pages
+    $pg aside ""
+    # this page should be encrypted
+    $pg add "TEST01TEST"
+
+    # close pages
+    $pg delete
+
+    # check how pages were stored to archive
+    set data [viewBinFile $file]
+    assertNotContain $data "TEST00TEST" "page #0 contains unencrypted data"
+    assertNotContain $data "TEST01TEST" "page #1 contains unencrypted data"
+
+    # check how aside pages were stored to archive
+    set data [viewBinFile $file_aside]
+    assertContain    $data "TEST00ASIDE" "aside page #0 contains encrypted data"
+    assertNotContain $data "TEST01ASIDE" "aside page #1 contains unencrypted data"
+
+    # Try to access pages without password
+    set pg [cookfs::pages -readonly $file]
+    assertErrMsg { $pg get 0 } {Unable to retrieve chunk: no password specified for decrypting}
+    assertErrMsg { $pg get 1 } {Unable to retrieve chunk: no password specified for decrypting}
+    # Try to access/read aside pages without password
+    $pg aside $file_aside
+    assertEq [$pg get $i0] "TEST00ASIDE" "aside page #0 contains incorrect data"
+    assertErrMsg { $pg get $i1 } {Unable to retrieve chunk: no password specified for decrypting}
+
+    # unmount aside pages and set password
+    $pg aside ""
+    $pg password "foo"
+
+    # now we should be able to read pages
+    assertEq [$pg get 0] "TEST00TEST" "page #0 contains incorrect data"
+    assertEq [$pg get 1] "TEST01TEST" "page #1 contains incorrect data"
+
+    # Try to read aside pages
+    $pg aside $file_aside
+
+    # aside page#0 is unencrypted and should be available
+    assertEq [$pg get $i0] "TEST00ASIDE" "aside page #0 contains incorrect data"
+    # however, aside page#1 is encrypted with other password and should be unavailable
+    assertErrMsg { $pg get $i1 } {Unable to retrieve chunk: failed to verify read data, the decryption password is incorrect or the archive is corrupted}
+
+    # Let's set correct aside password now
+    $pg password "bar"
+
+    # We should be able to read all pages now
+    assertEq [$pg get 0] "TEST00TEST" "page #0 contains incorrect data"
+    assertEq [$pg get 1] "TEST01TEST" "page #1 contains incorrect data"
+    assertEq [$pg get $i0] "TEST00ASIDE" "aside page #0 contains incorrect data"
+    assertEq [$pg get $i1] "TEST01ASIDE" "aside page #1 contains incorrect data"
+} -cleanup {
+    $pg delete
+} -ok
+
 cleanupTests
