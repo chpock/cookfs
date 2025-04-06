@@ -563,7 +563,7 @@ int Cookfs_PagesSetPassword(Cookfs_Pages *p, Tcl_Obj *passObj) {
 
     /* if this page has an aside page set up, ask it to change password */
     if (p->dataAsidePages != NULL) {
-        CookfsLog(printf("Sending password command to asidePages"))
+        CookfsLog(printf("Sending password command to asidePages"));
         if (!Cookfs_PagesLockWrite(p->dataAsidePages, NULL)) {
             return TCL_ERROR;
         }
