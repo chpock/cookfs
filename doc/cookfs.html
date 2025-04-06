@@ -243,6 +243,8 @@ The size only includes page sizes and does not include overhead for index and ad
 <dt><a name="14"><i class="arg">cookfsHandle</i> <b class="method">password</b> <i class="arg">secret</i></a></dt>
 <dd><p>Specifies the password to be used for encryption. Empty <i class="arg">secret</i> disables
 encryption for the following added files.</p>
+<p>If aside changes feature is active for the current VFS, this command will only affect
+the corresponding mounted aside archive.</p>
 <p>See <span class="sectref"><a href="#section10">ENCRYPTION</a></span> for more details on encryption in cookfs.</p></dd>
 </dl>
 </div>
